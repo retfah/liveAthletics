@@ -1,0 +1,148 @@
+<html>
+    <head>
+        <title>css animation testing</title>
+        <style>
+            @keyframes testAnim {
+                from {
+                    left: 0%;
+                    border: 5px solid blue;
+                }
+                50% {
+                    left:50%;
+                    border: 5px solid yellow;
+                }
+                to {
+                    left:0%;
+                    border: 5px solid blue;
+
+                } 
+            }
+
+            @keyframes bgMove {
+                from {
+                    background-position-x: 0px;
+                }
+                to {
+                    background-position-x:-40px;
+                }
+            }
+
+            @keyframes ballMove {
+                from {
+                    left: 0px;
+                }
+                50% {
+                    left:350;
+                }
+                to {
+                    left:0px;
+                }
+            }
+
+            div.wsWindow {
+                width:400px;
+                border:khaki 3px solid;
+                position: relative; /* if here it is not relative here, then the absolute of the child references the window...? */
+            }
+            div.wsWindowClose {
+                position:absolute;
+                right:0px;
+                top: 0px;
+                height: 40px;
+                font-size: 18pt;
+                width:40px;
+                border: red 3px solid;
+                text-align: center;
+                line-height: 40px;
+            }
+            div.wsWindowRooms {
+                display: grid;
+                grid-template-columns: auto 40px 40px;
+            }
+            div.wsWindowRoomNameR {
+                grid-column: 1;
+                grid-column-end: span 2;
+            }
+            div.wsWindowRoomNameW {
+                grid-column: 1;
+            }
+            div.wsWindowRoomWriting {
+                grid-column: 2;
+            }
+            div.wsWindowRoomClients {
+                grid-column: 3;
+            }
+            div.wsWindowsClientName {
+                padding: 3px;
+                border: black 2px solid;
+                border-radius: 2px;
+                width:100%;
+                height:40px;
+                /*background-color: greenyellow;*/
+                background-color: lightgreen;
+            }
+            div.clientWindow {
+                position: fixed;
+                width: 400px;
+                display:none; /* none, block, inline*/
+
+            }
+
+            #first_element {
+            position: relative;
+            left: 30px;
+            top: 10px;
+
+            width: 500px;
+            background-color: #fafafa;
+            border: solid 3px #ff7347;
+            font-size: 24px;
+            text-align: center;
+            }
+
+            #second_element {
+            position: relative;
+
+            width: 500px;
+            background-color: #fafafa;
+            border: solid 3px #ff7347;
+            font-size: 24px;
+            text-align: center;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div style="width:400px; height:50%; background-image:repeating-linear-gradient(to right, green 0px 20px, red 20px 40px); animation: bgMove 1s infinite; animation-timing-function: linear">
+            <div style="width:50px; height:50px; border-radius: 25px; border-width: 5px; border-color: aquamarine; background-color: aquamarine; position:relative; animation: ballMove 2s infinite"></div>
+            <!--<div style="width:50%; height:100%; position:relative; animation-name:testAnim; animation-duration: 5s; animation-iteration-count: infinite;">Text that moves</div> --><!-- width must be a multiple of the background linear width in orde to make the animation work correct -->
+        </div>
+
+        <!-- this div is for the rooms list:-->
+        <div class="wsWindow">
+            <div class="wsWindowsClientName">client name: <input type="text" value="hello world" onblur="alert('yes')"> </div> <!-- The background color of this element shall be the -->
+            <div class="wsWindowRooms">
+                <div class="wsWindowRoomNameW">RoomWrite</div><div class="wsWindowRoomWriting">(1/3)</div><div class="wsWindowRoomClients">5</div>
+                <div class="wsWindowRoomNameR">RoomReadyOnly</div><div class="wsWindowRoomClients">A way too long string</div>
+            </div> <!-- Put in here all the rooms-->
+            <div class="wsWindowClose" onclick="test();">X</div>
+        </div>
+
+        <!-- and now the div for the clients list:-->
+        <div class="clientWindow">
+            <!-- only one of the two following, dependent on the requested writing rights: -->
+            <div class="wsWindowRoomNameW">RoomWrite</div><div class="wsWindowRoomWriting">(1/3)</div><div class="wsWindowRoomClients">5</div>
+            <div class="wsWindowRoomNameR">RoomReadyOnly</div><div class="wsWindowRoomClients">A way too long string</div>
+        </div>
+        <div id='givenID'>
+            <div id=content1>
+
+            </div>
+            some text
+        </div>
+        <div id='copyto'>
+            <div id='first_element'>First element</div>
+            <div id='second_element'>Second element</div>
+        </div>
+    </body>
+</html>

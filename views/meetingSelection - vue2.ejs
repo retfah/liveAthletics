@@ -1,0 +1,178 @@
+<!--
+Taken from adminServer.ejs and root.ejs, but now merged together to include the complete html-structure and without the preloading etc stuff.
+
+-->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><%= __("Meeting selection") %></title> 
+        <link rel="shortcut icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="stylesheet" type="text/css" href="/static/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="/static/styling.css">
+        <!--<link rel="icon" type="image/x-icon" href="favicon.ico">-->
+        <script src="/static/roomManager.js" type="text/javascript"></script>
+        <script src="/static/main.js" type="text/javascript"></script> 
+        <script src="/static/wsProcessorBrowser.js" type="text/javascript"></script>
+        <script src="/static/vue.js" type="text/javascript"></script>
+        <script src="/static/ajv.min.js"></script>
+        
+        <script src="/static/roomClient.js" type="text/javascript"></script>
+        <script type="text/javascript">
+
+        function startup(){
+            
+            // start the ws-connection
+            wsHandler = new socketProcessor2();
+
+            // start the event handler --> not needed anymore
+            eH = new eventHandling2();
+
+            eH.eventRegister('wsConnected');
+
+            // start the roomManager
+            rM = new roomManager('aConnection');
+
+            // start the room
+            load();
+        }
+
+        function unloadMe(){
+            // called on before unload: --> properly unconnect the room(s)
+
+            // TODO
+            adminServerUnload();
+        }
+        
+        // new way
+        //var rMeetings;
+        var vueMeetings;
+        
+        
+        // do everything with Vue now in this class
+        class vuMeetingSelection extends roomClientVue{
+        
+            constructor(){
+            
+                // parent constructor: initializes the room
+                //(roomName, writing, storeInfos, path, className, datasetName='')
+                super('meetings', false, true, '/static/rMeetingsClient.js', 'rMeetingsClient', 'meetingSelection')
+            
+
+                // the vueApp        
+                this.vueMeetingSelection = new Vue({
+                    el:'#vueDiv',
+                    data:{meetings:[{xMeeting:1, shortname: 'SN 1', name: 'Meeting 1'}, {xMeeting:2, shortname:'SN 2', name: 'Meeting 2'}], overlayVisible: false, overlayTitle: '', overlayContent:''},
+                    methods:{
+                    },
+                    computed:{
+                        basePath: ()=>{
+                            // derive the base path from the current path
+                            // origin = 'https://www.xy.com:1234', pathname = /hello/world.php, href: 'https://www.xy.com:1234/hello/world.php'
+                            /*let splitted = window.location.href.split('/')
+                            if (splitted.pop()===''){
+                                // the url had "/" at the end --> delete one more element
+                                splitted.pop();
+                            }
+                            return splitted.join('/')+'/';*/ // without /lang
+
+                            if (window.location.href.slice(-1)!='/'){
+                                return window.location.href+'/'; // with lang
+                            } else {
+                                return window.location.href; // with lang
+                            }
+
+                        }
+                    }
+                });
+            
+            }
+            
+            /**
+             * called when a a writing ticket is stored or deleted
+             */
+            onWritingTicketChange(){
+                if (this.room.writingTicketID){
+                    //this.vueServerAdmin.readOnly = false;
+                } else {
+                    //this.vueServerAdmin.readOnly = true;
+                }
+            }
+            
+            afterFullreload(){
+                // set the changed data-property as data of the vue-instance
+                this.vueMeetingSelection.meetings = this.room.data;
+            }
+            
+            dataArrived(){
+                // raised as soon as the room has its data stored for the first time
+                // TODO: what about views? They probably also need something like this
+                
+                this.vueMeetingSelection.meetings = this.room.data;
+            
+                /*if (this.room.writingTicketID){
+                    this.vueServerAdmin.readOnly = false;
+                } else {
+                    this.vueServerAdmin.readOnly = true;
+                }*/
+            }
+            
+            
+        }
+        
+        /**
+         * load: is automatically called after loading the page
+         */
+        function load(){
+        
+            // start the vueInstance, which should do the rest (connect to the room, get the right data, show it)
+            vueMeetingSelection = new vuMeetingSelection();
+        
+        
+        }
+        
+        
+        function adminServerUnload(){
+        
+            // TODO!!!
+            // destroy the view, which shall unregister from the room, which shall either destroy itself OR unregistering runs through the roomManager, which checks if there are other vues or destroys the room.
+        
+            // must return true on success
+        
+            // leave the room
+            //rMeetings.leave()
+        
+            //document.getElementById('hallo').innerText = 'unloaded!';
+            return true;
+        }
+        
+        </script>
+    </head>
+    <body onload = "startup()" onbeforeunload="unloadMe()">
+
+        <%= __("Please select a meeting from the list") %>
+        
+        <div id="vueDiv"> <!-- inside here all the vue.js stuff -->
+            <ul style="list-style-type: none; padding: 0; margin: 0;">
+                <li v-for="meeting in meetings"><a v-bind:href="basePath + meeting.shortname">{{meeting.name}}</a></li>
+            </ul>
+
+            <div id="overlay" v-on:click="overlayVisible=false" v-bind:class="{shown: overlayVisible}">
+                <!-- overlay used for displaying general information -->
+                <div id="overlayContainer">
+                    <div id="overlayTitle"><b>{{overlayTitle}}</b></div>
+                    <div id="overlayContent">{{overlayContent}}</div>
+                </div>
+            </div>
+            
+        
+        </div>
+        <a id="aConnection" class="Conn" onclick="rM.data.wsWindowShown=true;"><%= __("Connection") %></a>
+
+        <!-- include the roomManager-frontend -->
+        <%- include('roomManagerDrawings') %>
+
+    </body>
+</html>
+

@@ -1,0 +1,1001 @@
+<script type="text/javascript">
+    
+    // when we need multiple rooms, then the actual vue-class must not inherit from roomClientVue, but we then have a class for each room instantiated within the vue-class
+
+    class vuEvents extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.events = this.room.data;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.events = this.room.data;
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+    }
+
+    class vuEventGroups extends roomClientVue{
+
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('eventGroups@' + meetingShortname, true, true, '/static/rEventGroupsClient.js', 'rEventGroupsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.eventGroups = this.room.data;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.eventGroups = this.room.data;
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+    }
+
+    class vuDisciplines extends roomClientVue {
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('disciplines@' + meetingShortname, true, true, '/static/rDisciplinesClient.js', 'rDisciplinesClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.disciplines = this.room.data;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.disciplines = this.room.data;
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+
+    }
+    class vuCategories extends roomClientVue {
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('categories@' + meetingShortname, true, true, '/static/rCategoriesClient.js', 'rCategoriesClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.categories = this.room.data;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.categories = this.room.data;
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+
+    }
+
+
+    var vueEvents;
+
+    // commented values are currently in the DB, but might either not be used or are not shown in the list here
+    var disciplines=[
+      // sample data with the old properties  
+    /*{
+            xDiscipline:1,
+            disciplineSortorder:1,
+            //disciplineIndoor:false,
+            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
+            disciplineTimeAppeal: new Date(1000*(3600*1+60*30+0)), // how much time before the competition
+            disciplineTimeCall: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
+            //disciplineActive,
+            disciplineRelay:false,
+            disciplineName: 'Pole vault', // translated
+            disciplineShortname: 'PV', // translated
+            //disciplineConfiguration,
+        },
+        {
+            xDiscipline:2,
+            disciplineSortorder:2,
+            //disciplineIndoor:false,
+            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
+            disciplineTimeAppeal: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
+            disciplineTimeCall: new Date(1000*(3600*0+60*40+0)), // how much time before the competition
+            //disciplineActive,
+            disciplineRelay: false,
+            disciplineName: 'High jump', // translated
+            disciplineShortname: 'HJ', // translated
+            //disciplineConfiguration,
+        },*/
+        
+    ];
+
+    // the list should already be translated and only active categories are shown
+    var categories = [
+    // sample data with the old properties    
+    /*{
+            xCategory: 1,
+            categoryShortname:"ABCD", // max 4 letters
+            categoryName: "Man",
+            categorySortorder:1,
+            age: 200,
+            categoryCode: "MAN", // whats the difference 
+            sex: "m",
+            //active: true,
+        },
+        {
+            xCategory: 2,
+            categoryShortname:"EFGH", // max 4 letters
+            categoryName: "Woman",
+            categorySortorder:1,
+            age: 200,
+            categoryCode: "MOM", // whats the difference 
+            sex: "f",
+            //active: true,
+        }*/
+    ];
+    var eventsExample = [
+        {xEvent:1, xDiscipline:1, xCategory:1, xEventGroup:2, entryFee:10, onlineId:123, info:'test'},
+        {xEvent:2, xDiscipline:2, xCategory:1, xEventGroup:undefined, entryFee:15, onlineId:100, info:'hello'}
+    ]
+    var events = [];
+    var eventGroups=[
+        // examples with old naming    
+    /*{
+            xEventGroup:1, 
+            xDiscipline:1,
+            name:'PV1',
+            combined:false,
+            rounds:[
+                {
+                    xRound:1,
+                    xEventGroup:1,
+                    name:'TODO',
+                    order:1,
+                    numGroups:1, 
+                    qualiModule:undefined,
+                    qualiConf:undefined
+                }
+            ]
+        },
+        {
+            xEventGroup:2, 
+            xDiscipline:1,
+            name:'PV2',
+            combined:false,
+            rounds:[]
+        },
+        {
+            xEventGroup:3, 
+            xDiscipline:2,
+            name:'HJ1',
+            combined:false,
+            rounds:[]
+        }*/
+    ]
+    
+    function startup(){
+        // the vueApp        
+        vueEvents = new Vue({
+            el:'#vueDiv',
+            data:{
+                events:events, // will be overriden by the actual room data
+                eventGroups:eventGroups, // will be overriden by the actual room data
+                categories:categories, 
+                disciplines:disciplines, // will be overriden by the actual room data
+                overlayVisible: false, 
+                overlayTitle: '', 
+                overlayContent: '', 
+                newXDiscipline:undefined, 
+                newXCategory:undefined, 
+                newXEventGroup:undefined, 
+                newEntryFee:0, 
+                newDate:"",
+                newInfo:'', 
+                eventGroupRadio:'none', 
+                newEventGroupName:'', 
+                newIsCombined: false,
+                newRoundName: "",
+                newNumGroups: 0,
+                newGroups:[],
+                //addEventOverlay:false,
+                overlay:undefined, // replaces addEventOverlay
+                show:'events', 
+                showFullDetails:true, // probably to be switched off in the production version; showing IDs and other background infos
+                eventModID: -1,
+                eventGroupModID: -1,
+                selectedEventGroupId: -1,
+                roundModID: -1,
+
+            }, 
+            methods:{
+                addEvent: function(){
+                    // reset all
+                    this.eventModID=-1; 
+
+                    this.newXEventGroup = undefined;
+                    this.newXCategory = undefined;
+                    this.newXDiscipline = undefined;
+                    this.newDate = '';
+                    this.newEntryFee = 0;
+                    this.newInfo = '';
+                    
+                    this.eventGroupRadio = 'none';
+
+                    // show the "form"
+                    //this.addEventOverlay = true;
+                    this.overlay = "addEvent";
+
+                },
+                createEGName(disc, cat){
+                    let egName = '';
+
+                    if (cat){
+                        let [,catObj] = this.findObjInArrayByProp(this.categories, 'xCategory', cat);
+                        egName += catObj.categoryShortname;
+                    }
+
+                    egName += ' ';
+
+                    if (disc){
+                        let [, discObj] = this.findObjInArrayByProp(this.disciplines, 'xDiscipline', disc)
+                        egName += discObj.disciplineShortname;
+                    }
+
+                    return egName.trim(); // get rid of white space if disc and/or cat was not defined
+                },
+                getEventGroupProperty: function(xEventGroup, prop){
+                    let [ind, eg] = this.findObjInArrayByProp(this.eventGroups, 'xEventGroup', xEventGroup);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return eg[prop];
+                    }
+                },
+                getDisciplineProperty: function(xDiscipline, prop){
+                    let [ind, d] = this.findObjInArrayByProp(this.disciplines, 'xDiscipline', xDiscipline);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return d[prop];
+                    }
+                },
+                getCategoryProperty: function(xCategory, prop){
+                    let [ind, c] = this.findObjInArrayByProp(this.categories, 'xCategory', xCategory);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return c[prop];
+                    }
+                },
+                deleteEvent: function(id){
+                    // we do not locally delete the dataset, but wait till the server did it.
+                    rE.room.addToStack('deleteEvent', id) //direct
+                    //rE.room.deleteEventInit(id); // indirect
+                },
+                addRound: function(){
+                    this.roundModID = -1;
+
+                    this.newRoundName = "";
+                    this.newNumGroups = 1;
+
+                    this.overlay = "addRound";
+                },
+                createRound: function(){
+                    if (this.roundModID==-1){
+                        // add round
+                        // create the dataset
+                        let data = {
+                            xEventGroup: this.selectedEventGroupId,
+                            name: this.newRoundName,
+                            order: this.selectedEventGroup.rounds.length+1,
+                            numGroups: this.newNumGroups,
+                            qualiModule: '', // TODO; required
+                            qualiConf: '', // optional
+                            rounds: this.newRounds, // important: rounds is not mandatory! The server will automatically create the rounds if they are not set or not in agreement with numGroups
+                        }
+
+                        rEG.room.addToStack('addRound', data)
+
+                        this.overlay = undefined;
+                    } else {
+                        // modify existing round
+                        let data = {
+                            xRound: this.roundModID,
+                            xEventGroup: this.selectedEventGroupId,
+                            name: this.newRoundName,
+                            //order: , // do not change currently!
+                            numGroups: this.newNumGroups,
+                            rounds: this.newRounds, // important: rounds is not mandatory! The server will automatically create the rounds if they are not set or not in agreement with numGroups
+                            //qualiModule: '', // TODO; required
+                            //qualiConf: '', // optional
+                        }
+
+                        rEG.room.addToStack('updateRound', data);
+
+                        this.overlay = undefined;
+                    }
+                },
+                modRound: function(id){
+                    this.roundModID = id;
+
+                    let r = this.selectedEventGroup.rounds.find(r=>r.xRound==id);
+
+                    this.newRoundName = r.name;
+                    this.newNumGroups = r.numGroups;
+                    if (r.rounds){
+                        this.newRounds = r.rounds;
+                    }
+                    // TODO: quali...
+                    
+                    this.overlay = "addRound";
+
+                },
+                deleteRound: function(xRound, xEventGroup){
+                    // TODO: make sure that this round is not selected; othwise vue would crash as soon as the round is deleted.
+                    rEG.room.addToStack('deleteRound', {xRound: xRound, xEventGroup:xEventGroup})
+                },
+                addEventGroup: function(){
+                    // begin adding
+                    this.eventGroupModID=-1; 
+
+                    this.newXEventGroup = undefined;
+                    this.newXDiscipline = undefined;
+                    this.newEventGroupName = ''; 
+                    this.newIsCombined = false;
+
+                    // show the "form"
+                    this.overlay = "addEventGroup";
+                },
+                modEventGroup: function(id){
+                    // begin modding
+                    this.eventGroupModID = id;
+                    let eG = this.eventGroups.find(el=>el.xEventGroup==id);
+                    this.newIsCombined = eG.combined;
+                    this.newXDiscipline = eG.xDiscipline;
+                    this.newEventGroupName = eG.name;
+
+                    this.overlay = "addEventGroup";
+                },
+                deleteEventGroup: function(id){
+                    // make sure that this eventGroup is not selected; othwise vue would crash as soon as the eventGroup is deleted.
+                    if (this.selectedEventGroupId == id){
+                        this.selectedEventGroupId = -1;
+                    }
+                    rEG.room.addToStack('deleteEventGroup', id)
+                },
+                modEvent: function(id){
+                    // actually "begin modding"
+
+                    // define the properties
+                    this.eventModID = id;
+
+                    let [,event] = this.findObjInArrayByProp(this.events, 'xEvent', id);
+                    this.newXEventGroup = event.xEventGroup;
+                    this.newXCategory = event.xCategory;
+                    this.newXDiscipline = event.xDiscipline;
+                    this.newEntryFee = event.entryFee;
+                    this.newInfo = event.info;
+                    
+                    if (event.xEventGroup){
+                        this.eventGroupRadio = 'existing';
+                    } else {
+                        this.eventGroupRadio = 'none';
+                    }
+                    
+                    // show the overlay
+                    //this.addEventOverlay = true;
+                    this.overlay = "addEvent";
+                },
+                createEventGroup: function(){
+                    if (this.eventGroupModID==-1){
+                        // really a new one
+                        let data = this.createEventGroupDataset();
+
+                        rEG.room.addToStack("addEventGroup", data)
+                        this.overlay = undefined;
+
+                    } else {
+                        // modding a present Event group
+                        let data = this.createEventGroupDataset(true);
+                        rEG.room.addToStack("updateEventGroup", data)
+                        this.overlay = undefined;
+                    }
+                },
+                createEventGroupDataset: function(includeId=false){
+                    let data={};
+                    data.xDiscipline = this.newXDiscipline;
+                    data.name = this.newEventGroupName;
+                    data.combined = this.newIsCombined;
+                    // TODO: for testing only --> insert does not work yet  
+                    //data.rounds=[{name: "test-Round", order:1, numGroups:1, qualiModule:"none", qualiConf:"empty"}];
+
+                    if (includeId){
+                        data.xEventGroup = this.eventGroupModID;
+                    }
+                    return data;
+                },
+                createEvent: function(){
+                    // TODO: the combination with create eventGroup:
+                    // two options: insert the eventGroup together with the event; problem: the nested create is in the wrong room! Would need to delete the eventGroup instance from the event and add it in the eventGroup-array --> not very clean 
+                    // split into tow subsequent calls; create the eventGroup first and await the hopefully positive response; --> this is the cleaner option
+                    if (this.eventModID==-1){
+
+                        // check whether also an eventGroup shall be added
+                        if (this.eventGroupRadio=="new"){
+                            // first create the eventGroup, then the event
+
+                            rEG.room.addToStack("addEventGroup", this.createEventGroupDataset(), (newEventGroup)=>{
+                                // function called on success
+                                // first of all add the data with the function that would have been used by default
+                                rEG.room.addEventGroupExe(newEventGroup);
+
+                                // then create the new event
+                                let data = this.createEventDataset();
+                                data.xEventGroup = newEventGroup.xEventGroup;
+                                // send to room/Server and wait for answer; the new event will be added when it arrives.
+                                rE.room.addToStack('addEvent', data);
+
+                            })
+
+                            // already hide the dialog
+                            this.overlay = undefined;
+
+                        } else {
+                            // create the new dataset to be stored
+                            let data = this.createEventDataset();
+
+                            // send to room/Server and wait for answer; the new event will be added when it arrives.
+                            rE.room.addToStack('addEvent', data);
+
+                            //this.addEventOverlay = false;
+                            this.overlay = undefined;
+                        }
+
+                    } else {
+
+                        if (this.eventGroupRadio=="new"){
+                            // first create the new eventgroup, then update the event
+                            rEG.room.addToStack("addEventGroup", this.createEventGroupDataset(), (newEventGroup)=>{
+                                // function called on success
+                                // first of all add the data with the function that would have been used by default
+                                rEG.room.addEventGroupExe(newEventGroup);
+
+                                // then create the new event
+                                let data = this.createEventDataset(true);
+                                data.xEventGroup = newEventGroup.xEventGroup;
+                                // send to room/Server and wait for answer; the new event will be added when it arrives.
+                                rE.room.addToStack('updateEvent', data);
+
+                            })
+
+                            // already hide the dialog
+                            this.overlay = undefined;
+                        } else {
+                            // create the dataset to be stored
+                            let data = this.createEventDataset(true);
+
+                            // send to room/Server and wait for answer; the new event will be added when it arrives.
+                            rE.room.addToStack('updateEvent', data);
+
+                            // reset the eventModID
+                            this.eventModID = -1;
+
+                            // hide the overlay:
+                            //this.addEventOverlay = false;
+                            this.overlay = undefined;
+                        }
+                    }
+
+                },
+                createEventDataset: function(includeId){
+                    let data = {};
+                    // {xEvent:1, xDiscipline:1, xCategory:1, xEventGroup:undefined, entryFee:10, onlineId:123, info:'test'},
+                    // data.xEvent // unknown yet, will be delivered from the server
+                    data.xDiscipline = this.newXDiscipline;
+                    data.xCategory = this.newXCategory;
+                    data.entryFee = this.newEntryFee;
+                    data.info = this.newInfo;
+                    if (this.newDate != ""){
+                        // translate the local time to Zulu/GMT time
+                        let d = new Date(this.newDate);
+                        data.date = d.toJSON();
+                    }
+                    if(this.eventGroupRadio!='existing'){
+                        data.xEventGroup = undefined;
+                    } else {
+                        data.xEventGroup = this.newXEventGroup;
+                    }
+                    if (includeId){
+                        data.xEvent = this.eventModID;
+                    }
+                    //data.onlineId //cannot be set (yet)
+
+                    return data;
+                },
+                groupContestView: function(){
+                    // TODO
+                },
+                eventGroupNumEvents: function(xEventGroup){
+                    let events = this.events.filter(el=>el.xEventGroup==xEventGroup);
+                    return events.length;
+                },
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                formatDate(dateString){
+                    if (dateString==null){
+                        return "";
+                    }
+                    var d = new Date(dateString);
+                    var str = "";
+                    str += `${d.getDate()}`.padStart(2,'0');
+                    str += "." + `${d.getMonth()}`.padStart(2, '0');
+                    str += ", " + `${d.getHours()}`.padStart(2, '0');
+                    str += ":" + `${d.getMinutes()}`.padStart(2,'0');
+                    return str;
+                }
+
+            },
+            computed:{
+                eventGroupsForNewDisc: function(){
+                    // get all eventGroups that match the appropriate discipline
+                    if (this.newXDiscipline){
+                        return this.eventGroups.filter(evnt=>evnt.xDiscipline==this.newXDiscipline);
+                    }else{
+                        return [];
+                    }
+                },
+                selectedEventGroup: function(){
+                    if (this.selectedEventGroupId>-1){
+                        return this.eventGroups.find(eg=>eg.xEventGroup==this.selectedEventGroupId)
+                    }else{
+                        return undefined;
+                    }
+                },
+                selectedEventGroupRounds: function(){
+                    // the rounds; sorted
+                    if (this.selectedEventGroup){
+                        
+                        return this.selectedEventGroup.rounds.sort((a,b)=>a.order-b.order)
+                    }else{
+                        return undefined;
+                    }
+                }
+            },
+            watch:{
+                newNumGroups: function(){
+                    // if newNumGroups changes, set the newGroups accordingly. 
+                    //if (this.roundModID==-1){
+                        // new round
+                        if (this.newGroups.length>this.newNumGroups){
+                            // delete the last groups
+                            this.newGroups.splice(this.newNumGroups);
+                        } else {
+                            // add as many rounds as needed to match newNumGroups
+                            for (let i=this.newGroups.length+1; i<=this.newNumGroups; i++){
+                                this.newGroups.push({
+                                    number: i,
+                                    name: `Gruppe ${i}`, // TODO put in here the default group-name set for the whole meeting
+                                    contest: undefined,
+                                    // there is no xRound yet 
+                                });
+                            }
+                        }
+
+                    /*} else {
+                        // existing round
+
+
+                    }*/
+                },
+                disciplineChanged: function(){
+                    // set the times as the default from the disciplines list
+                },
+                eventGroupRadio: function(){
+                    // if the eventGroupRadio changes to none or create new, we should reset newXEventGroup=undefined
+                    if (this.eventGroupRadio!="existing"){
+                        this.newXEventGroup = undefined;
+                    }
+                },
+                newXDiscipline: function(newDisc, oldDisc){
+                    // automatically change the name of the newEventGroup, except when it was manually set before
+
+                    // check whether is was automatically set before
+                    if (this.newEventGroupName==this.createEGName(oldDisc, this.newXCategory)){
+                        this.newEventGroupName = this.createEGName(newDisc, this.newXCategory);
+                    }
+                },
+                newXCategory: function(newCat, oldCat){
+                    // automatically change the name of the newEventGroup, except when it was manually set before
+
+                    // check whether is was automatically set before
+                    if (this.newEventGroupName==this.createEGName(this.newXDiscipline, oldCat)){
+                        this.newEventGroupName = this.createEGName(this.newXDiscipline, newCat);
+                    }
+                }
+            }
+        });
+
+        // load the rooms
+        let ms = getMeetingShortname()
+        var rE = new vuEvents(vueEvents, ms); 
+        var rEG = new vuEventGroups(vueEvents, ms);
+        var rD = new vuDisciplines(vueEvents, ms);
+        var rC = new vuCategories(vueEvents, ms);
+    }
+
+    function shutdown(){
+        
+        // "delete" the vueEvents (save some memory)
+        vueEvents=undefined;
+    }
+
+
+</script>
+
+<div id="vueDiv">
+    <div v-if="show=='events'">
+        <h2><%= __("List of events") %></h2>
+        <!-- TODO: add some filtering method here-->
+        <button class="btn btnGreen" v-on:click="addEvent()"><%= __("Add event") %></button>
+        <!-- show a list of events-->
+        <table>
+            <tr>
+                <th v-if="showFullDetails">xEvent</th>
+                <th><%= __("Discipline") %></th>
+                <th><%= __("Category") %></th>
+                <th><%= __("Entry fee") %></th>
+                <th v-if="showFullDetails">onlineID</th>
+                <th><%= __("Date and time") %></th>
+                <th><%= __("Info") %></th>
+                <th><%= __("Event group") %></th>
+                <th></th><!-- Buttons-->
+            </tr>
+            <tr v-for="evt in events">
+                <td v-if="showFullDetails">{{evt.xEvent}}</td>
+                <td>{{getDisciplineProperty(evt.xDiscipline, 'shortnameStd') }}</td>
+                <td>{{getCategoryProperty(evt.xCategory, 'shortname') }}</td>
+                <td>{{evt.entryFee}}</td>
+                <td v-if="showFullDetails">{{evt.onlineId}}</td>
+                <td v-if="evt.date">{{formatDate(evt.date)}}</td><td v-else></td>
+                <td>{{evt.info}}</td>
+                <td>{{getEventGroupProperty(evt.xEventGroup, 'name') }}</td>
+                <td>
+                    <button class="btn btnGrey" v-on:click="modEvent(evt.xEvent)" ><%= __("Change") %></button>
+                    <button class="btn btnRed" v-on:click="deleteEvent(evt.xEvent)"><%= __("Delete") %></button>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div v-if="show=='events'"><!-- TODO: separate from the events-->
+        <h2><%= __("List of event groups") %></h2>
+        <!-- TODO: add some filtering method here-->
+        <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
+        <!-- show a list of event groups-->
+        <table>
+            <tr>
+                <th v-if="showFullDetails">xEventGroup</th>
+                <th><%= __("Discipline") %></th>
+                <th><%= __("Name") %></th>
+                <th><%= __("is combined") %></th>
+                <th></th><!-- Buttons-->
+            </tr>
+            <tr v-for="eg in eventGroups">
+                <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
+                <td>{{getDisciplineProperty(eg.xDiscipline, 'shortnameStd') }}</td>
+                <td>{{eg.name}}</td>
+                <td>{{eg.combined}}</td>
+                <td>
+                    <button v-if="eventGroupNumEvents(eg.xEventGroup)>0" class="btn" v-on:click=""><%= __("Show events") %></button>
+                    <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup"><%= __("Show rounds") %></button>
+                    <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup; addRound()"><%= __("Add round") %></button>
+                    <button class="btn btnGrey" v-on:click="modEventGroup(eg.xEventGroup)" ><%= __("Change") %></button>
+                    <button class="btn btnRed" v-if="eventGroupNumEvents(eg.xEventGroup)==0" v-on:click="deleteEventGroup(eg.xEventGroup)"><%= __("Delete") %></button>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div v-if="show=='events' && selectedEventGroupId!=-1"><!-- TODO: separate from the events-->
+        <h2><%= __("List of rounds for {{selectedEventGroup.name}}") %></h2>
+        <button class="btn btnGreen" v-on:click="addRound()"><%= __("Add round") %></button>
+        <!-- show a list of rounds-->
+        <table>
+            <tr>
+                <th v-if="showFullDetails">xRound</th>
+                <!--<th><%= __("Event group") %></th>-->
+                <th><%= __("Name") %></th>
+                <th><%= __("order") %></th>
+                <!--<th><%= __("# groups") %></th>-->
+                <th><%= __("Groups") %></th>
+                <th><%= __("Qualification") %></th>
+                <th></th><!-- Buttons-->
+                <!-- TODO: make this list drag and droppable!-->
+            </tr>
+            <tr v-for="r in selectedEventGroupRounds">
+                <td v-if="showFullDetails">{{r.xRound}}</td>
+                <td>{{r.name}}</td>
+                <td>{{r.order}}</td>
+                <!--<td>{{r.numGroups}}</td>-->
+                <td><div v-for="g in r.groups">
+                    <!-- provide renaming and contest selection -->
+                    {{g.number}}{{g.name ? " - "+g.name: ""}}
+                    <!--  TODO contest selection and auto-contest creation -->
+                </div></td>
+                <td><button v-if="r.order>1" class="btn" v-on:click=""><%= __("Set qualification") %></button></td>
+                <td>
+                    <button class="btn" v-on:click="groupContestView"><%= __("Match groups to contests") %></button>
+                    <button class="btn btnGrey" v-on:click="modRound(r.xRound)" ><%= __("Change") %></button>
+                    <button class="btn btnRed" v-on:click="deleteRound(r.xRound, r.xEventGroup)"><%= __("Delete") %></button>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="overlay"  v-bind:class="{shown: overlay}">
+        <div class="overlayContainer">
+            <div id="addEvent" v-if="overlay=='addEvent'">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Add event") %>: </h3>
+                        <label>
+                            <%= __("Discipline") %>: 
+                            <select v-model.number="newXDiscipline" v-on:change="newXEventGroup=undefined">
+                                <option v-for="discipline in disciplines" v-bind:value="discipline.xDiscipline">{{discipline.nameStd}}</option>
+                            </select>
+                        </label>
+                        <!--<div><%= __("Appeal time") %>: </div> <input v-model.number="newAppealTime"  type="number" size="3"><%= __("minutes") %>
+                        <div><%= __("Callroom time") %>: </div> <input v-model.number="newCallTime"  type="number" size="3"><%= __("minutes") %>-->
+                        <label>
+                            <%= __("Category") %>: 
+                            <select v-model.number= "newXCategory">
+                                <option v-for="cat in categories" v-bind:value="cat.xCategory">{{cat.shortname}}</option>
+                            </select>
+                        </label>
+                        <label>
+                            <%= __("Entry fee") %>: 
+                            <input v-model.number="newEntryFee"  type="number" size="3" value=0>
+                        </label>
+                        <label>
+                            <%= __("Date and time") %>:
+                            <input v-model="newDate" type="datetime-local">
+                        </label>
+                        <label>
+                            <%= __("Info") %>: 
+                            <input v-model="newInfo"  type="text" maxlength="50"> 
+                        </label>
+                        <div style="border:solid">
+                            <%= __("Event group") %>: 
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="none">
+                                <%= __("Defined later") %>
+                            </label>
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="existing">
+                                <%= __("Select existing") %>
+                            </label>
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="new">
+                                <%= __("Create new") %>
+                            </label>
+                            <div v-if="eventGroupRadio=='existing'">
+                                <select v-if="newXDiscipline" v-model.number= "newXEventGroup">
+                                    <option v-for="eg in eventGroupsForNewDisc" v-bind:value="eg.xEventGroup">{{eg.name}}</option>
+                                </select>
+                                <div v-else><%= __("Choose a discipline first") %></div>
+                            </div>
+                            <div v-if="eventGroupRadio=='new'">
+                                <!--xEventGroup:1, 
+                                xDiscipline:1, 
+                                name:'PV1',
+                                combined:false,
+                                rounds:[
+                                    {
+                                        xRound:1,
+                                        xEventGroup:1,
+                                        name:'TODO',
+                                        order:1,
+                                        numGroups:1, 
+                                        qualiModule:undefined,
+                                        qualiConf:undefined
+                                    }
+                                ]-->
+                                <!-- The discipline is automatically given by the event-->
+                                <label>
+                                    <%= __("Event group name") %>
+                                    <input type="text" v-model="newEventGroupName" maxlength="50">
+                                </label>
+                                <label>
+                                    <input type="checkbox" v-model="newIsCombined">
+                                    <%= __("is a combined event") %> (NOT EVALUATED YET)
+                                </label>
+                            </div>
+                        </div>
+            
+                        <!-- four different buttons for different cases-->
+                        <button type="submit" class="btn btnGreen" v-on:click="createEvent" v-bind:disabled="newXCategory==undefined || newXDiscipline==undefined">
+                            <div v-if="eventGroupRadio!='new' && eventModID==-1"><%= __("Create event") %></div>
+                            <div v-if="eventGroupRadio=='new' && eventModID==-1"><%= __("Create event and event group") %></div>
+                            <div v-if="eventGroupRadio!='new' && eventModID>-1"><%= __("Update event") %></div>
+                            <div v-if="eventGroupRadio=='new' && eventModID>-1"><%= __("Update event and create event group") %></div>
+                        </button>
+                        <!--<button v-if="eventGroupRadio=='new' && eventModID==-1" class="btn btnGreen" v-on:click="createEvent" v-bind:disabled="newXCategory==undefined || newXDiscipline==undefined"></button>-->
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+            <div id="addEventGroup" v-if="overlay=='addEventGroup'">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Add event group") %>: </h3>
+                        <label>
+                            <%= __("Discipline") %>: 
+                            <select v-model.number="newXDiscipline">
+                                <option v-for="discipline in disciplines" v-bind:value="discipline.xDiscipline">{{discipline.nameStd}}</option>
+                            </select>
+                        </label>
+                        <!--<div><%= __("Appeal time") %>: </div> <input v-model.number="newAppealTime"  type="number" size="3"><%= __("minutes") %>
+                        <div><%= __("Callroom time") %>: </div> <input v-model.number="newCallTime"  type="number" size="3"><%= __("minutes") %>-->
+                        <label>
+                            <%= __("Event group name") %>: 
+                            <input v-model = "newEventGroupName" type="text">
+                        </label>
+                        <label>
+                            <%= __("Is combined") %>:<!--TODO: add here a hint what it means--> 
+                            <input v-model="newIsCombined"  type="checkbox" >
+                        </label>
+
+                        <!-- TODO: eventually provide here the possibility to add rounds-->
+
+                        <button type="submit" class="btn btnGreen"v-if="eventGroupModID==-1" v-on:click="createEventGroup" v-bind:disabled="newXDiscipline==undefined"><%= __("Create event group") %></button>
+                        <button type="submit" class="btn btnGreen"v-if="eventGroupModID>-1" v-on:click="createEventGroup" v-bind:disabled="newXDiscipline==undefined"><%= __("Update event group") %></button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+            <div id="addRound" v-if="overlay=='addRound'">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Add round for {{selectedEventGroup.name}}") %>: </h3>
+                        <label>
+                            <%= __("Round name") %>: 
+                            <input v-model = "newRoundName" type="text">
+                        </label>
+                        <label>
+                            <%= __("Number of groups") %>:<!--TODO: add here a hint what it means--> 
+                            <input v-model.number="newNumGroups" type="number"  value=1>
+                        </label>
+                        <%= __("Groups:") %>                        <div>
+                            <div v-for="g in newGroups" style="border:1px solid black; margin: 2px">
+                                {{g.number}}  <input v-model="g.name" type="text" style="display:inline;"><!-- add a dropdown with contests; add a button to create a new corresponding contest-->
+                            </div>
+                        </div>
+                        <div>Here will be the qualification-setups...</div>
+                        <!-- TODO: set appropriate minimum requirement to set send create-->
+                        <button type="submit" class="btn btnGreen"v-if="roundModID==-1" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Create round") %></button>
+                        <button type="submit"class="btn btnGreen"v-if="roundModID>-1" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Update round") %></button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+
+</div>

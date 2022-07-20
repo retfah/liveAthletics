@@ -1,0 +1,8 @@
+**How to install live Athletics (tested 2021-21)**
+- install MariaDB; set max_allowed_packet to 100M; otherwise larger inserts with all performances at a time do not work efficiently.
+- install MongoDB (for debugging, preferrably with "Compass"; there was once an error when installing together with compass. So install MongoDB without compass first and then install compass separately.)
+- install Mongo Database Tools (for dump and restore) --> the folder must be added to path!
+- install nodejs
+- currently: extend the file mariadb/lib/const/collations.js with the following line: defaultCharsets['utf8mb3'] = charsets[33]; // this is needed to make sure that DB restore is working, which otherwise fials because utf8mb3 is not known.
+
+- important: always install/update all MongoDb applications at the same time, otherwise problems might occure (and have occured int he past)

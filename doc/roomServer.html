@@ -1,0 +1,1078 @@
+<!DOCTYPE html><html lang="en"><head><title>roomServer</title></head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"><meta name="groc-relative-root" content=""><meta name="groc-document-path" content="roomServer"><meta name="groc-project-path" content="roomServer.js"><link rel="stylesheet" type="text/css" media="all" href="assets/style.css"><script type="text/javascript" src="assets/behavior.js"></script><body><div id="meta"><div class="file-path">roomServer.js</div></div><div id="document"><div class="segment"><div class="comments "><div class="wrapper"><p>here we implement the base class for the rooms on the server.</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>Newest thoughts on rooms (2019-12-07):</p>
+<ul>
+<li>rooms are organized around tables and based on &#39;what tables are used together&#39;?</li>
+<li>every room can (must?) have views: <ul>
+<li>a view does not have logic to access the DB, but presents to its clients the data or a subset of it. </li>
+<li>a client subscribes/listens to a room or one of its views. The room must provide the connection for the view.  </li>
+<li>the accessing rights are checked for/within the view. Usually no checks needed on room level and on functions level (However, e.g. changePassword-function must check e.g. that users only change their own password)</li>
+</ul>
+</li>
+<li>Subrooms could be rooms e.g. for each entry of a table the parent room is representing (e.g. one competition).<ul>
+<li>Subrooms are actually regular, full (vollwertig), independent rooms. </li>
+<li>However, a &#39;parent&#39; room could (should, must?) start the subrooms. Subrooms could also be started dynamically. </li>
+<li>As should be possible with all rooms, they can have interdependencies, i.e. one room listens to the other room and vice versa. </li>
+</ul>
+</li>
+<li>Writing access to the same tables or rows should not be available in multiple rooms, but only in one. Through the dependencies, the other room can take notice of it (eventually through the global event system; or use a local one.).</li>
+<li>one room usually only handles one main table and possibly also tables related to this table (1:n, i.e. an entity in the main table is referenced n times in the related table). The opposite (the inheriting table is the main table) does not work, since then the referenced super table would be referenced n-times!</li>
+</ul></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>IMPLEMENTING VIEWS
+implementing views is more difficult than we could think. The difficult points are: (1) how do the different views know that a change applies to them? (2) How is the change processed on the client (i.e. can we use the same functions?)? (3) How is writing handled for clients connected to a subview (as they do not deliver the full data to the change, but a subset --&gt; can we still use the normal room function or do we need view and function-specific &#39;translation&#39; of the writing request from the reduced dataset to the full dataset)? (4) How do dynamic views work (e.g. a user only sees his meetings; the view is opened on request and closed as soon as there no client connected to it anymore)?
+Basic thoughts:</p>
+<ul>
+<li>every view has its unique name</li>
+<li>every view has its own list of clients</li>
+<li>every view has its own ID (eventually, we can use the same IDs as in the room, but each view keeps track of which was the last ID with changes applying to it. Thus the view could verify, whether the client requesting a change through the view is still up to date and can process the change. On the other hand, the view could also send a change of the ID to the client, even if there was no change of data for this view. The problem with that method is that then a view-client that shortly was offline and has made changes, cannot process them when the room-(=view)-ID has changed, even if a specific view-ID wouldnt have change, since the changes on the server didnt apply to the view.)</li>
+<li>the view doesn&#39;t handle writing tasks: this must be done in the room itself. This also means, that the writing tickets apply to the room and not to the view. </li>
+</ul>
+<p>Difficulty 1:</p>
+<ul>
+<li>Method 1: every view is called when data has changed. The view derives its data from the current data and checks whether it is different or not --&gt; works always, but has a very low performance</li>
+<li>Method 2: every writing function in room knows, which view is affected when (i.e. if attribute A has changed, views x and y are affected) --&gt; computationally efficient, but the code is not very well maintainable, e.g. when a view is added, its dependency must be injected in all functions in the room manually. Dynamic views would be probably even more difficult.</li>
+<li>Method 3: a view places observers to the data and can react automatically to changes --&gt; would be nice, but is not possible.</li>
+<li>Method 4: the room centrally stores dependencies of views. After changes, the room knows which views need to be updated.</li>
+<li>Method 5: the room tells every view what has changed and the view then decides itself whether it has to raise an event on its scale. (actually similar to one, but the derivation does not work on the full data, but just on teh changed data.)  </li>
+</ul>
+<p>Difficulty 2:</p>
+<ul>
+<li>ideally, we could use the same functions for changes on the client in a view as are used in the room (-&gt; less work). However, as we have different data and different representation on the client, this is anyway hardly possible. Thus, each view will likely have its own functions for viewing. However, this fucntions probably can be effieciently derived from room functions. </li>
+</ul>
+<p>(Temporary) Conclusion: 
+--&gt;: method 1 must be implemented anyway, since a view must be able to initially derive its dataset. Method 5 could be easy to implement as well and could improve the performance:</p>
+<ul>
+<li>views have to check themselfs whether a change applies to them or not. A simple progress it would be of the change can optionally return the changed dataset. Then a view can run the change through a filter and see if the change applies to it and if required update its own dataset. </li>
+<li>only room get connected client to server, not the views. The views thus use this connection.</li>
+<li>Views only provide data. The functions are always provided by the room. </li>
+</ul></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>CHANGES:
+2019-12: redesign the whole room-stuff to support views. The default will stay the same, i.e. that all data is accessed, however many rooms in the future will use views instead of the complete set of data (NOT YET IMPLEMENTED).
+2020-01: do not reject entering the room when there is no writing ticket left</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>basic important stuff:</p>
+<ul>
+<li>for writing, one change at a time! No concurrent changes. Have a waiting stack with changes.</li>
+<li>on incoming changes: try to process* the changes. Then send the changes to all members of the room with the new version number except the sender of the change. Acknowledge to the sender at least with the new version number.<ul>
+<li>Check all inputs first (something outdated and conflicting?), use transactions in MySQL for complex queries. Try to process the query/transaction. On success, proceed; otherwise start rollback (if needed).</li>
+</ul>
+</li>
+<li>the roomServer (parent of specific implementations) has the task to do all the websocket-stuff and to coordinate the available function-calls of this specific room. The specific room implementation does (normally?) not need to do anything to the websocket stuff</li>
+<li>ATTENTION: a lot of the stuff done here, especially those relying on UUIDs for the clients, are prone to session-hijacking if the connection between server and client is not encrypted!!!</li>
+</ul>
+<p>Background ideas: </p>
+<ul>
+<li>in a simple, ideal world, only one room has access to a certain DB-table or parts of it. It gets more tricky, when other rooms shall also read from that table. And even more tricky, when multiple rooms read+write to/from the same table. Writing rooms must know of other rooms with access to the same data and let them know, when something is changed.</li>
+<li>every client and listening room does not necessarily need to implement all functions a writing room is able to perform, but it must know how to handle such cases by reloading everything/parts</li>
+<li>every change must be stored (temporary, not to mySQL-DB and maybe in MongoDB) together with its new version number</li>
+<li>the current version number does not necessarily need to be stored to disk. However if not stored, all relay servers will have to get all the data from new on restart of the main server, since no version-check can be done anymore. If the version is stored for every room, then only rooms with changes will have to reload everything. If we even would store the changes to disk (probably MongoDB) and not only temporary, we could also ommit this and incremental (normal) changes could be sent to the client after restart if there are different versions.</li>
+<li>there must be a way how the server can connect to a relay server (and not getting connected by the relay) and connect all rooms. Eventually this is handled outside the roomServer class.</li>
+<li>there are two kinds of rooms:<ul>
+<li>static: werden beim Programm start immer geladen und existieren ständig, zB der room mit allen Athleten. Die existenz dieses Rooms ist nicht abhängig von Datenbankeinträgen, die gemanagten Daten natürlich schon. Static rooms können dynamische rooms erzeugen und verwalten, zB wenn ein Athlet hinzugefügt wird, wird sein room dynamisch erstellt und irgendwie verwaltet</li>
+<li>dynamic: Die Existenz ist abhängig von Einträgen in der Datenbank, zB ein room für einen spezifischen Wettkampf oder einen spezifischen Athleten. </li>
+</ul>
+</li>
+</ul>
+<p>About conflict handling and non-blocking change requests: </p>
+<ul>
+<li>When a client was offline and on reconnect wants to push all his cached changes, we might get into conflicts when another client did changes in the meantime. We do not get into conflicts, when the changes were non-blocking (e.g. not on the same DB-entry), but we do get into problems when they were about the same DB-entry (and different, otherwise we coudld simply forget about them). Resolving this blocking conflicts can be very difficult, because: <ul>
+<li>further changes might come in during this conflict handling (with conflict handling I understand that a user must decide about the conflict msolving, which takes time. If an automatic conflict handling is possible on the server, meaning the server decides what to take and what to reject, then this is no problem.)</li>
+<li>multiple changes might have dependencies on each other (when undoing an old change, all subsequent changes based on this must be undone, e.g. when an DB entry shall be changed, but another client wrote other DB-entries that refer to the first one)</li>
+</ul>
+</li>
+<li>As this can get very complicated, no true conflict handling (requiring user decision) is implemented yet, but mechanisms to avoid conflicts, check if there are conflicts and to resolve conflicts automatically and easily are/should be implemented. </li>
+<li>The following is reasonably complex and shall be implemented for now: 
+1) Writing only when online (when offline, the client cannot write, i.e. does not store a local stack at all and maybe &#39;deactivates&#39;/&#39;greys out&#39; the respective buttons/forms)
+2) only one client can check out a writing ticket, others cannot write at the same time (weak definition: as long as the client with the checked out ticket is online, also others can write, as the client would receive the changes immediately.)
+3) &quot;the winner takes it all&quot;: no checked out ticket needed and offline is accepted, but when the ID is not the same anymore when the changes made offline should be posted, they will simply be deleted.
+4) do conflict handling in then sense of &quot;allow offline changes by many clients, but undo them when two are conflicting&quot;. For some cases this might be easy enough to implement. 
+-&gt; The above can be combined together, as they are not distinct from each other. 
+--&gt; THIS IS HOW IT CAN BE IMPLEMENTED:<ul>
+<li>always check out writing tickets, simply put the max number (maxWritingTicktes=-1 e.g. inf) to very high when not limited (solving case 2)</li>
+<li>always make sure that only clients having checked out a writing ticket are given the chance to write.</li>
+<li>if the ID on the Server is NOT the same as on the client (which will never happen with ticket limit=1), do<ul>
+<li>simply reject the new changes (solving case 3) (conflictChecking=false)</li>
+<li>do check for blocking conflicts and simply reject if the conflict is blocking (solving case 4) (conflictChecking=true)
+NOTE: any more advanced conflict handling would be integrated here)</li>
+</ul>
+</li>
+<li>1) is a strict mode on top of it with additional restrictions on the client. On the server there is nothing additionally needed compared to the stuff needed to implement the other cases; </li>
+</ul>
+</li>
+</ul>
+<p>Additional comments: </p>
+<ul>
+<li>the ticket system maybe requires that the client gets the same UUID again on reconnect. </li>
+<li>the check if a change in the database is blocking or not requires checks that are similar or the same to normal checks needed to make sure that the change is feasible/allowed/correct --&gt; do them together in the same function</li>
+<li>There are some dangers in the case when blocking/non-blocking and the conflict handling is not correctly implemented, e.g.: Assume an offline client had addtional results stored and then closed the competition. If the results entries are conflicting but closing the competition is not, the competition will be immediately closed and the client asked what to do with the conflict. However the decision can then not be processed, because the competition is closed. There might be other and more sever cases, probably even leading to locking. </li>
+</ul></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: </p>
+<ul>
+<li>add the possibility to change between writing and non-writing without having to reconnect to the room. </li>
+<li>broadcast changes also to the calling client (do not exclude it from receiving the update): this can be important in cases, where the request times out and thus is rolled back on the calling client. But when he then does not get the change as soon as it is done on the server, the client is out of sync, which would not be realized until the client tries to send another change, when the server will then answer with error 13 / outdated.</li>
+</ul></div></div><div class="code"><div class="wrapper"> </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>error code &lt;=10 are for errors in the transmission and handling
+error-codes &gt;20 are for specific errors returned in the functions defined in the inheriting classes
+11: general Server errors (which have nothing to do with wrong data from the client), e.g. the function returns an object with the wrogn format
+12: the requested function is not available in this room
+13: the client is outdated and thus the request cannot be processed (only when conflictChecking=false)
+14: conflict checking impossible: conflictCheckingFunction not available or erronous
+15: conflict checking negative result: checking successfully done, but change seems to be conflicting and thus is rejected. 
+17: [on func request]: &#39;func&#39; (function name) missing in the request
+17: [on enter]: Server is not ready yet. (ready=false)
+17: [on revokeWritingTicket]: something went wrong on revoking the writing ticket
+17: [on requestWritingTicket]: the calling client is not member of this room
+18: [on revokeWritingTicket]: something went wrong on giving the client the free writing ticket
+18: [on function calls]: no writing rights, but needed for this function 
+//18: [on enter]: cannot get a writing ticket, because no writing tickets are available anymore (not used anymore!)
+18: [on enter]: The client is already connected
+18: [on requestWritingTicket]: only one writingTicket per client allowed! client cannot get another one
+19: [on enter]: no rights to enter this room (with writing rights, when requested)
+19: [on !enter]: requesting client is actually not a client in this room 
+19: [on requestWritingTicket]: no writing tickets available.</p></div></div><div class="code"><div class="wrapper"><span class="hljs-comment">//const Ajv 			= 	require('ajv'); // check JOSN input with schema</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the info returned to any clientnRoom contains the following information: </p></div></div><div class="code"><div class="wrapper"><span class="hljs-comment">/*infosSchema = {
+    type:'object',
+    properties:{
+        clients:{type: object},
+        maxWritingTickets:{type:'number'},
+        numClients:{type:'number'},
+        numClientsWriting: {type:'number'}
+    },
+    required: [maxWritingTickets, numClients, numClientsWriting]
+    }
+
+each client is an object with sidHash={connected, name, writing, sidHash }
+*/</span></div></div></div><div class="segment"><div class="code"><div class="wrapper"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">roomServer</span></span>{</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p><span class='doc-section-header'>Method constructor</span></p>
+<p>Constructor for the general Server-room implementation. This super-constructor MUST be called before the rest of the child-constructor.</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>eventHandler must be an eventHandler.</strong><br/>(The eventhandler instance)</p>
+</li>
+<li><p><strong>mongoDb must be a mongoDb.</strong><br/>(The mongoDb instance to be used. The collection-name is the name of the room.)</p>
+</li>
+<li><p><strong>logger must be a logger.</strong><br/>(A/The logger instance)</p>
+</li>
+<li><p><strong>name must be a string.</strong><br/>(The name of the room. Used e.g. in the mongoDb.)</p>
+</li>
+<li><p><strong>storeReadingClientInfos must be a boolean.</strong><br/>(Should the server also save infos (name, writingRights, connection) about clients that only do read?)</p>
+</li>
+<li><p><strong>maxWritingTicktes must be an integer.</strong><br/>(The maximum number of connections that are allowed to be in writing mode at the same time (i.e. that are given a writing ticket). -1=unlimited)</p>
+</li>
+<li><p><strong>conflictChecking must be a boolean.</strong><br/>(If true, the inheriting class&#39;s functions do provide conflict checking, e.g. even when a client was outdated on sending the changes, they can get processed if the change is not conflicting with another change made in the meantime. If false, every change request by an outdated client will be rejected. //@param {socketProcessor2} wsProcessor UNUSED The websocket processor instance; needed obviously for the //@param {roomManager} roomManager UNUSED The room manager instance. Needed for showing the status information to the user.)</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    constructor(eventHandler, mongoDb, logger, name, storeReadingClientInfos=<span class="hljs-literal">false</span>, maxWritingTicktes=-<span class="hljs-number">1</span>, conflictChecking=<span class="hljs-literal">false</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>make sure the name does not contain /, which is needed for structuring event names.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (name.search(<span class="hljs-string">'/'</span>)&gt;=<span class="hljs-number">0</span>){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">1</span>, <span class="hljs-string">'Room names must not contain "/" in their name! The following name was tried: '</span>+ name);
+            <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">'cannot have a room with a / in the name!'</span>)
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>set references</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.eH = eventHandler;
+        <span class="hljs-keyword">this</span>.mongoDB = mongoDb;
+        <span class="hljs-keyword">this</span>.collection; <span class="hljs-comment">// will be filled my MongoDBinit</span>
+        <span class="hljs-keyword">this</span>.logger = logger;
+        <span class="hljs-keyword">this</span>.name = name;
+        <span class="hljs-comment">//this.rM = roomManager; // eventually needed</span>
+        <span class="hljs-comment">//this.wsProcessor = wsProcessor;  // why have I put this here?</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>should the server store clientInfos for reading clients?
+TODO: set this to false when the server is a live-online server and the clients would be numerous!</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.storeReadingClientInfos = storeReadingClientInfos;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create a random part for the clientSid hashing.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.clientHashString = <span class="hljs-keyword">this</span>.randString(<span class="hljs-number">20</span>);
+
+
+        <span class="hljs-keyword">this</span>.clientsRequestingInfos = []; <span class="hljs-comment">// a list of sid's of the clients that want to get updates about the connected clients</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>important: it must be prevented that many live clients are requesting this list, as it woudl cause a lot of unnecessary server traffic.
+TODO: eventually simplyfy all that shit. It is way too complicated for what it is needed. No automatical updates about clients, only a list on request. </p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create an empty object for storing the connected clients.
+each has the following properties:
+processor: wsProcessor, writing, writingTicketID, name:clientName, storeInfos};</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.clients = {};
+        <span class="hljs-keyword">this</span>.offlineWritingClients = {}; <span class="hljs-comment">// without the processor, as the client is disconnected; hashed index!</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>both objects are source to create the client Infos object.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-comment">//this.sidHashed = {}; // property=sidhashed, value=sid</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>initialize everything for the writing tickets and conflict checking:</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.maxWritingTicktes = maxWritingTicktes;
+        <span class="hljs-keyword">this</span>.writingTickets = []; <span class="hljs-comment">// the property is the writingTicketID of the client. The value is an object storing additional information about the client to make it indetifyable (needed if we wanted to kick one specific client from the list, because it did not appropriately leave the room); the writing tickets are stored to Mongo and are restored on restart (for the case the server crashes, which is exactly the reason why we are doing the fun of conflict checking)</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: backup servers probably also must have a (the same?) writing-ticket list!</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.conflictChecking = conflictChecking;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create the info object</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.infos = {numClients: <span class="hljs-number">0</span>, numClientsWriting:<span class="hljs-number">0</span>, maxWritingTickets:maxWritingTicktes, clients:{}};</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if there is toJSON method in an object, the JSON.stringify converter will use it, otherwise it will do it on its won, but then &#39;forgets&#39; the getter-properties</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-comment">/*this.infos = {maxWritingTickets:maxWritingTicktes, clients:{}};</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>numClientsWriting and numClients are computed properties --&gt; define them with a setter</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-built_in">Object</span>.defineProperties(<span class="hljs-keyword">this</span>.infos, {
+            <span class="hljs-string">'numClients'</span>:{
+                get:()=&gt;{
+                    <span class="hljs-keyword">return</span> <span class="hljs-built_in">Object</span>.keys(<span class="hljs-keyword">this</span>.clients).length;
+                }
+            },
+            <span class="hljs-string">'numClientsWriting'</span>:{
+                get:()=&gt;{
+                    <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.writingTickets.length;
+                }
+            }
+        })
+        <span class="hljs-keyword">this</span>.infos.toJSON = (key)=&gt;{
+            <span class="hljs-keyword">return</span> {
+            numClients: <span class="hljs-keyword">this</span>.infos.numClients,
+            numClientsWriting: <span class="hljs-keyword">this</span>.infos.numClientsWriting,
+            maxWritingTickets: <span class="hljs-keyword">this</span>.infos.maxWritingTickets,
+            clients: <span class="hljs-keyword">this</span>.infos.clients
+        };}*<span class="hljs-regexp">/
+</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: obiges geht so NICHT, weil wir die clients ja jeweils ersetzen wollen und es so sonst dann doch immer alle clients mitliefert!</p></div></div><div class="code"><div class="wrapper">        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>herein the complete dataset MUST be stored (by the inheriting class)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.data = {};</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>all the functions are stored in one of the following objects
+the functions must be async. They get just one argument: The data to be processed. On success/failure they must return an object with the schemas defined below &#39;response&#39;, doObj&#39;,&#39;undoObj&#39; and &#39;isAchange&#39; as properties and their values, on failure an object with properties &#39;message&#39; and &#39;code&#39;, storing the error message and the error code</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.functionsReadOnly = {};
+        <span class="hljs-keyword">this</span>.functionsWrite = {};</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if there shall be conflict checking, the conflict-checking functions (not the functions themselves) must be stored in the following object and have the same name as the function itself. </p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.functionsConflictChecking = {};</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>automatic json-schema proofing:</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.ajv = ajv; <span class="hljs-comment">// options can be passed, e.g. {allErrors: true}</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>max stack length</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.maxStackLength = <span class="hljs-number">20</span>; <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> set this limit reasonably for the Server used. Maybe no limit is needed at all</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>always store last processed change(!)-request (after applying successfully the changes in the DB etc, but without requiring that the new sid and other responses could be sent). This is to cover the case that the connection is lost during the processing. Then if the next change request (e.g. after reconnection) is the same as the last one, we simply return the response and do not process the request once again. If there were other changes (from other clients) since this interuption of the connection, then the client has to reload everything anyway and we answer with an error (because the ID has changed then)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.lastChange = {};
+        <span class="hljs-keyword">this</span>.lastChange.request = {};
+        <span class="hljs-keyword">this</span>.lastChange.response = {}; </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>asynchronously initialize the stack by connecting to MongoDB</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.ready = <span class="hljs-literal">false</span>;
+        <span class="hljs-keyword">this</span>.initMongoStack().then(()=&gt;{<span class="hljs-keyword">this</span>.ready = <span class="hljs-literal">true</span>;}).catch((err)=&gt;{<span class="hljs-keyword">throw</span> err});</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>we need to make sure that only one change is processed at a time; introduce a workStack for the fucntion processing</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.functionsWorkStack = [];
+        <span class="hljs-keyword">this</span>.busy = <span class="hljs-literal">false</span>; <span class="hljs-comment">// is there currently a function running; then we have to put new functionCalls on the stack.</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>schema definitions: </p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> schemaDoObj = {
+            type:<span class="hljs-string">'object'</span>,
+            description: <span class="hljs-string">'object storing the change to be processed on the clients (actually often (always?) the same as the request). Must contain the funcitonName to be called and the parameters'</span>,
+            properties: {
+                <span class="hljs-comment">//ID: {type: "string"},  // not yet inside, as the ID is generated here!</span>
+                funcName: {type: <span class="hljs-string">"string"</span>}, 
+                data: {} <span class="hljs-comment">//type: "object"} // can be anything!</span>
+            },
+            required: [<span class="hljs-string">"funcName"</span>, <span class="hljs-string">"data"</span>]
+            
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: test this schema!!!</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> schemaUndoObj = {
+            type: <span class="hljs-string">'object'</span>,
+            description: <span class="hljs-string">'Probably not needed yet: object that stores the fucntion and data to be called to undo the change, e.g. deleteEntry xy when the request was createEntry xy'</span>,
+            properties: {
+                <span class="hljs-comment">//ID: {type: "string"}, </span>
+                funcName: {type: <span class="hljs-string">"string"</span>}, 
+                data: {} <span class="hljs-comment">// type: "object"} // can be anything!</span>
+            },
+            required: [], </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if funcName exists, then also data must exist</p></div></div><div class="code"><div class="wrapper">            dependencies: {
+                funcName: [<span class="hljs-string">"data"</span>]
+            },</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the following should do the same, but would be more complicated anyway
+&#39;if&#39;: { properties:{
+    funcName:{type:&#39;string&#39;}} // funcName exists
+},
+&#39;then&#39;:{
+    required: [&quot;funcName&quot;, &quot;data&quot;]
+}</p></div></div><div class="code"><div class="wrapper"> 
+        }
+
+        <span class="hljs-keyword">let</span> schemaSucc = {
+            type: <span class="hljs-string">'object'</span>,
+            properties: {
+                response: {
+                    type: [<span class="hljs-string">'boolean'</span>, <span class="hljs-string">'string'</span>, <span class="hljs-string">'object'</span>, <span class="hljs-string">'null'</span>, <span class="hljs-string">'number'</span>, <span class="hljs-string">'array'</span>], <span class="hljs-comment">// 'any' does not exist --&gt; need an array with all possibilitis</span>
+                    description: <span class="hljs-string">'what to return to the requesting client'</span>
+                },
+                doObj: schemaDoObj,
+                undoObj: schemaUndoObj,
+                isAchange: {
+                    type: <span class="hljs-string">'boolean'</span>, 
+                    description: <span class="hljs-string">'true if a change has been processed. If true, the changes defined in doObj/undoObj will be sent to all the other clients and stored on the stack together with a new sid, otherwise only the response will be returned to the requesting client.'</span>
+                }
+            },
+            required: [<span class="hljs-string">"response"</span>, <span class="hljs-string">"isAchange"</span>],</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>does this already work in ajv? or is there an error in my formulation?</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-string">'if'</span>: { properties:{
+                isAchange:{<span class="hljs-keyword">const</span>: <span class="hljs-literal">true</span>}}
+            },
+            <span class="hljs-string">'then'</span>:{
+                required: [<span class="hljs-string">"doObj"</span>, <span class="hljs-string">"undoObj"</span>]
+            }
+        }
+        <span class="hljs-keyword">let</span> schemaFail = {
+            type: <span class="hljs-string">'object'</span>,
+            properties: {
+                message:{type: <span class="hljs-string">'string'</span>},
+                code: {type: <span class="hljs-string">'number'</span>}
+            },
+            required: [<span class="hljs-string">"message"</span>, <span class="hljs-string">"code"</span>]
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>prepare ajv validations</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.validateDoObj = <span class="hljs-keyword">this</span>.ajv.compile(schemaDoObj);
+        <span class="hljs-keyword">this</span>.validateUndoObj = <span class="hljs-keyword">this</span>.ajv.compile(schemaUndoObj);
+        <span class="hljs-keyword">this</span>.validateSuccess = <span class="hljs-keyword">this</span>.ajv.compile(schemaSucc);
+        <span class="hljs-keyword">this</span>.validateFail = <span class="hljs-keyword">this</span>.ajv.compile(schemaFail);
+
+    }
+
+    <span class="hljs-keyword">async</span> initMongoStack(){
+
+        <span class="hljs-keyword">var</span> initStackDocument = <span class="hljs-keyword">async</span> ()=&gt;{ <span class="hljs-comment">// it seems like also arrow functions can by async (...wow, cool), then we dont need th bind at the end</span>
+            <span class="hljs-comment">//await this.collection.insertOne({type:'stack', stack:[]})</span>
+            <span class="hljs-keyword">try</span> {
+                <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.updateOne({type:<span class="hljs-string">'stack'</span>},{$set:{stack:[]}},{upsert:<span class="hljs-literal">true</span>}) <span class="hljs-comment">// upsert:true --&gt; if none exists, create it!</span>
+            } <span class="hljs-keyword">catch</span> (e){
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+                <span class="hljs-keyword">throw</span> e;
+                
+            }
+            <span class="hljs-keyword">this</span>.stack = [];
+            <span class="hljs-keyword">this</span>.stackIDs = [];
+        }<span class="hljs-comment">//.bind(this); // not needed with the arrow function</span>
+
+        <span class="hljs-keyword">try</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>load Mongo stuff (e.g. stack)
+get former changes and the version number from the MongoDB
+the collection is given by the name (should automatically create the collection if it does not exist)</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.collection = <span class="hljs-keyword">this</span>.mongoDB.collection(<span class="hljs-keyword">this</span>.name);
+
+            <span class="hljs-keyword">let</span> cursor = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.find({type:<span class="hljs-string">'stack'</span>}) <span class="hljs-comment">// returns a cursor to the data</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>there should be only one document:</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">await</span> cursor.count()&gt;<span class="hljs-number">1</span>){
+                <span class="hljs-keyword">let</span> errMsg = <span class="hljs-string">"Too many documents with type:'stack' for room named '"</span> + <span class="hljs-keyword">this</span>.name + <span class="hljs-string">"'."</span>;
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, errMsg);
+                <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(errMsg);
+
+            } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(<span class="hljs-keyword">await</span> cursor.count()==<span class="hljs-number">0</span>) {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create new (empty) document of type stack</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">await</span> initStackDocument();
+
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>everything normal:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">await</span> cursor.next();
+                <span class="hljs-keyword">this</span>.stack = doc.stack;    <span class="hljs-comment">// sorted, the oldest element has index 0, the newwest the highest index</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>in order to know quickly which stackObjects to return to a client, store an additional array with the UUIDs of the reqpective objects </p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.stackIDs = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Array</span>(<span class="hljs-keyword">this</span>.stack.length);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>for loop</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-keyword">this</span>.stack.length;i++){
+                    <span class="hljs-keyword">this</span>.stackIDs[i] = <span class="hljs-keyword">this</span>.stack[i].doObj.ID;
+                }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no Limit when below zero</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.maxStackLength &gt;= <span class="hljs-number">0</span>) { <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> is there an error in my code here or why is 'if' and 'this' not marked in blue?</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>eventually resize the stack, if the maxLength has changed meanwhile (since it was stored in Mongo):</p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-keyword">let</span> delta = <span class="hljs-keyword">this</span>.stack.length - <span class="hljs-keyword">this</span>.maxStackLength 
+                    <span class="hljs-keyword">if</span> (delta&gt;<span class="hljs-number">0</span>){
+                        <span class="hljs-keyword">this</span>.stack.splice(<span class="hljs-number">0</span>, delta);
+                        <span class="hljs-keyword">this</span>.stackIDs.splice(<span class="hljs-number">0</span>, delta);
+                        <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.storeStack(); <span class="hljs-comment">// store to Mongo</span>
+                    }
+                }
+                
+
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the ID must be stored separately, for the case that the stack is empty (e.g. because maxStackLength=0 or because the room is new.)</p></div></div><div class="code"><div class="wrapper">            cursor = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.find({type:<span class="hljs-string">'ID'</span>}) <span class="hljs-comment">// returns a cursor to the data</span>
+            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">await</span> cursor.count()&gt;<span class="hljs-number">1</span>){
+                <span class="hljs-keyword">let</span> errMsg = <span class="hljs-string">"Too many documents with type:'ID' for room named '"</span> + <span class="hljs-keyword">this</span>.name + <span class="hljs-string">"'."</span>;
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, errMsg);
+                <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(errMsg);
+
+            } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(<span class="hljs-keyword">await</span> cursor.count()==<span class="hljs-number">0</span>) {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create new  document of type ID with the newly created ID:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.ID = <span class="hljs-keyword">this</span>.uuidv4();
+                <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.insertOne({type:<span class="hljs-string">'ID'</span>, ID:<span class="hljs-keyword">this</span>.ID})
+
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>everything normal:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">await</span> cursor.next();
+                <span class="hljs-keyword">this</span>.ID = doc.ID;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check (if there is a stack) whether the last element has the correct ID</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> l = <span class="hljs-keyword">this</span>.stackIDs.length;
+                <span class="hljs-keyword">if</span> (l&gt;<span class="hljs-number">0</span> ){
+                    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.stackIDs[l-<span class="hljs-number">1</span>] != <span class="hljs-keyword">this</span>.ID){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>there is something wrong --&gt; delete the current stack and continue operation</p></div></div><div class="code"><div class="wrapper">                        <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">11</span>, <span class="hljs-string">"The last stack-ID did not match the stored ID --&gt; the stack got emptied for room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>)
+                        <span class="hljs-keyword">await</span> initStackDocument()
+                    }
+                }
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get the list of currently checked out writing tickets</p></div></div><div class="code"><div class="wrapper">            cursor = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.find({type:<span class="hljs-string">'writingTickets'</span>}) <span class="hljs-comment">// returns a cursor to the data</span>
+            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">await</span> cursor.count()&gt;<span class="hljs-number">1</span>){
+                <span class="hljs-keyword">let</span> errMsg = <span class="hljs-string">"Too many documents with type:'writingTickets' for room named '"</span> + <span class="hljs-keyword">this</span>.name + <span class="hljs-string">"'."</span>;
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, errMsg);
+                <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(errMsg);
+
+            } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(<span class="hljs-keyword">await</span> cursor.count()==<span class="hljs-number">0</span>) {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create new document of type  with the newly created ID:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.writingTickets = [];
+                <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.insertOne({type:<span class="hljs-string">'writingTickets'</span>, writingTickets:[] })
+
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>everything normal:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">await</span> cursor.next();
+                <span class="hljs-keyword">this</span>.writingTickets = doc.writingTickets;
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get the list of disconnected writring clients</p></div></div><div class="code"><div class="wrapper">            cursor = <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.find({type:<span class="hljs-string">'offlineWritingClients'</span>}) <span class="hljs-comment">// returns a cursor to the data</span>
+            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">await</span> cursor.count()&gt;<span class="hljs-number">1</span>){
+                <span class="hljs-keyword">let</span> errMsg = <span class="hljs-string">"Too many documents with type:'offlineWritingClients' for room named '"</span> + <span class="hljs-keyword">this</span>.name + <span class="hljs-string">"'."</span>;
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, errMsg);
+                <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(errMsg);
+
+            } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span>(<span class="hljs-keyword">await</span> cursor.count()==<span class="hljs-number">0</span>) {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create new document of type  with the newly created ID:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.offlineWritingClients = {};
+                <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.insertOne({type:<span class="hljs-string">'offlineWritingClients'</span>, offlineWritingClients:{} })
+
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>everything normal:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">await</span> cursor.next();
+                <span class="hljs-keyword">this</span>.offlineWritingClients = doc.offlineWritingClients;
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if every writingTicketID is available in offlineWritingClients and vice versa; delete if not available in both
+(this actually should not be necessary, but was at least helpful during developement and should probably stay here as it can solve problems with a restart)</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> writingTicketsNew = []; <span class="hljs-comment">//this.writingTickets.slice(0);</span>
+            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> offlineSidHash <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.offlineWritingClients){
+                <span class="hljs-keyword">let</span> wti = <span class="hljs-keyword">this</span>.offlineWritingClients[offlineSidHash].writingTicketID;
+                <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.writingTickets.includes(wti)){
+                    writingTicketsNew.push(wti)
+                } <span class="hljs-keyword">else</span> {
+                    <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.offlineWritingClients[offlineSidHash];
+                }
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>herewith we also automatically delete all writingTicketIDs that do not have the disconnected clients stored!</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.writingTickets = writingTicketsNew;
+            <span class="hljs-keyword">this</span>.storeWritingTickets()
+
+
+        } <span class="hljs-keyword">catch</span> (e){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+            <span class="hljs-keyword">throw</span> e;
+        }
+
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p><span class='doc-section-header'>Method enter A request by a client to get connected to this room</span></p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a string.</strong><br/>(The sid needed for identification of the client. It does NOT necessary need to be an sid stored as cookie on the client, e.g. for Server to Server communication.)</p>
+</li>
+<li><p><strong>wsProcessor must be a wsExtension.</strong><br/>(The Websocket connection (extended with my specific funcitons providing notes and requests) of the calling client. )</p>
+</li>
+<li><p><strong>respFunc must be a function.</strong><br/>(The responseFunction from the request, i.e. has two two arguments: (data, errorCode=0))</p>
+</li>
+<li><p><strong>opt must be an object.</strong><br/>(The options-object. properties according to the following schema: {&quot;type&quot;:&quot;object&quot;, &quot;properties&quot;:{&quot;writing&quot;:{&quot;type&quot;: boolean, &quot;description&quot;: &quot;optional, whether or not this connection also intends to write in this room&quot;}, writingTicketID:{&quot;type&quot;:&quot;string&quot;, &quot;description&quot;:&quot;optional, the former writing-ticket-ID&quot;} , &quot;ID&quot;:{&quot;type&quot;: &quot;string&quot;, &quot;description&quot;:&quot;optional, the UUID of the current data-status present on the client&quot;}, &quot;name&quot;: {&quot;type&quot;:&quot;string&quot;, &quot;description&quot;: &quot;optional, a name of the client used to identify it. Used on the server only if writing is true&quot;}}})</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    enter(sid, wsProcessor, respFunc, opt){
+
+        <span class="hljs-comment">//this.logger.log(99, 'Client '+sid+' wants to enter the room '+this.name);</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create the hashed sid</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> sidHash = <span class="hljs-keyword">this</span>.createSidHash(sid);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>do not answer when server is not ready yet. The client will retry anyway.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (!<span class="hljs-keyword">this</span>.ready){
+            respFunc(<span class="hljs-string">"Server is not yet ready. Please be patient"</span>, <span class="hljs-number">17</span>)
+            <span class="hljs-keyword">return</span>;
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check that the client is not connected yet (mostly needed during debugging, when a client might repeat its enter-request, during the server is at a breakpoint)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (sid <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.clients){
+            respFunc(<span class="hljs-string">"Client is already in room."</span>, <span class="hljs-number">18</span>)
+            <span class="hljs-keyword">return</span>;
+        }
+        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: check if this clients has the rights to access the room and for writing
+error code 19</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> writing;
+        <span class="hljs-keyword">if</span> (opt.writing){
+            writing = <span class="hljs-literal">true</span>;
+        } <span class="hljs-keyword">else</span>{
+            writing = <span class="hljs-literal">false</span>;
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the clients name</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> name=<span class="hljs-string">''</span>;
+        <span class="hljs-keyword">if</span> (opt.name){
+            name = opt.name;
+        }
+        <span class="hljs-keyword">let</span> storeInfos = <span class="hljs-literal">false</span>;
+        <span class="hljs-keyword">if</span> (opt.storeInfos){
+            storeInfos = opt.storeInfos;
+        }
+        
+        <span class="hljs-keyword">let</span> writingTicketID = <span class="hljs-literal">undefined</span>;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the client is found on the offlineWrtingClients list, then it still has a ticket reserved
+delete from offlineWritingClients list, if it was on it</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (sidHash <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.offlineWritingClients){
+            <span class="hljs-keyword">if</span> (!writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the client formerly had writing rights, but does not need them anymore --&gt; delete the writing ticket</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.returnWritingTicketByID(<span class="hljs-keyword">this</span>.offlineWritingClients[sidHash].writingTicketID);
+            }<span class="hljs-keyword">else</span> {
+                writingTicketID = <span class="hljs-keyword">this</span>.offlineWritingClients[sidHash].writingTicketID;
+            }
+            <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.offlineWritingClients[sidHash];
+            <span class="hljs-keyword">this</span>.storeOfflineWritingClients;
+
+        } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if the client can get a regular writing ticket, but first check that if the client provided a writingTicketID in the options, if this would be still valid --&gt; then the client got a new sid, but has an old and valid writingTicketID (or wants to hack us) --&gt; delete the offlineClient for that writingTicketID from the offlineWritingClientsList (should not happen too often...)</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (writing){
+
+                <span class="hljs-keyword">if</span> (opt.writingTicketID &amp;&amp; <span class="hljs-keyword">this</span>.writingTickets.indexOf(opt.writingTicketID)&gt;=<span class="hljs-number">0</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the sid has changed, but the writingTicked stayed the same, we have to remove it from the offlineWritingClientsList in a less efficient way:</p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> clientSidHashed <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.offlineWritingClients){
+                        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.offlineWritingClients[clientSidHashed].writingTicketID==opt.writingTicketID){
+                            <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.offlineWritingClients[clientSidHashed];
+                            <span class="hljs-keyword">this</span>.storeOfflineWritingClients;
+                        }
+                    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the client can keep his writing ticket:</p></div></div><div class="code"><div class="wrapper">                    writingTicketID = opt.writingTicketID;
+                } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>either the client did not yet have a writingTicket or has an invalid one --&gt; try to gather a new writing ticket:</p></div></div><div class="code"><div class="wrapper">                    </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>try to checkout a ticket</p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.maxWritingTicktes!=-<span class="hljs-number">1</span> &amp;&amp; <span class="hljs-keyword">this</span>.writingTickets.length &gt;= <span class="hljs-keyword">this</span>.maxWritingTicktes){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>new 2020-01: there is no error when no writing ticket can be gathered. the client is connected anyway, but without writing ticket. The client shall leave the room when he does not want to be connected anymore. </p></div></div><div class="code"><div class="wrapper">                        <span class="hljs-comment">//respFunc("No (new) writing tickets available anymore. If the client already had a ticket, then it was invalid.", 18)</span>
+                        writing=<span class="hljs-literal">false</span>;
+                        <span class="hljs-comment">//return</span>
+                    } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create a new ticket</p></div></div><div class="code"><div class="wrapper">                        writingTicketID = <span class="hljs-keyword">this</span>.uuidv4()
+                        <span class="hljs-keyword">this</span>.writingTickets.push(writingTicketID);
+                        <span class="hljs-keyword">this</span>.storeWritingTickets();
+                    }
+                }
+
+
+            }
+        } </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the client requested the clientsList but has no writing rights and the server allows it only for writing clients, reset that variable</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (storeInfos &amp;&amp; !writing &amp;&amp; !<span class="hljs-keyword">this</span>.storeReadingClientInfos){
+            storeInfos = <span class="hljs-literal">false</span>;
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>listen to ws-disconnect events: (the listener is also used for disconnecting from the event!)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> listener = ()=&gt;{
+
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">99</span>, <span class="hljs-string">'Client '</span>+sid+<span class="hljs-string">' got disconnected from room '</span>+<span class="hljs-keyword">this</span>.name + <span class="hljs-string">' without properly leaving first.'</span>);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>do not listen to the same event anymore, as the client is not connected anymore
+NOTE: we do not have to listen for a reconnect, since the client will make the request to the room again if needed</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.eH.eventUnsubscribe(<span class="hljs-string">'wsClientDisconnect/'</span>+sid, <span class="hljs-keyword">this</span>.name + <span class="hljs-string">'/'</span> + sid);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the client requested Infos about all the other clients, also delete it from this list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (storeInfos){
+                <span class="hljs-keyword">this</span>.clientsRequestingInfos.splice(<span class="hljs-keyword">this</span>.clientsRequestingInfos.indexOf(sid),<span class="hljs-number">1</span>);
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the client had writing rights: move the client from the clients list to the offlineWritingClients list and remove its processor, but do not delete the writingTicket from the list!</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> writing = <span class="hljs-keyword">this</span>.clients[sid].writing;
+            <span class="hljs-keyword">if</span> (writing){
+                <span class="hljs-keyword">let</span> client = <span class="hljs-keyword">this</span>.clients[sid];
+                <span class="hljs-keyword">delete</span> client.processor;
+                <span class="hljs-keyword">this</span>.offlineWritingClients[sidHash] = client;
+                <span class="hljs-keyword">this</span>.storeOfflineWritingClients();
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>always delete the client from the clients list:</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.clients[sid];
+            <span class="hljs-comment">//delete this.sidHashed[sidHash];</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send the updated clientInfo to every listening client
+update the clientInformation and sent them to the clients</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>also change client list</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>); 
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no need to change client list</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">false</span>); 
+            }
+        }
+        <span class="hljs-keyword">this</span>.eH.eventSubscribe(<span class="hljs-string">'wsClientDisconnect/'</span>+sid, listener, <span class="hljs-keyword">this</span>.name + <span class="hljs-string">'/'</span> + sid);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>define the data-object to return</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> data = {};
+        <span class="hljs-keyword">if</span> (writingTicketID){ 
+            data.writingTicketID = writingTicketID;
+        }
+        data.ID = <span class="hljs-keyword">this</span>.ID;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>only send incremental changes if ID is given and still in the stack</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (opt.ID){
+            <span class="hljs-keyword">let</span> i = <span class="hljs-keyword">this</span>.stackIDs.indexOf(opt.ID);
+            <span class="hljs-keyword">if</span> (i&gt;=<span class="hljs-number">0</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get all incremental do-changes and write it to a new array</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> changes = [];
+                <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> j = i+<span class="hljs-number">1</span>; j&lt;<span class="hljs-keyword">this</span>.stackIDs.length; j++){ <span class="hljs-comment">// 1+ because we do not need to send what is already available, but everything newer. If there is nothing newer, then the changes list will simply stay empty.</span>
+                    changes.push({funcName:<span class="hljs-keyword">this</span>.stack[j].doObj.funcName, data:<span class="hljs-keyword">this</span>.stack[j].doObj.data}); <span class="hljs-comment">// do not simply add the complete stack-doObj, as the client does not need all the incremental IDs, which are stored in the doObj too.</span>
+                }
+
+                data.type = <span class="hljs-string">'incremental'</span>;
+                data.data = changes;
+            } <span class="hljs-keyword">else</span> {
+                data.type = <span class="hljs-string">'full'</span>;
+                data.data = <span class="hljs-keyword">this</span>.data; 
+            }
+            
+        } <span class="hljs-keyword">else</span> {
+            data.type = <span class="hljs-string">'full'</span>;
+            data.data = <span class="hljs-keyword">this</span>.data; 
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>add to the room (if the client was already registered, it will not be duplicate)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.clients[sid] = {processor: wsProcessor, writing:writing, writingTicketID:writingTicketID, name:name, storeInfos:storeInfos, sidHash:sidHash};
+        <span class="hljs-comment">//this.sidHashed[sidHash] = sid; // be able to retranslate the sid</span>
+        <span class="hljs-keyword">if</span> (storeInfos) {
+            <span class="hljs-keyword">this</span>.clientsRequestingInfos.push(sid);
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the clientInformation and sent them to the clients</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>also change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>); 
+        } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no need to change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">false</span>); 
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>even if the infos will be broadcast shortöy, we have to send it here for one case: non-writing client that wants the infos; because the broadcast would not send the clients since they did not change</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (storeInfos){
+            <span class="hljs-keyword">if</span> ((!<span class="hljs-keyword">this</span>.storeReadingClientInfos) &amp;&amp; (!writing)){
+                data.infos = <span class="hljs-keyword">this</span>.infos;
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>we have to create a client specific info-object</p></div></div><div class="code"><div class="wrapper">                data.infos = copyObject(<span class="hljs-keyword">this</span>.infos);
+                data.infos.clients = <span class="hljs-keyword">this</span>.getPersonalizedClientsInfos(sid);
+            }
+        }
+
+        <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">99</span>, <span class="hljs-string">"Successfully entered the room '"</span> + <span class="hljs-keyword">this</span>.name + <span class="hljs-string">"'. SID: "</span>+ sid + <span class="hljs-string">" Name: "</span>+ name)</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send the response with the data</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">99</span>,data);
+        respFunc(data, <span class="hljs-number">0</span>);
+        
+    } <span class="hljs-comment">// end enter</span></div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Leave the room. Just remove the entry in the clients array. 
+Returns true on success. (actually this might be/is unused, since clients do not want to wait for an answer until they close the connection, so Note is used instead of request)</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a *.</strong></p>
+</li>
+<li><p><strong>opt must be an object.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    leaveRequest(sid, respFunc, opt) {
+
+        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.isClient(sid))){
+            respFunc(<span class="hljs-string">"You are not client of the room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>,<span class="hljs-number">19</span>)
+            <span class="hljs-keyword">return</span>;
+        }
+
+        <span class="hljs-keyword">let</span> sidHash = <span class="hljs-keyword">this</span>.clients[sid].sidHash;
+        <span class="hljs-keyword">let</span> writing = <span class="hljs-keyword">this</span>.clients[sid].writing;
+
+        <span class="hljs-keyword">this</span>.returnWritingTicket(sid);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>unsubscribe from the disconnect event!</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.eH.eventUnsubscribe(<span class="hljs-string">'wsClientDisconnect/'</span>+sid, <span class="hljs-keyword">this</span>.name + <span class="hljs-string">'/'</span> + sid);
+
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.clients[sid].storeInfos){
+            <span class="hljs-keyword">this</span>.clientsRequestingInfos.splice(<span class="hljs-keyword">this</span>.clientsRequestingInfos.indexOf(sid),<span class="hljs-number">1</span>);
+        }
+
+        <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.clients[sid];
+        <span class="hljs-comment">//delete this.sidHashed[sidHash];</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>always returns true, as nothing cna go wrong (except when the connection would get lost)</p></div></div><div class="code"><div class="wrapper">        respFunc(<span class="hljs-literal">true</span>);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the clientInformation and sent them to the clients</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>also change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>); 
+        } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no need to change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">false</span>); 
+        }
+        
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Leave the room. Just remove the entry in the clients array. 
+Returns true on success.</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a *.</strong></p>
+</li>
+<li><p><strong>opt must be an object.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    leaveNote(sid, opt){
+        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.isClient(sid))){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">75</span>, <span class="hljs-string">"leave: Sid '"</span> +sid+<span class="hljs-string">"' is not a client of the room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>)
+            <span class="hljs-keyword">return</span>;
+        }
+
+        <span class="hljs-keyword">let</span> sidHash = <span class="hljs-keyword">this</span>.clients[sid].sidHash;
+        <span class="hljs-keyword">let</span> writing = <span class="hljs-keyword">this</span>.clients[sid].writing;
+
+        <span class="hljs-keyword">this</span>.returnWritingTicket(sid);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>unsubscribe from the disconnect event!</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.eH.eventUnsubscribe(<span class="hljs-string">'wsClientDisconnect/'</span>+sid, <span class="hljs-keyword">this</span>.name + <span class="hljs-string">'/'</span> + sid);
+
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.clients[sid].storeInfos){
+            <span class="hljs-keyword">this</span>.clientsRequestingInfos.splice(<span class="hljs-keyword">this</span>.clientsRequestingInfos.indexOf(sid),<span class="hljs-number">1</span>);
+        }
+
+        <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.clients[sid];
+        <span class="hljs-comment">//delete this.sidHashed[sidHash];</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the clientInformation and sent them to the clients</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>also change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>); 
+        } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no need to change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">false</span>); 
+        }
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>change the name of the client with the given sid to the new name and report it to every other client</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a string.</strong></p>
+</li>
+<li><p><strong>name must be a *.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    changeClientName(sid, name){
+
+        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.isClient(sid))){
+            <span class="hljs-keyword">return</span>;
+        }
+
+        <span class="hljs-keyword">let</span> nameOld = <span class="hljs-keyword">this</span>.clients[sid].name;
+        <span class="hljs-keyword">let</span> writing = <span class="hljs-keyword">this</span>.clients[sid].writing;
+        <span class="hljs-keyword">this</span>.clients[sid].name = name;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>report to all clients except the just mentioned one.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> data = {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the roomName is added in broadcast</p></div></div><div class="code"><div class="wrapper">            arg: <span class="hljs-string">'changeClientName'</span>,
+            opt: {
+                oldName: nameOld,
+                newName: name
+            }
+        }
+        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the clientInformation and sent them to the clients</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || writing){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>also change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>); 
+        } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no need to change client list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">false</span>); 
+        }
+
+    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>Dump the mysql-tables used in this room. This used by slave-servers to get to the same state as the master server</p></div></div><div class="code"><div class="wrapper">    dumpTables(){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-comment">/*mysqldump({
+
+        })*/</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>return the dump and the current ID</p></div></div><div class="code"><div class="wrapper">    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>give the given writingTicket . </p>
+<p>Parameters:</p>
+<ul>
+<li><strong>sid must be a string.</strong><br/>(The sid of the client (We do not use the writingTicketID directly in order that we can make sure the client is part of the room and not an evil client, that probably would not get rights to enter the room, can also try to return a random writingTicket))</li>
+</ul></div></div><div class="code"><div class="wrapper">    returnWritingTicket(sid){
+
+        <span class="hljs-keyword">if</span> (sid <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.clients){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get the id</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> id = <span class="hljs-keyword">this</span>.clients[sid].writingTicketID;
+
+            <span class="hljs-keyword">this</span>.returnWritingTicketByID(id);
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">75</span>, <span class="hljs-string">'Client with sid "'</span>+sid+<span class="hljs-string">'" is not member of the room '</span>+<span class="hljs-keyword">this</span>.name);
+        }
+        
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Return the writingTicket when we already know the id and not only th sid. </p>
+<p>Parameters:</p>
+<ul>
+<li><strong>id must be a string.</strong><br/>(The writingTicketID)</li>
+</ul></div></div><div class="code"><div class="wrapper">    returnWritingTicketByID(id){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>give the writing ticket back</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> ind = <span class="hljs-keyword">this</span>.writingTickets.indexOf(id);
+        <span class="hljs-keyword">if</span> (ind&gt;=<span class="hljs-number">0</span>){
+            <span class="hljs-keyword">this</span>.writingTickets.splice(ind,<span class="hljs-number">1</span>);
+            <span class="hljs-keyword">this</span>.storeWritingTickets;
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">99</span>, <span class="hljs-string">'Successfully returned writingTicket "'</span>+id+<span class="hljs-string">'" in room '</span>+<span class="hljs-keyword">this</span>.name);
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">75</span>, <span class="hljs-string">'WritingTicketID "'</span>+id+<span class="hljs-string">'" did not exist in the room '</span>+<span class="hljs-keyword">this</span>.name+ <span class="hljs-string">' and thus is not deleted.'</span>);
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+        }
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>process the incoming request for a writing ticket for a client that previously did not have a writing ticket</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a *.</strong></p>
+</li>
+<li><p><strong>respFunc must be a *.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    requestWritingTicket(sid, respFunc){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: at the beginning of most/every function we have to check whether the sid is part of this room! (as done here)</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check that the client did not yet have a writing ticket</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (!<span class="hljs-keyword">this</span>.isClient(sid)){
+            respFunc(<span class="hljs-string">"You are not a client of room '"</span>+<span class="hljs-keyword">this</span>.roomName+<span class="hljs-string">"'."</span>, <span class="hljs-number">17</span>);
+            <span class="hljs-keyword">return</span>;
+        }
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.clients[sid].writing){
+            respFunc(<span class="hljs-string">'Cannot get another writing ticket. No stockpiling here!'</span>,<span class="hljs-number">18</span>);
+            <span class="hljs-keyword">return</span>;
+        }
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.maxWritingTicktes!=-<span class="hljs-number">1</span> &amp;&amp; <span class="hljs-keyword">this</span>.writingTickets.length &gt;= <span class="hljs-keyword">this</span>.maxWritingTicktes){
+            respFunc(<span class="hljs-string">"No (new) writing tickets available anymore. "</span>, <span class="hljs-number">19</span>);
+            <span class="hljs-keyword">return</span>;
+        } <span class="hljs-keyword">else</span>{</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create a new ticket</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> writingTicketID = <span class="hljs-keyword">this</span>.uuidv4()
+            <span class="hljs-keyword">this</span>.writingTickets.push(writingTicketID);
+            <span class="hljs-keyword">this</span>.storeWritingTickets();</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>store the ticket to the client infos</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.clients[sid].writing = <span class="hljs-literal">true</span>;
+            <span class="hljs-keyword">this</span>.clients[sid].writingTicketID = writingTicketID;
+            
+            <span class="hljs-keyword">let</span> resp = {writingTicketID: writingTicketID};
+
+            respFunc(resp);
+        }
+
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Reset the list of writing tickets. This might be needed, when a client with writing rights does not properly leave the room when finished. Always return true</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>responseFunc must be a function.</strong><br/>(The responseFunction from the request, i.e. has two two arguments: (data, errorCode=0). On success, data=ID. )</p>
+</li>
+<li><p><strong>opt must be an object.</strong><br/>(Not used yet. Could be used e.g. for kicking specifically one client. )</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    writingTicketsReset(responseFunc, opt){
+        <span class="hljs-keyword">this</span>.writingTickets = [];
+        <span class="hljs-keyword">this</span>.storeWritingTickets();
+        responseFunc(<span class="hljs-literal">true</span>,<span class="hljs-number">0</span>);
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>revoke the writing ticket of the client with the sidHash given. Only of offline clients the writing Ticket can be revoked </p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a string.</strong><br/>(The sid of the client that wants to revoke the sid of another client and eventually (opt.writingWanted) wants a writing ticket for its own.)</p>
+</li>
+<li><p><strong>responseFunc must be a function.</strong><br/>(The responseFunction from the request, i.e. has two two arguments: (data, errorCode=0). On success, data=ID. )</p>
+</li>
+<li><p><strong>opt must be an object.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    revokeWritingTicket(sid, respFunc, opt){
+        <span class="hljs-comment">//opt.sidHash // of the writingTicket to be revoked</span>
+        <span class="hljs-comment">//opt.writingRequested // if the client wants the free writingTicket</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>FUTURE: check if the clients has the rights to do so</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> resp = {}; <span class="hljs-comment">// the response is either empty or has a property named writingTicketID with the ticket. There is no need for stating that the revoking worked, since an error would be raised otherwise.</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>revoke the writing ticket
+hereby we automatically check, that the client with the respecitve sidHash really is offline. Do NEVER revoke writing Tickets of online clients (except we make sure we can also inform them; not implemented yet!)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> revokeClient = <span class="hljs-keyword">this</span>.offlineWritingClients[opt.sidHash];
+        <span class="hljs-keyword">if</span>(revokeClient){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>return the writing ticket</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span>(!(<span class="hljs-keyword">this</span>.returnWritingTicketByID(revokeClient.writingTicketID))){
+                respFunc(<span class="hljs-string">'Could not return the writing ticket for any reason...'</span>, <span class="hljs-number">17</span>);
+                <span class="hljs-keyword">return</span>
+            } </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>delete it from the offlineClients list</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">delete</span> <span class="hljs-keyword">this</span>.offlineWritingClients[opt.sidHash];
+            <span class="hljs-keyword">this</span>.storeOfflineWritingClients;
+
+        } <span class="hljs-keyword">else</span> {
+            respFunc(<span class="hljs-string">'Could not find offline client with given sidHash.'</span>,<span class="hljs-number">17</span>);
+        }
+
+        <span class="hljs-keyword">if</span> (opt.writingRequested){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check that the client does not already have a writing ticket</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.clients[sid].writing){
+                respFunc(<span class="hljs-string">'Cannot get another writing ticket. No stockpiling here!'</span>,<span class="hljs-number">18</span>)
+            } <span class="hljs-keyword">else</span>{</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get a writing ticket for the client and return it</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create a new ticket</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> writingTicketID = <span class="hljs-keyword">this</span>.uuidv4()
+                <span class="hljs-keyword">this</span>.writingTickets.push(writingTicketID);
+                <span class="hljs-keyword">this</span>.storeWritingTickets();
+                <span class="hljs-keyword">this</span>.clients[sid].writingTicketID = writingTicketID;
+                <span class="hljs-keyword">this</span>.clients[sid].writing = <span class="hljs-literal">true</span>;
+
+                resp.writingTicketID = writingTicketID;
+            }
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>broadcast new infos</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.broadcastInfos(<span class="hljs-literal">true</span>);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send the regular response</p></div></div><div class="code"><div class="wrapper">        respFunc(resp,<span class="hljs-number">0</span>);
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>update the infos and broadcasts it</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>updateClients must be a boolean.</strong><br/>(Set to true if also the clients shall be updated)</li>
+</ul></div></div><div class="code"><div class="wrapper">    broadcastInfos(updateClients=<span class="hljs-literal">false</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the clients list, if requested</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (updateClients){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>this is how it must look for each client:
+sidHash:{connected, name, writing, sidHash }</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>reset all</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.infos.clients = {}</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>add all connected clients</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> sid <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.clients){
+                <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.storeReadingClientInfos || <span class="hljs-keyword">this</span>.clients[sid].writing){
+                    <span class="hljs-keyword">let</span> client = <span class="hljs-keyword">this</span>.clients[sid];
+                    <span class="hljs-keyword">this</span>.infos.clients[client.sidHash] = {name:client.name, connected:<span class="hljs-literal">true</span>, writing:client.writing, sidHash:client.sidHash}
+                }
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>add all offline writing clients</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> sidHash <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.offlineWritingClients){
+                <span class="hljs-keyword">let</span> client = <span class="hljs-keyword">this</span>.offlineWritingClients[sidHash];
+                <span class="hljs-keyword">this</span>.infos.clients[sidHash] = {name:client.name, connected:<span class="hljs-literal">false</span>, writing:client.writing, sidHash:sidHash}
+            }
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>update the statistics</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.infos.numClients = <span class="hljs-built_in">Object</span>.keys(<span class="hljs-keyword">this</span>.clients).length;
+        <span class="hljs-keyword">this</span>.infos.numClientsWriting = <span class="hljs-keyword">this</span>.writingTickets.length;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>start the broadcasting.</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>every clients gets its own new clientList, when updateClient=true, otherwise it stays empty</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> emptyBaseInfo = copyObject(<span class="hljs-keyword">this</span>.infos);
+        emptyBaseInfo.clients = {};
+        <span class="hljs-keyword">let</span> sendObj = {name: <span class="hljs-string">'room'</span>, data: {arg: <span class="hljs-string">'infoUpdate'</span>, roomName:<span class="hljs-keyword">this</span>.name, opt: emptyBaseInfo}}
+
+        <span class="hljs-keyword">if</span> (updateClients){
+
+            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i&lt;<span class="hljs-keyword">this</span>.clientsRequestingInfos.length; i++){
+                <span class="hljs-keyword">let</span> sid = <span class="hljs-keyword">this</span>.clientsRequestingInfos[i];
+    </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send infos with clients</p></div></div><div class="code"><div class="wrapper">                emptyBaseInfo.clients = <span class="hljs-keyword">this</span>.getPersonalizedClientsInfos(sid);
+
+                <span class="hljs-keyword">this</span>.clients[sid].processor.sendNote(sendObj);
+
+            }
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i = <span class="hljs-number">0</span>; i&lt;<span class="hljs-keyword">this</span>.clientsRequestingInfos.length; i++){
+                <span class="hljs-keyword">let</span> sid = <span class="hljs-keyword">this</span>.clientsRequestingInfos[i];</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>infos without clients</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.clients[sid].processor.sendNote(sendObj);
+                
+            }
+        }
+
+
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Create an info-object specific for the mentioned client (e.g. without its own data in the rooms-list)</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>sid must be a string.</strong><br/>(The sid to exclude)</li>
+</ul></div></div><div class="code"><div class="wrapper">    getPersonalizedClientsInfos(sid) {
+        <span class="hljs-keyword">let</span> sidHash = <span class="hljs-keyword">this</span>.createSidHash(sid);
+        <span class="hljs-keyword">let</span> persClients = copyObject(<span class="hljs-keyword">this</span>.infos.clients);
+        <span class="hljs-keyword">delete</span> persClients[sidHash]; <span class="hljs-comment">// probably does nothing, when the client is read-only + infos are stored only for writing clients but still requested the infos</span>
+        <span class="hljs-keyword">return</span> persClients
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>func: Call a function in this room. However, these functions must be available first...
+the functions must be async. They get just one argument: The data to be processed. On success/failure they must return an object with the schemas defined below &#39;response&#39;, doObj&#39;,&#39;undoObj&#39; and &#39;isAchange&#39; as properties and their values, on failure an object with properties &#39;message&#39; and &#39;code&#39;, storing the error message and the error code</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a string.</strong><br/>(The sid needed for identification of the client. It does NOT necessary need to be an sid stored as cookie on the client, e.g. for Server to Server communication.)</p>
+</li>
+<li><p><strong>respFunc must be a function.</strong><br/>(The responseFunction from the request, i.e. has two two arguments: (data, errorCode=0). On success, data=ID.)</p>
+</li>
+<li><p><strong>request must be an object.</strong><br/>(An object storing the functionName to call (func) and the data to process (data).)</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    func(sid, respFunc, request){
+
+        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.isClient(sid))){
+            respFunc(<span class="hljs-string">"You are not client of the room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>,<span class="hljs-number">19</span>)
+            <span class="hljs-keyword">return</span>;
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if request has the right format</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">let</span> reqSchema = {
+            type:<span class="hljs-string">'object'</span>,
+            properties: {
+                func:{type: <span class="hljs-string">'string'</span>},
+                ID:{type: <span class="hljs-string">'string'</span>},
+                data:{} <span class="hljs-comment">// should accept any type</span>
+            },
+            required:[<span class="hljs-string">'func'</span>, <span class="hljs-string">'ID'</span>]
+        } </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if necessary arguments exist</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.ajv.validate(reqSchema, request))){
+            respFunc(<span class="hljs-string">"The request '"</span>+ <span class="hljs-built_in">JSON</span>.stringify(request) +<span class="hljs-string">"' does not fulfill the schema '"</span>+ <span class="hljs-built_in">JSON</span>.stringify(reqSchema) +<span class="hljs-string">"'."</span>,<span class="hljs-number">17</span>);
+            <span class="hljs-keyword">return</span>;
+        } </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if the function exists:</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (request.func <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.functionsReadOnly){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>no checks needed here --&gt; start directly</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.functionsReadOnly[request.func](request.data).then((ret)=&gt;{
+                </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send response</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-comment">//ret.ID = id;</span>
+                respFunc(ret); <span class="hljs-comment">// does not include an ID since we did not change anything</span>
+
+            }).catch((err)=&gt;{
+                <span class="hljs-keyword">if</span> (developMode){
+                    <span class="hljs-keyword">let</span> schemaFail = {
+                        type: <span class="hljs-string">'object'</span>,
+                        properties: {
+                            message:{type: <span class="hljs-string">'string'</span>},
+                            code: {type: <span class="hljs-string">'number'</span>}
+                        },
+                        required: [<span class="hljs-string">"message"</span>, <span class="hljs-string">"code"</span>]
+                    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check schema</p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-keyword">if</span>(!(<span class="hljs-keyword">this</span>.ajv.validate(schemaFail, ret))){
+                        <span class="hljs-keyword">let</span> text = <span class="hljs-string">"Error: The error-object returned from the room-function '"</span>+ request.func +<span class="hljs-string">"' in room '"</span>+ <span class="hljs-keyword">this</span>.name +<span class="hljs-string">"' does not fulfill the schema."</span>;
+                        <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, text)
+                        respFunc(<span class="hljs-string">"Error on the server: "</span> + text, <span class="hljs-number">11</span>)
+                        <span class="hljs-keyword">return</span>;
+                    }
+                }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, &gt;=21= room funciton specific failures)</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">if</span> (err.code&lt;<span class="hljs-number">21</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>use the code 99 for wrong error codes in the room implementation</p></div></div><div class="code"><div class="wrapper">                    err.code = <span class="hljs-number">99</span>;
+                }
+                respFunc(err.message, err.code); 
+            });
+        }
+        <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (request.func <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.functionsWrite){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>do all checks that can be done before we have to decide whether the request is processed immediately or has to be put on the stack. </p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check for writing rights</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.clients[sid].writing)){
+                respFunc(<span class="hljs-string">"Client has no rights to do writing changes!"</span>,<span class="hljs-number">18</span>);
+                <span class="hljs-keyword">return</span>
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if the last request was identical to the current one (this happens when the connection is lost after the request arrives but before the answer was sent) --&gt; then we simply send the response without processing it again</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (request==<span class="hljs-keyword">this</span>.lastChange.request){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: problem here could appear: when the first request is not completely processed then this.lastChange.response is empty but still returned!</p></div></div><div class="code"><div class="wrapper">                respFunc(<span class="hljs-keyword">this</span>.lastChange.response);
+                <span class="hljs-keyword">return</span>;
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if the ID matches --&gt; this check needs to be repeated in _startWriteFunction!</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> currentID = <span class="hljs-keyword">this</span>.ID;
+            <span class="hljs-keyword">if</span> (request.ID != currentID) {
+                <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.conflictChecking){
+                    <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.funcName <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.functionsConflictChecking){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>try to do conflict checking (and in the future maybe even conflict handling (=solving))</p></div></div><div class="code"><div class="wrapper">                        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: implement. </p></div></div><div class="code"><div class="wrapper">                        <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">10</span>, <span class="hljs-string">'Conflict checking is not implemented yet!'</span>);
+                        <span class="hljs-keyword">return</span>;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if  no conflict, simply continue (no return)</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>on error in the conflictCheckingFunction: </p></div></div><div class="code"><div class="wrapper">                        <span class="hljs-comment">//respFunc("An error occured during conflict checking. The request is rejected.", 14);</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the conflict checking really found a conflict and thus cannot process the request:
+respFunc(&quot;Conflict checking found a conflict and thus cannot process the data. The request is rejected.&quot;, 15);
+TODO future: here we would implement complex conflict handling strategies</p></div></div><div class="code"><div class="wrapper">                    } <span class="hljs-keyword">else</span> {
+                        respFunc(<span class="hljs-string">"There is no conflict checking for this function. The request is rejected."</span>, <span class="hljs-number">14</span>);
+                        <span class="hljs-keyword">return</span>;
+                    }
+                } <span class="hljs-keyword">else</span> {
+                    respFunc(<span class="hljs-string">"The client is outdated and the server has no conflict checking. The request is rejected."</span>, <span class="hljs-number">13</span>);
+                    <span class="hljs-keyword">return</span>;
+                }
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check whether something is running right now and put the change on the stack if so; process it directly otherwise</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.busy){
+                <span class="hljs-keyword">this</span>.functionsWorkStack.push({sid:sid, respFunc: respFunc, request:request, ID:currentID})
+                <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">67</span>, <span class="hljs-string">"Need to put a change on the stack since multiple changes were requested at the same time. Client "</span> + sid + <span class="hljs-string">" with a request to the '"</span> + request.func + <span class="hljs-string">"'-function has to wait..."</span>);
+            } <span class="hljs-keyword">else</span> {</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>do start the function</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>._startWriteFunction(sid, respFunc, request, currentID); 
+            }
+        } <span class="hljs-keyword">else</span> {
+            respFunc(<span class="hljs-string">"The function '"</span> + request.func + <span class="hljs-string">"' is not available on the server-room."</span>,<span class="hljs-number">12</span>);
+            <span class="hljs-keyword">return</span>;
+        } 
+
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>startProcessing a write request. This function is either called by func or via the requestStack. </p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>sid must be a *.</strong></p>
+</li>
+<li><p><strong>respFunc must be a *.</strong></p>
+</li>
+<li><p><strong>request must be a *.</strong></p>
+</li>
+<li><p><strong>ID must be a string.</strong><br/>(The id when the last check for ID and conflict was done. If it did change, we have to repeat the check.)</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    _startWriteFunction(sid, respFunc, request, ID=<span class="hljs-string">''</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>old: sync</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-comment">//this.functions[request.func](sid, request.data, respFunc)</span>
+
+        <span class="hljs-keyword">if</span> (!(<span class="hljs-keyword">this</span>.isClient(sid))){
+            respFunc(<span class="hljs-string">"You are not client of the room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>,<span class="hljs-number">19</span>)
+            <span class="hljs-keyword">return</span>;
+        }
+        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check if the ID matches if the ID has changed since the last check</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.ID!=ID &amp;&amp; request.ID != <span class="hljs-keyword">this</span>.ID) {
+            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.conflictChecking){
+                <span class="hljs-keyword">if</span>(<span class="hljs-keyword">this</span>.funcName <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.functionsConflictChecking){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>try to do conflict checking (and in the future maybe even conflict handling (=solving))</p></div></div><div class="code"><div class="wrapper">                    </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: implement. </p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">10</span>, <span class="hljs-string">'Conflict checking is not implemented yet!'</span>);
+                    <span class="hljs-keyword">return</span>;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if  no conflict, simply continue (no return)</p></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>on error in the conflictCheckingFunction: </p></div></div><div class="code"><div class="wrapper">                    <span class="hljs-comment">//respFunc("An error occured during conflict checking. The request is rejected.", 14);</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>if the conflict checking really found a conflict and thus cannot process the request:
+respFunc(&quot;Conflict checking found a conflict and thus cannot process the data. The request is rejected.&quot;, 15);
+TODO future: here we would implement complex conflict handling strategies</p></div></div><div class="code"><div class="wrapper">                } <span class="hljs-keyword">else</span> {
+                    respFunc(<span class="hljs-string">"There is no conflict checking for this function. The request is rejected."</span>, <span class="hljs-number">14</span>);
+                    <span class="hljs-keyword">return</span>;
+                }
+            } <span class="hljs-keyword">else</span> {
+                respFunc(<span class="hljs-string">"The client is outdated and the server has no conflict checking. The request is rejected."</span>, <span class="hljs-number">13</span>);
+                <span class="hljs-keyword">return</span>;
+            }
+        }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>new: async functions</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.functionsWrite[request.func](request.data).then((ret)=&gt;{
+            <span class="hljs-keyword">if</span> (developMode){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check schema</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">if</span>(!(<span class="hljs-keyword">this</span>.validateSuccess(ret))){
+                    <span class="hljs-keyword">let</span> text = <span class="hljs-string">"Error: The object ("</span>+<span class="hljs-built_in">JSON</span>.stringify(ret)+<span class="hljs-string">") returned from the room-function '"</span>+ request.func +<span class="hljs-string">"' in room '"</span>+ <span class="hljs-keyword">this</span>.name +<span class="hljs-string">"' does not fulfill the schema. schema-error: "</span> + <span class="hljs-keyword">this</span>.ajv.errorsText();
+                    <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, text)
+                    respFunc(<span class="hljs-string">"Error on the server: "</span> + text, <span class="hljs-number">11</span>)
+                    <span class="hljs-keyword">return</span>;
+                }
+            }
+            </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the request could include reading only and thus no new ID and no broadcast of any changes must be sent to other clients.</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (ret.isAchange){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>new: part of this function is in _processChange, since there is now the possibility for non-response related change-broadcasts (with processChange() (without _underline))</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> id = <span class="hljs-keyword">this</span>._processChange(ret.doObj, ret.undoObj, sid)</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create the new ID and put the old and new one to the respective changeObjects on teh stack</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-comment">//ret.undoObj.ID = this.ID;</span>
+                <span class="hljs-comment">//let id = this.uuidv4();</span>
+                <span class="hljs-comment">//this.ID = id;</span>
+                <span class="hljs-comment">//ret.doObj.ID = id;</span>
+                <span class="hljs-keyword">let</span> response = {};
+                response.data = ret.response; 
+                response.ID = id;
+                </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send response</p></div></div><div class="code"><div class="wrapper">                respFunc(response);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>store the last change separately. This is needed for the case that the response could not be sent, but the change was still processed on the server: The client will then send the same change request again and the server will directly answer with the response that the last time did not reach the client without actually processing the request.</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.lastChange.request = request;
+                <span class="hljs-keyword">this</span>.lastChange.response = response; <span class="hljs-comment">// not the response-data (ret.response), but the comnplete sent object</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>Does the following:</p>
+<ul>
+<li>put the changes on the stack together with their ID</li>
+<li>save the stack to MongoDB</li>
+<li>send all clients (except the sender with the given sid) the changes</li>
+<li>if there is a change that was not yet processed because another change was running: start this function</li>
+</ul></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>write entry on the changes stack
+make sure the max length is not exceeded</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-comment">/*if (this.maxStackLength&gt;=0){
+                    if (this.stack.length==this.maxStackLength){</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>delete the oldest (=first) elements</p></div></div><div class="code"><div class="wrapper">                        <span class="hljs-keyword">this</span>.stack.shift()
+                        <span class="hljs-keyword">this</span>.stackIDs.shift()
+                    }
+                }
+                
+                <span class="hljs-keyword">this</span>.stack.push({doObj: ret.doObj, undoObj: ret.undoObj}) <span class="hljs-comment">// Info: the id is within the doObj</span>
+                <span class="hljs-keyword">this</span>.stackIDs.push(<span class="hljs-keyword">this</span>.ID);
+                </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>store new stack to Mongo:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.storeStackAndID();</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send the change to all other (&lt;&gt;sid) connected clients</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>._broadcastChange(ret.doObj, sid)
+                *<span class="hljs-regexp">/
+</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>either just finish (busy=false) or start next function to be processed:</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.finishedFunc();
+            } <span class="hljs-keyword">else</span>{</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>simply send response</p></div></div><div class="code"><div class="wrapper">                respFunc(ret.response);
+            }
+
+
+        }).catch((err)=&gt;{
+            <span class="hljs-keyword">if</span> (developMode){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>check schema</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">if</span>(!(<span class="hljs-keyword">this</span>.validateFail(err))){
+                    <span class="hljs-keyword">let</span> text = <span class="hljs-string">"Error: The error-object returned from the room-function '"</span>+ request.func +<span class="hljs-string">"' in room '"</span>+ <span class="hljs-keyword">this</span>.name +<span class="hljs-string">"' does not fulfill the schema. Error: "</span> + err.toString();
+                    <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, text)
+                    respFunc(<span class="hljs-string">"Error on the server: "</span> + text, <span class="hljs-number">11</span>)
+                    <span class="hljs-keyword">return</span>;
+                }
+            }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, &gt;=21= room funciton specific failures)</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">if</span> (err.code&lt;<span class="hljs-number">21</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>use the code 99 for wrong error codes in the room implementation</p></div></div><div class="code"><div class="wrapper">                err.code = <span class="hljs-number">99</span>;
+            }
+            respFunc(err.message, err.code); 
+        })
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>process a change that is not just an answer to a client request, but e.g. an additional change from a client. The actual processing is done in _processChange.
+If the properties do not pass the validation, the function returns false, otherwise true. However, the error will not be reported on any client.</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>doObj must be a *.</strong></li>
+</ul></div></div><div class="code"><div class="wrapper">    processChange(doObj, undoObj){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>validate both objects and call _processChange</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.validateDoObj(doObj) &amp;&amp; <span class="hljs-keyword">this</span>.validateUndoObj(undoObj)){
+            <span class="hljs-keyword">this</span>._processChange(doObj, undoObj);</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>reset the lastChange object, since this processChange is not the direct reposnse to a request!</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>.lastChange.request = {};
+            <span class="hljs-keyword">this</span>.lastChange.response = {}; 
+
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+        } <span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+        }
+        
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>_processChange: defien a new ID, put the changes on the stack, broadcast the changes to all clients </p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>undoObj must be an object.</strong></p>
+</li>
+<li><p><strong>doObj must be an object.</strong></p>
+</li>
+<li><p><strong>sid must be a string.</strong><br/>(The sid of the client that should not receive the broadcast)</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    _processChange(doObj, undoObj, sid=<span class="hljs-literal">undefined</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>create the new ID and put the old and new one to the respective changeObjects on teh stack</p></div></div><div class="code"><div class="wrapper">        undoObj.ID = <span class="hljs-keyword">this</span>.ID;
+        <span class="hljs-keyword">let</span> id = <span class="hljs-keyword">this</span>.uuidv4();
+        <span class="hljs-keyword">this</span>.ID = id;
+        doObj.ID = id;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>store the last change separately. This is needed for the case that the response could not be sent, but the change was still processed on the server: The client will then send the same change request again and the server will directly answer with the response that the last time did not reach the client without actually processing the request.</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-comment">/*this.lastChange.request = request;
+        this.lastChange.response = response; // not the response-data (ret.response), but the comnplete sent object
+        */</span></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>Does the following:</p>
+<ul>
+<li>put the changes on the stack together with their ID</li>
+<li>save the stack to MongoDB</li>
+<li>send all clients (except the sender with the given sid) the changes</li>
+<li>if there is a change that was not yet processed because another change was running: start this function</li>
+</ul></div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>write entry on the changes stack
+make sure the max length is not exceeded</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.maxStackLength&gt;=<span class="hljs-number">0</span>){
+            <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.stack.length==<span class="hljs-keyword">this</span>.maxStackLength){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>delete the oldest (=first) elements</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">this</span>.stack.shift()
+                <span class="hljs-keyword">this</span>.stackIDs.shift()
+            }
+        }
+        
+        <span class="hljs-keyword">this</span>.stack.push({doObj: doObj, undoObj: undoObj}) <span class="hljs-comment">// Info: the id is within the doObj</span>
+        <span class="hljs-keyword">this</span>.stackIDs.push(<span class="hljs-keyword">this</span>.ID);
+        </div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>store new stack to Mongo:</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>.storeStackAndID();</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>send the change to all other (&lt;&gt;sid) connected clients</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">this</span>._broadcastChange(doObj, sid)
+
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.ID;
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>The &quot;send part&quot; of sending a change-broadcast to all (except sid) clients. _broadcastChange Wraps the usual doObj in the correct format for sending and broadcasts it to all the clients except the sidExclude. This function is called e.g. from startWriteFunction and processChange </p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>doObj must be a *.</strong></p>
+</li>
+<li><p><strong>sidExclude must be a *.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    _broadcastChange(doObj, sidExclude){
+        
+        <span class="hljs-keyword">let</span> data={</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>the roomName is added in broadcast</p></div></div><div class="code"><div class="wrapper">            arg: <span class="hljs-string">'function'</span>,
+            opt: doObj
+        }
+        
+        <span class="hljs-keyword">this</span>.broadcast(data, sidExclude);
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>broadcast Send some data to every connected client</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>obj must be an object.</strong><br/>(The object with the changes to do; must be have the following properties (see also &#39;pushChange&#39; for schema): funcName, data, ID (the new UUID))</p>
+</li>
+<li><p><strong>sidExclude must be a wsConnectionUUID.</strong><br/>(Exclude this wsConnection-UUID form the broadcast (e.g. because the request came fomr this UUID))</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    broadcast(obj, sidExclude){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>extend the object with the roomName</p></div></div><div class="code"><div class="wrapper">        obj.roomName = <span class="hljs-keyword">this</span>.name;</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>loop over all clients and send them the data (except the sender)</p></div></div><div class="code"><div class="wrapper">        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> sid <span class="hljs-keyword">in</span> <span class="hljs-keyword">this</span>.clients){
+            <span class="hljs-keyword">if</span> (sid!=sidExclude){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>wrap the object to be sent to the room-handler</p></div></div><div class="code"><div class="wrapper">                <span class="hljs-keyword">let</span> sendObj = {
+                    name:<span class="hljs-string">'room'</span>,
+                    data:obj
+                }
+                
+                <span class="hljs-keyword">this</span>.clients[sid].processor.sendNote(sendObj);
+                <span class="hljs-comment">//this.clients[sid].sendNote(); // should we send it as note, where we do not know whether it has arrived or as request, where we can get an acknowledgement? Or maybe I'll reimplement note...</span>
+            }
+        }
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>add a function that is then callable for messages from the server (either the result of a request or the broadcast following a request by another client)
+TODO: all the rights stuff is NOT yet implemented</p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>name must be a string.</strong><br/>(The name of the function. )</p>
+</li>
+<li><p><strong>func must be a function.</strong><br/>(The actual function. The &quot;this&quot; object will be bound to that function. )</p>
+</li>
+<li><p><strong>rightsAllow must be a *.</strong><br/>(Either -1 (default; =allow all) or an array with all the group/user IDs that are allowed. Any user/group that matches one of the given IDs will be allowed. )</p>
+</li>
+<li><p><strong>rightsDenyOverrule must be a *.</strong><br/>(Every user that is in a group listed here, will not be allowed to access this function, independent whether it would match an allowed group id. (Thus it overrides it.))</p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    _addFunction(name, func){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>TODO: all to be done</p></div></div><div class="code"><div class="wrapper">    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>Store the current stack and ID to MongoDB; should be called after every change.</p></div></div><div class="code"><div class="wrapper">    <span class="hljs-keyword">async</span> storeStackAndID(){
+        <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.storeID();
+        <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.storeStack();
+    }
+    <span class="hljs-keyword">async</span> storeID(){
+        <span class="hljs-keyword">try</span> {
+            <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.updateOne({type:<span class="hljs-string">'ID'</span>}, {$set:{ID: <span class="hljs-keyword">this</span>.ID}})
+        } <span class="hljs-keyword">catch</span> (e){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+            <span class="hljs-keyword">throw</span> e;
+        }   
+    }
+    <span class="hljs-keyword">async</span> storeStack(){
+        <span class="hljs-keyword">try</span> {
+            <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.updateOne({type:<span class="hljs-string">'stack'</span>}, {$set:{stack: <span class="hljs-keyword">this</span>.stack}})
+        } <span class="hljs-keyword">catch</span> (e){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+            <span class="hljs-keyword">throw</span> e;
+        }
+        
+    }
+    <span class="hljs-keyword">async</span> storeWritingTickets(){
+        <span class="hljs-keyword">try</span> {
+            <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.updateOne({type:<span class="hljs-string">'writingTickets'</span>}, {$set:{writingTickets: <span class="hljs-keyword">this</span>.writingTickets}})
+        } <span class="hljs-keyword">catch</span> (e){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+            <span class="hljs-keyword">throw</span> e;
+        }
+    }
+    <span class="hljs-keyword">async</span> storeOfflineWritingClients(){
+        <span class="hljs-keyword">try</span> {
+            <span class="hljs-keyword">await</span> <span class="hljs-keyword">this</span>.collection.updateOne({type:<span class="hljs-string">'offlineWritingClients'</span>}, {$set:{offlineWritingClients: <span class="hljs-keyword">this</span>.offlineWritingClients}})
+        } <span class="hljs-keyword">catch</span> (e){
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">3</span>, e)
+            <span class="hljs-keyword">throw</span> e;
+        }
+    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>To be called when the processing of a request is finished. Will call the next element on the functionsWorkStack, if there is something.</p></div></div><div class="code"><div class="wrapper">    finishedFunc(){
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.functionsWorkStack.length&gt;<span class="hljs-number">0</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>get first element and remove it from stack</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">let</span> obj = <span class="hljs-keyword">this</span>.functionsWorkStack.shift();</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>do start the function</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">this</span>._startWriteFunction(obj.sid, obj.respFunc, obj.request, obj.ID); 
+        }<span class="hljs-keyword">else</span>{
+            <span class="hljs-keyword">this</span>.busy = <span class="hljs-literal">false</span>;
+        }
+    }</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>uuidv4: Creates a unique ID according to RFC 4122, version 4. Credits go to: <a href="https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript#2117523">https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript#2117523</a>
+This id shall be used for stamps.</p></div></div><div class="code"><div class="wrapper">    uuidv4() {
+        <span class="hljs-keyword">return</span> <span class="hljs-string">'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'</span>.replace(<span class="hljs-regexp">/[xy]/g</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">c</span>) </span>{
+            <span class="hljs-keyword">var</span> r = <span class="hljs-built_in">Math</span>.random() * <span class="hljs-number">16</span> | <span class="hljs-number">0</span>, v = c == <span class="hljs-string">'x'</span> ? r : (r &amp; <span class="hljs-number">0x3</span> | <span class="hljs-number">0x8</span>);
+            <span class="hljs-keyword">return</span> v.toString(<span class="hljs-number">16</span>);
+        });
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Check if this sid is a client of this room. Otherwise any client could send/request messages</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>sid must be a string.</strong><br/>(The sid to check)</li>
+</ul></div></div><div class="code"><div class="wrapper">    isClient(sid){
+        <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.clients[sid]){
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+        }<span class="hljs-keyword">else</span> {
+            <span class="hljs-keyword">this</span>.logger.log(<span class="hljs-number">7</span>, <span class="hljs-string">"SID '"</span> + sid + <span class="hljs-string">"' is not a client of the room '"</span>+<span class="hljs-keyword">this</span>.name+<span class="hljs-string">"'."</span>);
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+        }
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>create a random string </p>
+<p>Parameters:</p>
+<ul>
+<li><strong>length must be an integer.</strong></li>
+</ul></div></div><div class="code"><div class="wrapper">	randString(length) {
+		<span class="hljs-keyword">var</span> result           = <span class="hljs-string">''</span>;
+		<span class="hljs-keyword">var</span> characters       = <span class="hljs-string">'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'</span>;
+		<span class="hljs-keyword">var</span> charactersLength = characters.length;
+		<span class="hljs-keyword">for</span> ( <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>; i &lt; length; i++ ) {
+		   result += characters.charAt(<span class="hljs-built_in">Math</span>.floor(<span class="hljs-built_in">Math</span>.random() * charactersLength));
+		}
+		<span class="hljs-keyword">return</span> result;
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Create the list of clients specifically for the client with the given sid. Does NOT include itself and does not show any sid, only the hashes</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>sid must be a string.</strong></li>
+</ul></div></div><div class="code"><div class="wrapper">    <span class="hljs-comment">/*createSpecificClientInfos(sidExclude){
+        let  specClientInfo = {};
+        
+        for (let sid in this.clientInfos){
+            if (!sid==sidExclude){
+                specClientInfo[this.createSidHash(sid)] = this.clientInfos[sid];
+            }
+        }
+
+        return specClientInfo;
+    }*/</span>
+    </div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>Create the hashed salted string of the sid; used as unique identifier for clients without showing the sid to others (security!)</p>
+<p>Parameters:</p>
+<ul>
+<li><strong>sid must be a string.</strong></li>
+</ul></div></div><div class="code"><div class="wrapper">    createSidHash(sid){
+        <span class="hljs-keyword">return</span> crypto.createHash(<span class="hljs-string">'sha256'</span>).update(<span class="hljs-keyword">this</span>.clientHashString + sid).digest(<span class="hljs-string">'hex'</span>);
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>recursive function to translate booleans. If the object to be checked is large and only very few subobjects have to be checked, call the function directly on them and not on the full object, since all of it would have to be touched, which was unnecessary! </p>
+<p>Parameters:</p>
+<ul>
+<li><strong>data must be an object.</strong><br/>(any object or boolean value to be translated)</li>
+</ul></div></div><div class="code"><div class="wrapper">    translateBooleans(data){
+        <span class="hljs-keyword">let</span> t = <span class="hljs-keyword">typeof</span>(data)
+        <span class="hljs-keyword">if</span> (t==<span class="hljs-string">'boolean'</span>){
+            <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>*data;
+
+        } <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (t==<span class="hljs-string">'object'</span>){</div></div></div><div class="segment"><div class="comments "><div class="wrapper"><p>loop over the object and call this function recursively</p></div></div><div class="code"><div class="wrapper">            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> key <span class="hljs-keyword">in</span> data){
+                data[key] = <span class="hljs-keyword">this</span>.translateBooleans(data[key])
+            }
+            <span class="hljs-keyword">return</span> data;
+
+        }<span class="hljs-keyword">else</span>{
+            <span class="hljs-keyword">return</span> data;
+        }
+    }</div></div></div><div class="segment"><div class="comments doc-section"><div class="wrapper"><p>returns the index and the object itself of the first object where the property prop is equal to value </p>
+<p>Parameters:</p>
+<ul>
+<li><p><strong>arr must be an array of objects.</strong></p>
+</li>
+<li><p><strong>prop must be a string.</strong></p>
+</li>
+<li><p><strong>val must be a *.</strong></p>
+</li>
+</ul></div></div><div class="code"><div class="wrapper">    findObjInArrayByProp(arr, prop, val){
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> i=<span class="hljs-number">0</span>; i&lt;arr.length;i++){
+            <span class="hljs-keyword">if</span> (arr[i][prop] == val){
+                <span class="hljs-keyword">return</span> [i, arr[i]];
+            }
+        }
+        <span class="hljs-keyword">return</span> [-<span class="hljs-number">1</span>, {}];
+    }
+
+}
+
+<span class="hljs-built_in">module</span>.exports = roomServer;</div></div></div></div></body></html>

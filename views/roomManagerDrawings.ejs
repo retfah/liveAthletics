@@ -1,0 +1,96 @@
+<div id="vueRoomsManager" style="position:static"> <!-- This div is just to have both inner divs in one vue-linked container-->
+    <!-- and here comes the none-sense part, that is only needed to redraw everything. (But its not enough to have it only in the vueData, since vue realizes when a proeprty is not used ;-)-->
+    <div style="display:none">{{any}}{{requestPending}}</div>
+    <!-- this div is for the rooms list:-->
+    <div class="wsWindow shadow" id="wsWindow" v-bind:class="{wsWindowShown: wsWindowShown, wsWindowHidden: !wsWindowShown}">
+            
+        <div class="wsWindowsClientName" v-bind:class="{connected: connected, disconnected: !connected}"><%= __("Client name") %>: &nbsp;<input style="width: 150px; height:32px" type="text" v-model="clientName" v-on:blur="clientNameChanged"> </div> 
+        <div class="close" v-on:click="wsWindowShown=false;">X</div>
+        <!-- The background color of this element shall be the -->
+
+        <div class="wsWindowRooms clickable" v-for="room in rooms" v-bind:class="{connected: room.connected, disconnected: !room.connected}" v-on:click="roomSelected=room.name; clientWindowShown=true;">
+            <div v-bind:class="{wsWindowRoomNameW: room.writingTicketID, wsWindowRoomNameR: !room.writingTicketID}">{{room.name}}</div>
+            <div class="wsWindowRoomWritingrights" v-if="room.writingTicketID">W</div><!--TODO: add here the functioniality to request writingRights, if so far none were requested; eventually replace the W with a pencil graph-->
+            <div class="wsWindowRoomWriting">{{room.infos.numClientsWriting}}/{{room.infos.maxWritingTickets==-1?"<%= __("inf") %>":room.infos.maxWritingTickets}}</div>
+            <!-- for debugging only: show the last part of the ID  ?.slice(30)-->
+            <div>{{getUuidSlice(room.ID)}}</div>
+            <div class="wsWindowRoomClients">{{room.infos.numClients}}</div>
+        </div> 
+
+        <!-- FUTURE: idea: use a different color for messages that require an action than for general errors. Eventually also provide different severity, e.g. light orange if the error has no consequence, dark orange if it has a consequence -->
+        <!-- TODO: create a rollback warning, since we should not simply change the data in the background without any message to the user!-->
+        <div style="grid-column-start:1; grid-column-end: span 4;" v-if="messages.length>0">Messages: </div>
+        <div v-for="(msg, ind) in messages" style="grid-column-start:1; grid-column-end: span 4; display: inline"> <!-- v-for=(val, key in message)-->
+            <!--only provide a short version here. On click provide a large version-->
+            <!--TODO: formatting here is a little mess between grid and non-grid; eventually make the delete smaller for the messages OR format the messages as large as the rooms. -->
+            <div v-on:click="highlightedMsg=ind" style="display: inline">
+                {{msg.time.toLocaleTimeString()}} {{msg.room.name}}: <%= __("Request failed.") %> 
+            </div>
+            <div class="close" style="display:inline" v-on:click="messages.splice(ind,1)">
+                X <!--remove the element; -->
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="messageDetail" v-bind:class="{shown: highlightedMsg>=0}" v-if="highlightedMsg>=0"><!-- The v-if is needed to make sure that the rest is not rendered;v-if="highlightedMsg>=0"-->
+        <div class="overlayContainer">
+            <div v-if="messages[highlightedMsg].type=='generalError'">
+                {{messages[highlightedMsg].time.toLocaleTimeString()}} <%= __("Error while sending the request '{{messages[highlightedMsg].info}}' of room '{{messages[highlightedMsg].room.name}}'. Code: {{messages[highlightedMsg].errCode}}, message: {{messages[highlightedMsg].errMsg}}. {{boundEvalAsTemplateString(roomManagerTranslations[messages[highlightedMsg].handling], messages[highlightedMsg])}} (Request content: {{JSON.stringify(messages[highlightedMsg].request)}})") %> 
+            </div>
+            <div v-else-if="messages[highlightedMsg].type=='outdatedRollback'">
+                {{messages[highlightedMsg].time.toLocaleTimeString()}} <%= __("The room {{messages[highlightedMsg].room.name}} was outdated. The request '{{messages[highlightedMsg].info}}' and all subsequent requests were rolled back. (Request content: {{JSON.stringify(messages[highlightedMsg].request)}})") %>
+            </div>
+            <div v-else-if="messages[highlightedMsg].type=='noConnection'">
+                {{messages[highlightedMsg].time.toLocaleTimeString()}} <%= __("No connection to the server. The request '{{messages[highlightedMsg].info}}' could not be sent. {{roomManagerTranslations[messages[highlightedMsg].handling]}} (Request content: {{JSON.stringify(messages[highlightedMsg].request)}})") %>
+            </div>
+            <div v-else-if="messages[highlightedMsg].type=='requestPending'">
+                {{messages[highlightedMsg].time.toLocaleTimeString()}} <%= __("Another request of this client is pending. The request '{{messages[highlightedMsg].info}}' could not be sent. {{roomManagerTranslations[messages[highlightedMsg].handling]}} (Request content: {{JSON.stringify(messages[highlightedMsg].request)}})") %>
+            </div>
+            <div v-else>
+                <!-- currently the same as for generalErrors-->
+                {{messages[highlightedMsg].time.toLocaleTimeString()}} <%= __("Error while sending the request '{{messages[highlightedMsg].info}}' of room '{{messages[highlightedMsg].room.name}}'). Code: {{messages[highlightedMsg].errCode}}, message: {{messages[highlightedMsg].errMsg}}. {{boundEvalAsTemplateString(roomManagerTranslations[messages[highlightedMsg].handling], messages[highlightedMsg])}} (Request content: {{JSON.stringify(messages[highlightedMsg].request)}})") %> 
+            </div>
+            <a class="btn btn-secondary" v-if="messages[highlightedMsg].deletedStack" v-on:click="prepareDownload()" ref="download" href="" ><%= __("Download reverted changes") %></a>
+            <button class="btn btn-secondary" v-on:click="closeMsg()">OK</button>
+        </div>
+    </div>
+
+
+    <!-- and now the div for the clients list:-->
+    <div v-if="clientWindowShown" class="clientWindow shadow" id="clientWindow" v-bind:class="{clientWindowShown: clientWindowShown, clientWindowHidden: !clientWindowShown}">
+        <div v-if="clientWindowShown" class="room" v-bind:class="{connected: roomSelectedObject.connected, disconnected: !roomSelectedObject.connected}" v-if="roomSelectedObject.writing">
+            <div class="roomNameW">{{roomSelectedObject.name}}</div>
+            <div class="roomWriting">{{roomSelectedObject.infos.numClientsWriting}}/{{roomSelectedObject.infos.maxWritingTickets==-1?"<%= __("inf") %>":roomSelectedObject.infos.maxWritingTickets}}</div>
+            <div class="roomClients">{{roomSelectedObject.infos.numClients}}</div>
+        </div>
+        <div v-else class="room" v-bind:class="{connected: roomSelectedObject.connected, disconnected: !roomSelectedObject.connected}">
+            <div class="roomNameR">{{roomSelectedObject.name}}</div>
+            <div class="roomClients">{{roomSelectedObject.infos.numClients}}</div>
+        </div>
+        <div class="close" v-on:click="clientWindowShown=false;">X</div>
+        
+        <!-- only one of the two following, dependent on the requested writing rights: -->
+        <div class="client" v-if="clientWindowShown" v-for="client in roomSelectedObject.infos.clients" v-bind:class="{connected:client.connected, disconnected: !client.connected, clickable:(client.writing && !(client.connected))}" v-on:click="revokeClientClick(client)">
+            
+            <div v-bind:class="{clientNameW: client.writing, clientNameR: !client.writing}">{{client.name}}</div>
+            <div class="clientWriting" v-if="client.writing">W</div>
+            
+        </div>
+    </div>
+    <div class="revokeWindow" id="revokeWindow" v-bind:class="{shown: revokeWindowShown, hidden: !revokeWindowShown} " v-if="revokeWindowShown">
+        <div class="message"><%= __("Do you really want to revoke the writing rights of client {{roomSelectedObject.infos.clients[revokeClient].name}}?") %></div> <!-- important: the {{...}} MUST NOT be translated or changed!-->
+        <div class="no" v-on:click="revokeWindowShown=false"><%= __("No") %></div>
+        <div class="yes" v-on:click="revokeWritingTicket(revokeClient) ; revokeWindowShown=false"><%= __("Yes") %></div>
+    </div>
+
+    <div hidden id="roomManagerTranslations"> <!--style="display:none"-->
+        <div id="rMToutdated"><%= __("The room ${msg.room.name} was outdated. The request '${msg.info}' and all subsequent requests were rolled back. (Request content: ${JSON.stringify(msg.request)})") %></div>
+        <div id="rMTdeleteContinue"><%= __("The current request was deleted and the next was sent.") %></div>
+        <div id="rMTdelete"><%= __("The current request was deleted.") %></div>
+        <div id="rMTdeleteRollbackNoFail"><%= __("The current request was deleted and rolled back.") %></div>
+        <div id="rMTdeleteRollback"><%= __("The failed request as well as other hanging requests were deleted and/or rolled back.") %></div>
+        <div id="rMTsendAgain"><%= __("Request will be sent again as soon as possible.") %></div>
+        <div id="rMTsendAgainTimeout"><%= __("Request will be sent again after ${this.timeout}s.") %></div><!-- will be evaluated as a template string with the msg-object bound to it -->
+        <div id="rMTuser"><%= __("A user-define error handling function was executed.") %></div>
+    </div>
+</div>

@@ -1,0 +1,2389 @@
+
+<!DOCTYPE html>
+<!-- 
+TODO:
+- Wechsel zu Vue3 !!!
+- Auswahl der Serie
+- Fehler/Error: wenn eine neue Höhe ansteht, wird die Höhe schon erfasst, jedoch kann sie zu diesem Zeitpunkt gelöscht werden, da sie noch keine Resultate enthält. Wenn man die Höhe dann löscht und danach das erste Resultat eingeben will, gibt es eien Fehler ("cannot read properties of undefined (reading 'xHeight')")  
+-->
+<html>
+    <head>
+        <title>High jump / Pole vault demonstrator</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" /><!-- maximum-scale=1.0, user-scalable=no -->
+        <!-- <link rel="stylesheet" type="text/css" href="static/bootstrap.min.css"> -->
+        <link rel="stylesheet" type="text/css" href="/static/styling.css">
+        <!--<script src="/static/vue.js" type="text/javascript"></script>-->
+        <script src="/static/vue3.global.js" type="text/javascript"></script>
+        <script src="/static/Sortable.min.js" type="text/javascript"></script><!-- the backbone of vuedraggable, which allows to sort arrays by drag and drop -->
+        <script src="/static/vuedraggable.umd.min.js" type="text/javascript"></script>
+        <script type="text/javascript">
+            /*
+
+                TODO: kann man in Sequalize statt einem array auch ein Objekt mit einem bestimmten key als property generieren lassen? Man müsste dann an gewissen Stellen nicht den Index heraus finden.  
+
+                pass a height before the height comes (probably in the 'change-result' area)
+
+            */
+
+            // data from the server will look more or less like this: 
+            var data = {
+                xContest: 321,
+                xDiscipline:123,
+                contestDate:"01-01-2020",
+                // some more times
+                contestStatus: 80, // TODO: what are the different status?
+                jumpoff: true, // whether or not there is a jumpoff
+                jumpoffHeightVariation: 5, // the height variation up and down in the jumpoff, in cm
+                heightIncreases:[
+                    {
+                        heightIncreaseStartheight: 200,
+                        heightIncrease: 20
+                    },
+                    {
+                        heightIncreaseStartheight: 300,
+                        heightIncrease: 10
+                    }
+                ],
+                series: [{
+                    xSeries:1,
+                    xContest: 321,
+                    xSite:undefined,
+                    seriesStatus: 70, // TODO: what are the different status?
+                    seriesNumber: 1 ,
+                    seriesName: undefined, // could be Final A, Final B
+                    heights:[
+                        // jumpoffOrder = 0 for all regular heights. The value increases 1 with every jumpoff height. Thus the overall order of heights is given by the jumpofforder and within jumpoff=0 bei the height
+                        {
+                            xHeight: 1,
+                            xSeries: 1, // anyway clear...
+                            jumpoffOrder: 0,
+                            height: 200
+                        },
+                        {
+                            xHeight: 2,
+                            xSeries: 1, // anyway clear
+                            jumpoffOrder: 0,
+                            height: 220
+                        },
+                        {
+                            xHeight: 3,
+                            xSeries: 1, // anyway clear
+                            jumpoffOrder: 0,
+                            height: 240
+                        }
+                    ],
+                    seriesStartsResults:[
+                        {
+                            xSeriesStart:80, 
+                            position:1,
+                            xStartGroup:15, // used to link to the name behind this seriesStart...
+                            resultOverrule:0, // used for DNS, DQ, ... TODO!!!
+                            resultRemark:'',
+                            qualification:0, // used to finally define who is qualified
+                            startHeight:240, // from seriesStarts_high
+                            resultsHigh: [
+                                /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+                                //{}
+                            ]
+                        },
+                        {                            
+                            xSeriesStart:81, 
+                            position:2,
+                            xStartGroup:16, // used to link to the name behind this seriesStart...
+                            resultOverrule:0, // used for DNS, DQ, ...
+                            resultRemark:'',
+                            qualification:0, // used to finally define who is qualified
+                            startHeight:220, // from seriesStarts_high
+                            resultsHigh: [
+                                /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+                                //{}
+                            ]
+                        },
+                        {                            
+                            xSeriesStart:82,
+                            position:3,
+                            xStartGroup:13, // used to link to the name behind this seriesStart...
+                            resultOverrule:0, // used for DNS, DQ, ...
+                            resultRemark:'',
+                            qualification:0, // used to finally define who is qualified
+                            startHeight:220, // from seriesStarts_high
+                            resultsHigh: [
+                                /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+                                //{}
+                            ]
+                        },
+                        {                            
+                            xSeriesStart:83,
+                            position:4,
+                            xStartGroup:14, // used to link to the name behind this seriesStart...
+                            resultOverrule:0, // used for DNS, DQ, ...
+                            resultRemark:'',
+                            qualification:0, // used to finally define who is qualified
+                            startHeight:240, // from seriesStarts_high
+                            resultsHigh: [
+                                /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+                                //{}
+                            ]
+                        }
+                    ]
+                },{
+                    xSeries:2 // TODO
+                }]
+            }
+            // the auxilary data shall be distributed through the room as well in order that we do not have to connect to many other rooms just to get the data. However, the auxData thus will not be pushed on change. The data might be updated either by schedule (every 1 min?), when a change in this room is processed or if it really need to be up tu date, when a change is applied in one of the rooms that are requried in getting the data (e.g. thourgh events?).  
+            var auxData = {
+                xStartGroup:[
+                    { 
+                        xStartgroup:15,
+                        athleteName: 'Fahrni',
+                        athleteForename: 'Reto',
+                        birthday: '1992-03-28',
+                        sex:'m',
+                        clubName: 'GG Bern',
+                        clubSortvalue: 'Bern GG',
+                        countryCode:'SUI',
+                        bib: 115
+                    },
+                    {
+                        xStartgroup:16,
+                        athleteName: 'Moser',
+                        athleteForename: 'Jasmine',
+                        birthday: '1995-01-01',
+                        sex:'f',
+                        clubName: 'LV Winterthur',
+                        clubSortvalue: 'Winterthur LV',
+                        countryCode:'SUI',
+                        bib: 216
+                    },
+                    {
+                        xStartgroup:14,
+                        athleteName: 'Moser',
+                        athleteForename: 'Angelica',
+                        birthday: '1997-10-09',
+                        sex:'f',
+                        clubName: 'LC Zürich',
+                        clubSortvalue: 'Zürich LC',
+                        countryCode:'SUI',
+                        bib: 314
+                    },
+                    {
+                        xStartgroup:13,
+                        athleteName: 'Alberto',
+                        athleteForename: 'Dominik',
+                        birthday: '1992-04-28',
+                        sex:'m',
+                        clubName: 'LC Zürich',
+                        clubSortvalue: 'Zürich LC',
+                        countryCode:'SUI', 
+                        bib: 13
+                    }],
+                xStartGroupOld:{
+                    15:{ 
+                        xStartgroup:15,
+                        athleteName: 'Fahrni',
+                        athleteForename: 'Reto',
+                        birthday: '1992-03-28',
+                        sex:'m',
+                        clubName: 'GG Bern',
+                        clubSortvalue: 'Bern GG',
+                        countryCode:'SUI',
+                        bib: 115
+                    },
+                    16:{
+                        xStartgroup:16,
+                        athleteName: 'Moser',
+                        athleteForename: 'Jasmine',
+                        birthday: '1995-01-01',
+                        sex:'f',
+                        clubName: 'LV Winterthur',
+                        clubSortvalue: 'Winterthur LV',
+                        countryCode:'SUI',
+                        bib: 216
+                    },
+                    14:{
+                        xStartgroup:14,
+                        athleteName: 'Moser',
+                        athleteForename: 'Angelica',
+                        birthday: '1997-10-09',
+                        sex:'f',
+                        clubName: 'LC Zürich',
+                        clubSortvalue: 'Zürich LC',
+                        countryCode:'SUI',
+                        bib: 314
+                    },
+                    13:{
+                        xStartgroup:13,
+                        athleteName: 'Alberto',
+                        athleteForename: 'Dominik',
+                        birthday: '1992-04-28',
+                        sex:'m',
+                        clubName: 'LC Zürich',
+                        clubSortvalue: 'Zürich LC',
+                        countryCode:'SUI', 
+                        bib: 13
+                    }
+                }
+            }
+
+            var vueTechHigh;
+
+            function startup(){
+
+                let vueAppConfig = {
+                    data(){
+                        return {
+                            mainData: data,
+                            auxDataRaw: auxData,
+                            xHeightTemp: -1, // temporary xHeight, until the height could be written to the DB and we get the actual index, we use this. Auto-increment into negative. When the correct key arrives, we must not only change the key in xHeight, but also in every result!  
+                            xResultTemp: -1, // temporary xResult (needed for identical element id's; it is not referenced somewhere)
+                            updateHeightIncrease: -1, // show change-line for height increases
+                            heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
+                            readOnly: false,
+                            selectedSeries: 0, // which series we are working on. TODO: create a selector somewhere for this!
+                            allHeights:[], // contains all already fixed and all predicted heights
+                            mode: 0, // 0: before all startHeights are set, 1=competition running (or is ready to be started), 2=jumpoff, 3=finished
+                            currentHeight: -1, 
+                            currentJumpoffHeightInd: -1, // during jumpoff, store here the current index in the jumpoff order
+                            jumpoffHeightRequired: false, // true if a new height should be defined by the user
+                            bestAtEachJumpoffHeight: [],
+                            manualJumpoffHeight:0, // used to set the default next jumpoff height, before we actually see the input element
+                            position:[], // array with the xStartGroup of all athletes starting on the current height, defining the order in the copetition; changed by the drag and drop part; in the jumpoff, it contains all athletes that still participate in the jumpoff, independent whether they aready jumped on the current height
+                            positionNext: [], // the first element contains the index in the position array of the first athlete to come, the second element the second, and so on; during the main competition, positionNext has teh same length as position; in the jumpoff, it can be smaller, since it only contains the athletes that will still jump on the current jumpoff-height, while position also contains the athletes that already jumped on the current height
+                            tempRankingData: { // all data needed for ranking and for gettign the current athlete
+                                //xSeriesStart
+                                /*12:{
+                                    totalFailedAttempts: 0, // until and with the last valid hight
+                                    failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
+                                    failedAttemptsOnLastValid: 0,
+                                    lastValidHeight: 0,
+                                    nextJumpingHeight: 0, // is this really needed? lastValidHeight should be enough..?
+                                    rank: 0, // (temporary, ) locally calculated rank. 
+                                },
+                                13:{
+
+                                }*/
+                            },
+                            maxLastValidHeight: 0, // store which was the heighest, last valid height; required in the jumpoff
+                            attempt: 0, // in normal mode==1: 1 to 3; in jumpoff used to announce the i-th jumpoff height
+                            attemptNext: 0, // 1 to 3; for the next athlete (not the current). It is easier to store this value than to (re)calculate it for drawing.
+                            participationStatus: [ // options for the participation status of each athlete 
+                            // TODO: as soon as this is used in the regular athletica, i.e. processed via the structures page loading, replace this with a placeholder, which itself is defined in translatedList.ejs
+                                {value: 0, text: "<%= __('regular') %>"},
+                                {value: 1, text: "<%= __('retired') %>"},
+                                {value: 5, text: "<%= __('DNS') %>"},
+                                {value: 6, text: "<%= __('DQ') %>"}
+                            ],
+                            contestStatus:[
+                                // TODO: these status are NOT correct yet (just copied from seltec )
+                                // the values have some space in between on purpose to allow later (mainly non referenced) additions
+                                // referenced=true: competitions rely on that setting
+                                // note: the status should never be checked like ==20, but like >=20 && <30 to allow for userdefined status inbetween with the same meaning for the program
+                                // current official parts:  
+                                // 0-59: before roll call done
+                                // 60-79: roll call done, before startlist official
+                                // 80-119: startlist official, competition not yet started
+                                // 120-179: competition running
+                                // 180-255: competition finished
+                                // numbers available (tinyint): 0-255
+                                {value: 10, text: "<%= __('Round defined') %>", referenced:false}, // planned
+                                {value: 15, text: "<%= __('Roll call printed') %>", referenced:false},
+                                {value: 16, text: "<%= __('Entries available') %>", referenced:false}, // entries available
+                                {value: 60, text: "<%= __('Roll call finished') %>", referenced:true}, // evnetually equivalent to group/contest assignment done
+                                {value: 70, text: "<%= __('Editing Start List') %>", referenced:false},
+                                {value: 75, text: "<%= __('Start List finished') %>", referenced:false},
+                                {value: 80, text: "<%= __('Start List official') %>", referenced:true},
+                                {value: 120, text: "<%= __('In progress') %>", referenced:true}, 
+                                {value: 180, text: "<%= __('Finished') %>", referenced:true},
+                                {value: 200, text: "<%= __('Results Official') %>", referenced:false},
+                                {value: 230, text: "<%= __('Certificate printed') %>", referenced:false}
+                            ],
+                            seriesStatus:[
+                                {value: 10, text: "<%= __('Series under definition') %>", referenced:false}, // 
+                                {value: 70, text: "<%= __('Series official') %>", referenced:false}, // 
+                                {value: 130, text: "<%= __('In progress') %>", referenced:false}, // 
+                                {value: 180, text: "<%= __('Finished') %>", referenced:false}, // 
+                                {value: 200, text: "<%= __('Official') %>", referenced:false}, // 
+                            ],
+                            currentResultChange: {}, // the result that we are currently changing in the results view 1
+                            resultKeyPressed: -1, // the key that was pressed last inside a addResult-input. If this is the esc-key, the blur event will not be evaluated. 
+                            overlayTitle: "Title",
+                            overlayContent: "Content",
+                            overlayVisible: false,
+                            sortValue1: 1,
+                            sortValue2: 1,
+                            fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
+                            temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
+                        } 
+                    },// end of data function
+                    computed:{ // computed properties will be bound to this
+                        auxData: function(){
+                            // change the xStartgroup array to an object with objects, where xStartgroup is the key
+                            let auxData = {};
+                            auxData.xStartGroup = {};
+                            this.auxDataRaw.xStartGroup.forEach(el=>{
+                                auxData.xStartGroup[el.xStartgroup]=el;
+                            })
+                            return auxData;
+                        },
+                        currentAthleteStart: function(){
+                            return this.getStartByXSeriesStart(this.position[this.positionNext[0]]);
+                        },
+                        nextAthleteStart: function(){
+                            if (this.positionNext.length>1){
+                                return this.getStartByXSeriesStart(this.position[this.positionNext[1]]);
+                            }else{
+                                return undefined;
+                            }
+                        },
+                        sortedStarts1: function(){
+                            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
+                            // TODO
+                            //return this.mainData.series[this.selectedSeries].seriesStartsResults;
+
+                            // we cannot just sort the seriesStartsResults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
+
+                            // create an array with all array-indexes (0 to length-1) of the seriesStartsResults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
+                            let order = Array(this.mainData.series[this.selectedSeries].seriesStartsResults.length).fill(undefined).map(function (x, i) { return i; })
+
+                            let compareFn = (a,b)=>{a-b} // fallback
+                            if (this.sortValue1 == 1){
+                                // default sequence
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    return A.position - B.position
+                                }
+                            } else if (this.sortValue1 == 2){
+                                // sort by rank
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let rA = this.tempRankingData[A.xSeriesStart].rank;
+                                    let rB = this.tempRankingData[B.xSeriesStart].rank;
+                                    if (rA==0 && rB==0){
+                                        // both have no rank yet: sort by default order
+                                        return A.position - B.position;
+                                    } else if (rA==0){
+                                        // A must be lower than B
+                                        return 1;
+                                    } else if (rB==0){
+                                        // B must be lower than A
+                                        return -1;
+                                    } else {
+                                        // sort by rank
+                                        return rA-rB;
+                                    }
+                                }
+                            } else if (this.sortValue1 == 3){
+                                // sort by name
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let auxA = this.auxData.xStartGroup[A.xStartGroup];
+                                    let auxB = this.auxData.xStartGroup[B.xStartGroup];
+
+                                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
+                                }
+                            } else if (this.sortValue1 == 4){
+                                // sort by bib
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let auxA = this.auxData.xStartGroup[A.xStartGroup];
+                                    let auxB = this.auxData.xStartGroup[B.xStartGroup];
+                                    
+                                    return auxA.bib - auxB.bib;
+                                }
+                            }
+                            order.sort(compareFn);
+
+                            return order;
+
+                        },
+                        sortedStarts2: function(){
+                            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
+
+                            // we cannot just sort the seriesStartsResults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
+
+                            // create an array with all array-indexes (0 to length-1) of the seriesStartsResults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
+                            let order = Array(this.mainData.series[this.selectedSeries].seriesStartsResults.length).fill(undefined).map(function (x, i) { return i; })
+
+                            let compareFn = (a,b)=>{a-b} // fallback
+                            if (this.sortValue2 == 1){
+                                // default sequence
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    return A.position - B.position
+                                }
+                            } else if (this.sortValue2 == 2){
+                                // sort by rank
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let rA = this.tempRankingData[A.xSeriesStart].rank;
+                                    let rB = this.tempRankingData[B.xSeriesStart].rank;
+                                    if (rA==0 && rB==0){
+                                        // both have no rank yet: sort by default order
+                                        return A.position - B.position;
+                                    } else if (rA==0){
+                                        // A must be lower than B
+                                        return 1;
+                                    } else if (rB==0){
+                                        // B must be lower than A
+                                        return -1;
+                                    } else {
+                                        // sort by rank
+                                        return rA-rB;
+                                    }
+                                }
+                            } else if (this.sortValue2 == 3){
+                                // sort by name
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let auxA = this.auxData.xStartGroup[A.xStartGroup];
+                                    let auxB = this.auxData.xStartGroup[B.xStartGroup];
+
+                                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
+                                }
+                            } else if (this.sortValue2 == 4){
+                                // sort by bib
+                                compareFn = (a, b)=>{
+                                    let A = this.mainData.series[this.selectedSeries].seriesStartsResults[a];
+                                    let B = this.mainData.series[this.selectedSeries].seriesStartsResults[b];
+                                    let auxA = this.auxData.xStartGroup[A.xStartGroup];
+                                    let auxB = this.auxData.xStartGroup[B.xStartGroup];
+                                    
+                                    return auxA.bib - auxB.bib;
+                                }
+                            }
+                            order.sort(compareFn);
+
+                            return order;
+
+                        },
+                        currentJumpoffHeight: function(){
+                            // in the jumpoff, we define the current height based on the jumpoffOrder; but we also need to show the height in m
+                            let hEl = this.mainData.series[this.selectedSeries].heights.find(el=>el.jumpoffOrder==this.currentJumpoffHeightInd)
+                            if (hEl){
+                                return this.meterStr(hEl.height);
+                            } else {
+                                return 0;
+                            }
+
+                        },
+                        resultGridTemplate: function(){
+                            let h = this.mainData.series[this.selectedSeries].heights;
+                            let s = '[rank] max-content [bib] max-content [athletes] max-content';
+                            for (let i=0;i<h.length;i++){
+                                s += ' [h' + h[i].xHeight + '] max-content'; /* the label for the line must not be a number, but a string */
+                            }
+                            s += ' [end]';
+                            return s;
+                        }
+                    },
+                    methods:{
+                        overlayInfo(title, content){
+                            this.overlayTitle = title;
+                            this.overlayContent = content;
+                            this.overlayVisible=true;
+                        },
+                        birthdayToXX(bd){
+                            // convert the birthday to a two letter year code
+                            return bd.substr(2,2);
+                        },
+                        getStartByXSeriesStart(xSeriesStart){
+                            //return this.mainData.series[this.selectedSeries].seriesStartsResults.find(el=>el.xSeriesStart == xSeriesStart)
+                            // TODO: revert this, since it is only for debugging
+                            let x = this.mainData.series[this.selectedSeries].seriesStartsResults.find(el=>el.xSeriesStart == xSeriesStart)
+                            if (!x){
+                                alert('could not find the athlete!');
+                            }
+                            return x; 
+                        },
+                        meterStr(cm){
+                            // translate cm to m-string with two decimal points; without unit!
+                            let m = cm/100; 
+                            return m.toFixed(2);
+                        },
+                        evaluateHeightDeletable(){
+                            // heights cannot be deleted when there are already results for this height or when it is a startheight of an athlete (the latter might actually be neglected, when we want to accept that the startheight points to something that does not exist anymore. However, we would have to rethink the startheight-selection-dropdown)
+
+                            let series = this.mainData.series[this.selectedSeries];
+
+                            let usedHeights = [];
+
+                            //let deletable = Array(length(series.heights)).fill(true);
+
+                            // loop over every result of all athletes and create a long array with heights
+                            
+                            series.seriesStartsResults.forEach((start)=>{
+                                start.resultsHigh.forEach((heightEl)=>{
+                                    usedHeights.push(heightEl.xHeight);
+                                    /*
+                                    // find the height element
+                                    let hInd = series.heights.findIndex((h)=>heightEl.xHeight==h.xHeight)
+                                    if (hInd==-1){
+                                        alert('Something went terribly wrong! Please reload the page. (A result references a height that does not exist.)');
+                                    }
+                                    deletable[hInd]=false;*/
+                                })
+                            })
+
+                            // loop over all startheights and add these heights too
+                            series.seriesStartsResults.forEach((start)=>{
+                                if (start.startHeight){
+                                    let hEl = series.heights.find((h)=>h.height==start.startHeight && h.jumpoffOrder==0)
+                                    usedHeights.push(hEl.xHeight);
+                                }
+                            })
+
+                            // store the 'deletable' state to the height
+                            series.heights.forEach((hEl)=>{
+                                let ind = usedHeights.indexOf(hEl.xHeight);
+                                hEl.deletable = ind==-1;
+                            })
+                            
+                        },
+                        startUpdatingHeightIncrease(heightIncreaseIndex){
+                            this.updateHeightIncrease = heightIncreaseIndex;
+                            this.heightIncreaseBeforeUpdate = JSON.parse(JSON.stringify(this.mainData.heightIncreases[heightIncreaseIndex]));
+                        },
+                        deleteHeightIncrease(index){
+                            this.mainData.heightIncreases.splice(index,1);
+                            this.createAllHeights();
+                        },
+                        saveUpdateHeightIncrease(){
+                            this.updateHeightIncrease = -1;
+                            this.sortHeightIncrease();
+                            this.createAllHeights();
+                        },
+                        abortUpdateHeightIncrease(index){
+                            this.mainData.heightIncreases[index] = this.heightIncreaseBeforeUpdate; // TODO: change this! It does not work, as it will remove the observers!
+                            this.updateHeightIncrease = -1;
+                        },
+                        addHeightIncrease(){
+                            this.mainData.heightIncreases.push({
+                                // TODO: check the values
+                                heightIncreaseStartheight: parseInt(document.getElementById('heightIncreaseStartheight').value),
+                                heightIncrease: parseInt(document.getElementById('heightIncrease').value)
+                            })
+                            this.sortHeightIncrease();
+                            this.createAllHeights();
+                            document.getElementById('heightIncrease').value = '';
+                            document.getElementById('heightIncreaseStartheight').value = '';
+                        },
+                        sortHeightIncrease(){
+                            this.mainData.heightIncreases.sort((el1, el2)=>{
+                                return el1.heightIncreaseStartheight-el2.heightIncreaseStartheight;
+                            });
+                        },
+                        sortAthletes(seriesIndex){
+                            /* this must be the only sort function run on the seriesStartsResults! They need to keep this order all the time. */
+                            this.mainData.series[seriesIndex].seriesStartsResults.sort((el1, el2)=>{
+                                return el1.position-el2.position;
+                            })
+                        },
+                        sortAthletesAllSeries(){
+                            for (i=0;i<this.mainData.series.length;i++){
+                                this.sortAthletes(i);
+                            }
+                        },
+                        createAllHeights(){
+
+                            // TODO: must be called when the series was changed!
+
+                            // combine the already done heights with the heights specified in the heightIncreases
+                            this.allHeights = this.mainData.series[this.selectedSeries].heights.map((el)=>{return el.height}); // use "map" or analog here
+                            // the index of the first heights must equal the index of the respective height in the series.heights array!!!
+
+                            // add the future heights according to the current heightIncreases up to 6.5m in PV and up to 2.6m in HJ
+                            /*let ind = this.allHeights.length;
+                            let lastHeight = 0;
+                            if (ind>0){
+                                lastHeight = this.allHeights[ind-1];
+                            }*/
+                            
+                            let maxHeight = 0;
+                            this.mainData.heightIncreases.forEach((el,ind)=>{
+                                if (ind < this.mainData.heightIncreases.length-1){
+                                    maxHeight = this.mainData.heightIncreases[ind+1].heightIncreaseStartheight;
+                                } else {
+                                    // TODO: put in the correct xDisciplines for PV (6.5m) and heighjump (2.6m)
+                                    if (this.mainData.xDiscipline == 123){
+                                        maxHeight = 650;
+                                    } else {
+                                        maxHeight = 260;
+                                    }
+                                }
+                                for(let height=el.heightIncreaseStartheight;height<=maxHeight;height+=el.heightIncrease){
+                                    // not very efficient, but efficient enough
+                                    if (!this.allHeights.some(el=>{return el==height})){
+                                        lastHeight = height;
+                                        this.allHeights.push(height);
+                                    }
+                                }
+                            })
+                            this.allHeights.sort((el1, el2)=>{return el1-el2})
+                            //alert('heights done')
+                        },
+                        addHeight(height){
+                            // this function can add a new height at any place in the array. If the height already exists, nothing is done. 
+                            // The function will always check if the order of elements is correct and sort it if necessary and adapts the heightOrder property of each height
+
+                            // make sure height is a number
+                            height = Number(height);
+                            if (isNaN(height)){
+                                alert("ERROR: the height is not a number!");
+                                return;
+                            }
+
+                            // DO NOT USE THIS FUNCTION IN THE JUMPOFF!!
+                            if (this.mode>1){
+                                alert('Jumpoff is running. Do not use "addHeight" in jumpoff!');
+                                return false;
+                            }
+
+                            let heights = this.mainData.series[this.selectedSeries].heights;
+                            // check if the height already exists
+                            let heightExists = heights.some(el=>{if (el.jumpoffOrder==0 && el.height==height){return true}else{return false}})
+
+                            if (!heightExists){
+                                // add the height
+                                heights.push({
+                                    xHeight: this.xHeightTemp--, // get the xHeight and then decrease it by one
+                                    xSeries: this.selectedSeries, 
+                                    jumpoffOrder: 0,
+                                    height: height
+                                })
+
+                                this.sortHeightsAddOrder()
+                                return true;
+                            }else{
+                                return false
+                            }
+                        },
+                        sortHeightsAddOrder(){
+
+                            let heights = this.mainData.series[this.selectedSeries].heights;
+
+                            // sort the array
+                            heights.sort((el1, el2)=>{
+                                // sort: 1st: jumpoff order, 2nd, height
+                                if (el1.jumpoffOrder==el2.jumpoffOrder) {
+                                    return el1.height-el2.height
+                                } else {
+                                    return el1.jumpoffOrder - el2.jumpoffOrder;
+                                }
+                            })
+
+                            // redefine the heightOrder
+                            let i=1;
+                            heights.forEach(el=>{
+                                // check if the height order must be changed and if yes, report to the server.
+
+                                el.heightOrder = i;
+                                i += 1;
+                            })
+
+                        },
+                        addManualHeightEnter(e){
+                            // when the enter key is pressed to add a new height
+                            if (e.keyCode===13){
+                                this.addManualHeight();
+                            }
+                        },
+                        addManualJumpoffHeightEnter(e){
+                            // when the enter key is pressed to add a new height
+                            if (e.keyCode===13){
+                                this.addManualJumpoffHeight();
+                            }
+                        },
+                        addManualHeight(){
+                            // TODO: check the inputted value and transform it to cm
+                            let val = document.getElementById('manualHeight').value;
+
+                            let ret;
+                            if (this.mode==2){
+                                ret = this.addHeightJumpoff(val);
+                            } else {
+                                ret = this.addHeight(val);
+                            }
+
+                            if(ret){
+                                // success
+                                document.getElementById('manualHeight').value = "";
+                                this.createAllHeights();
+                                this.evaluateHeightDeletable();
+                            }else{
+                                // failure (e.g. as the height exists already)
+                                alert("<%= __('Height could not be added, e.g. because it exists already.') %>");
+                            }
+
+                            // we must now recalculate who is the next athlete. It changes e.g. when 
+                            this.calculateNextAthlete();
+                            
+                        },
+                        addManualJumpoffHeight(){
+                            // TODO: check the inputted value and transform it to cm
+                            //let val = document.getElementById('manualJumpoffHeight').value;
+                            let val = this.manualJumpoffHeight;
+
+                            let ret;
+                            if (this.mode==2){
+                                ret = this.addHeightJumpoff(val);
+
+                                if(ret){
+                                    // success
+                                    this.manualJumpoffHeight = 0;
+                                    this.createAllHeights();
+                                    this.evaluateHeightDeletable();
+                                    this.jumpoffHeightRequired = false;
+                                }else{
+                                    // failure (e.g. as the height exists already)
+                                    alert("<%= __('Height could not be added.') %>");
+                                }
+
+                                // we must now recalculate who is the next athlete. It changes e.g. when 
+                                this.calculateNextAthlete();
+                            } 
+                            
+                        },
+                        addHeightJumpoff(height){
+
+                            height = Number(height)
+                            if (isNaN(height)){
+                                alert("ERROR: the height is not a number!");
+                                return;
+                            }
+
+                            // ONLY USE THIS FUNCITON IN JUMPOFF
+                            if (this.mode<2){
+                                alert('This function is only to be used during the jumpoff');
+                                return false;
+                            }
+
+                            // add the height
+                            let heights = this.mainData.series[this.selectedSeries].heights;
+                            heights.push({
+                                xHeight: this.xHeightTemp--,
+                                xSeries: this.selectedSeries, 
+                                jumpoffOrder: this.bestAtEachJumpoffHeight.length + 1,
+                                height: height
+                            })
+
+                            this.sortHeightsAddOrder();
+                            return true;
+
+                        },
+                        deleteHeight(index){
+                            // delete the height at the given index
+                            this.mainData.series[this.selectedSeries].heights.splice(index,1);
+                            this.createAllHeights();
+                            if (this.mode==2){
+                                // in jumpoff, if we delete the next height, the menu showing "create next height" must return --> will appear when the next athletes were calculated
+                                this.currentJumpoffHeightInd = 0
+                                this.calculateNextAthlete(); 
+
+                            }
+                        },
+                        replaceXHeight(oldKey, newKey){
+                            alert('TODO');
+                            // this function must be called when we get the correct xHeight form the server, when the new height is added.
+
+                            // replace it in the height array
+
+                            // replace it in every result
+
+
+                        },
+                        replaceXResult(xSeriesStart, oldKey, newKey){
+                            alert('TODO')
+
+                            // replace the old key by the new key
+                            // TODO
+
+                            // if the result is currently changed, we need to change the key of the input element there, as it will be invalid afterwards otherwise
+                            let el = document.getElementById('resChange' + oldKey)
+                            if (el){
+                                el.id = 'resChange' + newKey;
+                            }
+                        },
+                        startHeightChanged(xSeriesStartEl){
+                            // if the chosen height is not yet fixed (i.e. in the heights array of the series), add it to the heights
+                            this.addHeight(xSeriesStartEl.startHeight); // will check if it is new automatically
+
+                            this.evaluateHeightDeletable();
+
+                            // check if the competition can start already
+                            this.calculateNextAthlete();
+                        },
+                        allStartHeightsDefined(){
+
+                            let allDefined = this.mainData.series[this.selectedSeries].seriesStartsResults.every(el=>{
+                                if (el.startHeight){
+                                    return true;
+                                }else {
+                                    this.mode = 0;
+                                    return false;
+                                }
+                            })
+
+                            return allDefined;
+
+                        },
+                        calculateTemporaryRankingData(){
+                            // calculate all data needed for ranking and to find out, who is next
+
+                            /*                             12:{
+                                totalFailedAttempts: 0, // until and with the last valid hight
+                                failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
+                                failedAttemptsOnLastValid: 0,
+                                lastValidHeight: 0,
+                                lastFinishedHeight:,
+                                firstUnfinishedHeight:,
+                            },*/
+
+                                                            /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+
+                            // maybe we need to sort the results first...
+
+                            // TODO: cleanup the jumpoff; some variable were introduced, which are not used anymore.
+
+                            // jumpoff statistics for ranking: 
+                            let maxNumJumpoffAttempts = 0;
+                            this.bestAtEachJumpoffHeight = []; // [0,0,1] --> at the first two jumpoff heights, the best athlet has failed (i.e. all have failed), at5 the third height at least one athlete has passed the bar. This is (probably) needed for the ranking
+
+                            // go through every result of every athlete; assumes that the results are sorted
+                            this.mainData.series[this.selectedSeries].seriesStartsResults.forEach((start)=>{
+
+                                /*if (start.resultOverrule>0){
+                                    // i.e. when DNS, retired, DQ, ...
+                                    // TODO: is this needed?
+                                }else{*/
+
+                                let totalFailedAttempts = 0;
+                                let failedAttemptsSinceLastValid = 0;
+                                let failedAttemptsOnLastValid = 0;
+                                let lastValidHeight = 0;
+
+                                let lastFinishedHeight = undefined; // in cm, finished = valid or passed
+                                let firstUnfinishedHeight = undefined; // in cm
+
+                                // jumpoff
+                                let numFailedJumpoffAttempts = 0; // probably only the array jumpoffResults is needed
+                                let numValidJumpoffAttempts = 0; // probably only the array jumpoffResults is needed
+                                let jumpoffResults = []; // valid=true, failed=false
+
+                                // if resultOverrule is >0 (i.e. DNS, DQ, retired) then the athlete is 'finished'
+                                let finished = start.resultOverrule>0;
+                                start.resultsHigh.forEach((heightResult)=>{
+                                    // find out whether it is a regular height (i.e. not jumpoff)
+                                    let heightEl = this.mainData.series[this.selectedSeries].heights.find((el)=>{return el.xHeight == heightResult.xHeight});
+                                    //let heightEl = this.mainData.series[this.selectedSeries].heights[hIndex];
+                                    if (!heightEl){
+                                        alert('Fatal error: Result for a non-existing height appeared. Should never happen!');
+                                        return;
+                                    }
+                                    // normal and jumpoff results must be handled separately 
+                                    if (heightEl.jumpoffOrder==0){    
+                                        // normal
+                                        if (heightResult.resultsHighValid || heightResult.resultsHighPassed){
+                                            totalFailedAttempts += heightResult.resultsHighFailedAttempts;
+                                            lastFinishedHeight = heightEl.height;
+                                        } else {
+                                            if (!firstUnfinishedHeight){
+                                                firstUnfinishedHeight = heightEl.height;
+                                            }
+                                        }
+                                        if (heightResult.resultsHighValid){
+                                            lastValidHeight = heightEl.height;
+                                            failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
+                                            failedAttemptsSinceLastValid = 0;
+                                        }else{
+                                            failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
+
+                                            if (failedAttemptsSinceLastValid >= 3){
+                                                finished = true;
+                                            }                                                 
+
+                                        }
+                                        
+                                    }else{
+                                        // jumpoff
+                                        if (heightResult.resultsHighValid){
+                                            numValidJumpoffAttempts += 1;
+                                            jumpoffResults[heightEl.jumpoffOrder-1] = true;
+                                        } else {
+                                            numFailedJumpoffAttempts += 1;
+                                            jumpoffResults[heightEl.jumpoffOrder-1] = false;
+                                        }
+                                        maxNumJumpoffAttempts = Math.max(maxNumJumpoffAttempts, numValidJumpoffAttempts+numFailedJumpoffAttempts);
+                                        
+                                    }
+                                })
+                                
+                                this.tempRankingData[start.xSeriesStart] = {
+                                    totalFailedAttempts: totalFailedAttempts, // until and with the last valid hight
+                                    failedAttemptsSinceLastValid: failedAttemptsSinceLastValid, // after 3, the person is out of the competition. 
+                                    failedAttemptsOnLastValid: failedAttemptsOnLastValid,
+                                    lastValidHeight: lastValidHeight,
+                                    //nextJumpingHeight: 0, // TODO?
+                                    finished: finished,
+                                    lastFinishedHeight: lastFinishedHeight,
+                                    firstUnfinishedHeight: firstUnfinishedHeight,
+                                    numFailedJumpoffAttempts: numFailedJumpoffAttempts,
+                                    numValidJumpoffAttempts: numValidJumpoffAttempts,
+                                    jumpoffResults: jumpoffResults,
+                                    resultOverrule: start.resultOverrule, // just needed for jumpoff
+                                    jumpoffFailedAtI: 10000, // do not change this value, or change it as well in 'calculateNextAthlete'
+                                }
+                                
+                                if (lastValidHeight>this.maxLastValidHeight){
+                                    this.maxLastValidHeight = lastValidHeight;
+                                }
+
+                            })
+
+                            // -----------
+                            // additional analysis for jumpoff:
+                            // calculate the best result on every jumpoff height
+                            Object.values(this.tempRankingData).forEach((tempRankData)=>{
+                                if (tempRankData.jumpoffResults.length>0){
+                                    tempRankData.jumpoffResults.forEach((valid, i)=>{
+                                        if (this.bestAtEachJumpoffHeight[i]==undefined){
+                                            // no best result yet defined, so take this result as a start
+                                            this.bestAtEachJumpoffHeight[i]=valid;
+                                        }else{
+                                            // best result already defined; can only get 'better' (from failed to valid)
+                                            if (valid){
+                                                this.bestAtEachJumpoffHeight[i]=valid;
+                                            }
+                                        }
+                                    })
+                                }
+                            })
+
+                            // calculate when the athletes have failed in the jumpoff and/or what would be his next height
+                            Object.values(this.tempRankingData).forEach((tempRankData)=>{
+                                tempRankData.outOfJumpoff = false; // TODO: this probably does not work like this... lets see how it works in ranking. (The value is also set for athletes that are not in the jumpoff; however, it will be the same for all those athletes and thus doesnt matter)
+                                if (tempRankData.jumpoffResults.length>0){
+                                    // compare every heigh with the best result at this height
+                                    for (let i=0; i<tempRankData.jumpoffResults.length;i++){
+                                        if (!tempRankData.jumpoffResults[i] && this.bestAtEachJumpoffHeight[i]){
+                                            tempRankData.jumpoffFailedAtI = i;
+                                            tempRankData.outOfJumpoff = true;
+                                        }
+                                    }
+                                } 
+                                if (!tempRankData.outOfJumpoff) {
+                                    if (tempRankData.resultOverrule==1){
+                                        // athlete has retired --> "failed" at his last height +1
+                                        tempRankData.jumpoffFailedAtI = tempRankData.jumpoffResults.length;
+                                    }
+                                    // write as if they failed on the next height --> new: shall remain at 10000!
+                                    //tempRankData.jumpoffFailedAtI = this.bestAtEachJumpoffHeight.length+1;
+                                }
+                            })
+                            //-------------
+
+                            // the actual ranking:
+                            
+                            // create an array-copy of the starts
+                            let starts = this.mainData.series[this.selectedSeries].seriesStartsResults.slice();
+
+                            // sort this array:
+                            starts.sort((s1, s2)=>{
+                                if (Math.max(s1.resultOverrule,1) !=  Math.max(s2.resultOverrule,1)){ // regular (0) and retired (1) must be treated the same
+                                    return s1.resultOverrule - s2.resultOverrule; // this should meansingfully sort also within resultOverrule
+                                }
+                                // both result overrules are the same or both <2
+                                if (s1.resultOverrule <2){
+                                    // usual result: 
+                                    let r1 = this.tempRankingData[s1.xSeriesStart];
+                                    let r2 = this.tempRankingData[s2.xSeriesStart];
+
+                                    // 1) lastValidHeight
+                                    if (r1.lastValidHeight != r2.lastValidHeight){
+                                        return r2.lastValidHeight - r1.lastValidHeight; // the lower the more to the right.
+                                    }
+
+                                    // 2) failed attempts on last valid height
+                                    if (r1.failedAttemptsOnLastValid != r2.failedAttemptsOnLastValid){
+                                        return r1.failedAttemptsOnLastValid - r2.failedAttemptsOnLastValid; // the lower the more to the left
+                                    }
+
+                                    // 3) failed attempts in total
+                                    if (r1.totalFailedAttempts != r2.totalFailedAttempts){
+                                        return r1.totalFailedAttempts - r2.totalFailedAttempts; // the lower the more to the left
+                                    }
+
+                                    // jumpoff:
+
+                                    // 4) failed later in jumpoff
+                                    if (r1.jumpoffFailedAtI != r2.jumpoffFailedAtI){
+                                        return r2.jumpoffFailedAtI - r1.jumpoffFailedAtI; // the heigher the better
+                                    }
+
+                                    // 5) it is also deemed 'failure' when an athlete retired after the last height. Thus if both have failed at the same height, but one is finally called reitred, he actually left before and thus is ranked worse
+                                    if (r1.resultOverrule != r2.resultOverrule){
+                                        return r1.resultOverrule - r2.resultOverrule;
+                                    }
+
+                                } 
+
+                                // equal results
+                                return 0;
+
+                            })
+
+                            // current rank during rank assignment
+                            let rank=1;
+                            // from the sorted array, derive the ranking
+                            for (let i=0; i<starts.length;i++){
+                                if (starts[i].resultOverrule<2){
+                                    let r2 = this.tempRankingData[starts[i].xSeriesStart];
+                                    if (i>0){
+                                        let r1 = this.tempRankingData[starts[i-1].xSeriesStart];
+                                        // check if the element equals the last
+                                        let equal = (r1.lastValidHeight == r2.lastValidHeight && r1.failedAttemptsOnLastValid == r2.failedAttemptsOnLastValid && r1.totalFailedAttempts == r2.totalFailedAttempts && r2.jumpoffFailedAtI == r1.jumpoffFailedAtI && r1.resultOverrule == r2.resultOverrule); 
+                                        if (!equal){
+                                            rank = i+1;
+                                        }
+                                    }
+                                    // assign a rank only if there is a valid height
+                                    if (r2.lastValidHeight){
+                                        this.tempRankingData[starts[i].xSeriesStart].rank = rank;
+                                    }else{
+                                        this.tempRankingData[starts[i].xSeriesStart].rank = 0;
+                                    }
+                                    
+                                } else {
+                                    this.tempRankingData[starts[i].xSeriesStart].rank = 0; // TODO: eventually, no rank is something undefined instead of 0 or we use rank as a string and tranlate the overrule-code here to DQ, DNS, DNF, ...
+                                }
+                                
+                            }
+
+
+
+                        },
+                        calculateNextAthlete(){
+
+                            // TODO: jumpoff: 
+                            /*
+                            - the jupoff does not necessary take place --> is defined in the jumpoff-variable
+                            - ranking in jumpoff: retired athletes are last, in the order of their retiring (i.e. 3 athletes in jumpoff, one retires at the beginning (--> rank 3), the second retires after three more heights (--> second rank) while tha last would continue (--> rank 1))
+                            - attention: it is possible that all athletes retire at the same time at any time in the competition. Then all are ranked first. 
+                            - the ranking should only be done after a height is jumped by all athletes in the jumpoff (in order to avoid that eventually one person is temporary ranked second, if he still has the change to be in competition afterwards!)
+                            - ranking the following way: (1) more valid is better; (2) more failed is better (i.e. the athlete retired later; only used when >2 athletes in jumpoff)
+                            Note: if all athletes want to withdraw, the last withdrawel has to be made in the change-result section; until then, the remaining person is declared the winner.
+                            */
+
+                            let series = this.mainData.series[this.selectedSeries];
+
+                            // check if all startheights are given
+                            if (this.allStartHeightsDefined()){
+
+                                // TODO: eventually we should determine the mode automatically as well..? This would also imply changes in calculateTemporaryRankingData
+
+                                // change the mode to competition running, if it was at 'define startheigts' before. (This check is needed since otherwise it would leave jumpoff!) 
+                                if (this.mode==0){
+                                    this.mode=1;
+                                }
+
+                                // the currentHeight is calculated automatically:
+
+                                // find the lowest height, where an athlete is in competition (min(nextJumpingHeight)) (neither retired nor DQ nor DNS...) or get the next height after the last valid height of an athlete. 
+
+                                this.calculateTemporaryRankingData();
+
+                                // for athletes that are not yet in competition (no results), get the startheight; for athletes that are in competition, use the lower of lastFinistedHeight+next and firstUnfinished
+                                let lowestUnfinished = 1000; // here we can also include the startheight of athletes that were not in competition yet
+                                let lowestFinishedDefault = 1000;
+                                let lowestFinished = lowestFinishedDefault; // to calculate the next height after this
+
+                                // calculate some Jumpoff-stuff within the same loop
+                                let numJumpoffParticipants = 0;
+                                let nextJumpoffHeightInd = 1000; // the index in the jumpoffResults-Array
+
+                                let mainCompetitionFinished = true;
+                                series.seriesStartsResults.forEach(start=>{
+
+                                    let tmp = this.tempRankingData[start.xSeriesStart];
+                                    if (!tmp.finished){
+
+                                        mainCompetitionFinished = false;
+
+                                        // athlete is still in competition
+                                        if (start.resultsHigh.length){
+                                            if (tmp.firstUnfinishedHeight){ // might be undefined, when there is no unfinished height
+                                                lowestUnfinished = Math.min(lowestUnfinished, tmp.firstUnfinishedHeight);    
+                                            }
+                                            if (tmp.lastFinishedHeight){ // undefined when there is no finished height yet
+                                                // at least one height is finished for this athlete
+                                                lowestFinished = Math.min(lowestFinished, tmp.lastFinishedHeight);
+                                            }
+                                            
+                                        } else {
+                                            // no result yet; use the startheight
+                                            lowestUnfinished = Math.min(lowestUnfinished, start.startHeight);
+                                        }
+                                    }
+                                    if(tmp.finished && tmp.rank==1) {
+                                        // finished, and rank 1 --> currently part of the jumpoff
+                                        numJumpoffParticipants += 1;
+
+                                        // get the next height in the jumpoff:
+                                        if (nextJumpoffHeightInd>tmp.jumpoffResults.length && tmp.jumpoffFailedAtI==10000){
+                                            nextJumpoffHeightInd=tmp.jumpoffResults.length+1;
+                                        }
+                                    }
+                                    if (tmp.jumpoffResults.length>0){
+                                        // if an older jumpoffResult is deleted (which should NOT be done!), it would create a hole (<empty>) in the jumpoffResults --> in that case, the currentJumpoffHeight would be the first empty element in the array!
+                                        let firstUndef = tmp.jumpoffResults.findIndex(val=>val==undefined);
+                                        if (firstUndef>=0 && nextJumpoffHeightInd>firstUndef){
+                                            nextJumpoffHeightInd = firstUndef;
+                                            console.log('There was a jumpoff-height missing. This should not happen, since parts of the code might not work as expected in that case.')
+                                            // then we might also have to add this person to the count of the number of participants in the jumpoff:
+                                            if (!(tmp.finished && tmp.rank==1)){
+                                                numJumpoffParticipants++;
+                                            }
+                                        }
+                                    }
+
+
+                                })
+
+                                // when the competition is over, stop here (the rest is not needed and would not work appropriately)
+                                if (mainCompetitionFinished){
+                                    if (numJumpoffParticipants>1 && this.mainData.jumpoff){
+                                        this.mode = 2;
+                                    } else{
+                                        this.mode=3;
+                                        this.positionNext = [];
+                                        this.position = [];
+                                        return; // dont need to continue when the competition is over
+                                    }
+                                }
+
+                                if (this.mode==1){
+
+                                    let newCurrentHeight;
+                                    if (lowestFinished == lowestFinishedDefault){
+                                        // nothing finished yet, thus always lowestUnfinished is governing
+                                        newCurrentHeight = lowestUnfinished;
+                                    } else {
+                                        // the current height is the minimum of: lowestUnfinishedHeight and the next height after the lowestFinishedHeight
+                                        let i = this.allHeights.indexOf(lowestFinished);
+                                        let lowestNextHeight = this.allHeights[i+1];
+                                        
+                                        newCurrentHeight = Math.min(lowestNextHeight,lowestUnfinished)
+                                    }
+
+                                    // get the height-element
+                                    let hEl = series.heights.find(h=>h.height==newCurrentHeight && h.jumpoffOrder==0);
+                                    if (!hEl){
+                                        // create the height, as it does not exist yet
+                                        this.addHeight(newCurrentHeight);
+                                        hEl = series.heights.find(h=>h.height==newCurrentHeight && h.jumpoffOrder==0);
+                                    }
+
+                                    if (newCurrentHeight != this.currentHeight){
+                                        // the currentHeight has changed! We must a.o. recreate the positions array
+                                        this.currentHeight = newCurrentHeight;
+
+                                        // if the currentHeight changes:
+                                        // as it is hardly possible to transfer the different order in 'positions' compared to the default given in sSeriesStart, the position is always resetted to the default. 
+                                        // WHY is is hardly possible: The positions array always stores, who is still in competition on the current height (i.e. not overall). That means at the end, it will finally only contain the very last athlete, as all the others either failed 3 times or have a valid result already. Now we could think of not removing the elements from the array when the athlete do not jump on this height anymore, which would make transferring the changed order much simpler. However, if the user wants to change the order on the current height e.g. in the second attempt, then it would be strange if also athletes would appear that have passed already in the first attempt.
+
+                                        // position gives the current (during this height) order of athletes; create this array from scratch:
+
+                                        // find out what athletes are starting on this height: not finished, startheight <= currentHeight, has not finished this height yet
+                                        // first add all starts to the following array, before creating the final position array (TODO: or should we keep the array with the full data? I'm a bit worried because of the observers bound to the object for Vue...)
+                                        let starts = [];
+                                        series.seriesStartsResults.forEach(el=>{
+                                            if (el.startHeight <= this.currentHeight && !this.tempRankingData[el.xSeriesStart].finished && (this.tempRankingData[el.xSeriesStart].lastFinishedHeight === undefined || this.tempRankingData[el.xSeriesStart].lastFinishedHeight < this.currentHeight)){
+                                                starts.push(el);
+                                            }
+                                        })
+
+                                        // sort the starts
+                                        starts.sort((a,b)=>{
+                                            return a.position-b.position
+                                        })
+
+                                        // derive the position array
+                                        this.position = []; 
+                                        starts.forEach(el=>this.position.push(el.xSeriesStart));
+                                    } else {
+                                        // update the position array, without recreating it from default in order not to lose the current changes to it. 
+                                        // check for every athlete that should jump on the current height whether he is in the position array or not; finally delete all those entries that are not jumping (anymore)
+                                        let posCopy = this.position.slice();
+
+                                        series.seriesStartsResults.forEach(el=>{
+                                            if (el.startHeight <= this.currentHeight && !this.tempRankingData[el.xSeriesStart].finished && (this.tempRankingData[el.xSeriesStart].lastFinishedHeight === undefined || this.tempRankingData[el.xSeriesStart].lastFinishedHeight < this.currentHeight)){
+                                                
+                                                let ind = this.position.findIndex(el2=>el2==el.xSeriesStart)
+                                                if (ind == -1){
+                                                    // start must be added on the best position!
+                                                    // first create an array with the deafult positions of the athletes in the current positions-list
+                                                    let positionDefault = Array(this.position.length);
+                                                    for (let i=0;i<this.position.length;i++){
+                                                        let start = this.mainData.series[this.selectedSeries].seriesStartsResults.find(el=>el.xSeriesStart==this.position[i])
+                                                        if (!start){
+                                                            alert('Error: Something went terribly wrong.');
+                                                        }
+                                                        positionDefault[i] = start.position;
+                                                    }
+
+                                                    // go through the possible positions (number of positions: position.length+1)
+                                                    // best position is where most of the athletes would be correctly before and after according to the position default
+                                                    let minSortedWrong = this.position.length+10;
+                                                    let minSortedWrongIndex = -1;
+                                                    for (let i=0; i<=this.position.length;i++){
+                                                        let sortedWrong = 0;
+                                                        // before:
+                                                        for (let j=0;j<i;j++){
+                                                            if (positionDefault[j]>el.position){
+                                                                sortedWrong++;
+                                                            }
+                                                        }
+                                                        // after: 
+                                                        for (let j=i;j<this.position.length; j++){
+                                                            if (positionDefault[j]<el.position){
+                                                                sortedWrong++;
+                                                            }
+                                                        }
+                                                        if (sortedWrong<minSortedWrong){
+                                                            minSortedWrong = sortedWrong;
+                                                            minSortedWrongIndex = i;
+                                                        }
+                                                    }
+
+                                                    // add the element at the best position
+                                                    this.position.splice(minSortedWrongIndex,0,el.xSeriesStart);
+
+                                                } else {
+                                                    // remove from posCopy
+                                                    let ind = posCopy.indexOf(el.xSeriesStart);
+                                                    if (ind==-1){
+                                                        alert('Error: Should not happen...');
+                                                    }else{
+                                                        posCopy.splice(ind,1);
+                                                    }
+                                                }
+                                            }
+                                        })
+
+                                        // delete all elements in position that are still in posCopy
+                                        posCopy.forEach(el=>{
+                                            let ind = this.position.indexOf(el);
+                                            this.position.splice(ind,1);
+                                        })
+                                        // done.
+
+                                    }
+
+
+                                    // find out which athlete is the next
+                                    // 1. find out the minimum number of failed attempts
+                                    let minFailedAttempts = 10;
+                                    let minFailedAttemptsCount = 0; // how many times this number of attempts appeared
+                                    this.position.forEach(xSeriesStart=>{
+                                        // get the corresponding start
+                                        let start = series.seriesStartsResults.find(el=>el.xSeriesStart==xSeriesStart);
+
+                                        // get the correspnding height result (if there is one! --> otherwise minFailedAttempts is zero!)
+                                        let hAth = start.resultsHigh.find((el)=>{
+                                            h = series.heights.find(hEl=>el.xHeight==hEl.xHeight); // if everything is correct, must always find an element
+                                            if (h===undefined){
+                                                alert('ERROR: Should never be here. Could not find the corresponding height for a given xHeight.');
+                                                throw('ERROR: Should never be here. Could not find the corresponding height for a given xHeight.');
+                                                
+                                            }
+                                            return h.height==this.currentHeight;
+                                        })
+                                        if (hAth===undefined){
+                                            if (minFailedAttempts==0){
+                                                minFailedAttemptsCount++;
+                                            }else{
+                                                minFailedAttempts=0;
+                                                minFailedAttemptsCount=1;
+                                            }
+                                        }else{
+                                            if (minFailedAttempts>hAth.resultsHighFailedAttempts){ 
+                                                minFailedAttempts=hAth.resultsHighFailedAttempts;
+                                                minFailedAttemptsCount=1;
+                                                
+                                            }else if(minFailedAttempts == hAth.resultsHighFailedAttempts){
+                                                minFailedAttemptsCount++;
+                                            }
+                                        }
+
+                                    })
+                                    // now we know what attempt we are in (--> minFailedAttempts+1)
+                                    this.attempt = minFailedAttempts+1;
+                                    this.attemptNext = minFailedAttemptsCount>1 ? minFailedAttempts+1 : minFailedAttempts+2;
+
+                                    // now, create the order of the next athletes:
+
+                                    // TODO: the following does not work when we change the positions! -> does it work now?
+                                    // get the first athlete where minFailedAttempts == hEl.resultsHighFailedAttempts
+                                    let currentAthlete = -1;
+                                    // reinitialize the positionNaext array
+                                    this.positionNext = Array(this.position.length);
+                                    let n = 0;
+                                    for (let a = minFailedAttempts; a<3; a++){
+                                        for (let i=0;i<this.position.length;i++){
+                                            // check for every athlete in the order of the position array, if failed attempt == a; then he starts as n'th athlete from now.
+                                            let xSeriesStart = this.position[i];
+
+                                            // get the corresponding start
+                                            let start = series.seriesStartsResults.find(el=>el.xSeriesStart==xSeriesStart);
+                                            // get the correspnding height result (if there is one! --> otherwise minFailedAttempts is zero!)
+                                            let hAth = start.resultsHigh.find((el)=>{
+                                                h = series.heights.find(hEl=>el.xHeight==hEl.xHeight); 
+                                                return h.height==this.currentHeight;
+                                            })
+                                            if (hAth==undefined){
+                                                if (minFailedAttempts != 0){
+                                                    alert ("Error: Should never get here!");
+                                                } else {
+                                                    // if hAth is undefined, then the athlete has no result yet on this height, i.e. his resultsHighFailedAttempts=0
+                                                    if (a==0){
+                                                        this.positionNext[n] = i;
+                                                        n++;
+                                                    }
+                                                }
+                                            }else {
+                                                if (hAth.resultsHighFailedAttempts==a){
+                                                    this.positionNext[n] = i
+                                                    n++;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (n!=this.position.length){
+                                        alert('Error: something went wrong in this loop.. :-(( The order of next athletes might be wrong.')
+                                    }
+
+                                } else if (this.mode==2){
+                                    // in jumpoff mode.
+
+                                    this.jumpoffHeightRequired = false; // it will be (re)set to true if needed anyway; needed such that adding the next jumpoff height in the heights-menu works as well 
+
+                                    // is a new height coming?
+                                    if (nextJumpoffHeightInd != this.currentJumpoffHeightInd){
+
+                                        // the currentHeight has changed! We must recreate the positionNext array and eventually also the positions array
+                                        this.currentJumpoffHeightInd = nextJumpoffHeightInd;
+
+                                        // check whether the new height already exists or let the user define the next jumpoff height!
+                                        let hEl;
+                                        let lastJumpoffIndex = 0;
+                                        let lastJumpoffHeight = 0;
+                                        for(let i=0;i<series.heights.length;i++){
+                                            let el = series.heights[i];
+                                            if (el.jumpoffOrder==this.currentJumpoffHeightInd){
+                                                hEl = el;
+                                            }
+                                            if (lastJumpoffIndex<el.jumpoffOrder){
+                                                lastJumpoffHeight = el.height;
+                                            }
+                                        }
+                                        if (hEl==undefined){
+                                            // create the new height
+                                            this.jumpoffHeightRequired=true;
+                                            let val = 0; 
+                                            if (this.currentJumpoffHeightInd==1){
+                                                // the first jumpoffHeight if the first height after the height where all jumpoff-paritcipants have succeeded
+
+                                                // find the smallest height after the maxlastValidHeight
+                                                val = 10000;
+                                                series.heights.forEach((el,ind)=>{
+                                                    if (el.height>this.maxLastValidHeight && el.height<val){
+                                                        val = el.height;
+                                                    }
+                                                })
+
+                                            } else {
+                                                if (this.bestAtEachJumpoffHeight[this.bestAtEachJumpoffHeight.length-1]){
+                                                    // increase the last jumpoffHeight by this.jumpoffHeightVariation (i.e. 2cm for HJ and 5cm fo PV)
+                                                    val = lastJumpoffHeight + this.mainData.jumpoffHeightVariation;
+                                                }else {
+                                                    // decrease the last jumpoffHeight by this.jumpoffHeightVariation (i.e. 2cm for HJ and 5cm fo PV)
+                                                    val = lastJumpoffHeight - this.mainData.jumpoffHeightVariation;
+                                                }
+                                            }
+                                            // predefine the next height and let the user confirm teh height
+                                            this.manualJumpoffHeight = val;
+                                            //document.getElementById('manualJumpoffHeight').value = val;
+                                        }
+                                    }
+
+                                    // try to take over the positions from the previous height. This only works, when there are the same or fewer athletes.
+
+                                    // get all athletes that are still in the jumpoff (including those that jumped already on the current height!), i.e. all athletes where jumpoffFailedAtI>currentJumpoffHeightInd
+                                    
+                                    let recreatePos = false;
+                                    let starts = []; // only used in case of additional athletes, which may only happen after changes in past results
+                                    Object.entries(this.tempRankingData).forEach(([xSeriesStart, el])=>{
+
+                                        if (el.jumpoffFailedAtI>this.currentJumpoffHeightInd && el.rank==1){//(el.jumpoffResults.length==nextJumpoffHeightInd || el.jumpoffResults[nextJumpoffHeightInd]==undefined){
+                                            starts.push(series.seriesStartsResults.find(el=>el.xSeriesStart==xSeriesStart));
+                                            if(this.position.indexOf(parseInt(xSeriesStart))==-1){
+                                                // if would have to add, we will recreate the positions array  afterwards
+                                                recreatePos = true;
+                                            }
+                                        }
+                                    })
+                                    if (recreatePos){
+                                        // sort the starts
+                                        starts.sort((a,b)=>{
+                                            return a.position-b.position;
+                                        })
+
+                                        // derive the position array
+                                        this.position = []; 
+                                        starts.forEach(el=>this.position.push(el.xSeriesStart));
+
+                                        /* this.positionNext = Array(this.position.length);
+                                        for (let i=0;i<this.positionNext.length;i++){
+                                            this.positionNext[i] = i;
+                                        } */
+
+                                    } else {
+                                        // delete positions that do not start on this height:
+                                        let i = this.position.length;
+                                        while (i--){
+                                            let xSeriesStart = this.position[i];
+                                            if (this.tempRankingData[xSeriesStart].jumpoffFailedAtI<=this.currentJumpoffHeightInd){//(this.tempRankingData[xSeriesStart].jumpoffResults.length != nextJumpoffHeightInd && this.tempRankingData[xSeriesStart].jumpoffResults[nextJumpoffHeightInd]!=undefined){
+                                                this.position.splice(i,1);
+                                            }
+                                        }
+                                    }
+
+                                    // define the order of athletes on the current height (positionNext)
+                                    // loop over the position array and check which athletes will still jump on the current height
+                                    this.positionNext = [];
+                                    for (let i=0; i<this.position.length; i++){
+                                        let xSeriesStart = this.position[i];
+                                        if(this.tempRankingData[xSeriesStart].jumpoffResults[this.currentJumpoffHeightInd-1]==undefined){
+                                            this.positionNext.push(i);
+                                        }
+                                    }
+                                }
+
+
+                                // make sure the ordering is updated (needed at least when the ordering is set to ranking)
+                                this.fakeProperty++;
+
+                            } else {
+                                // show: not all athletes have a startheight
+                                this.mode = 0;
+                            }
+
+                            // since calculateNextAthlete is called whenever something has changed, we can also start updating height-deleable.status from here 
+                            this.evaluateHeightDeletable()
+                        },
+                        getCurrentAthletesHeight(autoAddHeight = true){
+                            // find the seriesStart of the current athlete and the result for the current height. If this result does not exist yet and autoAddHeight=true, it will automatically be generated with initialization values. Returns undefined when either the athlete does not exist or the height was not found and autoAddHeight=false
+
+                            let series = this.mainData.series[this.selectedSeries];
+
+                            let start = this.mainData.series[this.selectedSeries].seriesStartsResults.find(el=>el.xSeriesStart==this.position[this.positionNext[0]])
+                            if (!start){
+                                alert('Error: Could not find athlete, which should never happen.')
+                                return undefined;
+                            }
+
+                            // find the xHeight of the current height
+                            let hEl = series.heights.find(h=>h.height==this.currentHeight && h.jumpoffOrder==0);
+                            // find the height-result-element
+                            let h = start.resultsHigh.find(el=>el.xHeight==hEl.xHeight)
+                            if (!h){
+                                if (autoAddHeight){
+                                    h = {
+                                        xResult: this.xResultTemp--,
+                                        xHeight: hEl.xHeight,
+                                        resultsHighFailedAttempts: 0, // how many fails on this hight
+                                        resultsHighValid: false, 
+                                        resultsHighPassed:false // verzichtet (-)
+                                    };
+                                    start.resultsHigh.push(h);
+                                }else{
+                                    return undefined;
+                                }
+                            }
+                            return h;
+
+                        },
+                        failed(){
+                            // current athlete failed: 
+                            // increase the failed counter on the current height
+                            let h = this.getCurrentAthletesHeight();
+                            h.resultsHighFailedAttempts++;
+
+                            // if the number fo failures is 3 now, remove the athlete from the position array
+                            /*if (h.resultsHighFailedAttempts==3){
+                            // TODO!!!!!!!!!!!!!!!!!!!!!!!!
+                            // Not necessary; will be done automatically in calculateNextAthlete
+                            }*/
+                            this.calculateNextAthlete();
+                        },
+                        cleared(){
+                            // current athlete cleared the height
+                            // note this in the result data
+                            let h = this.getCurrentAthletesHeight();
+                            h.resultsHighValid = true;
+
+                            // remove the athlete from the position array
+                            
+                            this.calculateNextAthlete();
+                        },
+                        passed(){
+                            // current athlete passes this height
+                            // write to results
+                            let h = this.getCurrentAthletesHeight();
+                            h.resultsHighPassed = true;
+
+                            // remove the athlete from the position array
+                            
+                            this.calculateNextAthlete();
+                        },
+                        clearedJumpoff(){
+                            let xSeriesStart = this.position[this.positionNext[0]];
+                            let jumpoffOrder = this.currentJumpoffHeightInd;
+                            this.setJumpoffResult(xSeriesStart, jumpoffOrder, true)
+                        },
+                        failedJumpoff(){
+                            let xSeriesStart = this.position[this.positionNext[0]];
+                            let jumpoffOrder = this.currentJumpoffHeightInd;
+                            this.setJumpoffResult(xSeriesStart, jumpoffOrder, false)
+                        },
+                        setJumpoffResult(xSeriesStart, jumpoffOrder, cleared){
+                            // define the jumpoffResult at a certain jumpoff height of the given athlete (xSeriesStart)
+
+                            // get the athlete
+                            let series = this.mainData.series[this.selectedSeries];
+
+                            let start = series.seriesStartsResults.find((el)=>{return el.xSeriesStart == xSeriesStart;});
+                            if (!start){
+                                alert("ERROR: could not find the athlete. Should never happen...");
+                                return;
+                            }
+
+                            // get the height element
+                            let hEl = series.heights.find(h=>h.jumpoffOrder==jumpoffOrder);
+                            if (!hEl){
+                                alert("ERROR: could not find the height entry. Should never happen...");
+                                return;
+                            }
+
+                            let resEl = start.resultsHigh.find(el=>el.xHeight==hEl.xHeight);
+                            if (!resEl){
+                                // add the result element
+                                resEl = {
+                                        xResult: this.xResultTemp--,
+                                        xHeight: hEl.xHeight,
+                                        resultsHighFailedAttempts: 0, // how many fails on this hight
+                                        resultsHighValid: false, 
+                                        resultsHighPassed:false // verzichtet (-)
+                                    };
+                                start.resultsHigh.push(resEl);
+                            }
+                            if (cleared){
+                                resEl.resultsHighValid = true;
+                                resEl.resultsHighFailedAttempts = 0;
+                            }else{
+                                resEl.resultsHighValid = false;
+                                resEl.resultsHighFailedAttempts = 1;
+                            }
+
+                            this.calculateNextAthlete();
+
+                        },
+                        //{{getHeight(res.xHeight)}}: {{resToStr(res)}}
+                        getHeight(xHeight){
+                            // get the height formatted as a string (2.10m) for the given xHeight
+                            let h = this.mainData.series[this.selectedSeries].heights.find(el=>el.xHeight==xHeight);
+                            if (h){
+                                let hCalc = (h.height/100).toFixed(2);
+                                // add a J in front of the height when it is a jumpoff height
+                                if (h.jumpoffOrder>0){
+                                    return 'J' + hCalc + ' m';
+                                } else {
+                                    return hCalc + ' m';
+                                }
+                            }else {
+                                return 'Error';
+                            }
+                        },
+                        resultToStr(res){
+                            let resStr = 'X'.repeat(res.resultsHighFailedAttempts);
+                            if (res.resultsHighValid){
+                                resStr += 'O';
+                            }else if (res.resultsHighPassed){
+                                resStr += '-'
+                            }
+                            return resStr;
+                        },
+                        strToResult(resStr, showAlert=false, jumpoff=false){
+                            resStr = resStr.toUpperCase();
+                            failedCount = 0;
+                            valid = false;
+                            passed = false;
+                            for (let i=0;i<resStr.length;i++){
+                                let c = resStr.charAt(i);
+                                if (c=='X'){
+                                    failedCount++
+                                } else if (c=='O'){
+                                    valid = true;
+                                } else if (c=='0'){
+                                    valid = true;
+                                } else if (c=='-'){
+                                    passed = true;
+                                } else {
+                                    if (showAlert){
+                                        alert(c + " " + "<%= __(' is not a valid character. It is ignored.') %>")
+                                    }
+                                }
+                            }
+
+                            // do some checks:
+                            // at max one:
+                            if (!jumpoff){
+                                // normal
+                                if (valid + passed + (failedCount==3) > 1){
+                                    return false;
+                                }
+                                if (failedCount>3){
+                                    return false;
+                                }
+                            }else{
+                                // jumpoff
+                                if (valid + passed + failedCount > 1){
+                                    return false;
+                                }
+                            }
+
+                            return {
+                                resultsHighFailedAttempts: failedCount, // how many fails on this hight
+                                    resultsHighValid: valid, 
+                                    resultsHighPassed: passed
+                            }
+                            
+                            /*{
+                                    xResult:1,
+                                    xHeight: 1, // the link to the height!
+                                    //resultsHighSortOrder, // not needed!, the current position (temporary different athlete order) is handled differently
+                                    resultsHighFailedAttempts: 1, // how many fails on this hight
+                                    resultsHighValid: true, 
+                                    resultsHighPassed:false // verzichtet (-)
+                                },*/
+                        },
+                        onPositionMovingEnded(evt){
+                            if (evt.oldIndex!=evt.newIndex){
+                                // on position change, we have to recalculate the next athlete (and the positionNext array.)
+                                this.calculateNextAthlete()
+                            }
+                            
+                        },
+                        saveCurrentResChange(start){
+                            let el = document.getElementById('resChange' + this.currentResultChange.xResult);
+                            //let el = document.getElementById('resChange');
+                            if (el==undefined){
+                                alert('ERROR: cound not find the html-element of the result change. Should actually never happen. ');
+                                return;
+                            }
+
+                            // if the string is empty, delete the result completely, otherwise, just alter it
+                            if (el.value==''){
+                                // find the result in the results array
+                                let ind = start.resultsHigh.indexOf(this.currentResultChange);
+
+                                // delete the result
+                                start.resultsHigh.splice(ind,1);
+
+                                // leave the result change mode:
+                                this.currentResultChange = {};
+
+                                // recalculate the next athlete
+                                this.calculateNextAthlete();
+
+                            }else{
+
+                                // get the height element to find out whether it is a jumpoff-height
+                                let hEl = this.mainData.series[this.selectedSeries].heights.find((el)=>{return el.xHeight==this.currentResultChange.xHeight})
+                                if (!hEl){
+                                    alert('ERROR: could not find the height corresponding to the ')
+                                }
+
+                                let raw = this.strToResult(el.value, false, hEl.jumpoffOrder>0)
+
+                                if (raw){
+                                    // transfer the changes to the actual result
+                                    this.currentResultChange.resultsHighPassed = raw.resultsHighPassed;
+                                    this.currentResultChange.resultsHighValid = raw.resultsHighValid;
+                                    this.currentResultChange.resultsHighFailedAttempts= raw.resultsHighFailedAttempts;
+
+                                    // leave the result change mode:
+                                    this.currentResultChange = {};
+
+                                    // recalculate the next athlete
+                                    this.calculateNextAthlete();
+                                }else{
+                                    alert("<%= __('The entered result is invalid. The previous value is restored.') %>")
+                                    // leave the result change mode:
+                                    this.currentResultChange = {};
+                                }
+                            }
+                        },
+                        getNewHeigthsByXSeriesStart(start){
+                            // returns an array of objects with the additional heights for the given athlete (i.e. all heights except those where a result already exists)
+                            
+                            // start with the allHeights array and delete all heights that already have a result
+                            let hRed = this.allHeights.slice();
+                            let maxHeightInResults = 0;
+                            // loop over the present results
+                            start.resultsHigh.forEach(hEl=>{
+                                // get the height for the hEl
+                                let h = this.mainData.series[this.selectedSeries].heights.find(el=>el.xHeight==hEl.xHeight) 
+                                if (!h){
+                                    alert('ERROR: height reference is broken! Should never happen.');
+                                    return [];
+                                }
+                                // get the index of the element in the hRed array
+                                let ind = hRed.indexOf(h.height);
+                                if (ind>=0){
+                                    // remove the element
+                                    hRed.splice(ind,1);
+                                }
+                                if (maxHeightInResults < h.height){
+                                    maxHeightInResults = h.height;
+                                }
+                            })
+
+                            // define which height should be preselected:
+                            // usually: find out which height is the next height of the athlete
+                            // if the athlete has no result yet: the startheight
+                            // if there is no startheught yet: the first element
+                            let indNextHeight = -1;
+
+                            if (maxHeightInResults){
+                                // has already a result; get the next height
+                                //find the maxHeight in the allHeight
+                                let i = this.allHeights.indexOf(maxHeightInResults);
+                                let nextHeight = this.allHeights[i+1];
+                                
+                                let nextHeightIndex = hRed.indexOf(nextHeight); // the next index should be selected
+                                if (nextHeightIndex>=0){
+                                    indNextHeight = nextHeightIndex;
+                                }
+                            } else if (start.startHeight) {
+                                let i = hRed.indexOf(start.startHeight); 
+                                if(i>=0){
+                                    indNextHeight = i;
+                                }
+                            }
+                            // no elmeent was found:
+                            if (indNextHeight<0){
+                                indNextHeight = 0;
+                            }
+
+                            // now process every element in hRed and transform it into the appropriate object
+                            for (let i=0; i<hRed.length; i++){
+                                hRed[i] = {
+                                    value: hRed[i],
+                                    text: hRed[i],
+                                    next: i==indNextHeight
+                                }
+                            }
+
+                            // TODO: how to handle the jumpoff? This is anyway difficult as a lot is different (e.g. only one attempt per height)
+
+                            return hRed;
+                        },
+                        addResultBlur(start, $event){
+                            if (this.resultKeyPressed!=27){
+                                this.addResult(start);
+                            }
+                            this.resultKeyPressed = -1;
+                        },
+                        addResult(start){
+
+                            // add a result 
+                            let valEl = document.getElementById('newResultValue' + start.xSeriesStart);
+                            let heightEl = document.getElementById('newResultHeight' + start.xSeriesStart);
+
+                            if (valEl.value!=''){
+                                // first try to parse the entered result string
+                                let resParsed = this.strToResult(valEl.value);
+                                if (!resParsed){
+                                    // TODO: what shall be reverted
+                                    alert("<%= __('The entered result is invalid. Saving is aborted.') %>")
+                                    return;
+                                }
+
+                                // check that the result is also reasonable together with the previous results:
+                                // - not more than 2 failed attempts in a row
+                                // - athlete was not finished before already
+                                // - not nothing
+                                if (this.tempRankingData[start.xSeriesStart].finished ){
+                                    alert("ERROR: the athlete is already finished! Actually you should not even be able to enter a result.");
+                                    valEl.value = '';
+                                    return;
+                                }
+
+                                if (this.tempRankingData.failedAttemptsSinceLastValid + resParsed.resultsHighFailedAttempts + resParsed.resultsHighPassed + resParsed.resultsHighValid>3){
+                                    // TODO: 
+                                    alert("<%= __('The entered result is invalid, as the number of failed attempts since the last valid jump is >3. Saving is aborted.') %>")
+                                    valEl.value = '';
+                                    return;
+                                }
+                                if (resParsed.resultsHighFailedAttempts + resParsed.resultsHighPassed + resParsed.resultsHighValid==0){
+                                    // TODO: 
+                                    alert("<%= __('The entered result is invalid, as neither passed, nor valid nor a failed attempt was entered. Saving is aborted.') %>")
+                                    valEl.value = '';
+                                    return;
+                                }
+
+
+
+                                // get the xHeight for the selected height (if it exists)
+                                let hEl = this.mainData.series[this.selectedSeries].heights.find(el=>el.height == heightEl.value && el.jumpoffOrder==0)
+                                if (!hEl){
+                                    this.addHeight(heightEl.value)
+                                    hEl = this.mainData.series[this.selectedSeries].heights.find(el=>el.height == heightEl.value && el.jumpoffOrder==0)
+                                }
+                                
+                                start.resultsHigh.push({
+                                    xResult: this.xResultTemp--,
+                                    xHeight: hEl.xHeight,
+                                    resultsHighFailedAttempts: resParsed.resultsHighFailedAttempts, // how many fails on this hight
+                                    resultsHighValid: resParsed.resultsHighValid, 
+                                    resultsHighPassed: resParsed.resultsHighPassed // verzichtet (-) 
+                                })
+
+                                // recalculate the next athlete. This will also update the tempRankingData, which is needed below  
+                                this.calculateNextAthlete();
+
+                                // reset the field 
+                                valEl.value = '';
+                                // define the new focus:
+                                if (this.tempRankingData[start.xSeriesStart].finished){
+                                    // focus the next athletes field, where the athletes results
+                                    // i= index of the current athlete
+                                    let i = this.sortedStarts1.findIndex(el=>start.xSeriesStart==el.xSeriesStart);
+                                    for (let j=i+1;j<this.sortedStarts1.length;j++){
+                                        // check if the athlete is not finished yet
+                                        if (!this.tempRankingData[this.sortedStarts1[j].xSeriesStart].finished){
+                                            document.getElementById('newResultValue'+this.sortedStarts1[j].xSeriesStart).focus();
+                                            break;
+                                        }
+                                    }
+                                }else{
+                                    // focus the same element again
+                                    valEl.focus();
+                                }
+                            }
+
+                            
+                            
+                            // is the height automatically removed from the heights options dropdown? Otherwise make Vue reload in some way.
+
+                        },
+                        changeResult(res){
+                            this.currentResultChange=res;
+                            // set the focus: problem: when the element is still hidden, it cannot get the focus. And Vue will change the hidden status with a slight delay (either just asynchronous or indeed with a delay), thus we also have to implement some delay here:
+                            setTimeout(()=>{document.getElementById('resChange' + res.xResult).focus();}, 1) // time in ms (1 ms so far seems to be enough, 3-2020)
+                            //document.getElementById('resChange' + res.xResult).focus();
+                            //document.getElementById('resChange').focus();
+                        },
+                    },
+                    beforeMount(){
+                        // work on data before it is showed the first time
+
+                        this.createAllHeights();
+                        this.evaluateHeightDeletable();
+                    },
+                    components:{
+                        'draggable': vuedraggable,
+                    },
+                }
+
+                vueTechHigh = Vue.createApp(vueAppConfig).mount('#vueDiv');
+
+                // TODO: evnetuelly we have to move the beforeStart here (when before mount is not bound anymore to the same "this")
+                // try if already everything is ready to start
+                vueTechHigh.calculateNextAthlete();
+            }
+
+        </script>
+
+    </head>
+    <body onload="startup()">
+        <div id="vueDiv" style="display:inline-block; padding: 12px;">
+
+            <div id="settings" style="width:100%">
+                <!-- TODO: format this -->
+                <h2><%= __("Settings") %></h2>
+                <%= __("Jumpoff") %>
+                <div class="onoffswitch">
+                    <input type="checkbox" v-model="mainData.jumpoff" class="onoffswitch-checkbox" id="myonoffswitch" v-on:change="calculateNextAthlete">
+                    <!-- the label part is model independent, but th id/for must match-->
+                    <label class="onoffswitch-label" for="myonoffswitch">
+                        <span class="onoffswitch-inner"></span>
+                        <span class="onoffswitch-switch"></span>
+                    </label>
+                </div>
+
+                <%= __("Contest Status") %>
+                <select class="content dropdown" v-model="mainData.contestStatus" >
+                    <option v-for="option in contestStatus" v-bind:value="option.value">
+                        {{option.text}}
+                    </option>
+                </select>
+                
+                <%= __("Series Selection") %>
+                <select class="content dropdown" v-model="selectedSeries" v-on:change="calculateNextAthlete">
+                    <option v-for="(seriesEl, seriesIndex) in mainData.series" v-bind:value="seriesIndex">
+                        {{seriesEl.seriesNumber}} <div v-if="seriesEl.seriesName">{{seriesEl.seriesName}}</div> <!--if undefined, the name shall not be shown-->
+                    </option>
+                </select>
+                
+
+                <%= __("Series Status") %>
+                <select class="content dropdown" v-model="mainData.series[selectedSeries].seriesStatus" >
+                    <option v-for="option in seriesStatus" v-bind:value="option.value">
+                        {{option.text}}
+                    </option>
+                </select>
+
+            </div>
+
+            <div id="heights" style="width:100%">
+                <h2><%= __("Define jumping heights") %></h2>
+                <h3><%= __("Intervals") %></h3>
+                <table class="table">
+                    <tr><th><%= __("Interval begin") %></th><th><%= __("Interval") %></th><th></th></tr>
+                    <template v-for="(heightEl, heightElIndex) in mainData.heightIncreases">
+                        <tr v-if="heightElIndex != updateHeightIncrease">
+                            <td>{{heightEl.heightIncreaseStartheight}}</td>
+                            <td>{{heightEl.heightIncrease}}</td>
+                            <td ><button class="btn btnGrey marginRight" v-on:click=" startUpdatingHeightIncrease(heightElIndex)" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Change") %></button><button class="btn btnRed" v-on:click=" deleteHeightIncrease(heightElIndex)" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Delete") %></button></td>
+                        </tr>
+                        <tr v-if="heightElIndex == updateHeightIncrease">
+                            <td><input class="formCtrl" placeholder="<%= __('Begin') %>" type="text" v-model.number="heightEl.heightIncreaseStartheight" size=3></td>
+                            <td><input class="formCtrl" placeholder="<%= __('Interval') %>" type="text" v-model.number="heightEl.heightIncrease" size=2></td>
+                            <td ><button class="btn btnGreen marginRight" v-on:click=" saveUpdateHeightIncrease()"><%= __("Save") %></button><button class="btn  btnGrey" v-on:click=" abortUpdateHeightIncrease(heightElIndex); "><%= __("Abort") %></button></td>
+                        </tr>
+                    </template>
+                    <tr class="table-info">
+                        <td><input class="formCtrl" placeholder="<%= __('Begin') %>" type="text" id="heightIncreaseStartheight" size=3></td>
+                        <td><input class="formCtrl" placeholder="<%= __('Interval') %>" type="text" id="heightIncrease" size=2></td>
+                        <td><button class="btn btnGrey" v-on:click=" addHeightIncrease()"><%= __("Add") %></button></td>
+                    </tr>
+                    
+                </table>
+                <h3><%= __('Heights') %></h3>
+                <%= __("Current heights") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping heights') %>:', '<%= __('The jumping heights are automatically generated from the height interval and are added to this list as soon as they are referenced e.g. as a startheight or in a result. Heights outside the intervals can be specified manually as well. As long as the height is not referenced, it can be deleted by clicking on it.') %>')"><%= __('i') %></button>: 
+                <div class="d-flex flex-row">
+                    <template v-for="(heightEl, heightElIndex) in mainData.series[selectedSeries].heights">
+                        <button v-if="heightEl.deletable" class="btn btnGrey marginS" v-on:click="deleteHeight(heightElIndex)">
+                            <div v-if="heightEl.jumpoffOrder>0">
+                                <%= __("J: ") %>{{heightEl.height}}
+                            </div>
+                            <div v-else>
+                                {{heightEl.height}}
+                            </div>
+                        </button>
+                        <div class="crumb" v-else>
+                            <div v-if="heightEl.jumpoffOrder>0">
+                                <%= __("J: ") %>{{heightEl.height}}
+                            </div>
+                            <div v-else>
+                                {{heightEl.height}}
+                            </div>
+                            
+                        </div>
+                    </template>
+                </div>
+                <%= __("Add manual height") %>: 
+                <input class="formCtrl" type="text" id="manualHeight" size="3" max="650" min="0" v-on:keyup="addManualHeightEnter">
+                <button class="btn btnGrey" v-on:click="addManualHeight()"><%= __("Add") %></button>
+            
+                <!--<div class="msgWindow" id="deleteMeetingWindow" v-bind:class="{shown: deleteWindowShown, hidden: !deleteWindowShown} " v-if="deleteHeightIncreaseWindowShown">
+                    <div class="message"><%= __("Do you really want to delete the meeting '{{deleteMeetingObj.shortname}}'?") %></div> 
+                    <div class="no" v-on:click="deleteWindowShown=false"><%= __("No") %></div>
+                    <div class="yes" v-on:click="deleteMeeting(deleteMeetingObj) ; deleteWindowShown=false"><%= __("Yes") %></div>
+                </div>-->
+            </div>
+            
+            <div id="startHeights" class="container" style="width:100%">
+                <!-- startheights should only be changeable until an athlet has a result -->
+                <h2><%= __("Startheights") %></h2>
+                <table class="table">
+                    <tr><th class="d-none d-md-block"><%= __("Nbr.") %></th><th><%= __("Name") %></th><th class="d-none d-md-block"><%= __("Club")%></th><th></th></tr>
+                    <template v-for="(xSeriesStartEl, xSeriesStartElIndex) in mainData.series[selectedSeries].seriesStartsResults">
+                        <!-- The athletes data is in the auxData! -->
+                        <tr>
+                            <td class="d-none d-md-block">{{auxData.xStartGroup[xSeriesStartEl.xStartGroup].bib}}</td>
+                            <td>{{auxData.xStartGroup[xSeriesStartEl.xStartGroup].athleteForename}} {{auxData.xStartGroup[xSeriesStartEl.xStartGroup].athleteName}}</td>
+                            <td class="d-none d-md-block">{{auxData.xStartGroup[xSeriesStartEl.xStartGroup].clubName}}</td>
+                            <td>
+                                <select class="formCtrl" :id="'startHeightSelection' + xSeriesStartEl.xStartGroup.toString()" onmousedown="if(this.options.length>6){this.size=6;}; " onchange="this.size=0" onblur="if (this.selectedIndex==-1){this.size=0; this.selectedIndex=-1} else {this.size=0;} "   v-model="xSeriesStartEl.startHeight" v-on:change="startHeightChanged(xSeriesStartEl)"> <!-- I dont want an extremely long dropdown, so we quickly increase the size of the select to make it not a dropdown, but a list, and then reset it: Problem in Chrome: When nothing is selected and blur is raised, changing the size back to 0 makes the first item appear selected, however it is not (no change or input event raised neither). The if in the onblur event is the workaround for that, since it corrects the problem currently 02.2020 -->
+                                <template v-for="(height, heightIndex) in allHeights">
+                                    <option v-bind:value="height">{{height}}</option>
+                                </template>
+                            </select></td>
+                        </tr>
+
+                    </template>
+                </table>
+            </div>
+
+            <!-- change result mode, eventually including a mode to enter results in the TIC -->
+
+            <!-- competition mode (standard): -->
+            <div id="competition" style="margin-right:auto">
+                <h2><%= __("Competition") %></h2>
+                <div v-if="mode == 0"><%= __("Please define the start heights.") %></div>
+                <div v-if="mode == 1" style="display:inline-block"> 
+                    <div id="currentAth" v-if="position.length>0" class="athlete">
+                        <div class="row2">                            
+                            <div class="el"><%= __("Current athlete") %>: </div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].bib}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].athleteName}} {{auxData.xStartGroup[currentAthleteStart.xStartGroup].athleteForename}}</div>
+                            <div class="elText">{{birthdayToXX(auxData.xStartGroup[currentAthleteStart.xStartGroup].birthday)}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].countryCode}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].clubName}}</div>
+                            <section class="collapsable el2 marginRight">
+                                <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
+                                <label for="hiddenInput" class="marginRight">
+                                    <%= __("Change participation status") %>  
+                                </label>
+                                <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete">
+                                    <option v-for="option in participationStatus" v-bind:value="option.value">
+                                        {{option.text}}
+                                    </option>
+                                </select>
+                            </section>
+                        </div>
+                        
+                        <div class="row2">
+                            <div class="elText">{{meterStr(currentHeight)}} m</div>
+                            <div class="elText">{{attempt}}. <%= __("Attempt") %>: </div>
+                            <div class="el2">
+                                <button class="el" v-on:click="cleared()">O</button>
+                                <button class="el" v-on:click="failed()">X</button>
+                                <button class="el" v-on:click="passed()">-</button>
+                            </div>
+
+                            <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark">
+                        </div>
+
+                        <div class="row2 athRes">
+                            <div class="elText"><%= __("Rank") %>: {{tempRankingData[currentAthleteStart.xSeriesStart].rank}}</div>
+                            <div class="elText"><%= __("Results so far") %>: </div>
+                            <template v-for="res in currentAthleteStart.resultsHigh">
+                                <div class="elText">
+                                    {{getHeight(res.xHeight)}}: {{resultToStr(res)}}
+                                </div>
+                            </template>
+                        </div>
+
+                    </div>
+                    <br />
+                    <div id="nextAth" v-if="positionNext.length>1" class="athlete">
+                        <div class="row2">
+                            <div class="elText"><%= __("Next athlete") %>: </div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].bib}}</div>
+                            <div class="elText">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].athleteName}} {{auxData.xStartGroup[nextAthleteStart.xStartGroup].athleteForename}}</div>
+                            <div class="elText">{{birthdayToXX(auxData.xStartGroup[nextAthleteStart.xStartGroup].birthday)}}</div>
+                            <div class="elText Sl_hide">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].countryCode}}</div>
+                            <div class="elText Sl_hide">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].clubName}}</div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{attemptNext}}. <%= __("Attempt") %></div>
+                            <div class="elText">{{meterStr(currentHeight)}} m</div>
+                        </div>
+
+                        <!-- <div><%= __("Rank") %>: {{tempRankingData[nextAthleteStart.xSeriesStart].rank}}</div> -->
+                    </div>
+                    <!-- 
+
+                        - in the long run include the timer clock. How can we sync the timer clock over the network without producing too much traffic. 
+                    -->
+                </div>
+                <div v-if="mode == 2 && jumpoffHeightRequired ">
+                    <%= __("Define the next height in the jumpoff") %>: 
+                    <input class="formCtrl" type="text" id="manualJumpoffHeight" v-model="manualJumpoffHeight" size="3" max="650" min="0" v-on:keyup="addManualJumpoffHeightEnter">
+                    <button class="btn btnGrey" v-on:click="addManualJumpoffHeight()"><%= __("Add") %></button>
+                </div>
+                <div v-if="mode == 2 && jumpoffHeightRequired == false">
+                    <!-- Jumpoff: -->
+                    <%= __("Jumpoff") %>
+                    <div id="currentAth" v-if="position.length>0" class="athlete">
+                        <div class="row2">                            
+                            <div class="el"><%= __("Current athlete") %>: </div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].bib}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].athleteName}} {{auxData.xStartGroup[currentAthleteStart.xStartGroup].athleteForename}}</div>
+                            <div class="elText">{{birthdayToXX(auxData.xStartGroup[currentAthleteStart.xStartGroup].birthday)}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].countryCode}}</div>
+                            <div class="elText">{{auxData.xStartGroup[currentAthleteStart.xStartGroup].clubName}}</div>
+                            <section class="collapsable el2 marginRight">
+                                <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
+                                <label for="hiddenInput" class="marginRight">
+                                    <%= __("Change participation status") %>  
+                                </label>
+                                <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete">
+                                    <option v-for="option in participationStatus" v-bind:value="option.value">
+                                        {{option.text}}
+                                    </option>
+                                </select>
+                            </section>
+                        </div>
+                        
+                        <div class="row2">
+                            <div class="elText">{{currentJumpoffHeight}} m</div>
+                            <div class="elText">{{currentJumpoffHeightInd}}<%= __(". jumpoff height") %>: </div>
+                            <div class="el2">
+                                <button class="el" v-on:click="clearedJumpoff()">O</button>
+                                <button class="el" v-on:click="failedJumpoff()">X</button> <!-- athletes must jump (thus only options cleared or failed), or they can retire => change status to retired -->
+                            </div>
+
+                            <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark">
+                        </div>
+
+                        <div class="row2 athRes">
+                            <div class="elText"><%= __("Rank") %>: {{tempRankingData[currentAthleteStart.xSeriesStart].rank}}</div>
+                            <div class="elText"><%= __("Results so far") %>: </div>
+                            <template v-for="res in currentAthleteStart.resultsHigh">
+                                <div class="elText">
+                                    {{getHeight(res.xHeight)}}: {{resultToStr(res)}}
+                                </div>
+                            </template>
+                        </div>
+
+                    </div>
+                    <br />
+                    <div id="nextAth" v-if="positionNext.length>1" class="athlete">
+                        <div class="row2">
+                            <div class="elText"><%= __("Next athlete") %>: </div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].bib}}</div>
+                            <div class="elText">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].athleteName}} {{auxData.xStartGroup[nextAthleteStart.xStartGroup].athleteForename}}</div>
+                            <div class="elText">{{birthdayToXX(auxData.xStartGroup[nextAthleteStart.xStartGroup].birthday)}}</div>
+                            <div class="elText Sl_hide">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].countryCode}}</div>
+                            <div class="elText Sl_hide">{{auxData.xStartGroup[nextAthleteStart.xStartGroup].clubName}}</div>
+                        </div>
+                        <div class="row2">
+                            <div class="elText">{{currentJumpoffHeight}} m</div>
+                            <div class="elText">{{currentJumpoffHeightInd}}<%= __(". jumpoff height") %></div>
+                        </div>
+
+                        <!-- <div><%= __("Rank") %>: {{tempRankingData[nextAthleteStart.xSeriesStart].rank}}</div> -->
+                    </div>
+                </div>
+                <div v-if="mode == 3">
+                    <%= __("The competition is finished.") %>
+                </div>
+            </div>
+            <div id="orderPosition" style="display:block">
+                <h2><%= __("Order of athletes") %></h2>
+                <%= __("Drag'n'drop") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
+                <ol>
+                    <draggable style="display:inline-block;" v-model="position" @end="onPositionMovingEnded" item-key="index"> <!-- probably needed: item-key="id"-->
+                        <!-- draggable=".item" --> <!-- within draggable, it is defined which css class defines a draggable element -->
+                        <!--<li v-for="xSeriesStart in position" class="item">  -->
+                            <!-- :key="element.id" ??? -->  <!-- class must be given as this defines it draggable! --> <!-- what is key for ???-->
+                            <!--{{$parent.auxData.xStartGroup[getStartByXSeriesStart(xSeriesStart).xStartGroup].bib}} 
+                                    {{auxData.xStartGroup[getStartByXSeriesStart(xSeriesStart).xStartGroup].athleteName}} {{auxData.xStartGroup[getStartByXSeriesStart(xSeriesStart).xStartGroup].athleteForename}}-->
+
+                                    <!-- <li class="item">
+                                        <div class="dragelement">
+                                            {{xSeriesStart}} {{id}}
+                                            
+                                    </div>
+                                    </li> -->
+                        <template #item="{element, index}">   
+                            <li class="item"> 
+                                <div class="dragelement">
+                                    {{auxData.xStartGroup[getStartByXSeriesStart(element).xStartGroup].bib}} 
+                                    {{auxData.xStartGroup[getStartByXSeriesStart(element).xStartGroup].athleteName}} {{auxData.xStartGroup[getStartByXSeriesStart(element).xStartGroup].athleteForename}}
+                                </div>     
+                            </li>     
+                        </template>
+                    </draggable>
+                </ol>
+            </div>
+            <div id="resultsView" v-if="mode>0" style="display:block">
+                <h2><%= __("View / add / change results") %>:</h2>
+                <%= __("Sorting") %>: 
+                <select v-model="sortValue1" class="dropdown marginS">
+                    <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
+                    <option value="2"><%= __("Rank") %></option>
+                    <option value="3"><%= __("Name") %></option>
+                    <option value="4"><%= __("Bib") %></option>
+                </select><br />
+                <!-- 
+                    Two different views of the results are possible (while the athlete data in both is +- the same):
+                    1) Just show a list of the athletes, their rank and the best valid height. In small, show the details of every height. This view is mobile-friendly and columns could be hidden dependent on screen size. 
+                    2) Show a big table in the style as the judge has it on his paper: one column per height. Gives a wider table than option 1, which is less mobile friendly.
+                    => so far only option 1 is implemented
+                 -->
+                <div style="display:inline-block">
+                    <template v-for="(startIndex, sortIndex) in sortedStarts1">
+                        <div class="athlete">
+                            <div class="row2">
+                                
+                                <div class="elText">{{tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].rank}}.  </div>
+                                <div class="elText">{{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].bib}}</div>
+                                <div class="elText">{{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].athleteName}} {{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].athleteForename}}</div>
+                                <div class="elText">{{birthdayToXX(auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].birthday)}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].countryCode}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].clubName}}</div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText"><%= __("Valid height") %>: {{(tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].lastValidHeight/100).toFixed(2)}} m</div>
+                                <template v-for="res in mainData.series[selectedSeries].seriesStartsResults[startIndex].resultsHigh"> 
+                                    <div class="el2" v-bind:class="{hidden: res==currentResultChange}">
+                                        <button class="btn btnGrey" v-on:click="changeResult(res)" v-bind:class="{validHeight: tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].lastValidHeight==getHeight(res.xHeight)}">{{getHeight(res.xHeight)}}: {{resultToStr(res)}}</button>
+                                    </div>
+                                    <div class="el2" v-bind:class="{hidden: res!=currentResultChange}">
+                                        <input class="formCtrl" type="text" size=3 maxlength=3 name="result" v-bind:id="'resChange' + res.xResult" v-bind:value="resultToStr(res)" v-on:blur="saveCurrentResChange(mainData.series[selectedSeries].seriesStartsResults[startIndex])"><!-- We cannot use v-model here, as we need to translate from text to the object. --> <!-- v-bind:id="'resChange' + currentResultChange.xResult" -->
+                                    </div>
+                                </template>
+                                
+                                <div class="elText"><%= __("# failed attempts") %>: {{tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].totalFailedAttempts}}</div>
+                            </div>
+                            
+                            <div class="row2">
+                                <!-- provide here the possibility to add a result (as it would be useful in TIC mode): -->
+                                <div v-if="!tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].finished">
+                                    <div class="elText" style="display:inline-block"><%= __('Add result') %>: </div>
+                                    <!-- dropdown with heights that were not jumped yet by this athlete; the next higher height is preselected -->
+                                    <select class="dropdown" name="" v-bind:id="'newResultHeight' + mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart">
+                                        <option v-for="hEl in getNewHeigthsByXSeriesStart(mainData.series[selectedSeries].seriesStartsResults[startIndex])" v-bind:value="hEl.value" v-bind:selected="hEl.next">
+                                            {{hEl.text}}
+                                        </option>
+                                    </select>
+                                    <input class="formCtrl" size="3" maxlength="3" type="text" name="newResult" v-bind:id="'newResultValue' + mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart" v-on:blur="addResultBlur(mainData.series[selectedSeries].seriesStartsResults[startIndex], $event)" v-on:keydown="resultKeyPressed=$event.which || $event.keyCode">
+                                </div>
+                                <div class="marginLeft">
+                                    <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="mainData.series[selectedSeries].seriesStartsResults[startIndex].resultRemark">
+                                </div>
+    
+                                <section class="el2 collapsable marginLeft marginRight">
+                                    <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                    <input type="checkbox" v-bind:id="'hiddenInput' + mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart" name="participationStatusHider" ></input><!-- do not show the radio button; tha label is still clickable -->
+                                    <label v-bind:for="'hiddenInput' + mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart">
+                                        <%= __("Change participation status") %>    
+                                    </label>
+                                    <!-- TODO: participation should be changed only after confirmation or in a usually hidden menu (e.g. click on "change status" to show the dropdown) -->
+                                    <select class="content dropdown marginLeft" v-model="mainData.series[selectedSeries].seriesStartsResults[startIndex].resultOverrule" v-on:change="calculateNextAthlete">
+                                        <option v-for="option in participationStatus" v-bind:value="option.value">
+                                            {{option.text}}
+                                        </option>
+                                    </select>
+                                </section>
+                            </div>
+                        </div>
+                        <br />
+                    </template>
+                </div>
+            </div>
+            <h2><%= __("Results (table view)") %>:</h2>
+            <%= __("Sorting") %>: 
+            <select v-model="sortValue2" class="dropdown marginS">
+                <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
+                <option value="2"><%= __("Rank") %></option>
+                <option value="3"><%= __("Name") %></option>
+                <option value="4"><%= __("Bib") %></option>
+            </select>
+            <div id="resultsView2" v-if="mode>0" style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+                <!-- table view of the results with a grid layout -->
+                <!-- show all the heights; the column is given by height in cm + 100 -->
+
+                <!-- eventually we can also use Vue to create named lines and use those to order the items; woudl probably be faster! 
+                grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
+
+                <template v-for="h in mainData.series[selectedSeries].heights">
+                    <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J: ") %>{{h.height}}</div>
+                    <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{h.height}}</div>
+                </template>
+                <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                    
+                    <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                        {{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].athleteName}} {{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].athleteForename}}
+                    </div>
+                    <div class="bib" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: bib"-->
+                        {{auxData.xStartGroup[mainData.series[selectedSeries].seriesStartsResults[startIndex].xStartGroup].bib}}
+                    </div>
+                    <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        {{tempRankingData[mainData.series[selectedSeries].seriesStartsResults[startIndex].xSeriesStart].rank}}. 
+                    </div>
+                    <template v-for="hRes in mainData.series[selectedSeries].seriesStartsResults[startIndex].resultsHigh">
+                        <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
+                            {{resultToStr(hRes)}}
+                        </div>
+                    </template>
+                </template>
+            </div>
+            <div id="overlay" v-on:click="overlayVisible=false" v-bind:class="{shown: overlayVisible}">
+                <!-- overlay used for displaying general information -->
+                <div id="overlayContainer">
+                    <div id="overlayTitle"><b>{{overlayTitle}}</b></div>
+                    <div id="overlayContent">{{overlayContent}}</div>
+                </div>
+            </div>
+
+        </div>
+    </body>
+</html>

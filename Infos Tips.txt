@@ -1,0 +1,108 @@
+# Sequelize-auto:
+**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit Klassen:**
+```
+node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeeting" -e "mysql" -l esm 
+node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d athletica2_admin -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsAthletica2Admin2" -e "mysql" -l esm
+```
+
+**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit .define syntax:**
+```
+node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeeting" -e "mysql" -l esm --useDefine
+node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d athletica2_admin -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsAthletica2Admin2" -e "mysql" -l esm --useDefine
+```
+
+The approach to create .define models was introduced by me. The followign were the notes prior that my adoptions were introduced in slightly different manner into sequelize-auto:
+Sequelize-auto by default allows (2021-05) three out of four combinations between class-syntax/define-syntax and import/require (the -l paramter): 
+
+|               | require | import|
+|:--------------|:-------:|:-----:|
+| define-syntax |   es5   |  esm  |
+| class-syntax  |   es6   |   X   |
+
+--> The fourth one X (--> esmd) is created now be me and eventually will make it into the main branch of sequleize-auto. 
+See teh following problem description (copied from rMeetings.js): 
+// ATTENTION: there are two ways how the sequelize-models can be initialized and according to the docs they are equivalent (but are not!) https://sequelize.org/master/manual/model-basics.html#model-definition:
+// traditional: call sequelize.define(...) on the sequelize instance
+// modern: extend the Model class and provide a static method called init
+// BUT: since these are static methods, the init function would store the sequelize instance to the static class, i.e. there is no instance of it, but the class. This results in a problem, when the same models are used together with several sequelize instances, as it is the case here with one instance per active meeting/database! The problem results in having the models for all meetings referencing the database of the last started/actived meeting! The problem can also not be solved by just dynamically including the models; javascript is smart and deduplicates the second/third... import. 
+// --> the only working way is to use the sequelize.define syntax, since this clearly defines the models just for this sequelize instance and does not override the other models.
+// This lead to the problem, that sequelize-auto was not able to produce model-files with .define syntax in conjunction with es6 modules (import instead of require). Therefore, I modified sequelize-auto to procide the combination of .define syntax (i.e. not classes) and es6 modules. The pull request via github to the main branch of sequelize-auto is hanging. 
+// With the modified sequelize-auto (option "-l esmd") the models in the folder "modelsMeetingDefine" were created and are used now instad of the ones created with -l esm. 
+
+
+## Mysql Workbench export (default DB):
+- For the export ("Forward engineer") form mysql workbench, check "Omit schema qualifier in object names". The export function in my installed verison of Mysql Workbench crashes. My portable version of Mysql workbench however works fine. 
+- Alternatviely use Tools/synchronize models, which allows more thing to be set.
+
+## ATTENTION: 
+If the room adds data to sequelize objects, it will not make it into a JSON object, since sequelize adds toJSON functions to its objects, which overrides the default stringify process. Therefore, manually added properties are lost on stringify! There are several ways to overcome the problem: 
+- add a virtual property in the model:     newProp: {type: DataTypes.VIRTUAL, allowNull: false, defaultValue: false } OR
+- add an instanceMethod in the model: sequelize.define('tablename', {properties}, {instanceMethods:{toJSON: function(){...}}}) 
+
+current, manual modifications: 
+meetings.js:
+    // add a virtual property that is not stored in the DB: we need to add the property here such that the default toJSON function of sequelize also stringifies this property. Usually ot would not stringify it. We could override this with an instanceMethod "toJSON" (see commented below), but this would be more compicated
+    running: {
+      type: DataTypes.VIRTUAL,
+      allowNull: false,
+      defaultValue: false,
+      //field: null
+    }
+
+2022-01: The mariadb module is not very well compatible with Mariadb 10.6, since it uses the old collation/charset syntax, i.e. it uses "utf8" instead of "utf8mb3". If the restoring of sql dumps should not work, extend the file mariadb/lib/const/collations.js with the following line:
+defaultCharsets['utf8mb3'] = charsets[33]; // added
+--> hopefully, this problem will be solved in a future version of "mariadb" module
+
+# room templates in ejs
+
+There are two and two kinds templates for the most basic rooms just providing some CRUD (create, read, update, delete) operations. For each kind there are templates for the roomServer, the roomClient as well as a default Vue-UI. The following kinds of templates exist:
+- **online only:** If the user requests a change, the request will be sent directly to the server. The data on the client is not changed until the response of the server arrives. The response to the requesting client is the same as for the other clients and also the same function can be executed. Since changes would not make it into the data until a successful answer by the server, this kind of room is only meaningful when a connection is required to be present at all time. 
+- **offline clients:** This mode is intended for the cases where the client shall be able to work offline. This means that a change will take effect emmediately on the UI of the requesting client, e.g. a new entry is added. As soon as the server can be reached (probably instantly), the change is sent to the server. If everything goes well, the requesting client will not change a lot on successful request, e.g. add a created key. All the other clients will then receive the change as well. If the server cannot process the change, e.g. becuase the reqeusting client did hs action based on outdated data, then the locally made changes have to be reverted. 
+- regular: the data objects stores the actual data from the DB
+- aux: data.<roomPlural> stores the main data, providing the chance to store auxilary data such as quasi-static data of rooms that hardly change (disciplines, categories, regions, ...)
+
+TODO: eventually create a bat or node file which runs server and client template and sets the filenames appropriately
+
+A room can be created by running the following commands on the comamnd line
+```
+node ./node_modules/ejs/bin/cli.js ./rTemplateClientOnlineOnly.js -f ./rTemplateData.json -o ./static/rOutputClient.js
+node ./node_modules/ejs/bin/cli.js ./rTemplateServerOnlineOnly.js -f ./rTemplateData.json -o ./rOutput.js
+
+or
+
+node ./node_modules/ejs/bin/cli.js ./rTemplateClientOnlineOnlyAux.js -f ./rTemplateData.json -o ./static/rOutputClient.js
+node ./node_modules/ejs/bin/cli.js ./rTemplateServerOnlineOnlyAux.js -f ./rTemplateData.json -o ./rOutput.js
+
+```
+Note: the "online-only" template was created based on rEvents. 
+
+
+# Rooms and ejs-views for contests
+- separate ejs files for different contest status and dependent on the discipline type
+ - competition administration:
+  - seriesAdmin: before and including series official. Do everything from setting present status to series definition. 
+  - liveAdmin
+ - live view:
+  - startlistView: before series are official; show all athletes, independent whether the athlete is set "present" or not
+  - seriesView: series official and before competition running
+  - liveView: live results viewing
+  - resultsView: show the results 
+- all those ejs-views will use the same connection to the room
+- all those ejs-views shall provide buttons to the appropriate ejs-view if the status is different from the one it should be (additionally, we probably need to provide a link to series from liveAdmin to seriesAdmin to allow the usage of its print functions, e.g. to reprint the series.)
+- which contest that shall be loaded should be defined as http-GET property: ?contest=123
+
+## How to handle suboptions such as automatic series assignment algorithms:
+- there should be a special file for each series assignment option
+- this file must contain a javascript class inheriting from a base class
+- the class might contain Vue3 code
+- within the file there can (!) be html code, which would be shown when the options button is clicked.
+- baseClass: {
+initialize(predefinedSettings)
+showOptions() (eventually implemented in the general part outside the class)
+createSeries(dataIn, dataOut, ...)
+}
+**--> alternative: each series assignment algorithm shall be a Vue3 component**: 
+- access to methods of components from their parent can be achieved with refs: https://www.w3docs.com/snippets/vue-js/how-to-call-a-vue-js-component-method-from-outside-the-component.html https://v3.vuejs.org/guide/component-template-refs.html 
+
+on the server we have to merge all components into one file; it should be possible to do this with ejs, since it can run functions (example:https://stackoverflow.com/questions/30535309/where-should-i-define-js-function-to-call-in-ejs-template)
+

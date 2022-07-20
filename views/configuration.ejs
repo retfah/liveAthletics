@@ -1,0 +1,15 @@
+<!-- add another link-bar
+ the currently selected link will get another class through javascript
+-->
+<div class="flexNav1" id="Nav1">
+    <a class="ItemNav1" href="meetingAdmin" onclick="return goto(this);"><%= __('Competition settings') %></a>
+    <a class="ItemNav1" href="definition" onclick="return goto(this);"><%= __('Competition definitions') %></a>
+    <a class="ItemNav1" href="combined" onclick="return goto(this);"><%= __('Combined events') %></a>
+    <a class="ItemNav1" href="teamcompetition" onclick="return goto(this);"><%= __('Team competitions') %></a>
+    <a class="ItemNav1" href="sites" onclick="return goto(this);"><%= __('Sites') %></a> <!-- This will actaully be part of the stadium/site configuration in the future -->
+    <!--<a class="ItemNav1" href="printSetup.html"><%= __('Print setup') %></a> <!-- to be included in meetingAdmin-->
+    <a class="ItemNav1" href="backup" onclick="return goto(this);"><%= __('Backup and Replication') %></a>
+</div>
+<div id="child2" style="margin: 20px">
+    <%- child2 %>
+</div>

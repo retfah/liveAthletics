@@ -1,0 +1,21 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+<title>Login</title>
+<meta name="author" content="Reto Fahrni">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<form action="login.sess" method="post">
+	<%= __('Please sign in: ') %><br />
+	<%= __('Note: currently only admins can and have to sign in') %><br />
+	<%= message %><br />
+	<table>
+		<tr><td><%= __('Username') %>: </td><td><input type="text" name="username" /></td></tr>
+		<tr><td><%= __('Password') %>: </td><td><input type="password" name="password" /></td></tr>
+	</table>
+	<input id="redirect" name="redirect" type="hidden" value="<%= redirect %>" />
+	<input type="submit" value="Submit"/>
+</form>
+</body>
+</html>

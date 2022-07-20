@@ -1,0 +1,703 @@
+<script type="text/javascript">
+
+    // connect to rBackup and rMeeting
+    
+    class vuBackup extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('backup@' + meetingShortname, true, true, '/static/rBackupClient.js', 'rBackupClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.backup = this.room.data.backup; // this will actually store a proxy of the data!
+            this.vue.aux = this.room.data.aux;
+            this.vue.status = this.room.data.status;
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.backup = this.vue.backup;
+            this.room.data.aux = this.vue.aux;
+            this.room.data.status = this.vue.status;
+        }
+        
+        dataArrived(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.backup = this.room.data.backup; // this will actually store a proxy of the data!
+            this.vue.aux = this.room.data.aux;
+            this.vue.status = this.room.data.status;
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.backup = this.vue.backup;
+            this.room.data.aux = this.vue.aux;
+            this.room.data.status = this.vue.status;
+    
+        }
+    }
+    
+    var vueBackup={};
+    function startupBackup(){
+    
+        let vueAppConfig = {
+            data(){
+                return {
+                    backup:{
+                        host: '',
+                        isMain: true,
+                        token: "1234",
+                        pullFromServer: null,
+                        secondaryPullServers:[],
+                        secondaryPushServers:[],
+                    },
+                    aux: {},
+                    status:{},
+                    mode: 0, // 0= show data, 1= changing data, 2= updating data on the server
+                    backupWorkCopy: {
+                        isMain: true,
+                        token: "1234",
+                        pullFromServer: null,
+                        secondaryPullServers:[],
+                        secondaryPushServers:[],
+                    }, // a copy to be used during modifications
+                    infoVisible: false,
+                    infoTitle: '',
+                    infoContent: '',
+                    overlay: undefined,
+                    secondaryModeRadioWork: 'push',
+                    //secondaryModeRadio: 'push', // is computed
+                    newPullName:'',
+                    newPullToken:'',
+                    modPullToken:undefined, // the token of the pull server to modify; undefined to create a new token
+                    newPushName: '',
+                    newPushShortname: '',
+                    newPushToken: '',
+                    newPushHost: '',
+                    newPushPort: 3000,
+                    newPushPath: '/ws',
+                    newPushSecure: false,
+                    modPushToken: undefined, // the token of the push server to modify; undefined to create a new token,
+                    fileToRestore:'',
+                    backupSideChannelData:false,
+                    backupSideChannelConfiguration:false, // attention: this will include confidential information (e.g. tokens)
+                    restoreSideChannelData:false,
+                    restoreSideChannelConfiguration:false,
+                    selectedPushTokenStatus:undefined, 
+                }   
+            },
+            methods:{
+                abortBackupChange: function(){
+                    // reset the data
+                    this.mode = 0;
+                    // reset the radio first!!
+                    this.secondaryModeRadioWork = this.backup.pullFromServer==null ? 'push' : 'pull';
+                    this.backupWorkCopy = this.backup;
+                },
+                modifyBackup: function(){
+                    this.backupWorkCopy = JSON.parse(JSON.stringify(this.backup));
+                    this.secondaryModeRadioWork = this.backup.pullFromServer==null ? 'push' : 'pull';
+                    this.mode = 1;
+                },
+                saveBackupChange: function(){
+
+                    // create a copy of the data and remove the temporary, local data
+                    let data = this.backupWorkCopy;
+
+                    // send the change
+                    rBackup.room.updateBackupInit(data, (data, defaultFunc)=>{
+                        // first call the default function, which adds the data to the local data
+                        defaultFunc(data);
+                        // then set the mode to 0
+                        this.mode = 0; 
+                    });
+
+                    this.mode = 2;
+                },
+                resetPushServer: function(){
+                    this.newPushName = '';
+                    this.newPushShortname = '';
+                    this.newPushToken = '';
+                    this.newPushHost = '';
+                    this.newPushPort = 3000;
+                    this.newPushPath = '/ws';
+                    this.newPushSecure = false;
+                },
+                resetPullServer: function(){
+                    this.newPullName = '';
+                    this.newPullToken = '';
+                },
+                savePushServer: function(){
+
+                    let obj = {
+                            name: this.newPushName,
+                            shortname: this.newPushShortname,
+                            token: this.newPushToken,
+                            host: this.newPushHost,
+                            port: this.newPushPort,
+                            path: this.newPushPath,
+                            secure: this.newPushSecure,
+                        }
+
+                    if (this.modPushToken){
+                        // modify
+                        let i = this.backupWorkCopy.secondaryPushServers.findIndex(el=>el.token==this.modPushToken);
+                        if (i>=0){
+                            this.backupWorkCopy.secondaryPushServers[i] = obj;
+                        }
+
+                    } else {
+                        // create new
+                        this.backupWorkCopy.secondaryPushServers.push(obj)
+                    }
+                    this.overlay = undefined;
+
+                },
+                savePullServer: function(){
+                    let obj = {
+                            name: this.newPullName,
+                            token: this.newPullToken,
+                        }
+
+                    if (this.modPullToken){
+                        // modify
+                        let i = this.backupWorkCopy.secondaryPullServers.findIndex(el=>el.token==this.modPullToken);
+                        if (i>=0){
+                            this.backupWorkCopy.secondaryPullServers[i] = obj;
+                        }
+
+                    } else {
+                        // create new
+                        this.backupWorkCopy.secondaryPullServers.push(obj)
+                    }
+                    this.overlay = undefined;
+                },
+                modPushServer: function(token){
+
+                    let el = this.backupWorkCopy.secondaryPushServers.find(el=>el.token==token);
+                        if (el){
+                            this.newPushName = el.name;
+                            this.newPushShortname = el.shortname;
+                            this.newPushToken = el.token;
+                            this.newPushHost = el.host;
+                            this.newPushPort = el.port;
+                            this.newPushPath = el.path;
+                            this.newPushSecure = el.secure;   
+                        }
+
+                    this.modPushToken = token;
+                    this.overlay = 'modPushServer';
+                },
+                modPullServer: function(token){
+
+                        // modify
+                        let el = this.backupWorkCopy.secondaryPullServers.find(el=>el.token==token);
+                        if (el){
+                            this.newPullName = el.name;
+                            this.newPullToken = el.token;
+                        }
+
+                    this.modPullToken = token;
+                    this.overlay = 'modPullServer';
+                },
+                deletePushServer: function(token){
+                    let i = this.backupWorkCopy.secondaryPushServers.findIndex(el=>el.token==token);
+                    if (i>=0){
+                        this.backupWorkCopy.secondaryPushServers.splice(i,1);
+                    }
+                },
+                deletePullServer: function(token){
+                    let i = this.backupWorkCopy.secondaryPullServers.findIndex(el=>el.token==token);
+                    if (i>=0){
+                        this.backupWorkCopy.secondaryPullServers.splice(i,1);
+                    }
+                },
+                createBackup: function(){
+
+                    let requestData = {
+                        backupSideChannelConfiguration: this.backupSideChannelConfiguration,
+                        backupSideChannelData: this.backupSideChannelData,
+                    }
+                    
+
+                    rBackup.room.createBackupInit(requestData, (data, defaultFunc)=>{
+                        // defaultFunc does not exist here
+
+                        let now = new Date();
+                        let filename = `liveAthletics_${getMeetingShortname()}_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}_${now.toLocaleTimeString()}.labackup`;
+                        var file = JSON.stringify(data);
+                        var blob = new Blob([file], {type: "application/octet-stream"});
+                        var url  = URL.createObjectURL(blob);
+                        var a = this.$refs.download; 
+                        a.download = filename;
+                        a.href = url;
+                        a.click();
+
+                    })
+                },
+                restoreBackup: function(){
+
+                    // first show the file selectpage; either try to use the form/file variant, or maybe there is another with a modern API
+
+                    // Use FileReader to get the file
+                    let fileReader = new FileReader();
+                    fileReader.onload = (e)=>{
+                        // called when finished
+                        let successCB = ()=>{
+                            // success callback
+                            window.alert('success!')
+                        }
+
+                        let failCB = ()=>{
+                            window.alert('failed!')
+                        }
+
+                        let data = {
+                            backup: e.target.result,
+                            restoreSideChannelConfiguration: this.restoreSideChannelConfiguration,
+                            restoreSideChannelData: this.restoreSideChannelData,
+                        }
+
+                        rBackup.room.restoreBackupInit(data, successCB, failCB)
+                        
+                    };
+                    // other: readAsBuffer, readAsBinaryString
+                    fileReader.readAsText(this.$refs.upload.files[0]);
+
+                },
+                addPushServer: function(){
+                    this.resetPushServer();
+                    this.modPushToken = undefined;
+                    this.overlay = 'modPushServer';
+                }, 
+                addPullServer: function(){
+                    this.resetPullServer();
+                    this.modPullToken = undefined;
+                    this.overlay = 'modPullServer';
+                },
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+                prepareDownload: function(){
+					// revokedChanges must be any kind of object
+					let msg = this.messages[this.highlightedMsg];
+					let revokedChanges = msg.deletedStack;
+					let filename = msg.time.toLocaleTimeString() + " " + msg.room.name + ": reverted changes.json";
+					var json = JSON.stringify(revokedChanges);
+					var blob = new Blob([json], {type: "application/json"});
+					var url  = URL.createObjectURL(blob);
+
+					var a = this.$refs.download; 
+					if (filename){
+						a.download = filename;
+					}else {
+						a.download = "backup.json";
+					}
+					a.href = url;
+				},
+            },
+            computed: {
+                secondaryModeRadio: function(){
+                    if (this.backup.pullFromServer==null){
+                        return 'push';
+                    } else {
+                        return 'pull';
+                    }
+                }
+            },
+            watch:{
+                secondaryModeRadioWork: function(newRadio){
+                    if (newRadio=='pull'){
+                        // set some default values, if there is no value in backup
+                        if (this.backup.pullFromServer!=null){
+                            this.backupWorkCopy.pullFromServer = JSON.parse(JSON.stringify(this.backup.pullFromServer));
+                        } else {
+                            this.backupWorkCopy.pullFromServer={
+                                host:'',
+                                port:3000,
+                                path:'/ws',
+                                secure:false,
+                                shortname: '',
+                            }
+                        }
+                    }else{
+                        // =push
+                        this.backupWorkCopy.pullFromServer = null;
+                    }
+                }
+            },  
+            components:{
+                // instead of globally adding it with vueAthletes.component(...), we can also do that locally
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+                //'v-mask': VueMask.VueMaskPlugin,
+            }
+        }
+
+        vueBackup = Vue.createApp(vueAppConfig).mount('#vueBackup');
+
+    
+        let ms = getMeetingShortname();
+        var rBackup = new vuBackup(vueBackup, ms); 
+
+    }
+</script>
+<div id="vueBackup">
+
+    <h2><%= __("Backup and replication") %></h2>
+    <%= __('This page provides all settings to backup a meeting and/or replicate to live or to other servers.') %>
+    <button type="button" class="information" v-on:click="overlayInfo('<%= __('Backup and replication') %>:', '<%= __('This page provides all settings to backup a meeting and/or replicate to live or to other servers.') %>')"><%= __('i') %></button><br>
+    
+    <form class="verticalForm">
+        <h3><%= __("Backup") %></h3>
+        <label>
+            <input type="checkbox" v-model="backupSideChannelConfiguration"><%= __("Include the backup configuration (i.e. all that you specifiy below. ATTENTION: this includes the confidential tokens! You should only use this option to create a backup to be restored on the same server or on another server that shall replace the former server.") %>
+        </label>
+        <label>
+            <input type="checkbox" v-model="backupSideChannelData">
+            Include the side channel data. Not used yet and I'm not sure whether it is needed.
+        </label>
+        <button type="button" class="btn" v-on:click="createBackup"><%= __('Download Backup') %></button>
+        <h3><%= __("Restore") %></h3>
+        <%= __("Please note that on restore, all rooms except the one we are connected to get closed for a short moment.") %><br>
+        <label>
+            <input type="checkbox" v-model="restoreSideChannelConfiguration"><%= __("Restore also the backup configuration, if present in the backup.") %>
+        </label>
+        <label>
+            <input type="checkbox" v-model="restoreSideChannelData">
+            Restore also the side channel data (if present in the backup). Not used yet and I'm not sure whether it is needed.
+        </label>
+        <button type="button" class="btn" v-on:click="$refs.upload.click()" ><%= __('Restore Backup') %></button> 
+        <input type="file" style="display:none" ref="upload" v-on:change="restoreBackup" />
+        <a style="display:none;" ref="download" href="" ></a> <!-- fake link for the final download of the backup-file-->
+    </form>
+
+    <form class="verticalForm">
+        
+        <h3><%= __('Settings of this server') %>:</h3>
+        <button type="button" class="btn" v-if="mode==0" v-on:click="modifyBackup"><%= __("Modify") %></button>
+        <label>
+            <%= __("Is this the main server") %>: <button type="button" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
+            <input v-bind:disabled="mode!=1" type="checkbox" v-model="backup.isMain" maxlength="100" ><!-- v-bind:disabled="mode!=1" -->
+        </label>
+        <div v-if="!backup.isMain">
+            <h3><%= __("Settings for this server as a secondary server") %>:</h3>
+            <%= __('This is a secondary server. Make sure to register the token of this secondary server on the server it shall get the data from.') %>
+            <%= __("The connection between the main and this server can either be initiated by the main server ('push mode') or by this server ('pull mode'). ") %>
+            <label>
+                <%= __("Token"); %>
+                <input type="text" v-model="backup.token" v-bind:disabled="mode!=1" size=40>
+            </label>
+            <label>
+                <input type="radio" v-model="secondaryModeRadio" name="secondaryMode" value="push" v-bind:disabled="mode!=1">
+                <%= __("Push mode: set everything on the server the data is pushed from.") %>
+            </label>
+            <label>
+                <input type="radio" v-model="secondaryModeRadio" name="secondaryMode" value="pull" v-bind:disabled="mode!=1">
+                <%= __("Pull mode: specifiy the connection settings for the main server here.") %>
+            </label>
+            <div v-if="secondaryModeRadio=='pull'">
+                <label>
+                    <%= __("Host"); %>
+                    <input type="text" v-model="backup.pullFromServer.host" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Port"); %>
+                    <input type="number" v-model.number="backup.pullFromServer.port" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Path"); %>
+                    <input type="text" v-model="backup.pullFromServer.path" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Secure (https)"); %>
+                    <input type="checkbox" v-model="backup.pullFromServer.secure" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Shortname on the server to pull from"); %>
+                    <input type="text" v-model="backup.pullFromServer.shortname" v-bind:disabled="mode!=1">
+                </label>
+            </div>
+        </div>
+        <div>
+            <h3><%= __('Settings for this server as main server for others') %>:</h3>
+            <%= __("Allowed tokens of secondary servers that pull from this server") %>:
+            <v-table :data="backup.secondaryPullServers">
+                <template #head>
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="name"><%= __('Name') %></th>
+                            <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                            <th><%= __('Status') %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> 
+                    <tbody>
+                        <tr v-for="pullServer in displayData" :key="pullServer.token">
+                            <td>{{pullServer.name}}</td>
+                            <td>{{pullServer.token}}</td>
+                            <td>Status TODO</td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+            <%= __('Connections to secondary servers that are initated by this server together with the respective token of that server') %>
+            <v-table :data="backup.secondaryPushServers">
+                <template #head>
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="name"><%= __('Name') %></th> <!-- name as an identifier for this connection; e.g. the server name to push to -->
+                            <th is="vue:v-th" sortkey="shortname"><%= __('Shortname') %></th> <!--  the shortname of the meeting on the secondary server -->
+                            <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                            <th is="vue:v-th" sortkey="host"><%= __('Host') %></th>
+                            <th is="vue:v-th" sortkey="port"><%= __('Port') %></th>
+                            <th is="vue:v-th" sortkey="path"><%= __('Path') %></th>
+                            <th is="vue:v-th" sortkey="secure"><%= __('Secure') %></th>
+                            <th><%= __('Status') %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> 
+                    <tbody>
+                        <tr v-for="pushServer in displayData" :key="pushServer.token">
+                            <td>{{pushServer.name}}</td>
+                            <td>{{pushServer.shortname}}</td>
+                            <td>{{pushServer.token}}</td>
+                            <td>{{pushServer.host}}</td>
+                            <td>{{pushServer.port}}</td>
+                            <td>{{pushServer.path}}</td>
+                            <td>{{pushServer.secure}}</td>
+                            <td>{{status.secondaryPushConnections[pushServer.token].status}}<button type="button" v-on:click="selectedPushTokenStatus=pushServer.token"><%= __("Details") %></button></td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+        </div>
+    </form>
+    <div class="overlay" v-bind:class="{shown: selectedPushTokenStatus}" v-if="selectedPushTokenStatus">
+        <div class="overlayContainer">
+            Status of the push connection: 
+            <table>
+                <tr>
+                    <td>Connected:</td>
+                    <td>{{status.secondaryPushConnections[selectedPushTokenStatus]?.connected}}</td>
+                </tr>
+                <tr>
+                    <td>Status:</td>
+                    <td>{{status.secondaryPushConnections[selectedPushTokenStatus]?.status}}</td>
+                </tr>
+                <tr>
+                    <td>Time of last connection init or end:</td>
+                    <td>{{status.secondaryPushConnections[selectedPushTokenStatus]?.lastConnected}}</td>
+                </tr>
+                <tr>
+                    <td>Last Error:</td>
+                    <td>{{status.secondaryPushConnections[selectedPushTokenStatus]?.lastError}}</td>
+                </tr>
+            </table>
+            <button type="button" class="btn" v-on:click="selectedPushTokenStatus=undefined"><%= __("Close") %></button>
+        </div>
+    </div>
+    <div class="overlay" v-bind:class="{shown: mode==1}">
+        <div class="overlayContainer">
+            <button type="button"class="btn btnRed" v-on:click="abortBackupChange"><%= __("Abort") %></button>
+            <button type="button" class="btn btnGreen" v-on:click="saveBackupChange"><%= __("Save") %></button>
+            <form class="verticalForm">
+                <label>
+                    <%= __("Is this the main server") %>: <button type="button" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
+                    <input v-bind:disabled="mode!=1" type="checkbox" v-model="backupWorkCopy.isMain" maxlength="100" ><!-- v-bind:disabled="mode!=1" -->
+                </label>
+                <div v-if="!backupWorkCopy.isMain">
+                    <h3><%= __("Settings for this server as a secondary server") %>:</h3>
+                    <%= __('This is a secondary server. Make sure to register the token of this secondary server on the server it shall get the data from.') %>
+                    <%= __("The connection between the main and this server can either be initationed by the main server ('push mode') or by this server ('pull mode'). ") %>
+                    <label>
+                        <%= __("Token"); %>:
+                        <input type="text" v-model="backupWorkCopy.token" v-bind:disabled="mode!=1" size=40>
+                    
+                    </label>
+                    <label>
+                        <input type="radio" v-model="secondaryModeRadioWork" name="secondaryMode" value="push" v-bind:disabled="mode!=1">
+                        <%= __("Push mode: set everything on the server the data is pushed from.") %>
+                    </label>
+                    <label>
+                        <input type="radio" v-model="secondaryModeRadioWork" name="secondaryMode" value="pull" v-bind:disabled="mode!=1">
+                        <%= __("Pull mode: specifiy the connection settings for the main server here.") %>
+                    </label>
+                    <div v-if="secondaryModeRadioWork=='pull'">
+                        <label>
+                            <%= __("Host"); %>
+                            <input type="text" v-model="backupWorkCopy.pullFromServer.host" v-bind:disabled="mode!=1">
+                        </label>
+                        <label>
+                            <%= __("Port"); %>
+                            <input type="number" v-model.number="backupWorkCopy.pullFromServer.port" v-bind:disabled="mode!=1">
+                        </label>
+                        <label>
+                            <%= __("Path"); %>
+                            <input type="text" v-model="backupWorkCopy.pullFromServer.path" v-bind:disabled="mode!=1">
+                        </label>
+                        <label>
+                            <%= __("Secure (https)"); %>
+                            <input type="checkbox" v-model="backupWorkCopy.pullFromServer.secure" v-bind:disabled="mode!=1">
+                        </label>
+                        <label>
+                            <%= __("Shortname on the server to pull from"); %>
+                            <input type="text" v-model="backupWorkCopy.pullFromServer.shortname" v-bind:disabled="mode!=1">
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <h3><%= __('Settings for this server as main server for others') %>:</h3>
+                    <%= __("Allowed tokens of secondary servers that pull from this server") %>:
+                    <button type="button" v-on:click="addPullServer" class="btn btnGreen"><%= __('Add pull server') %></button>
+                    <v-table :data="backupWorkCopy.secondaryPullServers">
+                        <template #head>
+                            <thead>
+                                <tr>
+                                    <th is="vue:v-th" sortkey="name"><%= __('Name') %></th>
+                                    <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                        </template>
+                        <template v-slot:body="{displayData}"> 
+                            <tbody>
+                                <tr v-for="pullServer in displayData" :key="pullServer.token">
+                                    <td>{{pullServer.name}}</td>
+                                    <td>{{pullServer.token}}</td>
+                                    <td>
+                                        <button type="button" class="btn btnGrey" v-on:click="modPullServer(pullServer.token)" ><%= __("Change") %></button>
+                                        <button type="button" class="btn btnRed" v-on:click="deletePullServer(pullServer.token)"><%= __("Delete") %></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </template>
+                    </v-table>
+                    <%= __('Connections to secondary servers that are initated by this server together with the respective token of that server') %>
+                    <button type="button" v-on:click="addPushServer" class="btn btnGreen"><%= __('Add push server') %></button>
+                    <v-table :data="backupWorkCopy.secondaryPushServers">
+                        <template #head>
+                            <thead>
+                                <tr>
+                                    <th is="vue:v-th" sortkey="name"><%= __('Name') %></th>
+                                    <th is="vue:v-th" sortkey="name"><%= __('Shortname') %></th>
+                                    <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                                    <th is="vue:v-th" sortkey="host"><%= __('Host') %></th>
+                                    <th is="vue:v-th" sortkey="port"><%= __('Port') %></th>
+                                    <th is="vue:v-th" sortkey="path"><%= __('Path') %></th>
+                                    <th is="vue:v-th" sortkey="secure"><%= __('Secure') %></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                        </template>
+                        <template v-slot:body="{displayData}"> 
+                            <tbody>
+                                <tr v-for="pushServer in displayData" :key="pushServer.token">
+                                    <td>{{pushServer.name}}</td>
+                                    <td>{{pushServer.shortname}}</td>
+                                    <td>{{pushServer.token}}</td>
+                                    <td>{{pushServer.host}}</td>
+                                    <td>{{pushServer.port}}</td>
+                                    <td>{{pushServer.path}}</td>
+                                    <td>{{pushServer.secure}}</td>
+                                    <td>
+                                        <button type="button" class="btn btnGrey" v-on:click="modPushServer(pushServer.token)" ><%= __("Change") %></button>
+                                        <button type="button" class="btn btnRed" v-on:click="deletePushServer(pushServer.token)"><%= __("Delete") %></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </template>
+                    </v-table>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="overlay" v-bind:class="{shown: overlay=='modPullServer'}">
+        <div class="overlayContainer">
+            <h3><%= __('Add pull server') %>:</h3>
+            <form class="verticalForm">
+                <label>
+                    <%= __('Name') %> (<%= __('for information only') %>):
+                    <input type="text" v-model="newPullName">
+                </label>
+                <label>
+                    <%= __('Token') %>:
+                    <input type="text" v-model="newPullToken">
+                </label>
+            </form>
+            <button v-if="!modPullToken" type="button" class="btn btnGreen" v-on:click="savePullServer"><%= __('Add') %></button>
+            <button v-if="modPullToken" type="button" class="btn btnGreen" v-on:click="savePullServer"><%= __('Modify') %></button>
+            <button type="button" class="btn btnRed" v-on:click="resetPullServer(); overlay=undefined;"><%= __('Abort') %></button>
+        </div>
+    </div>
+    <div class="overlay" v-bind:class="{shown: overlay=='modPushServer'}">
+        <div class="overlayContainer">
+            <h3><%= __('Add push server') %>:</h3>
+            <form class="verticalForm">
+                <label>
+                    <%= __('Name') %> (<%= __('for information only') %>):
+                    <input type="text" v-model="newPushName">
+                </label>
+                <label>
+                    <%= __('Shortname on the server to push to') %>:
+                    <input type="text" v-model="newPushShortname">
+                </label>
+                <label>
+                    <%= __('Token') %>:
+                    <input type="text" v-model="newPushToken">
+                </label>
+                <label>
+                    <%= __('Host') %>:
+                    <input type="text" v-model="newPushHost">
+                </label>
+                <label>
+                    <%= __('Port') %>:
+                    <input type="number" v-model.number="newPushPort">
+                </label>
+                <label>
+                    <%= __('Path') %>:
+                    <input type="text" v-model="newPushPath">
+                </label>
+                <label>
+                    <%= __('Secure') %>:
+                    <input type="checkbox" v-model="newPushSecure">
+                </label>
+            </form>
+            <button v-if="!modPushToken" type="submit" class="btn btnGreen" v-on:click="savePushServer"><%= __('Add') %></button>
+            <button v-if="modPushToken" type="submit" class="btn btnGreen" v-on:click="savePushServer"><%= __('Modify') %></button>
+            <button type="button" class="btn btnRed"  v-on:click="resetPushServer(); overlay=undefined;"><%= __('Abort') %></button>
+        </div>
+    </div>
+
+    <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+        <!-- overlay used for displaying general information -->
+        <div id="overlayContainer">
+            <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+            <div id="overlayContent">{{infoContent}}</div>
+        </div>
+    </div>
+</div>
+
+<!-- TODO: eventually add here another insert for side channels!-->

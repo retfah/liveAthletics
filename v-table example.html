@@ -1,0 +1,19 @@
+<input type="text" v-model="filterString">
+<v-table :data="content" :filters="filters">
+    <template #head> <!-- # head is a shorthand for v-slot:head-->
+        <thead>
+            <tr>
+                <th is="vue:v-th" sortkey="number" defaultsort="asc">Number</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                <th is="vue:v-th" sortkey="athlete.name">athlete name</th>
+            </tr>
+        </thead>
+    </template>
+    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+        <tbody >
+            <tr v-for="row in displayData" :key="row.id">
+              <td>{{ row.number }}</td>
+              <td>{{ row.athlete.name }}</td>
+            </tr>
+        </tbody>
+    </template>
+  </v-table>

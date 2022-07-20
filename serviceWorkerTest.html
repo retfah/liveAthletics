@@ -1,0 +1,40 @@
+<!-- 
+    This file is intended for testing service workers to be used after a browser crashed and has no internet access. The aim is that I can use my pageHandling stuff to recreate the requested page from a cache after the browser crashed or was clsoed. It would basically be simple, if every page was requested through http. However, I use the partial preloading. Moreover, the preloading is handled via Websockets. If http-requests were used, I could use the CacheStorage of browsers, which would do nearly all I need. 
+    
+    Due to theses differences in the liveAthletics page, I have to find a way around it.
+
+    1. To be able to cache a browsers request to a server, I need to have a ServiceWorker listening to requests for some URLs. One main problem I will encounter is that browsers allow ServiceWorkers only for https sites and localhost. (It would be great if local IPs (10.X.X.X, 192.168.X.X) would work as well, it does not.)
+    For testing, the requirement can be omitted: Firefox: devtools.serviceWorkers.testing.enabled, Chrome: chrome://flags/#unsafely-treat-insecure-origin-as-secure
+    Currently (2021-01), self-made certificates of the Server, which result in "this page is not safe", are deemed ok as well after the user has clicked "I want to proceed anyway". 
+
+    2. The idea is that I can control what is stored from the (previously) accessed site. TODO: Needs "postMessage" at least form the windows to the service worker.
+
+    3. The service worker shall react on certain URLs and then create the page from the single parts according to the page definitions, as it would be done by the pageHandling. 
+
+    NOTE: 
+    All data that was stored within the window, e.g. everything in the room (data, ID, infoUpdate, changesToProcess, ...) must be loaded again in the window. This means that it must be stored e.g. in localStorage and the logic to reload it must be in the roomClient. 
+
+    => Reloading the page (service worker) and reloading the data (localStorage) are two different things that can work and be programmed independently!
+ -->
+
+<html>
+    <head>
+        <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                // Registration was successful
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }, function(err) {
+                // registration failed :(
+                console.log('ServiceWorker registration failed: ', err);
+            });
+            });
+        }
+        </script>
+    </head>
+    <body>
+        
+    </body>
+</html>
+

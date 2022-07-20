@@ -1,0 +1,3 @@
+request, requestAck, note, noteAck implemented and should work; error untested yet.
+
+After that, note/noteAck and request/requestAck were harmonized. 

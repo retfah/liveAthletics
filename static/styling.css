@@ -1,0 +1,1343 @@
+/* all the styles for liveAthletics / Athletica
+classes:    start with a point, then the name: .classname {}
+            can be restricted to an element type: div.classname {}
+
+per id:     a style that is applied to only the element with this id: #ID {}
+per element type: e.g. div{}
+
+*/
+ /* copied from reboot */
+:root{
+    --blue: #007bff;
+    --indigo: #6610f2;
+    --purple: #6f42c1;
+    --pink: #e83e8c;
+    --red: #dc3545;
+    --orange: #fd7e14;
+    --yellow: #ffc107;
+    --green: #28a745;
+    --teal: #20c997;
+    --cyan: #17a2b8;
+    --white: #fff;
+    --gray: #6c757d;
+    --gray-dark: #343a40;
+    --primary: #007bff;
+    --secondary: #6c757d;
+    --success: #28a745; /* in use */
+    --info: #17a2b8;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --light: #f8f9fa;
+    --dark: #343a40;
+    --breakpoint-xs: 0;
+    --breakpoint-sm: 576px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 992px;
+    --breakpoint-xl: 1200px;
+
+    --border-radius: 4px;
+    --fail: #dc3545;
+}
+body {
+    margin: 0;
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: left;
+    background-color: #fff;
+    display: flex;
+    flex-flow: column;
+}
+
+/* it's better to split into html and * the box-sizing, for the case if we want to locally override the box-sizing property */
+html {
+    box-sizing: border-box;
+}
+
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+
+table{
+    margin-bottom: 1rem;
+    color: #212529;
+    border-collapse: collapse;
+    border-color: grey;
+    /* display: table; */
+
+}
+th{
+    padding: 2px 4px;
+}
+td{
+    padding: 2px 4px;
+    border-top: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+}
+
+
+.verticalForm label{
+    margin-bottom: 10px;
+    display:block;
+}
+
+.verticalForm input{
+    display:block;
+    padding: 6px 12px;
+    border: 1px solid RGB(206, 212, 218);
+    font: inherit;
+    line-height: 24px;
+    border-radius: var(--border-radius, 4px);
+}
+.yellowBg {
+    background-color: yellow;
+}
+
+.verticalForm input[type="radio"], .verticalForm input[type="checkbox"]{
+    display:inline-block;
+}
+.verticalForm select{
+    display: block;
+    
+    /* copied from .dropdown  */
+    padding: 6px 12px;
+    border: 1px solid RGB(206, 212, 218);
+    font: inherit;
+    line-height: 24px;
+    border-radius: var(--border-radius, 4px);
+}
+
+button.btn:disabled, button.btn:disabled:hover{
+    cursor: default;
+    /*cursor: not-allowed;
+    background-color: #6c757d;*/
+    color: rgba(16, 16, 16, 0.3);
+    background-color: rgba(239, 239, 239, 0.3);
+    border-color: rgba(118, 118, 118, 0.3);
+}
+
+button.btn{
+    padding: 6px 12px;
+    border-radius: var(--border-radius, 4px);
+    cursor: pointer;
+    font: inherit; /* also sets the line height to 24px */
+}
+button.btnGrey{
+    background-color: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+    font:inherit;
+}
+button.btnGrey:hover,
+button.btnGrey:focus{
+    background-color: #5a6268;
+    border-color: #5a6268;
+}
+button.btnRed{
+    background-color: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+    font:inherit;
+}
+button.btnRed:hover,
+button.btnRed:focus{
+    background-color: #bd2130;
+    border-color: #bd2130;
+}
+button.btnGreen{
+    background-color: #28a745;
+    color: white;
+    border: 1px solid #28a745;
+    font:inherit;
+}
+button.btnGreen:hover,
+button.btnGreen:focus{
+    background-color: #218838;
+    border-color: #218838;
+}
+.marginRight{
+    margin-right: 0.375rem;
+}
+.marginLeft{
+    margin-left: 0.375rem;
+}
+.margin{
+    margin: 0.375rem;
+}
+.marginS{
+    margin: .1875rem;
+}
+
+.flexNav1 {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.ItemNav1  {
+    flex-grow: 1;
+    height: 22px;
+    background-color: #666666; /*rgb(200, 200, 225);*/
+    text-align: center;
+    border: 1px solid black;
+    /*border-radius: 5px;*/
+    line-height: 22px; /* makes text vertically centered */
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    color: #FFFFFF;/*rgb(190, 124, 0);*/
+    text-decoration-line: none;
+    padding: 1px;
+}
+
+a.Conn:not([href]):not([tabIndex]) {
+    flex-grow: 1;
+    height: 22px;
+    /*background-color: #666666; /*rgb(200, 200, 225);*/
+    text-align: center;
+    border: 1px solid black;
+    /*border-radius: 5px;*/
+    line-height: 22px; /* makes text vertically centered */
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    color: #FFFFFF;/*rgb(190, 124, 0);*/
+    text-decoration-line: none;
+    padding: 1px;
+}
+
+.ItemNav1:hover{
+    text-decoration-line: underline;
+    cursor: pointer;
+}
+a.Conn:hover:not([href]):not([tabIndex]){
+    text-decoration-line: underline;
+    cursor: pointer;
+}
+
+.TODO {
+    background-color: goldenrod;
+    flex-grow: 1; /* use the rest of the page*/
+    border: 5px solid red;
+}
+
+a.active {
+    background-color: #999999;
+}
+
+.connected {
+    background-color: lightgreen; /*RGB(106, 171, 142)*/
+}
+.connected.clickable:hover{
+    cursor: pointer;
+    background-color: #73BE73;
+}
+/*.connected:hover {
+    background-color: #73BE73;
+}*/
+.disconnected {
+    background-color: lightcoral;
+}
+.disconnected.clickable:hover{
+    background-color: #c46868;
+    cursor: pointer;
+}
+/*.disconnected:hover {
+    background-color: #c46868;
+}*/
+
+
+@keyframes testAnim {
+    from {
+        left: 0%;
+        border: 5px solid blue;
+    }
+    50% {
+        left:50%;
+        border: 5px solid yellow;
+    }
+    to {
+        left:0%;
+        border: 5px solid blue;
+
+    } 
+}
+
+@keyframes bgMove {
+    from {
+        background-position-x: 0px;
+    }
+    to {
+        background-position-x:-40px;
+    }
+}
+
+@keyframes ballMove {
+    from {
+        left: 0px;
+    }
+    50% {
+        left:350;
+    }
+    to {
+        left:0px;
+    }
+}
+
+@keyframes connecting {
+    from {
+        color: rgba(0,0,0,1);
+    }
+    50% {
+        color: rgba(0,0,0,0.2);
+    }
+    to {
+        color: rgba(0,0,0,1);
+    }
+}
+
+div.wsWindow {
+    /*width:300px;*/
+    box-sizing:border-box;
+    border:RGB(200, 200, 200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    position: fixed; /* if here it is not relative here, then the absolute of the child references the window...? */
+    right:0px;
+    top:0px;
+    background-color: #FFFFFF;
+    grid-template-columns: auto 40px 40px 40px;
+    gap: 3px;
+    display: none; /* this will be overriden by the wsWindowShown/wsWindowHidden classes */
+}
+div.clientWindow {
+    box-sizing: border-box;
+    border:RGB(200, 200, 200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%); /* only with the transform/translate command we can center a position:fixed element without knowing its width, since a margin would be relative to the parent size and only the transform/translate-percentage referrs to its own size */
+    background-color: #FFFFFF;
+    grid-template-columns: auto 40px 40px 40px; /* Name, writing, clients, close */
+    gap: 3px;
+    display: none; /* this will be overriden by the wsWindowShown/wsWindowHidden classes */
+}
+div.revokeWindow {
+    box-sizing: border-box;
+    border:RGB(200, 200, 200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%); /* only with the transform/translate command we can center a position:fixed element without knowing its width, since a margin would be relative to the parent size and only the transform/translate-percentage referrs to its own size */
+    background-color: #FFFFFF;
+    grid-template-columns: 100px 100px; /* Name, writing, clients, close */
+    gap: 3px;
+    display: none; /* this will be overriden by the wsWindowShown/wsWindowHidden classes */
+}
+/* must be after wsWindow/clientWindow, since both define 'display' and have the same specifity and the priority is only defined through what comes last wins */
+
+div.revokeWindow.shown, div.clientWindowShown, div.wsWindowShown{
+    display:grid;
+}
+div.revokeWindow.hidden, div.clientWindowHidden, div.wsWindowHidden {
+    display: none;
+}
+
+div.wsWindow .close {
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    height: 40px;
+    font-size: 18pt;
+    width:40px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    text-align: center;
+    line-height: 32px;
+    grid-column: 4;
+}
+div.wsWindow .close:hover {
+    cursor: pointer;
+    background-color: RGB(200, 200, 200);
+}
+div.wsWindowsClientName {
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    grid-column-start: 1;
+    grid-column-end: span 3;
+    line-height: 32px;
+}
+div.wsWindowRooms {
+    /*grid-column: 1 /  3;*/
+    grid-column-start: 1;
+    /*grid-column-end: 4;*/
+    grid-column-end: span 4;
+    display: grid;
+    grid-template-columns: subgrid; /*2019-07: not yet supported by any browser; Firefox from 69 */
+    padding: 3px;
+    border:RGB(200,200,200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    height: 40px;
+    /*background-color: RGB(222, 226, 230);*/
+}
+/*div.wsWindowRooms:hover {
+    background-color: RGB(200, 200, 200);
+    cursor: pointer;
+}*/
+div.wsWindowRoomNameR {
+    grid-column: 1;
+    grid-column-end: span 2;
+    line-height: 32px;
+}
+div.wsWindowRoomNameW {
+    grid-column: 1;
+    line-height: 32px;
+}
+div.wsWindowRoomWritingrights{
+    grid-column: 2;
+    text-align: center;
+    line-height: 32px;
+}
+div.wsWindowRoomWriting {
+    grid-column: 3;
+    text-align: center;
+    line-height: 32px;
+}
+div.wsWindowRoomClients {
+    grid-column: 4;
+    text-align: center;
+    line-height: 32px;
+}
+
+div.clientWindow  .roomNameR {
+    grid-column: 1 / span 2;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+div.clientWindow  .roomNameW {
+    grid-column: 1 / span 1;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+div.clientWindow .close { /* close is also used by bootstrap and adds some fontweight*/
+    grid-column: 4 / span 1;
+
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    height: 40px;
+    font-size: 18pt;
+    width:40px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    text-align: center;
+    line-height: 32px;
+}
+div.clientWindow .close:hover {
+    cursor: pointer;
+    background-color: RGB(200, 200, 200);
+}
+div.clientWindow .roomWriting {
+    grid-column: 2 / span 1;
+    text-align: center;
+    min-width: 30px; /* needed as long as subgrid does not work*/
+}
+div.clientWindow .roomClients {
+    grid-column: 3 / span 1;
+    text-align: center;
+    min-width: 30px; /* needed as long as subgrid does not work*/
+}
+div.clientWindow .room{
+    display: grid;
+    grid-column: 1 / span 3;
+    grid-template-columns: subgrid;
+    padding:3px;
+    border: RGB(200,200,200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+}
+div.clientWindow .client {
+    display:grid;
+    grid-column: 1 / span 4;
+    grid-template-columns: subgrid;
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+}
+div.client > .clientWriting {
+    grid-column: 4 / span 1;
+}
+div.client > .clientNameW {
+    grid-column: 1 / span 3;
+}
+div.client > .clientNameR {
+    grid-column: 1 / span 4;
+}
+div.revokeWindow .message{
+    grid-column: 1 / span 2;
+    padding: 3px;
+    border-radius: var(--border-radius, 4px);
+}
+div.revokeWindow .no{
+    grid-column: 1 / span 1;
+    cursor: pointer;
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+    text-align: center;
+}
+div.revokeWindow .no:hover{
+    background-color: RGB(200, 200, 200);
+}
+
+div.revokeWindow .yes{
+    grid-column: 2 / span 1;
+    cursor: pointer;
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+    text-align: center;
+}
+div.revokeWindow .yes:hover{
+    background-color: RGB(200, 200, 200);
+}
+
+.shadow {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19)
+}
+
+
+
+div.msgWindow {
+    box-sizing: border-box;
+    border:RGB(200, 200, 200) 1px solid;
+    border-radius: var(--border-radius, 4px);
+    padding: 3px;
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%); /* only with the transform/translate command we can center a position:fixed element without knowing its width, since a margin would be relative to the parent size and only the transform/translate-percentage referrs to its own size */
+    background-color: #FFFFFF;
+    gap: 3px;
+    display: none; /* this will be overriden by the wsWindowShown/wsWindowHidden classes */
+}
+/* must be after wsWindow/clientWindow, since both define 'display' and have the same specifity and the priority is only defined through what comes last wins */
+
+div.msgWindow.shown{
+    display:block; /* if something else than block is needed, make an additional inner div*/
+}
+div.msgWindow.hidden {
+    display: none;
+}
+div.no{
+    cursor: pointer;
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+    text-align: center;
+}
+div.no:hover{
+    background-color: RGB(200, 200, 200);
+}
+
+div.yes{
+    cursor: pointer;
+    padding: 3px;
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    border-radius: var(--border-radius, 4px);
+    height:40px;
+    line-height: 32px;
+    text-align: center;
+}
+div.yes:hover{
+    background-color: RGB(200, 200, 200);
+}
+div.message{
+    padding: 3px;
+    border-radius: var(--border-radius, 4px);
+}
+div.crumb{
+    padding: 6px 12px;
+    border-radius: var(--border-radius, 4px);
+    border: RGB(200,200,200) 1px solid;
+    background-color: RGB(222, 226, 230);
+    font: inherit;
+    text-align: center;
+    margin: 3px;
+    display: inline-block;
+    vertical-align: baseline;
+}
+
+div.changeRes{
+    display: grid;
+}
+input:invalid{
+    border-color: red;
+    background-color: red;
+}
+
+input.unrealistic{
+    border-color: rgb(240, 110, 63);
+    background-color: rgb(240, 110, 63);
+}
+
+option.catMismatch{
+    background-color: rgb(240, 110, 63);
+}
+
+.hidden{
+    display: none;
+}
+
+.collapsable input{
+    display: none;
+}
+
+.collapsable label{
+    background-color: #6c757d;
+    cursor: pointer;
+    color: white;
+    padding: 1px 7px;
+    font: inherit;
+    border-radius: var(--border-radius, 4px);
+    border-style: solid;
+    border-width: 6px;
+    border-color: #6c757d;
+    display: 'inline-block';
+}
+.collapsable label:hover,
+.collapsable label:focus{
+    /*background-color: #5a6268;  */  
+    border-color: #5a6268;
+    transition: 0.5s;
+}
+
+.collapsable > input[name="participationStatusHider"]:checked ~ label {
+    background-color: #5a6268;
+    border-color:#5a6268;
+}
+.collapsable > input[name="participationStatusHider"]:checked ~ label:hover,
+.collapsable > input[name="participationStatusHider"]:checked ~ label:focus {
+    border-color:#6c757d;
+}
+
+.collapsable > input[name="participationStatusHider"]:not(:checked) ~.content{
+    display:none;
+    padding: 0px;
+    margin: 0px;
+    border-width: 0px;
+    height: 0px;
+    width:0px;
+}
+.collapsable > input[name="participationStatusHider"]:checked ~ .content {
+    /*width: auto;*/
+    display: inline-block;
+  }
+
+.dropdown {
+    padding: 6px 12px;
+    border: 1px solid RGB(206, 212, 218);
+    font: inherit;
+    line-height: 24px;
+    border-radius: var(--border-radius, 4px);
+}
+
+.dragelement {
+    padding: 6px 12px;
+    border: 1px solid RGB(206, 212, 218);
+    border-radius: var(--border-radius, 4px);
+    cursor: pointer;
+    /*display: inline-block;*/
+    /*margin-left: 10px;*/
+    margin-bottom: 1px;
+    width:auto; /* TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
+}
+
+.row2{
+    /* padding: 2px 0px; */
+}
+
+.athlete .row2 {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: baseline;
+}
+
+.row2 .el {
+    padding: 6px 12px;
+    /*flex-grow: 1;*/
+}
+
+.row2 .el2 {
+    margin: 2px 2px;
+}
+
+/* create an elText style to be applied when a text alone forms an element --> the top and bottom padding for the column are included then*/
+
+.row2 .elText {
+    padding: 8px 12px;
+}
+
+.athlete{
+    border: 1px solid RGB(206, 212, 218);
+    border-radius: var(--border-radius, 4px);
+}
+
+.row2 input.el2 {
+    margin: 2px;
+}
+
+
+
+.row2 button.el {
+    margin-right:3px;
+    background-color: #6c757d;
+    color: white;
+    padding: .375rem .75rem;
+    border-radius: 0.25rem;
+    border-style: solid;
+    border-width: 1px;
+    border-color: #6c757d;
+    line-height: inherit;
+    font-size: inherit;
+    font-style: inherit;
+}
+.row2 button.el:disabled, .row2 button.el:disabled:hover {
+    cursor: default;
+    color: rgba(16, 16, 16, 0.3);
+    background-color: rgba(239, 239, 239, 0.3);
+    border-color: rgba(118, 118, 118, 0.3);
+}
+.row2 button.el.width3 {
+    width:3rem;
+}
+
+
+.row2 button.el:hover,
+.row2 button.el:focus{
+    background-color: #5a6268;
+    border-color: #5a6268;
+}
+
+.athRes{
+    /*display: flex;
+    flex-flow: row wrap;*/
+    border-top: 1px solid RGB(206, 212, 218);
+    /*border: 1px solid RGB(206, 212, 218);
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;*/
+}
+.validHeight{
+    color: red;
+    border: 10px solid red;
+}
+/* copied from bootstrap */
+.formCtrl{
+    /* display: block; */
+    /*width: 100%;*/
+    min-height: calc(1.5em + .75rem + 2px);
+    padding: .375rem .75rem;
+    font: inherit;
+    /* font-size: 1rem; */
+    /* font-weight: 400; */
+    /* line-height: 1.5; */
+    color: #495057;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out
+}
+.information{
+    /* information shortcut */
+    background-color: #3b8de6;
+    display: inline-block;
+    text-align: center;
+    border-radius: 0.75rem;
+    border: 0px solid #3b8de6;;
+    font-family: "Consolas", "Courier New", "Courier", serif;
+    font-style: normal;
+    font-size: 1rem;
+    width: 1.5rem;
+    height:1.5rem;
+    color: white;
+    cursor: pointer;
+}
+
+.overlay{
+    background-color: rgba(0,0,0,0.5);
+    width: 100%;
+    height: 100%;
+    display: none;
+    position: fixed;
+    top:0px;
+    left:0px;
+    overflow: scroll;
+    z-index:50;
+}
+.overlay.shown{
+    display: flex;
+    align-items: center; /* vertically center */
+}
+
+#overlay{
+    background-color: rgba(0,0,0,0.5);
+    width: 100%;
+    height: 100%;
+    display: none;
+    position: fixed;
+    top:0px;
+    left:0px;
+    overflow: scroll;
+}
+
+#overlay.shown{
+    display: flex;
+    align-items: center; /* vertically center */
+}
+#overlayContainer, .overlayContainer{
+    max-width: 600px;
+    width:100%;
+    background-color: white;
+    border: 3px solid black;
+    border-radius: 0.25rem;
+    /* margin-left: auto; */
+    margin: auto; /* horizontally center */
+    padding: .375rem .75rem;
+}
+.overlayContainerWide{
+    /*width: 100%;*/
+    /* max-width: 600px; */
+    background-color: white;
+    border: 3px solid black;
+    border-radius: 0.25rem;
+    /* margin-left: auto; */
+    margin: auto; /* horizontally center */
+    padding: .375rem .75rem; 
+}
+
+#resultsView2 .name{
+    padding: 0 .375rem;
+    justify-self: start; 
+    grid-column: athletes;
+}
+#resultsView2 .bib{
+    padding: 0 .375rem;
+    justify-self: center; 
+    grid-column: bib;
+}
+#resultsView2 .rank{
+    padding: 0 .375rem;
+    justify-self: start; 
+    grid-column: rank;
+}
+#resultsView2 .res{
+    justify-self: center;
+    padding: 0 .375rem; 
+}
+
+
+
+/**
+* ON / OFF switch
+**/
+.onoffswitch {
+    position: relative; width: 70px;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+} 
+.onoffswitch-checkbox {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 0px solid #999999; border-radius: var(--border-radius, 4px);
+    margin: 0px; /*only needed to overrule bootstrap, as long as in use */
+}
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%; 
+    transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 30px; padding: 0; line-height: 30px;
+    /* font-size: 14px;  */
+    color: white; 
+    /* font-family: Trebuchet, Arial, sans-serif; font-weight: bold; */
+    box-sizing: border-box;
+}
+.onoffswitch-inner:before {
+    content: "ON"; /* eventually remove the 'inner' part (no text at all) and instead change the background color */
+    padding-left: 10px;
+    background-color: #007BFF; color: #FFFFFF;
+}
+.onoffswitch-inner:after {
+    content: "OFF"; /* eventually remove the 'inner' part (no text at all) and instead change the background color OR simply pass the styling through the ejs-translation-renderer */
+    padding-right: 10px;
+    background-color: #6C757D; color: #FFFFFF;
+    text-align: right;
+}
+.onoffswitch-switch {
+    display: block; width: 18px; margin: 6px;
+    background: #FFFFFF;
+    position: absolute; top: 0; bottom: 0;
+    right: 36px;
+    border: 2px solid #999999; border-radius: var(--border-radius, 4px);
+    transition: all 0.3s ease-in 0s; 
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px; 
+}
+
+.saved {
+    animation-name: successfullyStored;
+    animation-timing-function: ease-out;
+    animation-duration: 4s;
+}
+
+/* the circle moving left and right to show a loaind process */
+.requestPendingCircle {
+    --dim: 10px;
+    height: var(--dim);
+    width: var(--dim);
+    border-radius: 50%;
+    background-color: gray;
+    position: absolute;
+    margin:auto; /*TODO: for testing only */
+    left: 50%;
+    top: calc(50% - var(--dim)/2); /* ths is relative to the height of the parent element; since it would be too low, we subtract half of its height */
+    /* traditional approach: transform: translateY(-50%); */ /* ths is relative to the hieght of the element itself */
+    animation: 1.8s ease-in-out infinite requestPending;
+    /*animation-name: requestPending;
+    animation-duration: 1.8s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite; */
+}
+
+.requestPendingContainer {
+    position: relative; /* not allowed to be static, since otherwise the centering of the child-circle in absolute manner does not work */
+}
+
+.selectTable{
+    width:100%; 
+    border-collapse:collapse; 
+}
+.selectTable td{ 
+    /* padding:7px; border:#4e95f4 1px solid; */
+}
+/* Define the default color for all the table rows */
+.selectTable tr{
+    /* background: #b8d1f3; */
+}
+/* Define the hover highlight color for the table row */
+.selectTable tr:hover {
+        --backColorHover: grey; /* used when there is no inline style definition */
+        background-color: var(--backColorHover) !important;
+        cursor: pointer;
+}
+
+/* currently (2022-05) option:hover is not supported by browsers */
+option:hover {
+    --backColorHover: rgb(93, 180, 252); /* used when there is no inline style definition */
+    background-color: var(--backColorHover) !important;
+    cursor: pointer !important;
+}
+
+.clickable:hover {
+    cursor: pointer;
+    text-decoration-line: underline;
+}
+
+.liveRes {
+    display: flex;
+    flex-direction: row;
+    /*height: 100%;*/
+}
+
+.liveRes .nav {
+    padding:0px 10px;
+    height: 100%;
+}
+
+.liveRes .contestsContainer {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.liveRes .contestContainer {
+    position: relative;
+    margin: 5px;
+    border:1px solid grey;
+    border-radius: var(--border-radius, 4px);
+    padding: 5px 10px;
+    max-width: 500px;
+    width:500px;
+    overflow: auto;
+}
+
+.liveRes .contestContainer th {
+    position: sticky;
+    top:0;
+}
+
+.liveRes .contestContainer td:nth-child(1) {
+    position: sticky;
+    top:0;
+}
+
+.liveRes .hideDesktop .close {
+
+}
+
+.liveRes .contestContainer:hover .close {
+    display:block;
+}
+.liveRes .contestContainer .close {
+    display: none;
+    position:absolute;
+    top: 5px;
+    right: 5px;
+}
+
+.liveRes .dataType {
+    font-weight: bold;
+    font-size: large;
+}
+
+.liveRes .live {
+    border-bottom: 1px solid grey;
+}
+
+.liveRes .attempt {
+    font-weight: bold;
+    text-align: center;
+}
+
+.liveRes .text {
+    text-align: center;
+    font-weight: bold;
+}
+
+.liveRes .failed {
+    color: var(--fail);
+}
+.liveRes .cleared {
+    color: var(--success);
+}
+
+.board {
+    height: 100vh;
+    width: 100vw;
+    position:absolute;
+    color: white;
+    background-color: black;
+    overflow: hidden;
+    font-variant: small-caps;
+    line-height: 0.9; /* since we have typically no Ä and other stuff above the regular top height, we can reduce the line height below one and make the underline appear within the div */
+}
+
+.board .timeSemicolon {
+    display:inline-block;
+    width:2.2vw;
+    text-align: center;
+    /*position:relative;*/
+}
+
+.board .starttime {
+    height:20%;
+    font-size: 20vh;
+    White-space:nowrap;
+    vertical-align: top;
+}
+
+.board .disc {
+    height: 30%;
+    font-size:30vh;
+    White-space: nowrap;
+    vertical-align: top;
+}
+
+.board .name {
+    height: 30%;
+    border: 1px solid yellowgreen;
+    font-size:30vh;
+    White-space: nowrap;
+    vertical-align: top;
+}
+
+.board .attempt {
+    height: 25%;
+    font-size: 25vh;
+    border: 1px solid yellowgreen;
+    display: flex;
+}
+.board > .attempt > .height {
+    width: 30%;
+    /*text-align: center;*/
+}
+.board > .attempt > .attempts {
+    width: 40%;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
+.board > .attempt > .attempts .single {
+    padding-left: 2vh;
+    padding-right: 2vh;
+}
+.board > .attempt > .attempts .single[data-val="X"] {
+    color: red;
+}
+.board > .attempt > .attempts .single[data-val="O"] {
+    color: green;
+}
+.board > .attempt > .attempts > .current {
+    line-height: 0.8; /* result in a shift up, making ti appear within the box*/
+    animation: softBlink 1.5s linear infinite;
+}
+.board > .attempt > .attempts > .next {
+    line-height: 0.8; /* result in a shift up, making ti appear within the box*/
+}
+.board > .attempt > .time {
+    width: 30%;
+    text-align:right;
+    background-color: #007bff;
+}
+.board > .attempt > .time.last15 {
+    background-color: rgb(255, 238, 0);
+    color: black;
+}
+
+.board > .ranking {
+    height: 25%;
+    border: 1px solid yellowgreen;
+    font-size: 25vh;
+    display: flex;
+}
+.board > .ranking > .rank {
+    width: 25%;
+}
+.board > .ranking > .results {
+    width: 75%;
+    display: flex;
+    justify-content: flex-start;
+    flex-direction: row-reverse;
+    align-items: center;
+}
+.board > .ranking > .results > .result {
+    font-size: 12vh;
+    text-align: center;
+    padding: 0 2vh 0 2vh;
+}
+
+.board > .next {
+    height: 20%;
+    border: 1px solid yellowgreen;
+    border-top-width: 10px;
+    font-size: 20vh;
+    White-space: nowrap;
+}
+
+.contest {
+    display:flex; 
+    align-items: stretch; 
+    flex-direction: row;
+}
+
+.notWriting {
+    background-color: orange;
+    width:100%;
+    text-align: center;
+}
+
+.nav {
+    background-color: #666666;
+    color:white;
+    /*padding: 10px;*/
+    z-index: 1; /* some elements like the onOffSlider would otherwise be in front TODO: bad solution, since the overlay do not work properly like this! Better find a solution where the on-off-slider behaves as it should. */
+}
+.nav .navItem {
+    width:100%;
+    border-top:0.5px solid white;
+    border-bottom:0.5px solid white;
+    padding: 5px 10px;
+    display: block; /* make sure that a-elements are not inline as they are by default */
+}
+
+.nav  a.navItem:hover{
+    text-decoration-line: underline;
+    cursor: pointer;
+}
+
+.main {
+    display:"block",
+
+}
+/* Menu Icon */
+.flexHeadline{
+    display:flex; 
+    align-items: center;
+}
+.hamb{
+    cursor: pointer;
+    float: left;
+    padding: 20px 20px;
+    display: none;
+}/* Style label tag */
+
+.hamb-line {
+    background: black;
+    display: block;
+    height: 2px;
+    position: relative;
+    width: 24px;
+
+} /* Style span tag */
+
+.hamb-line::before,
+.hamb-line::after{
+    background: black;
+    content: '';
+    display: block;
+    height: 100%;
+    position: absolute;
+    transition: all .2s ease-out;
+    width: 100%;
+}
+.hamb-line::before{
+    top: 5px;
+}
+.hamb-line::after{
+    top: -5px;
+}
+
+.side-menu {
+    display: none;
+} /* Hide checkbox */
+/* Toggle menu icon */
+.side-menu:checked ~ nav{
+    max-height: 100%;
+}
+.side-menu:checked ~ .hamb .hamb-line {
+    background: transparent;
+}
+.side-menu:checked ~ .hamb .hamb-line::before {
+    transform: rotate(-45deg);
+    top:0;
+}
+.side-menu:checked ~ .hamb .hamb-line::after {
+    transform: rotate(45deg);
+    top:0;
+}
+
+/**
+* Animations
+**/
+@keyframes successfullyStored {
+    0% {background-color:#66FF66;}
+    /* if we leave away 0 or 100%, then it means it fades to default */
+}
+
+/* let something go left and right */
+/* I would love to have the following definition being independent of the width of the moving element, but unfotunately we can not access the width of the element from within its definition. Therefore we have to fix the width in here: 10px*/
+@keyframes requestPending {
+    0% {left: 0%;}
+    50% {left:calc(100% - 10px);} /* specify the correct width of the element here to make sure it does not try to run out of the box. TODO: replace 10px with var(--dim)*/
+    100% {left: 0%;}
+}
+
+@keyframes softBlink {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+
+/**
+* TODO:
+* - make all parts of the code have the same width; and it should not be the full width of the screen, while exactly this might happen on mobile devices --> set a frame-div to display: inline-block and all its children to width:100%. Thus all childs will use the full, minimal width of their parent. 
+**/
+
+@media(max-device-width: 500px){ 
+    /* small or lower; all classed must begin with Sl_ */
+    .Sl_hide{ 
+        display: none;
+    }
+}
+
+@media(min-device-width:768px){
+    .hideDesktop {
+        display: none;
+    }
+}
+
+@media(max-device-width:768px){
+
+    .contest {
+        flex-direction: row;
+    }
+
+    .hideMobile {
+        display: none;
+    }
+
+    .hamb {
+        display: block;
+    }
+
+    .nav.shown{
+        max-height: 100% ; /* transitions are only possible when this is set to a fixed value; not with max-content and 100% seems to work only if we had position:fixed */
+        /*height:auto !important;*/
+    }
+
+    .liveRes {
+        display: flex;
+        flex-direction: column;
+        /*height: 100%;*/
+    }
+
+    .nav{
+        /* if the display is too small, show the navigation on top of everything else */
+        /*bottom:0;*/
+        /*position:fixed;*/
+        /*overflow-y:scroll;
+        overflow-x:hidden;*/
+        
+        width: 100%;
+        /*position: fixed;
+        overflow: scroll; */
+        max-height: 0px; /* does not work with 0%, but with 0, and 0px */
+        /*height: 0px;*/
+        overflow:hidden;
+        /*transition: max-height 1.0s ease-out;*/
+    }
+}

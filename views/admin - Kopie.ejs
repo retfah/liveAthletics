@@ -1,0 +1,27 @@
+<html>
+    <head>
+        <title><%= __('Server administration') %></title> 
+        <link rel="shortcut icon" type="image/x-icon" href="/favicon_quickNdirty.ico">
+        <link rel="icon" type="image/x-icon" href="/favicon_quickNdirty.ico">
+        <!--<link rel="icon" type="image/x-icon" href="favicon.ico">-->
+        <script src="main.js" type="text/javascript"></script> 
+        <script src="/static/wsProcessorBrowser.js" type="text/javascript"></script>
+        <script type='text/javascript'>
+        // the current page-structure representation here
+        var initPages = <%- pages %>;
+        var initPageName = "<%- pageName %>";
+        </script>
+        <link rel="stylesheet" type="text/css" href="styling.css">
+    </head>
+    <body onload = "startup()">
+        <!--
+        <div class="flexNav1" id="Nav1">
+            <a class="ItemNav1" onclick="return goto(this); return false;" href="configuration"><%= __('Configuration') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="competition"><%= __('Competition') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="speaker"><%= __('Speaker') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="production"><%= __('Production') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="admin"><%= __('Administration') %></a>
+        </div>
+        <div id="child1"><%- child1 %></div> --> <!-- id and ejs replacement must be the same-->
+    </body>
+</html>

@@ -1,0 +1,20 @@
+<!-- 
+    Define here lists that need to be used in multiple other files, e.g. the different status of competitions. 
+    In the respective files, an ejs-placeholder must be present: <%- statusPlaceholder %> 
+    and in the pages definition, the replacement with the property in here must be set:
+    injectionsSelf: {statusPlaceholder: {translatedList: competitionStatus}}
+
+    TODO: the injection mechanism must be able to handle the new "translatedList"-property
+-->
+
+module.exports = {
+    contestStatus: [],
+    seriesStatus:[], // eventually track, tech, techHigh must be differentiated
+    participationStatus: [
+        {value: 0, text: "<%= __('regular') %>"},
+        {value: 1, text: "<%= __('retired') %>"},
+        {value: 5, text: "<%= __('DNS') %>"},
+        {value: 6, text: "<%= __('DQ') %>"}
+        ]
+
+}

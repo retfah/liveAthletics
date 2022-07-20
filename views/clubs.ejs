@@ -1,0 +1,286 @@
+
+
+<script type="text/javascript">
+
+    // TODO: categories and regions data could be part of auxilary data of the athletes (or inscription) room instead of beeing separate rooms 
+    
+    class vuClubs extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('clubs@' + meetingShortname, true, true, '/static/rClubsClient.js', 'rClubsClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.clubs = this.room.data.clubs; // this will actually store a proxy of the data!
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.clubs = this.vue.clubs;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.clubs = this.room.data.clubs;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.clubs = this.vue.clubs;
+    
+        }
+    }
+    
+    
+    
+    var vueClubs={};
+    function startupClubs(){
+    
+        let vueAppConfig = {
+            data(){
+                return {
+                    clubs:[], 
+                    infoTitle:'',
+                    infoContent:'',
+                    infoVisible:false,
+                    showFullDetails: true, // TODO: set to false for production
+                    overlay: undefined,
+                    newClubName:'',
+                    newClubSortname:'',
+                    clubModID: -1,
+                    filterClubs: '',
+                    showDeleteFailed: false,
+                }
+            },
+            methods:{
+                
+                addClub(){
+                    
+                    this.clubModID = -1;
+    
+                    this.newClubName = '';
+                    this.newClubSortname = '';
+                    
+                    this.overlay = "addClub";
+                },
+                createClub(){
+                    if (this.clubModID==-1){
+                        let data = {
+                            name: this.newClubName,
+                            sortvalue: this.newClubSortname
+                        };
+    
+                        rC.room.addToStack('addClub', data)
+                    } else {
+                        let data = {
+                            name: this.newClubName,
+                            sortvalue: this.newClubSortname,
+                            xClub: this.clubModID
+                        };
+    
+                        rC.room.addToStack('updateClub', data)
+                    }
+                    this.overlay = "undefined";
+    
+                },
+                deleteClub(xClub){
+                    let opt = {
+                        errorHandling:[{
+                            from:20, 
+                            rule:"deleteContinue", 
+                            customErrMsg:(code, msg)=>{
+                                
+                                this.showDeleteFailed = true;
+                            }, 
+                            popupErrMsg: false,
+                            createErrMsg: false,
+                        }], // note: the rule would have to chnage if we change clubs to work offline as well
+                        
+                    }
+                    rC.room.addToStack('deleteClub', xClub, undefined, ()=>{}, opt);
+                },
+                modClub(xClub){
+                    this.clubModID = xClub;
+    
+                    let club = this.clubs.find(el=>el.xClub==xClub);
+    
+                    this.newClubName = club.name;
+                    this.newClubSortname = club.sortvalue;
+    
+                    this.overlay = "addClub";
+    
+                },
+                clubChanged(){
+                    // if the sortname is still empty, try to create it
+                    if (this.newClubSortname==''){
+                        // try to split the name; move all parts that are shortcuts to the end
+                        // shortcuts could be hardcoded (actually country dependent) OR we simply say, if a part is all upper-case, it is a shortcut
+                        //let typicalAbbreviations = ["TV", "LAC", "LV", "LC", "CA", "US", "BTV", "SFG", "COA", "STV", "KTV", "FSG", "AS", "OB", "LG", "LAR", "LR", "LAV", "TSV", "LSV", "SC", "FG", "GS", "SATUS", "SEP", "LZ"]; // this should be country dependent...
+                        let strs = this.newClubName.split(' ');
+                        let ending = ',';
+                        let beginning = '';
+                        for (let s of strs){
+                            //if (typicalAbbreviations.includes(s)){
+                            if (s==s.toUpperCase()){
+                                // is a shortcut
+                                ending += " " + s;
+                            } else {
+                                if (beginning==''){
+                                    beginning = s;
+                                } else {
+                                    beginning += " " + s;
+                                }
+                            }
+                        }
+                        if (ending){
+                            this.newClubSortname = beginning + ending;
+                        } else {
+                            this.newClubSortname = beginning;
+                        }
+                        
+                    }
+                },
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+                
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                /**
+                 * The same as findObjInArrayByProp, but only the object is returned
+                 **/
+                findObjInArrayByProp2(arr, prop, val){
+                    return this.findObjInArrayByProp(arr, prop, val)[1];
+                }
+            },
+            computed:{
+                filters: function(){
+                    return {filter1:{keys:['xClub', 'name', 'sortvalue'], value:this.filterClubs}} 
+                },
+            },
+            components:{
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+            }
+        }
+
+        // mount it 
+        vueClubs = Vue.createApp(vueAppConfig).mount('#vueDiv');
+        
+        let ms = getMeetingShortname();
+        var rC = new vuClubs(vueClubs, ms);
+        
+    }
+    </script>
+    
+    <div id="vueDiv">
+        <h2><%= __("List of clubs") %>:</h2>
+        <button type="button" class="btn btnGreen" v-on:click="addClub()"><%= __("Add club") %></button><br>
+        <label class="verticalForm">
+            <%= __("Filter clubs") %>: 
+            <input v-model="filterClubs" type="text" size="30">
+        </label>
+        <v-table :data="clubs" :filters="filters">
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xClub">xClub</th>
+                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="sortvalue"><%= __('Sortvalue') %></th>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="deleted"><%= __('Deleted') %></th>
+                        <th><!-- Buttons --></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xClub">
+                        <td v-if="showFullDetails">{{row.xClub}}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.sortvalue }}</td>
+                        <td v-if="showFullDetails">{{row.deleted}}</td>
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modClub(row.xClub)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-on:click="deleteClub(row.xClub)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+        
+        <!-- overlay for adding clubs -->
+        <div class="overlay" v-bind:class="{shown: overlay=='addClub'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="clubModID == -1"><%= __("Add club") %>: </h3>
+                        <h3 v-if="clubModID > -1"><%= __("Update club") %>: </h3>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newClubName" maxlength="100" v-on:blur="clubChanged">
+                        </label>
+                        <label>
+                            <%= __("Name for sorting") %>: 
+                            <input type="text" v-model="newClubSortname" maxlength="100">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="createClub" v-bind:disabled="newClubName==undefined || newClubSortname==undefined ">
+                            <div v-if="clubModID==-1"><%= __("Create club") %></div>
+                            <div v-if="clubModID>-1"><%= __("Update club") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
+            <div class="overlayContainer">
+                <%= __("Club could not be deleted, because it is referenced (e.g. an athlete or team is member of this club).") %>
+                <br><button type="button" class="btn"><%= __("OK") %></button>
+            </div>
+        </div>
+    
+        <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+            <!-- overlay used for displaying general information -->
+            <div id="overlayContainer">
+                <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+                <div id="overlayContent">{{infoContent}}</div>
+            </div>
+        </div>
+    
+    </div>
+    

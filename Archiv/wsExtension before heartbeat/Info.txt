@@ -1,0 +1,1 @@
+The wsExtension version herein with its overly extensive and complext syn/ack was never fully tested. Nevertheless, the server and client test scripts are given as well. However, also those scripts are actually not finished and were never successful in testing the full possibilities of the wsExtension

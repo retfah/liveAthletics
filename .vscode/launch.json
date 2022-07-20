@@ -1,0 +1,52 @@
+{
+    "configurations": [
+    {
+        "name": "backupRestoreTest",
+        "program": "${workspaceFolder}/backupRestoreTest.js",
+        "request": "launch",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "pwa-node"
+    },
+        {
+            "name": "wsTest",
+            "program": "${workspaceFolder}/wsTest.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node"
+        },
+        {
+            "name": "AlabusTest",
+            "program": "${workspaceFolder}/alabusTest.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node"
+        },
+
+    {
+        "name": "Programm starten",
+        "program": "${workspaceFolder}/Server.js", 
+        //"console": "integratedTerminal", // the default (internalConsole) should actually work, but for some unknown reason does not output the errors and produces strange results (sometimes the same code produces a different error ..?)
+        "request": "launch",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "pwa-node"
+    },
+    {
+        "name": "wsExample",
+        "program": "${workspaceFolder}/serverWsExtensionExample.cjs", 
+        "console": "integratedTerminal", // the default (internalConsole) should actually work, but for some unknown reason does not output the errors and produces strange results (sometimes the same code produces a different error ..?)
+        "request": "launch",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "pwa-node"
+    }
+    ]
+}

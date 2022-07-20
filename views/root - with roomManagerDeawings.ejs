@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title><%= title %></title> 
+        <link rel="shortcut icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <!--<link rel="icon" type="image/x-icon" href="favicon.ico">-->
+        <script src="/static/roomManager.js" type="text/javascript"></script>
+        <script src="/static/roomClient.js" type="text/javascript"></script>
+        <script src="/static/main.js" type="text/javascript"></script> 
+        <script src="/static/wsProcessorBrowser.js" type="text/javascript"></script>
+        <script src="/static/vue.js" type="text/javascript"></script>
+        <script src="/static/ajv.min.js"></script>
+        <script type='text/javascript'>
+        // the current page-structure representation here
+        var initPages = <%- pages %>;
+        var initPageName = "<%- pageName %>";
+        </script>
+        <!--<link rel="stylesheet" type="text/css" href="/static/bootstrap.min.css">-->
+        <link rel="stylesheet" type="text/css" href="/static/styling.css">
+    </head>
+    <body onload = "loadMe()" onbeforeunload="unloadMe()">
+        <div class="flexNav1" id="Nav1">
+            <a class="ItemNav1" onclick="return goto(this); return false;" href="configuration"><%= __('Configuration') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="competition"><%= __('Competition') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="speaker"><%= __('Speaker') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="production"><%= __('Production') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="admin"><%= __('Administration') %></a>
+            <a class="ItemNav1" href="/<%= _lang %>/meetingAdministration"><%= __('Server administration') %></a>
+            <a class="ItemNav1" onclick="return goto(this)" href="login"><%= __('Log in') %></a><!-- TODO: must also be able to handle logout!-->
+            <a class="ItemNav1" onclick="return goto(this)" href="logout"><%= __('Log out') %></a>
+            <a id="aConnection" class="Conn" onclick="rM.data.wsWindowShown=true;" ><%= __('Connection')%><span class="glyphicon glyphicon-transfer"></span></a><!-- replace by either settings symbol (gear) or wifi symbol finally-->
+        </div>
+        <div id="child1"><%- child1 %></div> <!-- id and ejs replacement must be the same-->
+
+        <div id="vueRoomsManager" style="position:static"> <!-- This div is just to have both inner divs in one vue-linked container-->
+            <!-- and here comes the none-sense part, that is only needed to redraw everything. (But its not enough to have it only in the vueData, since vue realizes when a proeprty is not used ;-)-->
+            <div style="display:none">{{any}}</div>
+            <!-- this div is for the rooms list:-->
+            <div class="wsWindow shadow" id="wsWindow" v-bind:class="{wsWindowShown: wsWindowShown, wsWindowHidden: !wsWindowShown}">
+                    
+                <div class="wsWindowsClientName" v-bind:class="{connected: connected, disconnected: !connected}"><%= __("Client name") %>: &nbsp;<input style="width: 150px; height:32px" type="text" v-model="clientName" v-on:blur="clientNameChanged"> </div> 
+                <div class="close" v-on:click="wsWindowShown=false;">X</div>
+                <!-- The background color of this element shall be the -->
+
+                <div class="wsWindowRooms clickable" v-for="room in rooms" v-bind:class="{connected: room.connected, disconnected: !room.connected}" v-on:click="roomSelected=room.name; clientWindowShown=true;">
+                    <div v-bind:class="{wsWindowRoomNameW: room.writingTicketID, wsWindowRoomNameR: !room.writingTicketID}">{{room.name}}</div>
+                    <div class="wsWindowRoomWritingrights" v-if="room.writingTicketID">W</div><!--TODO: add here the functioniality to request writingRights, if so far none were requested; eventually replace the W with a pencil graph-->
+                    <div class="wsWindowRoomWriting">{{room.infos.numClientsWriting}}/{{room.infos.maxWritingTickets}}</div>
+                    <div class="wsWindowRoomClients">{{room.infos.numClients}}</div>
+                </div> 
+
+            </div>
+        
+            <!-- and now the div for the clients list:-->
+            <div v-if="clientWindowShown" class="clientWindow shadow" id="clientWindow" v-bind:class="{clientWindowShown: clientWindowShown, clientWindowHidden: !clientWindowShown}">
+                <div v-if="clientWindowShown" class="room" v-bind:class="{connected: rooms[roomSelected].connected, disconnected: !rooms[roomSelected].connected}" v-if="rooms[roomSelected].writing">
+                    <div class="roomNameW">{{rooms[roomSelected].name}}</div>
+                    <div class="roomWriting">{{rooms[roomSelected].infos.numClientsWriting}}/{{rooms[roomSelected].infos.maxWritingTickets}}</div>
+                    <div class="roomClients">{{rooms[roomSelected].infos.numClients}}</div>
+                </div>
+                <div v-else class="room" v-bind:class="{connected: rooms[roomSelected].connected, disconnected: !rooms[roomSelected].connected}">
+                    <div class="roomNameR">{{rooms[roomSelected].name}}</div>
+                    <div class="roomClients">{{rooms[roomSelected].infos.numClients}}</div>
+                </div>
+                <div class="close" v-on:click="clientWindowShown=false;">X</div>
+                
+                <!-- only one of the two following, dependent on the requested writing rights: -->
+                <div class="client" v-if="clientWindowShown" v-for="client in rooms[roomSelected].infos.clients" v-bind:class="{connected:client.connected, disconnected: !client.connected, clickable:(client.writing && !(client.connected))}" v-on:click="revokeClientClick(client)">
+                    
+                    <div v-bind:class="{clientNameW: client.writing, clientNameR: !client.writing}">{{client.name}}</div>
+                    <div class="clientWriting" v-if="client.writing">W</div>
+                    
+                </div>
+            </div>
+            <div class="revokeWindow" id="revokeWindow" v-bind:class="{shown: revokeWindowShown, hidden: !revokeWindowShown} " v-if="revokeWindowShown">
+                <div class="message"><%= __("Do you really want to revoke the writing rights of client {{rooms[roomSelected].infos.clients[revokeClient].name}}?") %></div> <!-- important: the {{...}} MUST NOT be translated or changed!-->
+                <div class="no" v-on:click="revokeWindowShown=false"><%= __("No") %></div>
+                <div class="yes" v-on:click="revokeWritingTicket(revokeClient) ; revokeWindowShown=false"><%= __("Yes") %></div>
+            </div>
+
+            <div hidden id="roomManagerTranslations"> 
+                <div id="rMToutdated"><%= __("The room ${msg.room.name} was outdated. The request '${msg.info}' and all subsequent requests were rolled back. (Request content: ${JSON.stringify(msg.request)})") %></div><!-- these mustage notations do not work, since those properties are not available here! We could alternatively use the string template notation ${} and then eval them in the appropriate place. -->
+                <div id="rMTdeleteContinue"><%= __("The current request was deleted and the next was sent.") %></div>
+                <div id="rMTdeleteRollback"><%= __("The failed request as well as other hanging requests were deleted and/or rolled back.") %></div>
+                <div id="rMTsendAgain"><%= __("Request will be sent again as soon as possible.") %></div>
+                <div id="rMTsendAgainTimeout"><%= __("Request will be sent again after ${timeout}s.") %></div><!-- will be evaluated as a template string-->
+                <div id="rMTuser"><%= __("A user-define error handling function was executed.") %></div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,8 @@
+{
+    "room": "sideChannel",
+    "_roomPlural": "set to null (=undefined in JSON) if room +s",
+    "roomPlural": "sideChannel",
+    "primary": "xSideChannel",
+    "_models": "set to null (=undefined for JSON) if equal to roomPlural",
+    "models": null
+}

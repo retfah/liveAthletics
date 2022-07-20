@@ -1,0 +1,47 @@
+<div id="vueRoomsManager" style="position:static"> <!-- This div is just to have both inner divs in one vue-linked container-->
+    <!-- and here comes the none-sense part, that is only needed to redraw everything. (But its not enough to have it only in the vueData, since vue realizes when a proeprty is not used ;-)-->
+    <div style="display:none">{{any}}{{requestPending}}</div>
+    <!-- this div is for the rooms list:-->
+    <div class="wsWindow shadow" id="wsWindow" v-bind:class="{wsWindowShown: wsWindowShown, wsWindowHidden: !wsWindowShown}">
+            
+        <div class="wsWindowsClientName" v-bind:class="{connected: connected, disconnected: !connected}"><%= __("Client name") %>: &nbsp;<input style="width: 150px; height:32px" type="text" v-model="clientName" v-on:blur="clientNameChanged"> </div> 
+        <div class="close" v-on:click="wsWindowShown=false;">X</div>
+        <!-- The background color of this element shall be the -->
+
+        <div class="wsWindowRooms clickable" v-for="room in rooms" v-bind:class="{connected: room.connected, disconnected: !room.connected}" v-on:click="roomSelected=room.name; clientWindowShown=true;">
+            <div v-bind:class="{wsWindowRoomNameW: room.writingTicketID, wsWindowRoomNameR: !room.writingTicketID}">{{room.name}}</div>
+            <div class="wsWindowRoomWritingrights" v-if="room.writingTicketID">W</div><!--TODO: add here the functioniality to request writingRights, if so far none were requested; eventually replace the W with a pencil graph-->
+            <div class="wsWindowRoomWriting">{{room.infos.numClientsWriting}}/{{room.infos.maxWritingTickets}}</div>
+            <div class="wsWindowRoomClients">{{room.infos.numClients}}</div>
+        </div> 
+
+    </div>
+
+
+    <!-- and now the div for the clients list:-->
+    <div v-if="clientWindowShown" class="clientWindow shadow" id="clientWindow" v-bind:class="{clientWindowShown: clientWindowShown, clientWindowHidden: !clientWindowShown}">
+        <div v-if="clientWindowShown" class="room" v-bind:class="{connected: rooms[roomSelected].connected, disconnected: !rooms[roomSelected].connected}" v-if="rooms[roomSelected].writing">
+            <div class="roomNameW">{{rooms[roomSelected].name}}</div>
+            <div class="roomWriting">{{rooms[roomSelected].infos.numClientsWriting}}/{{rooms[roomSelected].infos.maxWritingTickets}}</div>
+            <div class="roomClients">{{rooms[roomSelected].infos.numClients}}</div>
+        </div>
+        <div v-else class="room" v-bind:class="{connected: rooms[roomSelected].connected, disconnected: !rooms[roomSelected].connected}">
+            <div class="roomNameR">{{rooms[roomSelected].name}}</div>
+            <div class="roomClients">{{rooms[roomSelected].infos.numClients}}</div>
+        </div>
+        <div class="close" v-on:click="clientWindowShown=false;">X</div>
+        
+        <!-- only one of the two following, dependent on the requested writing rights: -->
+        <div class="client" v-if="clientWindowShown" v-for="client in rooms[roomSelected].infos.clients" v-bind:class="{connected:client.connected, disconnected: !client.connected, clickable:(client.writing && !(client.connected))}" v-on:click="revokeClientClick(client)">
+            
+            <div v-bind:class="{clientNameW: client.writing, clientNameR: !client.writing}">{{client.name}}</div>
+            <div class="clientWriting" v-if="client.writing">W</div>
+            
+        </div>
+    </div>
+    <div class="revokeWindow" id="revokeWindow" v-bind:class="{shown: revokeWindowShown, hidden: !revokeWindowShown} " v-if="revokeWindowShown">
+        <div class="message"><%= __("Do you really want to revoke the writing rights of client {{rooms[roomSelected].infos.clients[revokeClient].name}}?") %></div> <!-- important: the {{...}} MUST NOT be translated or changed!-->
+        <div class="no" v-on:click="revokeWindowShown=false"><%= __("No") %></div>
+        <div class="yes" v-on:click="revokeWritingTicket(revokeClient) ; revokeWindowShown=false"><%= __("Yes") %></div>
+    </div>
+</div>

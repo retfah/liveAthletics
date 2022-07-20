@@ -1,0 +1,1868 @@
+
+
+<!-- IDEA: The athlete management ideally should also work without connection. How can we do the confiict handling? Simply try to apply everything or otherwise reject it? -> there is one big problem with the approach I have chosen where each room has its own stack: if adding an athlete depends on adding a club (which is in a different room), then we actually might fail, since we cannot ensure that the club is created before the athlete. The following would be possible for a offline work with multiple rooms:
+    (1) have one room at a time as "works offline", changes to other rooms must be made online only
+    (2) we are doing changes through only one room (e.g. use inscriptions as the main room; if a new club is created, then an athlete and finally some starts, then all these changes are handled through "inscriptions"; on the server, the inscriptions room would then call the other rooms to process the changes. 
+    (3) we create a common changes-stack on top of the stacks in each room. Every change would then be registered in this "changes manager". As soon as the connection is back after an interruption, the changes manager woudl start sending the first change. The answer from the server would have to go to the changes manager since we already used temporary ids for the created objects. The changes manager would then replace the temporary ID with the definitive one in all the subsequent changes and send then the next change to te respective room. 
+    => approach 3 is quite programming intensive (on the client), but the most flexible. 
+
+TODO: 
+- Athlet-in-Stammdaten-suchen und übernehmen Maske
+- Quittung drucken
+- formatiere PB/SB in Tabelle
+
+-->
+<!--<script src="/static/v-mask.js"></script>-->
+<script type="text/javascript">
+
+// the regions are needed because during adding athletes from a base DB we might have to add regions
+class vuRegions extends roomClientVue{
+    
+    constructor(vue, meetingShortname){
+        // parent constructor: initializes the room
+        //(roomName, writing, storeInfos, path, className, datasetName='')
+        super('regions@' + meetingShortname, true, true, '/static/rRegionsClient.js', 'rRegionsClient', '')
+
+        // needed to call things in the vue class
+        this.vue = vue;
+    }
+
+    /**
+     * called when a a writing ticket is stored or deleted
+     */
+    onWritingTicketChange(){
+        if (this.room.writingTicketID){
+            //this.vueServerAdmin.readOnly = false;
+        } else {
+            //this.vueServerAdmin.readOnly = true;
+        }
+    }
+
+    onChange(){
+        //this.vue.$forceUpdate();
+    }
+    
+    afterFullreload(){
+        // set the changed data-property as data of the vue-instance
+        this.vue.regions = this.room.data; // this will actually store a proxy of the data!
+
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data = this.vue.regions;
+    }
+    
+    dataArrived(){
+        // raised as soon as the room has its data stored for the first time
+        this.vue.regions = this.room.data;
+    
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data = this.vue.regions;
+
+    }
+}
+
+class vuClubs extends roomClientVue{
+    
+    constructor(vue, meetingShortname){
+        // parent constructor: initializes the room
+        //(roomName, writing, storeInfos, path, className, datasetName='')
+        super('clubs@' + meetingShortname, true, true, '/static/rClubsClient.js', 'rClubsClient', '')
+
+        // needed to call things in the vue class
+        this.vue = vue;
+    }
+
+    /**
+     * called when a a writing ticket is stored or deleted
+     */
+    onWritingTicketChange(){
+        if (this.room.writingTicketID){
+            //this.vueServerAdmin.readOnly = false;
+        } else {
+            //this.vueServerAdmin.readOnly = true;
+        }
+    }
+
+    onChange(){
+        //this.vue.$forceUpdate();
+    }
+    
+    afterFullreload(){
+        // set the changed data-property as data of the vue-instance
+        this.vue.clubs = this.room.data.clubs; // this will actually store a proxy of the data!
+
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.clubs = this.vue.clubs;
+    }
+    
+    dataArrived(){
+        // raised as soon as the room has its data stored for the first time
+        this.vue.clubs = this.room.data.clubs;
+    
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.clubs = this.vue.clubs;
+
+    }
+}
+
+class vuStarts extends roomClientVue{
+    
+    constructor(vue, meetingShortname){
+        // parent constructor: initializes the room
+        //(roomName, writing, storeInfos, path, className, datasetName='')
+        super('starts@' + meetingShortname, true, true, '/static/rStartsClient.js', 'rStartsClient', '')
+
+        // needed to call things in the vue class
+        this.vue = vue;
+    }
+
+    /**
+     * called when a a writing ticket is stored or deleted
+     */
+    onWritingTicketChange(){
+        if (this.room.writingTicketID){
+            //this.vueServerAdmin.readOnly = false;
+        } else {
+            //this.vueServerAdmin.readOnly = true;
+        }
+    }
+
+    onChange(){
+        //this.vue.$forceUpdate();
+    }
+    
+    afterFullreload(){
+        // set the changed data-property as data of the vue-instance
+        this.vue.starts = this.room.data.starts; // this will actually store a proxy of the data!
+
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.starts = this.vue.starts;
+    }
+    
+    dataArrived(){
+        // raised as soon as the room has its data stored for the first time
+        this.vue.starts = this.room.data.starts;
+    
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.starts = this.vue.starts;
+
+    }
+}
+
+class vuInscriptions extends roomClientVue{
+    
+    constructor(vue, meetingShortname){
+        // parent constructor: initializes the room
+        //(roomName, writing, storeInfos, path, className, datasetName='')
+        super('inscriptions@' + meetingShortname, true, true, '/static/rInscriptionsClient.js', 'rInscriptionsClient', '')
+
+        // needed to call things in the vue class
+        this.vue = vue;
+    }
+
+    /**
+     * called when a a writing ticket is stored or deleted
+     */
+    onWritingTicketChange(){
+        if (this.room.writingTicketID){
+            //this.vueServerAdmin.readOnly = false;
+        } else {
+            //this.vueServerAdmin.readOnly = true;
+        }
+    }
+
+    onChange(){
+        //this.vue.$forceUpdate();
+    }
+    
+    afterFullreload(){
+        // set the changed data-property as data of the vue-instance
+        this.vue.inscriptions = this.room.data.inscriptions; // this will actually store a proxy of the data!
+
+        //this.vue.regions = this.room.data.regions;
+        this.vue.meeting = this.room.data.meeting;
+        //this.vue.categories = this.room.data.categories;
+
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.inscriptions = this.vue.inscriptions;
+    }
+    
+    dataArrived(){
+        // raised as soon as the room has its data stored for the first time
+        
+        this.vue.inscriptions = this.room.data.inscriptions;
+        
+        //this.vue.regions = this.room.data.regions;
+        this.vue.meeting = this.room.data.meeting;
+        //this.vue.categories = this.room.data.categories;
+    
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.inscriptions = this.vue.inscriptions;
+
+    }
+}
+
+class vuEvents extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.events = this.room.data.events;
+            //this.vue.events = this.room.data;
+
+            this.vue.disciplines = this.room.data.disciplines;
+            this.vue.categories = this.room.data.categories;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.events = this.vue.events;
+            //this.room.data = this.vue.events;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.events = this.room.data.events;
+            //this.vue.events = this.room.data;
+            
+            this.vue.disciplines = this.room.data.disciplines;
+            this.vue.categories = this.room.data.categories;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.events = this.vue.events;
+            //this.room.data = this.vue.events;
+
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+    }
+
+var vueAthletes={};
+function startupAthletes(){
+
+    let vueAppConfig = {
+        data(){
+            return {
+                baseEntriesNum:-1, // initially -1 to show some info
+                baseEntries: [],
+                baseSearchString: '',
+                selectedBase: 0, // which base module is currently selected
+                baseModuleNames: <%- JSON.stringify(baseModules) %>, 
+                content: [{xInscription: 1, xCategory: 1, number:0, athlete:{name: "test", forename:"testFN", id:1}}, {xInscription: 2, xCategory: 2, number: 0, athlete: {name:"name2", forename: "nameFN2", id:2}}, {xInscription: 3, xCategory: 1, number:0, relay:{name:"test", forename:"beforename", id:3}}],
+                someOther: 4,
+                filterString: "", 
+                // real data
+                filterAthletes: '',
+                inscriptions: [], // the athletes and relays are part of the inscriptions room
+                clubs: [], 
+                regions: [],    // as auxilariy date of inscriptions
+                categories: [], // as auxilariy date of events
+                disciplines: [],// as auxilariy date of events
+                events: [], 
+                starts: [],
+                meeting: {}, // background information about the meeting
+                show: 'athletes', // which "ribbon" is shown --> TODO: not used anymore
+                selectedInscription: undefined, // if undefined, show the list of athletes; if defined show the starts of this athlete
+                selectedInscriptionPerformances: undefined,
+                infoTitle: '',
+                infoContent: '',
+                infoVisible: false,
+                showFullDetails: true, // TODO: set to false for production
+                overlay: undefined,
+                overlay2: undefined,
+                newAthleteNumber: undefined,
+                newAthleteBirthdate: undefined,
+                newAthleteRegion: undefined,
+                newAthleteClub: undefined,
+                newAthleteCategory: undefined,
+                newAthleteSex: undefined,
+                newAthleteLastname: '',
+                newAthleteForename: '',
+                athleteModID:-1, // create new=-1
+                newClubName:'',
+                newClubSortname:'',
+                clubModID: -1,
+                startModID: -1, // create new=-1
+                newStartEvent: undefined,
+                newStartEventFilter: '',
+                newStartPaid: false,
+                newStartCompetitive: true,
+                newStartPB: '', // TODO: eventually change to integer
+                newStartPBnote: undefined,
+                newStartSB: '', // TODO: eventually change to integer
+                newStartSBnote: undefined,
+                newStartPBrealistic: true,
+                newStartSBrealistic: true,
+                newStartEventFilter: '',
+                myInputModel: '',
+                autoSelectClub: true, // I think in this "file" we only add clubs through the "new athletes" dialog
+                bibSpacing: 0,
+                bibSortOption: undefined,
+                inscriptionsInitialized: false, // needed to handle the definition of the preselected athlete.
+            }
+        },
+        methods:{
+            doNothing: function(){
+                return 1;
+            },
+            baseSearchKeydown(event){
+                if (13 == (event.which || event.keyCode)){
+                    // Enter pressed: send request, independent on the length of the string 
+                    this.startBaseSearch();
+
+                    // prevent "form submission" = reload
+                    event.preventDefault();
+                }
+                return true;
+            },
+            /*baseSearchChanged: function(){
+                // check if more than three characters are present then start the request
+                if (this.baseSearchString.length>=3){
+                    this.startBaseSearch();
+                }
+            },*/
+            startBaseSearch(){
+                // start request to server to get data from the selected base
+
+                const previousSearch = this.baseSearchString;
+
+                // since there is no actual handler in the roomClient for such a request (it also is no change and will not be broadcasted), we have to define the funciton here
+                let funcOverride = (data, defaultFunc)=>{
+                    this.baseEntriesNum = data.entriesNum; 
+                    this.baseEntries =  data.entries;
+
+                    // if the base string has changes meanwhile, then this request was certainly not processed, since "rInscription" is an online-only room, where no stack is allowed. So we have to start the next call right away.
+                    if (previousSearch != this.baseSearchString){
+                        console.log('Base athlete search arrived after the base string has been changed again; start the next call right away.')
+                        this.startBaseSearch();
+                    }
+                }
+
+                let request = {
+                    base: this.baseModuleNames[this.selectedBase],
+                    search: this.baseSearchString,
+                }
+
+                rI.room.getBaseData(request, funcOverride)
+
+            },
+            addBaseAthlete: async function(i){
+                const athlete = this.baseEntries[i];
+
+                // first check that the club already exists.
+
+                const clubProm = new Promise((resolve, reject)=>{
+                    const club = this.clubs.find(c=>c.name==athlete.clubName);
+                    if (club) {
+                        resolve(club.xClub);
+                    } else {
+                        // add the club and then insert the athlete
+                        const data = {
+                            name: athlete.clubName,
+                            sortvalue: athlete.clubSortvalue,
+                        };
+
+                        const funcOverride = (data, defaultFunc)=>{
+                            defaultFunc(data);
+                            resolve(data.xClub);
+                        }
+
+                        rC.room.addToStack('addClub', data, funcOverride)
+                    } 
+                })
+
+                // TODO: then make sure the region is known
+                const regionProm = new Promise((resolve, reject)=>{
+                    const region = this.regions.find(r=> r.country == athlete.country && r.regionName == athlete.regionName && r.regionShortname == athlete.regionShortname);
+                    if (region){
+                        resolve(region.xRegion);
+                    } else {
+                        // create the region first
+                        const region = {
+                            country: athlete.country,
+                            countryName: athlete.countryName,
+                            regionName: athlete.regionName,
+                            regionShortname: athlete.regionShortname,
+                        };
+
+                        const funcOverride = (data, defaultFunc)=>{
+                            defaultFunc(data);
+                            resolve(data.xRegion);
+                        }
+
+                        rR.room.addToStack('addRegion', region, funcOverride);
+                    }
+                })
+
+                const [xClub, xRegion] = await Promise.all([clubProm, regionProm]);
+
+                // add the athlete
+
+                // get the best matching category
+                const xCat = this.catCalcWorker(athlete.birthdate, athlete.sex);
+
+                // start request to the server
+                let data={
+                    athlete:{
+                        lastname: athlete.lastname,
+                        forename: athlete.firstname,
+                        sex: athlete.sex,
+                        birthdate: athlete.birthdate,
+                        xRegion: xRegion, 
+                        xClub: xClub,
+                        identifier: athlete.identifier,
+                        nationalBody: this.baseModuleNames[this.selectedBase],
+                    },
+                    xCategory: xCat,
+                }
+                // TODO: eventually set automatically a new number
+                // data.number
+
+                // create the athlete and then show the his/her page to add starts
+                this.createNewAthlete(data, true);
+
+            },
+            addClub(){
+                
+                this.clubModID = -1;
+
+                this.newClubName = '';
+                this.newClubSortname = '';
+                
+                this.overlay2 = "addClub";
+            },
+            createClub(){
+                if (this.clubModID==-1){
+                    let data = {
+                        name: this.newClubName,
+                        sortvalue: this.newClubSortname
+                    };
+
+                    // when the club is added during "adding a new athlete", then the club should automatically be set as the chosen club, as sons as the server has answered.
+                    if (this.autoSelectClub){
+
+                        let funcOverride = (data, defaultFunc) =>{
+                            defaultFunc(data);
+
+                            this.newAthleteClub = data.xClub;
+                        }
+
+                        rC.room.addToStack('addClub', data, funcOverride)
+                    } else {
+                        rC.room.addToStack('addClub', data)
+                    }
+
+                } else {
+                    let data = {
+                        name: this.newClubName,
+                        sortvalue: this.newClubSortname,
+                        xClub: this.clubModID
+                    };
+
+                    rC.room.addToStack('updateClub', data)
+                }
+                this.overlay2 = "undefined";
+
+            },
+            deleteClub(xClub){
+                rC.room.addToStack('deleteClub', xClub);
+            },
+            modClub(xClub){
+                this.clubModID = xClub;
+
+                let club = this.clubs.find(el=>el.xClub==xClub);
+
+                this.newClubName = club.name;
+                this.newClubSortname = club.sortname;
+
+                this.overlay2 = "addClub";
+
+            },
+            clubChanged(){
+                // if the sortname is still empty, try to create it
+                if (this.newClubSortname==''){
+                    // try to split the name; move all parts that are shortcuts to the end
+                    // shortcuts could be hardcoded (actually country dependent) OR we simply say, if a part is all upper-case, it is a shortcut
+                    //let typicalAbbreviations = ["TV", "LAC", "LV", "LC", "CA", "US", "BTV", "SFG", "COA", "STV", "KTV", "FSG", "AS", "OB", "LG", "LAR", "LR", "LAV", "TSV", "LSV", "SC", "FG", "GS", "SATUS", "SEP", "LZ"]; // this should be country dependent...
+                    let strs = this.newClubName.split(' ');
+                    let ending = ',';
+                    let beginning = '';
+                    for (let s of strs){
+                        //if (typicalAbbreviations.includes(s)){
+                        if (s==s.toUpperCase()){
+                            // is a shortcut
+                            ending += " " + s;
+                        } else {
+                            if (beginning==''){
+                                beginning = s;
+                            } else {
+                                beginning += " " + s;
+                            }
+                        }
+                    }
+                    if (ending != ","){
+                        this.newClubSortname = beginning + ending;
+                    } else {
+                        this.newClubSortname = beginning;
+                    }
+                    
+                }
+            },
+            addStart(){
+                this.startModID = -1;
+
+                this.newStartCompetitive = true;
+                this.newStartPaid = false;
+                this.newStartEvent = undefined;
+                this.newStartPB = undefined;
+                this.newStartSB = undefined;
+                this.newStartPBrealistic = true;
+                this.newStartSBrealistic = true;
+
+                // reset validation stuff
+                document.getElementById('PB').setCustomValidity('');
+                document.getElementById('SB').setCustomValidity('');
+
+                this.overlay = "addStart";
+            },
+            modStart(start){
+                
+                this.startModID = start.xStart;
+
+                this.newStartCompetitive = start.competitive;
+                this.newStartPaid = start.paid;
+                this.newStartEvent = start.xEvent;
+                this.newStartPB = start.bestPerf;
+                this.newStartSB = start.bestPerfLast;
+
+                this.checkInput('PB', true);
+                this.checkInput('SB', true);
+
+                this.overlay = "addStart";
+            },
+            createStart(){
+                // send addStart or updateStart to the server:
+                if (this.startModID==-1){
+                    // create new:
+
+                    // start request to the server
+                    let data={
+                        xEvent: this.newStartEvent,
+                        xInscription: this.selectedInscription,
+                        paid: this.newStartPaid,
+                        competitive: this.newStartCompetitive,
+                        inBase: '', // TODO: is this needed? If yes, change as soon as we have base results
+                    }
+
+                    // add performances only if they are valid
+                    let event = this.events.find(el=>el.xEvent==this.newStartEvent);
+                    let xBaseDiscipline = this.disciplines.find(el=>el.xDiscipline==event.xDiscipline).xBaseDiscipline;
+                    let PB = this.validateInput(this.newStartPB, xBaseDiscipline);
+                    let SB = this.validateInput(this.newStartSB, xBaseDiscipline);
+                    if (PB.valid){
+                        data.bestPerf = PB.valueNumeric;
+                    }
+                    if (SB.valid){
+                        data.bestPerfLast = SB.valueNumeric;
+                    }
+
+                    rS.room.addToStack('addStart', data)
+
+                    this.overlay = "undefined";
+                } else {
+                    // update: 
+
+                    let inscription = this.inscriptions.find((el)=>el.xInscription==this.athleteModID);
+
+                    let data={
+                        xStart: this.startModID,
+                        // xEvent cannot be changed!
+                        // xInscription cannot be changed
+                        paid: this.newStartPaid,
+                        competitive: this.newStartCompetitive,
+                        inBase: '', // TODO: is this needed? If yes, change 
+                    }
+
+                    // add performances only if they are valid
+                    let event = this.events.find(el=>el.xEvent==this.newStartEvent);
+                    let xBaseDiscipline = this.disciplines.find(el=>el.xDiscipline==event.xDiscipline).xBaseDiscipline;
+                    let PB = this.validateInput(this.newStartPB, xBaseDiscipline);
+                    let SB = this.validateInput(this.newStartSB, xBaseDiscipline);
+                    if (PB.valid){
+                        data.bestPerf = PB.valueNumeric;
+                    }
+                    if (SB.valid){
+                        data.bestPerfLast = SB.valueNumeric;
+                    }
+
+                    rS.room.addToStack('updateStart', data)
+
+                    this.overlay = "undefined";
+                }
+            },
+            deleteStart(xStart){
+                rS.room.addToStack('deleteStart', xStart)
+            },
+            catCalcWorker(birthdate, sex, returnAllMatching=false){
+                // calculate the best matching category based on the birthdate (as string, e.g. '1992-03-28') and the sex
+                // returns the xCategory or undefined when no matching category was found and returnAllMatching is false; returns an array with all matching categories with the best category being first
+
+                // if both the age and the sex are known, calculate the default category
+                // the best fitting category is the one with the lowest age-span (and the sex matches)
+                // if two are identical, take the first one
+                let enddate = new Date();
+                if (this.meeting.dateTo){
+                    enddate = new Date(this.meeting.dateTo);
+                }
+                let meetingYear = enddate.getFullYear();
+                let athleteYear = Number(birthdate.split('-')[0]);
+                let age = meetingYear - athleteYear;
+
+                // list of matching categories; entries: {xCategory, catSpan, catDelta}
+                let matchingCategories = [];
+
+                // loop over all categories and find the best category
+                // let xCatBest = -1; // xCategory of the best category so far
+                // let catSpanBest = 9999; // age span of the currently best category
+                // let catDeltaBest = 9999; // delta of the age between maxAge of the best cat and the athlete
+                for (let cat of this.categories){
+                    if (cat.sex==sex && cat.ageMax>=age && cat.ageMin<=age){
+                        // the category basically suits:
+
+                        let catSpan = cat.ageMax - cat.ageMin; // age span of the currently best category
+                        let catDelta = cat.ageMax-age; // delta of the age between maxAge of the best cat and the athlete
+                        matchingCategories.push({
+                            xCategory: cat.xCategory,
+                            catSpan,
+                            catDelta
+                        })
+
+                        // // basically the category suits; is it better than the currently best?
+                        // if ((catSpanBest > catSpan && catDeltaBest >= catDelta) || (catSpanBest >= catSpan && catDeltaBest>catDelta)){
+                        //     // at least one criterion is better
+                        //     xCatBest = cat.xCategory;
+                        //     catSpanBest = catSpan;
+                        //     catDeltaBest = catDelta;
+                        // }
+                    }
+                }
+                // sort the array: first priority: catDelta, second priority: catBest
+                matchingCategories.sort((cat1, cat2)=>{
+                    if (cat1.catDelta>cat2.catDelta){
+                        return 1;
+                    } else {
+                        // equal must be 0; non equal must be non-zero
+                        if (cat1.catSpan==cat2.catSpan){
+                            return 0
+                        } else {
+                            return cat1.catSpan < cat2.catSpan ? -1 : 1;
+                        }
+                    }
+                })
+                if (returnAllMatching){
+
+                    return matchingCategories.map(el=>el.xCategory);
+                } else {
+                    if (matchingCategories.length>0){
+                        return matchingCategories[0].xCategory;
+                    } else {
+                        return;
+                    }
+
+                    /*if (xCatBest==-1){
+                        // no matching cat found
+                        return
+                    } else {
+                        return xCatBest;
+                    }*/
+                }
+
+            },
+            hasStarts(xInscription){
+                // check whetehr there are starts for an inscipriton
+                return this.starts.some(el=>el.xInscription==xInscription);
+            },
+            catCalc(){
+                if (!this.newAthleteCategory && this.newAthleteSex && this.newAthleteBirthdate){
+
+                    // new: the calculation is separated since it is reused for sorting the xEvents in the start definition
+                    let xCatBest = this.catCalcWorker(this.newAthleteBirthdate, this.newAthleteSex);
+
+                    if (xCatBest===undefined){
+                        // no matching cat found
+                        return
+                    } else {
+                        this.newAthleteCategory = xCatBest;
+                    }
+
+                    // only active categories
+                }
+            },
+            getDiscipline: function(xDiscipline){
+                return this.disciplines.find(el=>el.xDiscipline==xDiscipline);
+            },
+            getCategory: function(xCategory){
+                return this.categories.find(el=>el.xCategory==xCategory);
+            },
+            getYearShort: function(dateString){
+                let d = new Date(dateString);
+                return d.getFullYear().toString().slice(-2);
+            },
+            preFilter: function(filterValue, row){
+                // prefilter all relays from the inscriptions
+                return "athlete" in row
+            },
+            clubFilter: function(filterValue, row){
+                return this.clubsAssoc[row.athlete.xClub]?.name?.toLowerCase().includes(filterValue.toLowerCase());
+            },
+            overlayInfo(title, content){
+                this.infoTitle = title;
+                this.infoContent = content;
+                this.infoVisible = true;
+            },
+            formatCountryRegion(region){
+                // if there is country and region defined, return "country / region", otherwise just "country"
+                if (region.regionShortname){
+                    return region.country + " / " + region.regionShortname;
+                } else if (region.regionName){
+                    return region.country + " / " + region.regionName;
+                } else {
+                    return region.country;
+                }
+            },
+            addAthlete(){
+                // reset all variables
+                this.athleteModID = -1;
+                this.newAthleteNumber = undefined;
+                this.newAthleteBirthdate = undefined;
+                this.newAthleteRegion = undefined;
+                this.newAthleteClub = undefined;
+                this.newAthleteCategory = undefined;
+                this.newAthleteSex = undefined;
+                this.newAthleteLastname = '';
+                this.newAthleteForename = '';
+
+                this.overlay='addAthlete';
+            },
+            addAthleteBase(){
+                this.overlay='addAthleteBase';
+            },
+            modAthlete(xInscription){
+                // start modifying an athlete
+                this.athleteModID = xInscription;
+
+                let inscription = this.inscriptions.find((el)=>el.xInscription==xInscription);
+
+                this.newAthleteNumber = inscription.number;
+                this.newAthleteBirthdate = inscription.athlete.birthdate;
+                this.newAthleteRegion = inscription.athlete.xRegion;
+                this.newAthleteClub = inscription.athlete.xClub;
+                this.newAthleteCategory = inscription.xCategory;
+                this.newAthleteSex = inscription.athlete.sex;
+                this.newAthleteLastname = inscription.athlete.lastname;
+                this.newAthleteForename = inscription.athlete.forename;
+
+                this.overlay='addAthlete';
+            },
+
+            createNewAthlete(data, gotoStarts=false){
+                // data must contain an athlete object as well as xCategory and optionally the bib (called "number")
+
+                if (gotoStarts){
+                    // go directly to the list of starts for this athlete, to add the starts
+                    // there is one small problem: adding a start requires that the athlete was already added. 
+                    
+                    let funcOverride = (data, defaultFunc)=>{
+                        // first call the default function to add the data to the list
+                        defaultFunc(data);
+
+                        this.selectedInscription = data.xInscription;
+
+                        this.addStart()
+                    }
+
+                    rI.room.addToStack('addInscription', data, funcOverride)
+                    // TODO: eventually add a "waiting"-overlay
+
+                } else {
+                    rI.room.addToStack('addInscription', data)
+                    this.overlay = "undefined";
+                }
+
+            },
+            createAthlete(gotoStarts=false){
+                if (this.athleteModID==-1){
+                    // create new:
+
+                    // start request to the server
+                    let data={
+                        athlete:{
+                            lastname: this.newAthleteLastname,
+                            forename: this.newAthleteForename,
+                            sex: this.newAthleteSex,
+                            birthdate: this.newAthleteBirthdate,
+                            xRegion: this.newAthleteRegion,
+                            xClub: this.newAthleteClub,
+                        },
+                        xCategory: this.newAthleteCategory,
+                    }
+                    if (this.newAthleteNumber){
+                        data.number = this.newAthleteNumber;
+                    }
+
+                    this.createNewAthlete(data, gotoStarts);
+
+                    /*if (gotoStarts){
+                        // go directly to the list of starts for this athlete, to add the starts
+                        // there is one small problem: adding a start requires that the athlete was already added. 
+                        
+                        let funcOverride = (data, defaultFunc)=>{
+                            // first call the default function to add the data to the list
+                            defaultFunc(data);
+
+                            this.selectedInscription = data.xInscription;
+
+                            this.addStart()
+                        }
+
+                        rI.room.addToStack('addInscription', data, funcOverride)
+                        // TODO: eventually add a "waiting"-overlay
+
+                    } else {
+                        rI.room.addToStack('addInscription', data)
+                        this.overlay = "undefined";
+                    }*/
+
+                } else {
+                    // update: 
+
+                    let inscription = this.inscriptions.find((el)=>el.xInscription==this.athleteModID);
+
+                    let data={
+                        athlete:{
+                            //xAthlete: inscription.athlete.xAthlete,
+                            lastname: this.newAthleteLastname,
+                            forename: this.newAthleteForename,
+                            sex: this.newAthleteSex,
+                            birthdate: this.newAthleteBirthdate,
+                            xRegion: this.newAthleteRegion,
+                            xClub: this.newAthleteClub,
+                            //xInscription: inscription.athlete.xAthlete
+                        },
+                        xCategory: this.newAthleteCategory,
+                        number: this.newAthleteNumber,
+                        xInscription: this.athleteModID // used as identifier on the server
+                    }
+                    if (this.newAthleteNumber){
+                        data.number = this.newAthleteNumber;
+                    }
+
+                    rI.room.addToStack('updateInscription', data)
+
+                    this.overlay = "undefined";
+                }
+
+            },
+            deleteAthlete(xInscription){
+                rI.room.addToStack('deleteInscription', xInscription)
+            },
+            checkInput(PBSB, applyChange=false){
+                // check whether the made string input is realistic
+                // do NOT change the value here; this will be done on blur/change.
+
+                let value;
+                let element;
+                if (PBSB=='PB'){
+                    value = this.newStartPB;
+                    element = document.getElementById('PB');
+                } else if (PBSB=='SB') {
+                    value = this.newStartSB;
+                    element = document.getElementById('SB');
+                } else {
+                    return;
+                }
+
+                if (this.newStartEvent != undefined && value != '' && value != undefined){
+                    
+                    // get the base discipline first
+                    // newStartEvent --> event --> xDiscipline --> xBaseDiscipline
+                    let event = this.events.find(el=>el.xEvent==this.newStartEvent);
+
+                    let xBaseDiscipline = this.disciplines.find(el=>el.xDiscipline==event.xDiscipline).xBaseDiscipline;
+
+                    let validity = this.validateInput(value, xBaseDiscipline)
+                    //validity={valid, value, modified, realistic}
+
+                    if (PBSB=='PB'){
+                        this.newStartPBrealistic = validity.valid ? validity.realistic : true; // must be set to true, if invalid; otherwise it will not appear red, since the "unrealistic" class had priority over ":invalid"
+                        if (validity.valueModified && applyChange){
+                            this.newStartPB = validity.value;
+                        }
+                    } else {
+                        // SB
+                        this.newStartSBrealistic = validity.valid ? validity.realistic : true;
+                        if (validity.valueModified && applyChange){
+                            this.newStartSB = validity.value;
+                        }
+                    }
+                    if (validity.valid){
+                        element.setCustomValidity('');
+                    } else {
+                        element.setCustomValidity('<%= __("The value is invalid.") %>')
+                        element.reportValidity();
+                    }
+
+                } else {
+                    // reset all 
+                    element.setCustomValidity('');
+                    if (PBSB=='PB'){
+                        this.newStartPBrealistic = true;
+                    } else if (PBSB=='SB'){
+                        this.newStartSBrealistic = true;
+                    }
+                }
+            },
+            /**
+             * returns the index and the object itself of the first object where the property prop is equal to value 
+             * @param {array of objects} arr 
+             * @param {string} prop 
+             * @param {*} val 
+             * @return {array} [index, the object]
+             */
+            findObjInArrayByProp(arr, prop, val){
+                for (let i=0; i<arr.length;i++){
+                    if (arr[i][prop] == val){
+                        return [i, arr[i]];
+                    }
+                }
+                return [-1, {}];
+            },
+            /**
+             * The same as findObjInArrayByProp, but only the object is returned
+             **/
+            findObjInArrayByProp2(arr, prop, val){
+                return this.findObjInArrayByProp(arr, prop, val)[1];
+            },
+            /**
+             * validateInput: validate the given string input value for the specified xBaseDiscipline. 
+             * @param {string} value  The value to validate. If the value is undefined, it will be replaced with ''
+             * @param {int} xBaseDiscipline The id of the discipline. Future: automatically create this validation function based on the correct xDiscipline-validation function, since the xDiscpline may change!
+             * @return {object} 
+             * @return {boolean} obj.valid true if the now defined value is valid
+             * @return {string} obj.value the correctly formatted value
+             * @return {integer} obj.valueNumeric The numeric integer as it will be stored in the DB
+             * @return {boolean} obj.stringModified true if the string changed (Attention: e.g. if the string was "3." and is "3" afterwards, it has changed, but the value did not!)
+             * @return {boolean} obj.valueModified true if the value changed
+             * @return {boolean} obj.realistic false if the entered value is technically fine, but unrealistic (e.g. 100.23m javelin)
+             **/
+            validateInput(value, xBaseDiscipline){
+                // try to implement this function as generic as possible to allow this flexibility for the case when we implement flexible xDisciplines
+
+                // define the method to use based on the xDiscipline
+                // TODO: automate that!
+
+                let realisticCheck = {};
+                let method;
+                if (xBaseDiscipline==1){
+                    // pole vault
+                    method = tech;
+
+                    realisticCheck.max = 6.5;
+                    realisticCheck.min = 1.2;
+                } else if (xBaseDiscipline == 2){
+                    // high jump
+                    method = tech;
+
+                    realisticCheck.max = 2.5;
+                    realisticCheck.min = 0.6;
+                }
+
+                let modified =  false;
+
+                // make sure value is not undefined and surely a string
+                if (value==undefined){
+                    value = '',
+                    modified = true;
+                } else if (typeof(value) != 'string'){
+                    value = value.toString();
+                }
+
+                // first trim
+                let trimmed = value.trim();
+                if (trimmed != value){
+                    value = trimmed;
+                    modified = true;
+                }
+                
+                // process technical disciplines; always something in meter and centimeter. 
+                function tech(){
+                    // when there is no comma or period and the number has three digits or more, it is in cm
+
+                    // new approach: 
+                    // replace comma by period
+                    value = value.replaceAll(',', '.');
+
+                    // try to interpret the string as a number
+                    let num = Number(value);
+
+                    if (isNaN(num)){
+                        return {
+                            valid: false,
+                            value,
+                            valueNumeric: 0,
+                            stringModified: false,
+                            valueModified: false,
+                            realistic: false 
+                        }
+                    }
+
+                    let valueModified = false;
+
+                    // if the number is above 100 and has no period, it is in cm (it would be funnier "if it is in in")
+                    if (num >= 100 && value.indexOf('.') == -1){
+                        num = num/100;
+                        valueModified = true;
+                    }
+
+                    // check whether the value is realistic
+                    let realistic = true;
+                    if (num < realisticCheck.min || num > realisticCheck.max){
+                        realistic = false
+                    }
+
+                    let valueNew = num.toString();
+                    let stringModified = false;
+
+                    if (value != valueNew){
+                        stringModified = true;
+                        value = valueNew;
+                    }
+
+                    return {
+                        valid: true,
+                        value, // as string
+                        valueNumeric: Math.round(num*100), // in the DB we store it in cm; despite the fact in athletics we should always round down (floor), we should use round here, because the floats might be slightly "wrong", e.g. floor(4.85*100)=484 instad of 485. 
+                        stringModified,
+                        valueModified,
+                        realistic 
+                    }
+                }
+
+                // do all the checks and return within the check.
+                return method();
+
+            },
+            /**
+             * format the given integer-value for the presentation to the user
+             * @param {integer} value The integer value to format
+             * @param {integer} xBaseDiscipline According to what discipline the fomatting shall be done. TODO: in the future the link between xBaseDiscpline and the formattgin emthod must be dynamically injected! 
+             **/
+            formatValue(value, xBaseDiscipline){
+                // currently the link between xBaseDiscipline is hardcoded
+
+                let tech = ()=>{
+                    // tech disciplines: the integer value is always in cm --> change to m
+
+                    return (value/100).toString() + " m";
+                }
+
+                // TODO: make this link dynamically injected based on the disciplines
+                let method;
+                if (xBaseDiscipline==1){
+                    // pole vault
+                    method = tech;
+                } else if (xBaseDiscipline == 2){
+                    // high jump
+                    method = tech;
+                }
+
+
+
+                return method();
+            },
+            getEventTitle: function(ev){
+                // the title of an event, used as the name for an event including some info
+                return `${this.getCategory(ev.xCategory).shortname} ${this.getDiscipline(ev.xDiscipline).shortname} ${ev.info}`;
+            },
+            getEventObj: function(xEvent){
+                return this.events.find(ev=>ev.xEvent == xEvent)
+            },
+            showAssignBibs(){
+                this.bibSpacing = 0;
+                this.bibSortOption = undefined;
+
+                this.overlay = "bibAssignment";
+            },
+            assignBibs(){
+                // create a new list with all athletes, then (1) group this list and (2) sort this list. 
+                // finally write a list of all new numbers ([{xInscription:1, number:1}, {...}]) and send the request to the server
+
+                let inscriptions = [...this.inscriptions]; // copy array
+
+                // create lists defining how to group and sort, in the respective order
+                // later to be replaced by the lists created by drag and drop
+                let sorting = [];
+                let grouping = [];
+
+                if (this.bibSortOption=="S:Name"){
+                    sorting = ['lastname', 'firstname'];
+                } else if (this.bibSortOption=="G:Sex_S:Name"){
+                    grouping = ["sex"];
+                    sorting = ["lastname", 'firstname'];
+                } else if (this.bibSortOption=="G:Category_S:Name"){
+                    grouping = ["category"];
+                    sorting = ["lastname", 'firstname'];
+                } else if (this.bibSortOption=="G:Club_S:Name"){
+                    grouping = ["club"];
+                    sorting = ["lastname", 'firstname'];
+                }
+
+                let sortingFunctions = {
+                    // after ECMAscript 10:
+                    // 1: el2 before el1
+                    // -1: el1 before el2
+                    // 0: both are the same
+                    lastname: function(el1, el2){
+                        let l1 = el1.athlete.lastname.toLowerCase();
+                        let l2 = el2.athlete.lastname.toLowerCase();
+                        if (l1==l2){
+                            return 0;
+                        } else if(l1 < l2) {
+                            return -1;
+                        } else {
+                            return 1;
+                        }
+                    }, 
+                    firstname: function(el1, el2){
+                        let f1 = el1.athlete.forename.toLowerCase();
+                        let f2 = el2.athlete.forename.toLowerCase();
+                        if (f1==f2){
+                            return 0;
+                        } else if(f1 < f2) {
+                            return -1;
+                        } else {
+                            return 1;
+                        }
+                    },
+                    sex: function(el1, el2){
+                        if (el1.athlete.sex==el2.athlete.sex){
+                            return 0;
+                        } else if(el1.athlete.sex < el2.athlete.sex) {
+                            return -1;
+                        } else {
+                            return 1;
+                        }
+                    },
+                    category: (el1, el2)=>{
+                        let cat1 = this.categories.find(el=>el1.xCategory==el.xCategory).sortorder;
+                        let cat2 = this.categories.find(el=>el2.xCategory==el.xCategory).sortorder;
+                        // since cat is a number we can do this:
+                        return cat1 - cat2;
+                    }, 
+                    club: (el1, el2)=>{
+                        // sortvalue is a string
+                        let club1 = this.clubs.find(el=>el1.athlete.xClub==el.xClub).sortvalue;
+                        let club2 = this.clubs.find(el=>el2.athlete.xClub==el.xClub).sortvalue;
+                        if (club1==club2){
+                            return 0;
+                        } else if(club1 < club2) {
+                            return -1;
+                        } else {
+                            return 1;
+                        }
+                    },
+                    // could be extended for other properties
+                };
+
+                // check whether the sorting/grouping Functions exist; otherwise ignore them!
+                sorting = sorting.filter(el=> sortingFunctions[el]==undefined ? false : true)
+                grouping = grouping.filter(el=> sortingFunctions[el]==undefined ? false : true)
+
+                // grouping and sorting is basically the same: we sort first by groups and within by the properties defined in sort. The only difference is that we can have a spacing between groups, which will be treated during number assignment
+
+                inscriptions.sort((el1, el2)=>{
+
+                    // check every sorting (groups + sortings) to find out whether it applies; if yes, we are done; if not, check the next group/sort-option. 
+
+                    // groupings
+                    for (let i=0;i<grouping.length;i++){
+                        let ret = sortingFunctions[grouping[i]](el1, el2);
+                        if (ret != 0){
+                            return ret;
+                        }
+                        // otherwise continue
+                    }
+
+                    // sortings
+                    for (let i=0;i<sorting.length;i++){
+                        let ret = sortingFunctions[sorting[i]](el1, el2);
+                        if (ret != 0){
+                            return ret;
+                        }
+                        // otherwise continue
+                    }
+
+                    // if we didnt find any differences yet, the elements are equal: 
+                    return 0;
+
+                });
+
+                // assign the new bibs
+                let nextNumber = 1;  // could be set to anything in the future
+                let newAssignments = [];
+                for (let i=0; i<inscriptions.length;i++){
+                    newAssignments.push({
+                        xInscription: inscriptions[i].xInscription,
+                        number: nextNumber
+                    })
+                    if (i+1<inscriptions.length){
+                        // check whether the next inscription is part of the same group; if yes, the next number is plus one; otherwise apply bibSpacing+1
+                        let oldNumber = nextNumber;
+                        for (let i2=0; i2<grouping.length; i2++){
+                            if (sortingFunctions[grouping[i2]](inscriptions[i], inscriptions[i+1]) != 0){
+                                nextNumber += 1 + this.bibSpacing;
+                                break;
+                            }
+                        }
+                        if (oldNumber==nextNumber){
+                            // the number was not increased yet, e.g. we are still in the same group
+                            nextNumber++;
+                        }
+
+                    }
+                }
+
+                // all assignments are done; send the change requests to the server.
+                rI.room.addToStack('setBib', newAssignments)
+
+                this.overlay = undefined;
+            },
+        },
+        computed:{
+            /*newStartEventObj: function(){
+                if (this.newStartEvent>=0){
+                    return this.events.find(ev=>ev.xEvent == this.newStartEvent)
+                } else {
+                    return {};
+                }
+            },*/
+            selectedAthletesStarts: function(){
+                // filter the list of starts when the selctedAthlete changes
+                let filteredStarts = this.starts.filter((start)=>start.xInscription==this.selectedInscription);
+                
+                return filteredStarts;
+            },
+            inscribableEvents: function(){
+
+                if (this.selectedInscription === undefined){
+                    return [];
+                }
+
+                // filter disciplines the athelete is already registered to, filter by the defined filter and sort them in order of matching category and time
+                // create a list of all xEvents the athlete is already inscribed to
+                let xEvents = this.selectedAthletesStarts.map((val, ind, arr)=>{
+                    return val.xEvent;
+                })
+                
+                let filteredEvents = this.events.filter(ev=>{
+                    // figure out, whether the athelet already starts in that event and whether each word in the filter matches either the category name, the discipline name or the info
+                    if (xEvents.indexOf(ev.xEvent) == -1){
+                        // athlete does not compete yet; does it match the filter?
+
+                        let filterEntries = this.newStartEventFilter.toLowerCase().split(' ');
+                        // every filter entry must match (if the array is empty, it always return true)
+                        return filterEntries.every((el, index)=>{
+                            // matches in category
+                            if (this.getCategory(ev.xCategory).shortname.toLowerCase().indexOf(el) >=0 ){
+                                return true;
+                            }
+
+                            // matches the discipline
+                            if (this.getDiscipline(ev.xDiscipline).shortname.toLowerCase().indexOf(el) >= 0){
+                                return true;
+                            }
+
+                            // matches the info
+                            if (ev.info.indexOf(el) >= 0){
+                                return true;
+                            }
+
+                            return false
+                        })
+
+                        return true;
+                    } else {
+                        // athlete already competes in that event
+                        return false;
+                    }
+                })
+
+                // sorting by category relevance, discipline name, info and time of start (in this order)
+                let matchingCategories = this.catCalcWorker(this.selectedInscriptionObj.athlete.birthdate, this.selectedInscriptionObj.athlete.sex, true);
+
+                // add to every event whether teh catagory is matching (>=0, the lower the better) or not (-1)
+                filteredEvents.forEach(ev=>{
+                    ev.catMatch = matchingCategories.indexOf(ev.xCategory);
+                })
+
+                // According to ECMAScript2019, we must return 0 for elements that are equal, negative for elements that are in the correct order, but not equal and positive for elements that are in the wrong order. 
+                filteredEvents.sort((ev1, ev2)=>{
+                    /*let ev1match = matchingCategories.indexOf(ev1.xCategory);
+                    let ev2match = matchingCategories.indexOf(ev2.xCategory);*/
+                    let ev1match = ev1.catMatch;
+                    let ev2match = ev2.catMatch;
+
+                    if (ev1match >= 0 && ev2match >= 0){
+                        // both categories match:
+                        // the better category first; otherwise evaluate further (below)
+                        if (ev1match < ev2match){
+                            return -1;
+                        } else if (ev1match > ev2match){
+                            return 1;
+                        }
+                        // if it arrives here, analyse cat, info and time
+
+                    } else if (ev1match >= 0 && ev2match ==-1) {
+                        // ev1 matches better
+                        return -1;
+                    } else if (ev1match == -1 && ev2match >= 0) {
+                        // ev2 matches better
+                        return 1;
+                    }
+
+                    // sort by all other categories by category-sorting!
+                    let cat1 = this.categories.find(el=>el.xCategory==ev1.xCategory);
+                    let cat2 = this.categories.find(el=>el.xCategory==ev2.xCategory);
+                    if (cat1.sortorder != cat2.sortorder){
+                        return cat1.sortorder > cat2.sortorder ? 1 : -1;
+                    }
+
+                    // sort by discipline shortname
+                    let disc1 = this.disciplines.find(el=>el.xDiscipline==ev1.xDiscipline);
+                    let disc2 = this.disciplines.find(el=>el.xDiscipline==ev2.xDiscipline);
+                    if (disc1.shortname != disc2.shortname){
+                        return disc1.shortname > disc2.shortname ? 1 : -1;
+                    }
+
+                    if (ev1.info == ev2.info){
+                        // evaluate the time/date (Note: we do not (necessarily) have the actual date/time of the start, since this is defined later for the eventGroup, and not for the event; the time used here is just for information, if given at all.)
+
+                        // equal dates must not change, thus the else clause is not enough
+                        if (ev1.date==ev2.date){
+                            return false;
+                        } else {
+                            return ev1.date > ev2.date ? 1 : -1;
+                        }
+
+                    } else {
+                        // the info is decisive
+                        return ev1.info > ev2.info ? 1 : -1;
+                    }
+
+                })
+
+                return filteredEvents;
+
+            },
+            selectedInscriptionObj: function(){
+                // get the inscription of the currently selected person
+                // try to get the inscription
+                let inscription = this.inscriptions.find((el)=>{return el.xInscription==this.selectedInscription})
+
+                return inscription;
+            },
+            clubsAssoc: function(){
+                // create an object with the xClub as the key and the actual object as the value
+                let clubs = {};
+                for (let club of this.clubs){
+                    clubs[club.xClub] = club;
+                }
+
+                return clubs;
+            },
+            filters: function(){
+                return {filter1:{keys:['number'], value:this.filterString}, prefilter:{value:'some', custom:this.preFilter}} // filter1:{keys:['number'], value:this.filterString}
+            },
+            inscriptionFilters: function(){
+                // create a custom filter for everything that filters by name, first name and bib at the same time. (club would be nice, but is not possible with the builtin-filters, since the club would have to be part of the object structure, but only the xClub is, but not the clubs and its name.) 
+                
+                // split the input string by whitespace
+                let filterWords = this.filterAthletes.split(" ");
+
+                // every word may be part of every of the four columns
+                let filter = {};
+                let i=1;
+                for (let filterWord of filterWords){
+                    filter["filter" + i] = {keys:['athlete.lastname', 'athlete.forename', 'number'], value:filterWord, custom:this.clubFilter} //
+                    i += 1;
+                }
+                return filter;
+
+            },
+
+        },
+        watch:{
+
+            newStartEvent(newXEvent, oldXEvent){
+                // if the discipline has changed, check if there is base data for the new discipline and fill PB / SB
+                const eventNew = this.events.find(e=>e.xEvent==newXEvent);
+                const eventOld = this.events.find(e=>e.xEvent==oldXEvent);
+
+                if (!eventNew || this.selectedInscriptionPerformances===undefined){
+                    return
+                }
+                if (!eventOld || eventNew.xDiscipline != eventOld.xDiscipline){
+                    // try to get the base performance for this disicpline
+                    const perf = this.selectedInscriptionPerformances.find(p=>p.xDiscipline==eventNew.xDiscipline)
+                    if (!perf){
+                        this.newStartSBnote = undefined;
+                        this.newStartPBnote = undefined;
+                        // TODO: delete the values as well?
+                        this.newStartSB = '';
+                        this.newStartPB = '';        
+                        return
+                    } 
+                    this.newStartPB = perf.best;
+                    this.newStartPBnote = `${perf.best}, ${perf.bestEvent}, ${perf.bestDate}`;
+                    this.newStartSB = perf.notification;
+                    this.newStartSBnote = `${perf.notification} ${perf.notificationEvent}, ${perf.notificationDate}`;
+
+                    this.checkInput('PB', true);
+                    this.checkInput('SB', true);
+                }
+
+            },
+            baseSearchString(newSearch, oldSearch){
+                
+                if (this.baseSearchString.length>=3){
+                    this.startBaseSearch();
+                }
+
+            },
+            inscriptions(newInscriptions, oldInscriptions){
+                // if newly initialzed, set the predefined inscription, if existing in inscriptions
+                if (!this.inscriptionsInitialized){
+
+                    // if an athlete was selected before, try to show this athlete again
+                    var urlParams = new URLSearchParams(window.location.search);
+                    let inscription;
+                    if (inscription=urlParams.get('inscription')){
+                        let i = this.inscriptions.findIndex(el=>el.xInscription==inscription);
+                        if (i>=0){
+                            this.selectedInscription = this.inscriptions[i].xInscription;
+                        }    
+                    }
+                }
+
+                this.inscriptionsInitialized = true;
+            },
+            selectedInscription(newSelection, oldSelection){
+                // Two things to do: 
+
+                // 1) 
+                // set the search parameters in the URL accordingly to make sure that the same page is loaded again on reload
+
+                var urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('inscription', newSelection);
+                    
+                // it seems like setting window.location.search automatically reloads the browser; find a way to avoid this (eventually with the state object)
+                window.history.replaceState(window.history.state, '', window.location.pathname + '?' + urlParams.toString())
+                    
+                //window.history.replaceState(oldStateObj, "", document.location.pathname)
+
+                // window.history.pushState(stateObj, "", newPathname)
+
+                // eventually we should do this through the pageHandling stuff in order not to breakt its functionality
+
+                // 2) if the athlete is from base, get all his performances from that base
+
+                if (newSelection){
+                    // an athlete is selected
+                    // TODO: eventually this is executed before selectedInscriptionObj is changed!!
+                    if (this.selectedInscriptionObj.athlete){
+                        // not relay
+                        const ath  = this.selectedInscriptionObj.athlete;
+                        if (ath.nationalBody != null && ath.identifier){
+                            // get the performances and store them in
+                            const func = (data)=>{
+                                this.selectedInscriptionPerformances = data;
+                            }
+
+                            rI.room.getBasePerformancesInit(ath.nationalBody, ath.identifier, func);
+
+                        }
+                    }
+                } else {
+                    // no athlete selected anymore; delete the temporary stored performances
+                    this.selectedInscriptionPerformances = undefined;
+                }
+
+
+            }
+        },
+        components:{
+            // instead of globally adding it with vueAthletes.component(...), we can also do that locally
+            'v-table':VTable,
+            'v-th': VTh,
+            'v-tr':VTr,
+            //'v-mask': VueMask.VueMaskPlugin,
+        }
+        // ...
+    }
+    
+    /*let app = Vue.createApp(vueAppConfig);
+    // register the components: 
+    app.component('v-table', VTable);
+    app.component('v-th', VTh);
+    app.component('v-tr', VTr);
+    
+    //app.component('smart-pagination', SmartPagination) // not present and not used yet
+    
+    // mount it
+    vueAthletes = app.mount('#vueDiv');*/
+    vueAthletes = Vue.createApp(vueAppConfig).mount('#vueDiv');
+    
+    let ms = getMeetingShortname();
+    var rI = new vuInscriptions(vueAthletes, ms); 
+    var rC = new vuClubs(vueAthletes, ms);
+    var rE = new vuEvents(vueAthletes, ms); 
+    var rS = new vuStarts(vueAthletes, ms);
+    var rR = new vuRegions(vueAthletes, ms);
+    
+}
+</script>
+<div id="vueDiv">
+      
+      <div v-bind:class="{hidden: selectedInscription != undefined}" ><!-- do not use v-if="selectedInscription===undefined" , but simply hide it, so that it is faster back when changing between the list of atheltes and the starts of one athlete-->
+        <button type="button" class="btn btnGreen marginRight" v-on:click="addAthlete()"><%= __("Add athlete") %></button>
+        <button type="button" class="btn btnGreen marginRight" v-on:click="addAthleteBase()" v-if="baseModuleNames.length>0"><%= __("Add athlete from base data") %></button>
+        <button type="button" class="btn btnGreen marginRight" v-on:click="showAssignBibs()"><%= __("Assign (new) bibs") %></button><br>
+        <h2><%= __("List of athletes") %>:</h2>
+        <label class="verticalForm">
+            <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club and bib. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <input v-model="filterAthletes" type="text" size="30">
+        </label>
+        <button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>
+        <v-table :data="inscriptions" :filters="inscriptionFilters">
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th v-if="showFullDetails">xAthlete</th>
+                        <th v-if="showFullDetails">xInscription</th>
+                        <th is="vue:v-th" sortkey="athlete.identifier" v-if="showFullDetails">identifier</th>
+                        <th is="vue:v-th" sortkey="number" defaultsort="asc">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="athlete.lastname"><%= __('Name') %></th>
+                        <th is="vue:v-th" sortkey="athlete.forename"><%= __('First name') %></th>
+                        <th is="vue:v-th" sortkey="athlete.birthdate"><%= __('Year') %></th>
+                        <th is="vue:v-th" sortkey="athlete.sex"><%= __('Sex') %></th>
+                        <!--<th is="vue:v-th" sortkey="athlete.club.name"><%= __('Club') %></th> not possible yet, since the club data is not in the object; actually, we could use a computed property for this table, where we merge club and country with inscription-->
+                        <th><%= __('Club') %></th>
+                        <th><%= __('Country') %></th>
+                        <th><!-- Buttons --></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xInscription">
+                        <td v-if="showFullDetails">{{row.athlete.xAthlete}}</td>
+                        <td v-if="showFullDetails">{{row.xInscription}}</td>
+                        <td v-if="showFullDetails">{{row.athlete.identifier}}</td>
+                        <td>{{ row.number }}</td>
+                        <td>{{ row.athlete.lastname }}</td>
+                        <td>{{ row.athlete.forename }}</td>
+                        <td>{{ getYearShort(row.athlete.birthdate) }}</td><!--only take the last two digits-->
+                        <td>{{ row.athlete.sex }}</td>
+                        <td>{{ findObjInArrayByProp2(clubs, 'xClub', row.athlete.xClub).name }}</td>
+                        <td>{{ findObjInArrayByProp2(regions, 'xRegion', row.athlete.xRegion).country }}</td>
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modAthlete(row.xInscription)" ><%= __("Change") %></button>
+                            <button class="btn btnGrey" v-on:click="selectedInscription=row.xInscription" ><%= __("Show starts") %></button>
+                            <button class="btn btnRed" v-on:click="deleteAthlete(row.xInscription)" v-bind:disabled="hasStarts(row.xInscription)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+    </div>
+
+    <div v-if="selectedInscription != undefined">
+        <button class="btn" v-on:click = "selectedInscription = undefined"><%= __("Show athletes") %></button>
+        <button class="btn" v-on:click = "selectedInscription = undefined; overlay='addAthlete'" ><%= __("Add athlete") %></button>
+        <h2><%= __("Starts of ") %>{{selectedInscriptionObj.athlete.forename}} {{selectedInscriptionObj.athlete.lastname}} :</h2>
+        <button type="button" class="btn btnGreen" v-on:click="addStart()"><%= __("Add start") %></button><br>
+        <table>
+            <tr>
+                <th v-if="showFullDetails">xStart</th>
+                <th v-if="showFullDetails">xEvent</th>
+                <th><%= __("Event") %></th>
+                <th><%= __("Competitive") %></th>
+                <th><%= __("Personal best") %></th>
+                <th><%= __("Registration value") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button></th>
+                <th><%= __("Paid") %></th>
+                <th></th> <!-- buttons -->
+            </tr>
+            <tr v-for="start in selectedAthletesStarts">
+                <td v-if="showFullDetails">{{start.xStart}}</td>
+                <td v-if="showFullDetails">{{start.xEvent}}</td>
+                <td>{{getEventTitle(getEventObj(start.xEvent))}}</td>
+                <td>{{start.competitive}}</td>
+                <td>{{formatValue(start.bestPerf, getDiscipline(getEventObj(start.xEvent).xDiscipline).xBaseDiscipline) }}</td><!-- TODO -->
+                <td>{{formatValue(start.bestPerfLast, getDiscipline(getEventObj(start.xEvent).xDiscipline).xBaseDiscipline) }}</td>
+                <td>{{start.paid}}</td>
+                <td>
+                    <button class="btn btnGrey" v-on:click="modStart(start)" ><%= __("Change") %></button>
+                    <button class="btn btnRed" v-on:click="deleteStart(start.xStart)"><%= __("Delete") %></button>
+                </td>
+            </tr>
+            
+        </table>
+    </div>
+
+    <!-- Overlay for adding athletes from base data -->
+    <div class="overlay" v-bind:class="{shown: overlay=='addAthleteBase'}">
+        <div class="overlayContainer">
+            <form class="verticalForm">
+                <h3><%= __('Add athlete from base data') %>:</h3>
+                <div v-if="baseModuleNames.length>1">
+                    <label>
+                        <!-- The category should be automatically set as soon as there is a borthdate and a sex -->
+                        <%= __("From base") %>: 
+                        <select v-model.number="selectedBase" style="display:inline">
+                            <option v-for="n,i in baseModuleNames" v-bind:value="i">{{n}}</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    <b><%= __("Search for") %></b>
+                    <input v-model="baseSearchString" type="search" placeholder="<%= __('Name, first name, license') %>" v-on:keydown=" baseSearchKeydown($event)" style="width:100%;"> <!-- v-on:change="baseSearchChanged" -->
+                </label>
+                <b><%= __("Search results") %></b>
+                <div v-if="baseEntriesNum<0"><%= __("Start typing... Automatic search starts after at least 3 characters. A manual search can be initiated with Enter.") %></div>
+                <div v-if="baseEntriesNum>0 && baseEntries.length==0"><%= __("Too many matching athletes found") %>: {{baseEntriesNum}}</div>
+                <div v-if="baseEntriesNum==0"><%= __("No matching athletes found") %></div>
+                <div></div>
+                <div>
+                    <table class="selectTable">
+                        <tr v-for="(ath,i) in baseEntries" class="clickable" v-on:click="addBaseAthlete(i)">
+                            <td>{{ath.identifier}}</td>
+                            <td>{{ath.lastname}}</td>
+                            <td>{{ath.firstname}}</td>
+                            <td>{{ath.birthdate}}</td>
+                            <td>{{ath.clubName}}</td>
+                        </tr>
+                    </table>
+                </div>
+                <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- overlay for adding athletes -->
+    <div class="overlay" v-bind:class="{shown: overlay=='addAthlete'}">
+        <div class="overlayContainer">
+            <form>
+                <div class="verticalForm">
+                    <h3 v-if="athleteModID == -1"><%= __("Add athlete") %>: </h3>
+                    <h3 v-if="athleteModID > -1"><%= __("Update athlete") %>: </h3>
+                    <label>
+                        <%= __("First name") %>: 
+                        <input type="text" v-model="newAthleteForename" maxlength="100">
+                    </label>
+                    <label>
+                        <%= __("Name") %>: 
+                        <input type="text" v-model="newAthleteLastname" maxlength="100">
+                    </label>
+                    <label>
+                        <%= __("Birthdate") %>: 
+                        <input type="date" v-model="newAthleteBirthdate" v-on:blur="catCalc"><!--TODO: does this work-->
+                    </label>
+                    <label style="display:inline-block">
+                        <input type="radio" name="sex" v-model="newAthleteSex" v-on:change="catCalc" value="m">
+                        <%= __('Male') %>
+                    </label>
+                    <label style="display:inline-block">
+                        <input type="radio" name="sex" v-model="newAthleteSex" v-on:change="catCalc" value="f">
+                        <%= __('Female') %>
+                    </label><!-- TODO: if this list is extended in the multi-sexual future, probably use a dropdown list and get the allowed options from some configuration file-->
+                    <label>
+                        <!-- The category should be automatically set as soon as there is a borthdate and a sex -->
+                        <%= __("Category") %>: 
+                        <select v-model.number= "newAthleteCategory">
+                            <option v-for="cat in categories" v-bind:value="cat.xCategory">{{cat.shortname}}</option>
+                        </select>
+                    </label>
+                    <label>
+                        <%= __("Club") %>:
+                        <select v-model.number= "newAthleteClub">
+                            <option v-for="club in clubs" v-bind:value="club.xClub">{{club.name}}</option>
+                        </select>
+                        <button class="btn" type="button" v-on:click="addClub()" style="display: inline;"><%= __("Club not listed") %></button>
+                    </label>
+                    <label>
+                        <%= __("Country/Region") %>:
+                        <select v-model.number= "newAthleteRegion">
+                            <option v-for="region in regions" v-bind:value="region.xRegion">{{formatCountryRegion(region)}}</option>
+                        </select>
+                    </label>
+                    <!--TODO: license stuff-->
+                    <label>
+                        <%= __('Bib') %>:
+                        <!-- TODO: add the next bib by default! -->
+                        <input type="number" v-model.number="newAthleteNumber" min="0">
+                    </label>
+
+                    <button v-if="athleteModID==-1" type="button" class="btn btnGreen" v-on:click="createAthlete(false)" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined"><%= __("Create athlete") %>
+                    </button>
+                    <button v-if="athleteModID==-1" type="button" class="btn btnGreen" v-on:click="createAthlete(true)" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined"><%= __("Create athlete + add starts") %>
+                    </button>
+
+                    <button v-if="athleteModID>-1" type="button" class="btn btnGreen" v-on:click="createAthlete" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined">
+                        <%= __("Update athlete") %>
+                    </button>
+
+                    <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- overlay for adding/modifing starts-->
+    <div class="overlay" v-bind:class="{shown: overlay=='addStart'}">
+        <div class="overlayContainer">
+            <form>
+                <div class="verticalForm">
+                    <h3 v-if="startModID == -1"><%= __("Add start") %>: </h3>
+                    <h3 v-if="startModID > -1"><%= __("Update start") %>: </h3>
+                    <%= __("Event") %>: 
+                    <input type="text" v-if="startModID == -1" v-model="newStartEventFilter" placeholder="<%= __('Filter') %>" style="display: inline;">
+                    <div v-if="startModID >= 0" style="display: inline; font-weight: bold;">{{getEventTitle(getEventObj(newStartEvent))}}</div>
+                    <label>
+                        <!-- The category should be automatically set as soon as there is a birthdate and a sex -->
+                        <!--<%= __("Event") %>: -->
+                        <select v-if="startModID == -1" v-model.number= "newStartEvent" v-on:change="checkInput('PB'); checkInput('SB')">
+                            <option v-for="ev in inscribableEvents" v-bind:value="ev.xEvent" v-bind:class="{catMismatch: ev.catMatch==-1}">{{getEventTitle(ev)}}</option>
+                        </select>
+
+                    </label>
+                    <label>
+                        <%= __("Competitive") %>: 
+                        <input type="checkbox" v-model="newStartCompetitive">
+                    </label>
+                    <!-- TODO: eventually change the entries for PB/SB to having an appropriate mask for the discipline-->
+                    <label>
+                        <%= __("Personal best") %>: 
+                        <input type="text" v-model="newStartPB" id="PB" v-on:input="checkInput('PB')" v-on:change="checkInput('PB', true)" v-bind:class="{unrealistic: !newStartPBrealistic}" v-bind:title="newStartPBnote">
+                    </label>
+                    <label>
+                        <%= __("Registration value") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button>: 
+                        <input type="text" v-model="newStartSB" id="SB" v-on:input="checkInput('SB')" v-on:change="checkInput('SB', true)" v-bind:class="{unrealistic: !newStartSBrealistic}" v-bind:title="newStartSBnote">
+                    </label>
+                    <label>
+                        <%= __("Paid") %>: 
+                        <input type="checkbox" v-model="newStartPaid">
+                    </label>
+                    <!-- TODO: get performance from base info-->
+                    
+
+                    <button type="button" class="btn btnGreen" v-on:click="createStart" v-bind:disabled="newStartEvent==undefined">
+                        <div v-if="startModID==-1"><%= __("Create start") %></div>
+                        <div v-if="startModID>-1"><%= __("Update start") %></div>
+                    </button>
+                    <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+        <!-- overlay for adding clubs -->
+    <div class="overlay" v-bind:class="{shown: overlay2=='addClub'}">
+        <div class="overlayContainer">
+            <form>
+                <div class="verticalForm">
+                    <h3 v-if="clubModID == -1"><%= __("Add club") %>: </h3>
+                    <h3 v-if="clubModID > -1"><%= __("Update club") %>: </h3>
+                    <label>
+                        <%= __("Name") %>: 
+                        <input type="text" v-model="newClubName" maxlength="100" v-on:blur="clubChanged">
+                    </label>
+                    <label>
+                        <%= __("Name for sorting") %>: 
+                        <input type="text" v-model="newClubSortname" maxlength="100">
+                    </label>
+
+                    <button type="button" class="btn btnGreen" v-on:click="createClub" v-bind:disabled="newClubName==undefined || newClubSortname==undefined ">
+                        <div v-if="clubModID==-1"><%= __("Create club") %></div>
+                        <div v-if="clubModID>-1"><%= __("Update club") %></div>
+                    </button>
+                    <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- overlay for bib assignment; this could be extended heavily in the future -->
+    <div class="overlay" v-bind:class="{shown: overlay=='bibAssignment'}">
+        <div class="overlayContainer">
+            <form>
+                <div class="verticalForm">
+                    <h3><%= __("Assign bibs") %>: </h3>
+                    <!-- ideally we wouldnt have a dropdown here, but have three lists: one which shows all ungrouped/unsorted properties, one having the group order and one with the sort order. The poroperties could be dragged and dropped between the lists, defining how finally the grouping/sortign will be done. -->
+                    <label>
+                        <%= __("Sort/group options") %>:
+                        <select v-model="bibSortOption">
+                            <option value="S:Name"><%= __("Sort by Name") %></option>
+                            <option value="G:Sex_S:Name"><%= __("Group by Sex, sort by Name") %></option>
+                            <option value="G:Category_S:Name"><%= __("Group by Category, sort by Name") %></option>
+                            <option value="G:Club_S:Name"><%= __("Group by Club, sort by Name") %></option>
+                        </select>
+                    </label>
+                    <label>
+                        <%= __("Unused number between groups") %>: 
+                        <input type="number" v-model.number="bibSpacing" min="0">
+                    </label>
+
+                    <button type="button" class="btn btnGreen" v-on:click="assignBibs" v-bind:disabled="bibSortOption==undefined">
+                        <div><%= __("Assign (new) bibs") %></div>
+                    </button>
+                    <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="overlay" class="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+        <!-- overlay used for displaying general information -->
+        <div id="overlayContainer">
+            <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+            <div id="overlayContent">{{infoContent}}</div>
+        </div>
+    </div>
+
+
+</div>

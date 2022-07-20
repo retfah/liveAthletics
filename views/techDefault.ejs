@@ -1,0 +1,105 @@
+<% if(type=="html"){ %>
+<!-- the configuration window for this kind of series assignment-->
+<div v-if="seriesAssignmentOverlay=='overlayMaxSeriesSize'" class="verticalForm">
+    <h3><%= __("Configuration") %></h3>
+    <%= __("Info") %>: <%= __("Assign at maximum the given number of athletes per series. If multiple series are needed, the athletes are evenly distributed.") %>
+    <label>
+        <%= __("Max. number of athletes per series") %>
+        <input type="number" v-model="seriesAssignmentConfiguration.techDefault.maxAthletes" size=3>
+    </label>
+    <%= __("Sort by") %>: 
+    <label style="display:inline-block">
+        <input type="radio" name="sortBy" value="bestPerfLast" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+        <%= __("Registration value") %>
+    </label>
+    <label style="display:inline-block">
+        <input type="radio" name="sortBy" value="bestPerf" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+        <%= __("Personal best") %>
+    </label>
+    <label style="display:inline-block">
+        <input type="radio" name="sortBy" value="random" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+        <%= __("Randomly") %>
+    </label>
+    <div v-if="seriesAssignmentConfiguration.techDefault.sortBy!='random'">
+        <%= __("Sorting") %>: 
+        <label style="display:inline-block">
+            <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+            <%= __("Best first") %>
+        </label>
+        <label style="display:inline-block">
+            <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+            <%= __("Best last") %>
+        </label>
+    </div>
+</div>
+
+<% }else{ %> // must have a non-code line here, since it will be commented out!
+    {
+        name: '<%= __("Max series size") %>',  // the name of the series assignment.
+        overlayName: "overlayMaxSeriesSize", // the name of the overlay
+        assignFunc: function (args){
+            // eventually we should reset everything at the beginning.
+
+            // calculate how many series are needed and add those series
+            this.numSeries = Math.ceil(this.unassignedAthletesCreate.length/this.seriesAssignmentConfiguration.techDefault.maxAthletes);
+
+            this.seriesObj = [];
+            for (let i=0; i<this.numSeries; i++){
+                this.addEmptySeriesInitial()
+            }
+            // the series are created
+
+            // first sort startsingroup accordingly.
+            if (this.seriesAssignmentConfiguration.techDefault.sortBy=="random"){
+                // Fisher Yates shuffle
+                for (i = this.unassignedAthletesCreate.length -1; i > 0; i--) {
+                    let j = Math.floor(Math.random() * i)
+                    let k = this.unassignedAthletesCreate[i]
+                    this.unassignedAthletesCreate[i] = this.unassignedAthletesCreate[j]
+                    this.unassignedAthletesCreate[j] = k
+                }
+            }else {
+                const getVal = (x)=>{
+                    // get the correct sort value
+                    if (this.seriesAssignmentConfiguration.techDefault.sortBy=="bestPerf"){
+                        if (x.bestPerf){
+                            return x.bestPerf
+                        } 
+                        
+                    } else {
+                        if (x.bestPerfLast){
+                            return x.bestPerfLast
+                        }
+                    }
+                    return 0
+                }
+                
+                this.unassignedAthletesCreate.sort((a, b)=>{
+                    return (getVal(a)-getVal(b))*this.seriesAssignmentConfiguration.techDefault.sorting*-1;
+                })
+            }
+            
+            for (i=0;i<this.numSeries;i++){
+                // count the remaining athletes to assign and calculate how many athletes shall be in this series
+                // how many athletes to assign: 
+                let numAthAssign = Math.ceil(this.unassignedAthletesCreate.length/(this.numSeries-i));
+
+                let sig = this.seriesObj[i].startsingroup;
+                for (j=0; j<numAthAssign;j++){
+                    sig.push(this.unassignedAthletesCreate.shift())
+                }
+            }
+
+
+        }, // the function to call to assign the series. arguments and return stuff to be defined. Eventually there is nothing to be returned, but we simply bind the function to the  of vue this and the function shall/can access all properties available.
+        initFunc: function(){
+            this.seriesAssignmentConfiguration.techDefault = {
+                maxAthletes: 30,
+                sorting: -1, // 1: Best first, 2: Best last
+                sortBy: "bestPerfLast", // either of: bestPerf, bestPerfLast, random
+            }
+        }, // function called on initialization of the series assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
+        baseDisciplines: [], // the baseDisciplines-IDs where this series assignment opiton shall be present (probably only needed for track disciplines)
+    }
+
+<% } %>

@@ -1,0 +1,50 @@
+{
+  "name": "liveathletics",
+  "description": "live broadcasting athletics results",
+  "keywords": [
+    "liveAthletics",
+    "live",
+    "broadcast",
+    "athletics",
+    "results"
+  ],
+  "license": "LGPL-3.0-or-later",
+  "author": {
+    "name": "Reto Fahrni",
+    "email": "retofahrni@bluewin.ch"
+  },
+  "type": "module",
+  "version": "0.0.1",
+  "dependencies": {
+    "ajv": "^8.5.0",
+    "ajv-formats": "^2.1.0",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.0",
+    "connect-mongo": "^4.6.0",
+    "cookie-parser": "^1.4.4",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "express-session": "^1.17.0",
+    "i18n-2": "^0.7.3",
+    "lodash": "^4.17.20",
+    "mariadb": "^2.5.3",
+    "mongodb": "^4.2.2",
+    "mysql2": "^2.2.5",
+    "mysqldump": "^3.2.0",
+    "npm": "^8.10.0",
+    "parse-url": "^5.0.2",
+    "sequelize": "^6.0",
+    "sequelize-auto": "^0.8.8",
+    "sequelize-auto-import": ">=1.1.1",
+    "vue": "^3.0.11",
+    "vuedraggable": "^4.1.0",
+    "ws": "^7.4.3",
+    "wsprocessor": "^1.0.1",
+    "xml2js": "^0.4.23"
+  },
+  "devDependencies": {
+    "text-mask-core": "^5.1.2",
+    "v-mask": "^2.2.4",
+    "vuejs-smart-table": "^0.0.8"
+  }
+}

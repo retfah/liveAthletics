@@ -1,0 +1,56 @@
+**important: always add the date of the error/todo (when it is added)**
+
+TODO shortterm:
+- 2022-07-14: aus irgend einem Grund funktioniert der austausch von roomAuxData problemlos, aber es kommt zu einem "secondary server outdated" fehler.
+- 2022-02-15: no writing tickets on secondary servers (except in rBackup and one ticket in rSideChannel for the main server)! Also revert all previously allowed writing tickets! --> eventually do this as follows: generlly, every room must know that it cannot accept any writing ticket (except rSideChannel and rBackup). It could be considered meaningful to tell the rooms at startup not to provide any writing ticket. However, then it would be necessary that rBackup was loaded first, including its asynchonously loaded data. Three things are aginst that approach: (1) It would need a new parameter in the constructor of each room, (2) changing the mode of the server (main/secondary) would then also need a restart of the rooms (which is technically not needed), (3) the priority-startup of rBackup might be hard to implement. Therefore, it is probably beneficial to change the rooms to secondary mode later, by calling a function present in roomServer (and therefore in all rooms) and then loop over all rooms in rBackup and set each room to main/secondary mode. 
+- 2022-02-15: add status-stuff to rBackup (probably the status are currecntly not (always) broadcasted to the client)
+- 2022-02-15: behavior when the connection between servers fails. Currently, a failure will probably not be handled coorectly, e.g. the main server yould keep the writing ticket, because it did not leave properly. Make it leave properly and delete the this.connectionToMain
+- 2021-05-29: creating new meeting with "-" in the shortname results in a DB failure. 
+
+- Meeting-administration: correct unloading (unconnect from the room and so on.)
+- when client closes the borwser window, the room should get disconnected regularly, e.g. the writing ticket is returned and other clients could react to it and get writing rights. Currently, other clients just can see that the client with a writing ticket disconnected and can enforce deleting his writing ticket. 
+- no callbacks in creating roomClient (i.e. change to async too, if required at all)
+- roomClient 682: if data=Errorstring --> Problem
+
+- failure callback respectively status callback in the interval/timeout functions! --> on error, must not only stop the interval, but also call the repsective callbacks and clean the stack!!!
+
+
+
+TODO: recheck when failure callback is raised with which error code: how are the different timeouts handled? how usual failures? what happens on connection failure or on timeout after the response was executed? --> hier ist garantiert noch einiges falsch!
+
+
+
+TODO: eventually we need to add a function that checks if the connection is closed before trying to use this.sendingFunc() --> we could do this by not assigning the actual sendingFunc to this.sendingFunc, but rather assign it in a proxy function. 
+
+
+OPTIONAL-TODO:
+
+
+When is which callback called?:
+- in the sendRequest on the caller (in general client):
+  - successCB: as soon as the opt.executeAckCount, defined by the responder (server) (!), is reached and thus the response can be executed
+  - failureCB: whenever an error occurs (connection OR during processing on the server; can be differentiated by the errCode; attention: this is also raised AFTER success was called, e.g. when a further ack does not arrive and thus timeout is reached (not the interval) OR becasue the connection gets closed meanwhile.. Make sure it is interpreted appropriately by looking at the status and the lastIncomingAckCount)
+  - statusCB: whenever ANY response/ack/whatever arrives. The caller must differentiate at what state the . 
+  - opt.executeAckCount (defined by the caller/client): has no influence on when (after how many acks) the successCB on itself is executed
+  - successCB: (response) =>{}
+  - failureCB: (errMsg, errCode, status, lastIncomingAckCount) => {}
+  - statusCB: (status, incomingAckCount) => {} 
+    - status: 
+	  1 = request sent, but execution on responder was not yet started
+	  2 = request sent and responder (server) might have started to process the request
+	  3 = responder (server) has started to process the request (i.e. at least one ack after opt.executeAckCount has arrived on the caller)
+	  4 = response received, not started to process (because of opt.executeAckCount sent from responder (server))
+	  5 = response recieved, started to process (or starts now)
+  
+- when sending the response on the responder/server:
+  - there is no successCB, as it is not clear, when success is reached: when the responder sends the ack (or the response itself when executeAckCount=0) that will start the execution on the caller/client and this message is not acknowledged (e.g. because of an interruption in the connection before an ack could be received), the responder/server does not know whether the client has received the execution request. (The same problem appears during sending of the request on the client.) However, the function on the responder/server that has processed the request can decide by itself when success is reached by listening to the statusCB, where the status even indicates the current state. Apart of that there is the failureCB, called whenever the connection fails.  
+  - statusCB wird bei jedem eintreffenden Ack ausgelöst. Die übergebene Funktion muss selber filtern, auf welche Ack's es reagieren soll. 
+  - statusCB: (status, lastIncomingAckCount)=>{}
+    - status:
+	  11 = response sent, but execution on caller (client) was not yet started
+	  12 = response sent and caller (client) might have started to process the response
+	  13 = caller (client) has started to process the response (i.e. at least one ack after opt.executeAckCount has arrived on the responder)
+  - failureCB only on connection error OR on timeout (total time, not the interval)
+  - failureCB: (errMsg, errCode, status, lastIncomingAckCount) => {}
+
+

@@ -1,0 +1,1616 @@
+<script type="text/javascript">
+
+/**
+ * TODO:
+ * - add HTTP-GET parameters based on the selection of events/eventGroups/contests; the server would ignore it, while we can directly set the correct page on reload. --> is there a browser-builtin way to add and delete get parameters in document.location or similar?
+ * - prevent deletion for contests that are referenced
+ **/ 
+    
+    // when we need multiple rooms, then the actual vue-class must not inherit from roomClientVue, but we then have a class for each room instantiated within the vue-class
+
+    class vuEvents extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.events = this.room.data.events;
+            this.vue.meeting = this.room.data.meeting;
+            //this.vue.events = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.events = this.vue.events;
+            //this.room.data = this.vue.events;
+            this.room.data.meeting = this.vue.meeting;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.events = this.room.data.events;
+            //this.vue.events = this.room.data;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.events = this.vue.events;
+            //this.room.data = this.vue.events;
+
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+    }
+
+    class vuEventGroups extends roomClientVue{
+
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('eventGroups@' + meetingShortname, true, true, '/static/rEventGroupsClient.js', 'rEventGroupsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.eventGroups = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.eventGroups;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.eventGroups = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.eventGroups;
+
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+    }
+
+    class vuDisciplines extends roomClientVue {
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('disciplines@' + meetingShortname, true, true, '/static/rDisciplinesClient.js', 'rDisciplinesClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+        
+        afterFullreload(){
+
+            // we use a fixed set of discipline data, which does not need to be updated when the data in the room changes:
+            let lang = getLanguage();
+            this.vue.disciplines = this.room.getTranslatedDisciplines(lang);
+
+            // but we also define the base Disciplines
+            // set the changed data-property as data of the vue-instance
+            this.vue.baseDisciplines = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.baseDisciplines;
+            
+        }
+        
+        dataArrived(){
+
+            // we use a fixed set of discipline data, which does not need to be updated when the data in the room changes:
+            let lang = getLanguage();
+            this.vue.disciplines = this.room.getTranslatedDisciplines(lang);
+
+            // but we also define the base Disciplines
+            // set the changed data-property as data of the vue-instance
+            this.vue.baseDisciplines = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.baseDisciplines;
+        }
+
+    }
+    class vuCategories extends roomClientVue {
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('categories@' + meetingShortname, true, true, '/static/rCategoriesClient.js', 'rCategoriesClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.categories = this.room.data;
+            
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.categories;
+            
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.categories = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.categories;
+            
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+
+    }
+
+    class vuContests extends roomClientVue {
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('contests@' + meetingShortname, true, true, '/static/rContestsClient.js', 'rContestsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vue.readonly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.contests = this.room.data;
+            
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.contests;
+            
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            // TODO: what about views? They probably also need something like this
+            
+            this.vue.contests = this.room.data;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.contests;
+            
+        
+            /*if (this.room.writingTicketID){
+                this.vueServerAdmin.readOnly = false;
+            } else {
+                this.vueServerAdmin.readOnly = true;
+            }*/
+        }
+
+    }
+
+
+    var vueEvents;
+
+    // commented values are currently in the DB, but might either not be used or are not shown in the list here
+    var disciplines=[
+      // sample data with the old properties  
+    /*{
+            xDiscipline:1,
+            disciplineSortorder:1,
+            //disciplineIndoor:false,
+            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
+            disciplineTimeAppeal: new Date(1000*(3600*1+60*30+0)), // how much time before the competition
+            disciplineTimeCall: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
+            //disciplineActive,
+            disciplineRelay:false,
+            disciplineName: 'Pole vault', // translated
+            disciplineShortname: 'PV', // translated
+            //disciplineConfiguration,
+        },
+        {
+            xDiscipline:2,
+            disciplineSortorder:2,
+            //disciplineIndoor:false,
+            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
+            disciplineTimeAppeal: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
+            disciplineTimeCall: new Date(1000*(3600*0+60*40+0)), // how much time before the competition
+            //disciplineActive,
+            disciplineRelay: false,
+            disciplineName: 'High jump', // translated
+            disciplineShortname: 'HJ', // translated
+            //disciplineConfiguration,
+        },*/
+        
+    ];
+
+    // the list should already be translated and only active categories are shown
+    var categories = [
+    // sample data with the old properties    
+    /*{
+            xCategory: 1,
+            categoryShortname:"ABCD", // max 4 letters
+            categoryName: "Man",
+            categorySortorder:1,
+            age: 200,
+            categoryCode: "MAN", // whats the difference 
+            sex: "m",
+            //active: true,
+        },
+        {
+            xCategory: 2,
+            categoryShortname:"EFGH", // max 4 letters
+            categoryName: "Woman",
+            categorySortorder:1,
+            age: 200,
+            categoryCode: "MOM", // whats the difference 
+            sex: "f",
+            //active: true,
+        }*/
+    ];
+    var eventsExample = [
+        {xEvent:1, xDiscipline:1, xCategory:1, xEventGroup:2, entryFee:10, onlineId:123, info:'test'},
+        {xEvent:2, xDiscipline:2, xCategory:1, xEventGroup:undefined, entryFee:15, onlineId:100, info:'hello'}
+    ];
+    var contestsExample = [
+        {xContest:1, xBaseDiscipline:1, datetimeAppeal:"2021-05-05T22:15:56Z", datetimeCall:"2021-05-05T23:15:00Z", datetimeStart: "2021-05-05T23:45:00Z", status:0, conf:""}, // conf is used as a general configuration independent of the discipline type.
+        {xContest:2, xBaseDiscipline:2, datetimeAppeal:"2021-05-05T22:00:56Z", datetimeCall:"2021-05-05T23:00:00Z", datetimeStart: "2021-05-05T23:30:00Z", status:1, conf:""}
+    ];
+    var events = [];
+    var eventGroups=[
+        // examples with old naming    
+    /*{
+            xEventGroup:1, 
+            xDiscipline:1,
+            name:'PV1',
+            combined:false,
+            rounds:[
+                {
+                    xRound:1,
+                    xEventGroup:1,
+                    name:'TODO',
+                    order:1,
+                    numGroups:1, 
+                    qualiModule:undefined,
+                    qualiConf:undefined
+                }
+            ]
+        },
+        {
+            xEventGroup:2, 
+            xDiscipline:1,
+            name:'PV2',
+            combined:false,
+            rounds:[]
+        },
+        {
+            xEventGroup:3, 
+            xDiscipline:2,
+            name:'HJ1',
+            combined:false,
+            rounds:[]
+        }*/
+    ]
+    
+    function startupEventMgr(){
+        // the vueApp        
+        let vueAppConfig = {
+            data(){
+                return {
+                    events:events, // will be overriden by the actual room data
+                    meeting:undefined,
+                    eventGroups:eventGroups, // will be overriden by the actual room data
+                    categories:categories, 
+                    disciplines:disciplines, // will be overriden by the actual room data
+                    baseDisciplines:[],
+                    contests: contestsExample, // will be overridden by the actual room data
+                    /*overlayVisible: false, 
+                    overlayTitle: '', 
+                    overlayContent: '',*/ 
+                    newXDiscipline:undefined, 
+                    newXCategory:undefined, 
+                    newXEventGroup:undefined, 
+                    //newXContest:undefined,
+                    newEntryFee:0, 
+                    newDate:"",
+                    newDateAppeal:"", 
+                    newDateCall:"",
+                    newDateStart:"",
+                    newXBaseDiscipline:undefined,
+                    newInfo:'', 
+                    eventGroupRadio:'none', 
+                    contestRadio: 'new',
+                    newEventGroupName:'', 
+                    newIsCombined: false,
+                    newRoundName: "",
+                    newNumGroups: 0,
+                    newGroups:[],
+                    //addEventOverlay:false,
+                    overlay:undefined, // replaces addEventOverlay
+                    overlay2: undefined, // used to create a contest
+                    show:'events', 
+                    showFullDetails:true, // probably to be switched off in the production version; showing IDs and other background infos
+                    eventModID: -1,
+                    eventGroupModID: -1,
+                    selectedEventGroupId: -1,
+                    roundModID: -1,
+                    filterEvents: '',
+                    filterEventGroups: '',
+                    filterContests: '',
+                    infoTitle: '',
+                    infoContent: '',
+                    infoVisible: false,
+                    contestModID: -1,
+                    createContestFixedDisc: false,
+                }
+            }, 
+            methods:{
+                addEvent: function(){
+                    // reset all
+                    this.eventModID=-1; 
+
+                    this.newXEventGroup = undefined;
+                    this.newXCategory = undefined;
+                    this.newXDiscipline = undefined;
+                    this.newDate = '';
+                    this.newEntryFee = 0;
+                    this.newInfo = '';
+                    
+                    this.eventGroupRadio = 'none';
+
+                    // show the "form"
+                    //this.addEventOverlay = true;
+                    this.overlay = "addEvent";
+
+                },
+                createEGName(disc, cat){
+                    let egName = '';
+
+                    if (cat){
+                        let [,catObj] = this.findObjInArrayByProp(this.categories, 'xCategory', cat);
+                        egName += catObj.categoryShortname;
+                    }
+
+                    egName += ' ';
+
+                    if (disc){
+                        let [, discObj] = this.findObjInArrayByProp(this.disciplines, 'xDiscipline', disc)
+                        egName += discObj.shortname;
+                    }
+
+                    return egName.trim(); // get rid of white space if disc and/or cat was not defined
+                },
+                getEventGroupProperty: function(xEventGroup, prop){
+                    let [ind, eg] = this.findObjInArrayByProp(this.eventGroups, 'xEventGroup', xEventGroup);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return eg[prop];
+                    }
+                },
+                getDisciplineProperty: function(xDiscipline, prop){
+                    let [ind, d] = this.findObjInArrayByProp(this.disciplines, 'xDiscipline', xDiscipline);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return d[prop];
+                    }
+                },
+                getCategoryProperty: function(xCategory, prop){
+                    let [ind, c] = this.findObjInArrayByProp(this.categories, 'xCategory', xCategory);
+                    if (ind==-1){
+                        return '';
+                    } else {
+                        return c[prop];
+                    }
+                },
+                deleteEvent: function(id){
+                    // we do not locally delete the dataset, but wait till the server did it.
+                    rE.room.addToStack('deleteEvent', id) //direct
+                    //rE.room.deleteEventInit(id); // indirect
+                },
+                addRound: function(){
+                    this.roundModID = -1;
+                    this.contestRadio = "new";
+
+                    // TODO: reset datetimeAppeal/Call/Start, conf
+
+                    this.newRoundName = "";
+
+                    this.newNumGroups = 1;
+                    this.newGroups=[{
+                                    number: 1,
+                                    name: `<%= __("Group") %> 1`, // TODO put in here the default group-name set for the whole meeting (not necessary in the language of the client)
+                                    xContest: null,
+                                    // there is no xRound yet 
+                                }];
+
+                    this.overlay = "addRound";
+                },
+                createRound: function(){
+
+                    // get the corresponding discipline
+                    let d = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+
+                    // clean up groups (set xContest==-1 to null)
+                    this.newGroups.forEach(g=>{
+                        if (g.xContest == "null" || g.xContest == -1){
+                            g.xContest = null;
+                        }
+                    })
+
+                    if (this.roundModID==-1){
+
+                        // add round
+                        // create the dataset
+                        let data = {
+                            xEventGroup: this.selectedEventGroupId,
+                            name: this.newRoundName,
+                            order: this.selectedEventGroup.rounds.length+1,
+                            numGroups: this.newNumGroups,
+                            qualiModule: '', // TODO; required
+                            qualiConf: '', // optional
+                            groups: this.newGroups, // important: groups is not mandatory! The server will automatically create the groups if they are not set or not in agreement with numGroups
+                        }
+
+                        rEG.room.addToStack('addRound', data)
+                        
+
+                        this.overlay = undefined;
+                    } else {
+                        // modify existing round
+                        let data = {
+                            xRound: this.roundModID,
+                            xEventGroup: this.selectedEventGroupId,
+                            name: this.newRoundName,
+                            //order: , // do not change currently!
+                            numGroups: this.newNumGroups,
+                            groups: this.newGroups, // important: groups is not mandatory! The server will automatically create the groups if they are not set or not in agreement with numGroups
+                            //qualiModule: '', // TODO; required
+                            //qualiConf: '', // optional
+                        }
+
+                        rEG.room.addToStack('updateRound', data);
+
+                        this.overlay = undefined;
+                    }
+                },
+                modRound: function(id){
+                    this.roundModID = id;
+
+                    let r = this.selectedEventGroup.rounds.find(r=>r.xRound==id);
+
+                    this.newRoundName = r.name;
+                    this.newNumGroups = r.numGroups;
+                    // the groups must be copied; i.e. shall not be a reference!
+                    this.newGroups = [];
+                    if (r.groups){
+                        for (let i=0; i<r.groups.length; i++){
+
+                            let g = {
+                                number: r.groups[i].number,
+                                xRound: r.groups[i].xRound,
+                                name: r.groups[i].name
+                            }
+                            if (r.groups[i].xContest==undefined){ // includes null
+                                g.xContest = null;
+                            } else {
+                                g.xContest = r.groups[i].xContest;
+                            }
+                            this.newGroups.push(g);
+                        }
+                    }
+                    // TODO: quali...
+                    
+                    this.overlay = "addRound";
+
+                },
+                deleteRound: function(xRound, xEventGroup){
+                    // TODO: make sure that this round is not selected; otherwise vue would crash as soon as the round is deleted.
+                    rEG.room.addToStack('deleteRound', {xRound: xRound, xEventGroup:xEventGroup})
+                },
+                addContestGroup: function(){
+                    // get the xBaseDisipline of the currently selected eventGroup and call the actual addCOntest function
+                    let xBaseDiscipline = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline)?.xBaseDiscipline;
+
+                    this.addContest(xBaseDiscipline)
+                },
+                addContest: function(xBaseDiscipline=undefined){
+                    // if xbaseDiscipline is given, the xBaseDiscipline canot be changed (used when addContest is clicked within the groups-definitions)
+                    this.newXBaseDiscipline = xBaseDiscipline;
+                    this.createContestFixedDisc = xBaseDiscipline!==undefined;
+
+                    // create new:
+                    this.contestModID = -1;
+                    
+                    // reset values
+                    this.newDateAppeal = '';
+                    this.newDateCall = '';
+                    this.newDateStart = '';
+                    //this.conf = 
+
+                    // TODO: set max/min values on the dates
+
+                    this.overlay2 = "addContest";
+                },
+                createContest: function(){
+
+                    // translate the local time to Zulu/GMT time
+                    let dA = new Date(this.newDateAppeal);
+                    let dC = new Date(this.newDateCall);
+                    let dS = new Date(this.newDateStart);
+
+                    if (this.contestModID==-1){
+                        // new contest:
+
+                        let data = {
+                            //xContest,
+                            xBaseDiscipline: this.newXBaseDiscipline,
+                            datetimeAppeal: dA.toJSON(),
+                            datetimeCall: dC.toJSON(),
+                            datetimeStart: dS.toJSON(),
+                            //status: 0,
+                            //conf:'',
+                        }
+
+                        rCo.room.addToStack('addContest', data)
+
+                    } else {
+                        // update contest
+                        let data = {
+                            xContest: this.contestModID,
+                            xBaseDiscipline: this.newXBaseDiscipline,
+                            datetimeAppeal: dA.toJSON(),
+                            datetimeCall: dC.toJSON(),
+                            datetimeStart: dS.toJSON(),
+                            //status: 0,
+                            //conf:'',
+                        }
+
+                        rCo.room.addToStack('updateContest', data)
+                    }
+
+                    this.overlay2=undefined;
+                },
+                modContest: function(id){
+                    this.contestModID = id;
+
+                    let co = this.contests.find(co=>co.xContest==id);
+
+                    this.newXBaseDiscipline = co.xBaseDiscipline;
+                    this.newDateAppeal = co.datetimeAppeal;
+                    this.newDateCall = co.datetimeCall;
+                    this.newDateStart = co.datetimeStart;
+                    
+                    this.overlay2 = "addContest";
+
+                },
+                deleteContest: function(xContest){
+                    rEG.room.addToStack('deleteContest', xContest)
+                },
+
+                addEventGroup: function(){
+                    // begin adding
+                    this.eventGroupModID=-1; 
+
+                    this.newXEventGroup = undefined;
+                    this.newXDiscipline = undefined;
+                    this.newEventGroupName = ''; 
+                    this.newIsCombined = false;
+
+                    // show the "form"
+                    this.overlay = "addEventGroup";
+                },
+                modEventGroup: function(id){
+                    // begin modding
+                    this.eventGroupModID = id;
+                    let eG = this.eventGroups.find(el=>el.xEventGroup==id);
+                    this.newIsCombined = eG.combined;
+                    this.newXDiscipline = eG.xDiscipline;
+                    this.newEventGroupName = eG.name;
+
+                    this.overlay = "addEventGroup";
+                },
+                deleteEventGroup: function(id){
+                    // make sure that this eventGroup is not selected; othwise vue would crash as soon as the eventGroup is deleted.
+                    if (this.selectedEventGroupId == id){
+                        this.selectedEventGroupId = -1;
+                    }
+                    rEG.room.addToStack('deleteEventGroup', id)
+                },
+                modEvent: function(id){
+                    // actually "begin modding"
+
+                    // define the properties
+                    this.eventModID = id;
+
+                    let [,event] = this.findObjInArrayByProp(this.events, 'xEvent', id);
+                    this.newXEventGroup = event.xEventGroup;
+                    this.newXCategory = event.xCategory;
+                    this.newXDiscipline = event.xDiscipline;
+                    this.newEntryFee = event.entryFee;
+                    this.newDate = event.date;
+                    this.newInfo = event.info;
+                    
+                    if (event.xEventGroup != undefined){
+                        this.eventGroupRadio = 'existing';
+                    } else {
+                        this.eventGroupRadio = 'none';
+                    }
+                    
+                    // show the overlay
+                    //this.addEventOverlay = true;
+                    this.overlay = "addEvent";
+                },
+                createEventGroup: function(){
+                    if (this.eventGroupModID==-1){
+                        // really a new one
+                        let data = this.createEventGroupDataset();
+
+                        rEG.room.addToStack("addEventGroup", data)
+                        this.overlay = undefined;
+
+                    } else {
+                        // modding a present Event group
+                        let data = this.createEventGroupDataset(true);
+                        rEG.room.addToStack("updateEventGroup", data)
+                        this.overlay = undefined;
+                    }
+                },
+                createEventGroupDataset: function(includeId=false){
+                    let data={};
+                    data.xDiscipline = this.newXDiscipline;
+                    data.name = this.newEventGroupName;
+                    data.combined = this.newIsCombined;
+                    // TODO: for testing only --> insert does not work yet  
+                    //data.rounds=[{name: "test-Round", order:1, numGroups:1, qualiModule:"none", qualiConf:"empty"}];
+
+                    if (includeId){
+                        data.xEventGroup = this.eventGroupModID;
+                    }
+                    return data;
+                },
+                createEvent: function(){
+                    // TODO: the combination with create eventGroup:
+                    // two options: insert the eventGroup together with the event; problem: the nested create is in the wrong room! Would need to delete the eventGroup instance from the event and add it in the eventGroup-array --> not very clean 
+                    // split into tow subsequent calls; create the eventGroup first and await the hopefully positive response; --> this is the cleaner option
+                    if (this.eventModID==-1){
+
+                        // check whether also an eventGroup shall be added
+                        if (this.eventGroupRadio=="new"){
+                            // first create the eventGroup, then the event
+
+                            rEG.room.addToStack("addEventGroup", this.createEventGroupDataset(), (newEventGroup)=>{
+                                // function called on success
+                                // first of all add the data with the function that would have been used by default
+                                rEG.room.addEventGroupExe(newEventGroup);
+
+                                // then create the new event
+                                let data = this.createEventDataset();
+                                data.xEventGroup = newEventGroup.xEventGroup;
+                                // send to room/Server and wait for answer; the new event will be added when it arrives.
+                                rE.room.addToStack('addEvent', data);
+
+                            })
+
+                            // already hide the dialog
+                            this.overlay = undefined;
+
+                        } else {
+                            // create the new dataset to be stored
+                            let data = this.createEventDataset();
+
+                            // send to room/Server and wait for answer; the new event will be added when it arrives.
+                            rE.room.addToStack('addEvent', data);
+
+                            //this.addEventOverlay = false;
+                            this.overlay = undefined;
+                        }
+
+                    } else {
+
+                        if (this.eventGroupRadio=="new"){
+                            // first create the new eventgroup, then update the event
+                            rEG.room.addToStack("addEventGroup", this.createEventGroupDataset(), (newEventGroup)=>{
+                                // function called on success
+                                // first of all add the data with the function that would have been used by default
+                                rEG.room.addEventGroupExe(newEventGroup);
+
+                                // then create the new event
+                                let data = this.createEventDataset(true);
+                                data.xEventGroup = newEventGroup.xEventGroup;
+                                // send to room/Server and wait for answer; the new event will be added when it arrives.
+                                rE.room.addToStack('updateEvent', data);
+
+                            })
+
+                            // already hide the dialog
+                            this.overlay = undefined;
+                        } else {
+                            // create the dataset to be stored
+                            let data = this.createEventDataset(true);
+
+                            // send to room/Server and wait for answer; the new event will be added when it arrives.
+                            rE.room.addToStack('updateEvent', data);
+
+                            // reset the eventModID
+                            this.eventModID = -1;
+
+                            // hide the overlay:
+                            //this.addEventOverlay = false;
+                            this.overlay = undefined;
+                        }
+                    }
+
+                },
+                createEventDataset: function(includeId){
+                    let data = {};
+                    // {xEvent:1, xDiscipline:1, xCategory:1, xEventGroup:undefined, entryFee:10, onlineId:123, info:'test'},
+                    // data.xEvent // unknown yet, will be delivered from the server
+                    data.xDiscipline = this.newXDiscipline;
+                    data.xCategory = this.newXCategory;
+                    data.entryFee = this.newEntryFee;
+                    data.info = this.newInfo;
+                    if (this.newDate){
+                        // translate the local time to Zulu/GMT time
+                        let d = new Date(this.newDate);
+                        data.date = d.toJSON();
+                    }
+                    if(this.eventGroupRadio!='existing'){
+                        data.xEventGroup = null; // IMPORTANT: undefined would be omitted on stringify, while null is not!
+                    } else {
+                        data.xEventGroup = this.newXEventGroup;
+                    }
+                    if (includeId){
+                        data.xEvent = this.eventModID;
+                    }
+                    //data.onlineId //cannot be set (yet)
+
+                    return data;
+                },
+                eventGroupNumEvents: function(xEventGroup){
+                    let events = this.events.filter(el=>el.xEventGroup==xEventGroup);
+                    return events.length;
+                },
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                formatDate(dateString){
+                    if (dateString==null){
+                        return "";
+                    }
+                    var d = new Date(dateString);
+                    var str = "";
+                    str += `${d.getDate()}`.padStart(2,'0');
+                    str += "." + `${d.getMonth()+1}`.padStart(2, '0'); // Month is zero based
+                    str += ", " + `${d.getHours()}`.padStart(2, '0');
+                    str += ":" + `${d.getMinutes()}`.padStart(2,'0');
+                    return str;
+                },
+                formatInputDate(date){
+                    // date can be of type date or a datestring
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    let s = "";
+                    let d = new Date(date); // doesnt change anything is date is already a date
+                    s += d.getFullYear();
+                    s += "-" + (d.getMonth()+1).toString().padStart(2,0);
+                    s += "-" + d.getDate().toString().padStart(2,0);
+                    s += "T" + d.getHours().toString().padStart(2,0);
+                    s += ":" + d.getMinutes().toString().padStart(2,0);
+                    return s;
+                },
+                dateStartChanged(always=false){
+
+                    // called when the dateStart was defined: if dateCall and dateAppeal are still empty, set them based on the default offsets. 
+                    if (this.newDateStart!="" && this.newXBaseDiscipline!== undefined){
+                        let dStart = new Date (this.newDateStart);
+                        let d = this.baseDisciplines.find(el=>el.xBaseDiscipline == this.newXBaseDiscipline);
+                        if (!this.newDateAppeal || always){
+                            let time = d.timeAppeal.split(":");
+                            this.newDateAppeal = new Date(dStart.getFullYear(), dStart.getMonth(), dStart.getDate(), dStart.getHours()-Number(time[0]), dStart.getMinutes()-Number(time[1]), dStart.getSeconds()-Number(time[2]))
+                        }
+                        if (!this.newDateCall || always){
+                            let time = d.timeCall.split(":");
+                            this.newDateCall = new Date(dStart.getFullYear(), dStart.getMonth(), dStart.getDate(), dStart.getHours()-Number(time[0]), dStart.getMinutes()-Number(time[1]), dStart.getSeconds()-Number(time[2]))
+                        }
+                    }
+                },
+                resetDateOffset(){
+                    // use the start-time and set the call and appeal time with the default offset given by the discipline:
+                    this.dateStartChanged(true);
+                },
+                getBaseDisciplineName(xBaseDiscipline){
+                    // return the name of the base discipline;
+                    let bd = this.baseDisciplines.find(bd=>bd.xBaseDiscipline == xBaseDiscipline)
+                    if (bd){
+                        let lang = getLanguage();                   
+
+                        // try to find the translation for this baseDisipline
+                        let local = bd.basedisciplinelocalizations.find(bdl=>bdl.language==lang);
+                        let name, shortname;
+                        if (local){
+                            name = local.name;
+                            shortname = local.shortname;
+                        }else {
+                            // use the default value
+                            name = bd.nameStd;
+                            shortname = bd.shortnameStd;
+                        }
+                        return shortname;
+                    } else return ''
+
+                },
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+
+            },
+            computed:{
+                disciplinesSeasonFiltered: function(){
+                    // each discipline is either indoor or outdoor; make sure only the disciplines are shown that match the season
+                    return this.disciplines.filter(d=>d.indoor==this.meeting.isIndoor);
+
+                },
+                maxDateTime: function(){
+                    return `${this.meeting.dateTo.slice(0,10)}T23:59`;
+                },
+                minDateTime: function(){
+                    return `${this.meeting.dateFrom.slice(0,10)}T00:00`;
+                },
+                referencedContests: function(){
+                    // Set is the ideal object to store unique values (xContest)
+                    let contests = new Set(); 
+                    this.eventGroups.forEach((eG)=>{
+                        eG.rounds.forEach(r=>{
+                            r.groups.forEach(g=>{
+                                if (g.xContest>=0){ // null would be "smaller" and comparison with undefined is always false
+                                    contests.add(g.xContest); // will not be added if it already exists
+                                } 
+                            })
+                        })
+                    })
+
+                    return contests;
+                },
+                newDateString: function(){
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    if (this.newDate){
+                        return this.formatInputDate(this.newDate);
+                    } else {
+                        return undefined;
+                    }
+                },
+                newDateAppealString: function(){
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    if (this.newDateAppeal){
+                        return this.formatInputDate(this.newDateAppeal);
+                    } else {
+                        return undefined;
+                    }
+                },
+                newDateCallString: function(){
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    if (this.newDateCall){
+                        return this.formatInputDate(this.newDateCall);
+                    } else {
+                        return undefined;
+                    }
+                },
+                newDateStartString: function(){
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    if (this.newDateStart){
+                        return this.formatInputDate(this.newDateStart);
+                    } else {
+                        return undefined;
+                    }
+                },
+                eventGroupsForNewDisc: function(){
+                    // get all eventGroups that match the appropriate discipline
+                    if (this.newXDiscipline){
+                        return this.eventGroups.filter(evnt=>evnt.xDiscipline==this.newXDiscipline);
+                    }else{
+                        return [];
+                    }
+                },
+                selectedEventGroup: function(){
+                    if (this.selectedEventGroupId>-1){
+                        return this.eventGroups.find(eg=>eg.xEventGroup==this.selectedEventGroupId)
+                    }else{
+                        return undefined;
+                    }
+                },
+                selectedEventGroupRounds: function(){
+                    // the rounds; sorted
+                    if (this.selectedEventGroup){
+                        return this.selectedEventGroup.rounds.sort((a,b)=>a.order-b.order)
+                    }else{
+                        return undefined;
+                    }
+                },
+                contestsForRound: function(){
+                    // create an array of contests that match the baseDiscipline of the selected eventGroup
+                    // get the baseDiscipline of the currennt eventGroup:
+                    let disc = this.disciplines.find(el=> this.selectedEventGroup.xDiscipline==el.xDiscipline);
+                    return this.contests.filter(contest=>contest.xBaseDiscipline == disc.xBaseDiscipline);
+                
+                },
+                eventGroupsForList: function(){
+                    // create a copy of the array and the objects
+                    let eventGroupsMod = Array.from(this.eventGroups, el=>Object.assign({}, el))
+                    eventGroupsMod.forEach(eG=>{
+                        eG.discName = this.getDisciplineProperty(eG.xDiscipline, 'shortname');
+                    })
+                    return eventGroupsMod;
+                },
+                eventsForList: function(){
+                    // create a copy of the array ( I expect the second method to be faster) in order not to modify the original data
+                    //let eventsMod = JSON.parse(JSON.stringify(this.events)) ;
+                    let eventsMod = Array.from(this.events, el=>Object.assign({}, el)) ;
+                    eventsMod.forEach(evt => {
+                        evt.catName = this.getCategoryProperty(evt.xCategory, 'shortname');
+                        evt.discName = this.getDisciplineProperty(evt.xDiscipline, 'shortname');
+                        evt.eventGroupName = this.getEventGroupProperty(evt.xEventGroup, 'name');
+                        evt.formattedDate = this.formatDate(evt.date);
+                    });
+
+                    return eventsMod;
+                },
+                eventFilter(filterValue, row){
+                    // split the input string by whitespace
+                    let filterWords = this.filterEvents.split(" ");
+
+                    // every word may be part of any column
+                    let filter = {};
+                    let i=1;
+                    for (let filterWord of filterWords){
+                        filter["filter" + i] = {keys:['info', 'formattedDate', 'catName', 'discName', 'eventGroupName'], value:filterWord} //
+                        i += 1;
+                    }
+
+                    return filter;
+                },
+                eventGroupFilter(filterValue, row){
+                    // split the input string by whitespace
+                    let filterWords = this.filterEventGroups.split(" ");
+
+                    // every word may be part of any column
+                    let filter = {};
+                    let i=1;
+                    for (let filterWord of filterWords){
+                        filter["filter" + i] = {keys:['name', 'discName'], value:filterWord} //
+                        i += 1;
+                    }
+
+                    return filter;
+                },
+                contestsForList: function(){
+                    // create a copy of the array ( I expect the second method to be faster) in order not to modify the original data
+                    // let eventsMod = JSON.parse(JSON.stringify(this.events)) ;
+                    let mod = Array.from(this.contests, el=>Object.assign({}, el)) ;
+                    mod.forEach(co => {
+                        co.baseDiscName = this.getBaseDisciplineName(co.xBaseDiscipline);
+                        co.formattedStarttime = this.formatDate(co.datetimeStart);
+                        co.formattedAppealtime = this.formatDate(co.datetimeAppeal);
+                        co.formattedCalltime = this.formatDate(co.datetimeCall);
+                    });
+                    
+                    return mod;
+                },
+                contestFilter(filterValue, row){
+                    // split the input string by whitespace
+                    let filterWords = this.filterContests.split(" ");
+
+                    // every word may be part of any column
+                    let filter = {};
+                    let i=1;
+                    for (let filterWord of filterWords){
+                        filter["filter" + i] = {keys:['baseDiscName', 'formattedStarttime', 'formattedAppealtime', 'formattedCalltime'], value:filterWord} //
+                        i += 1;
+                    }
+
+                    return filter;
+                },
+            },
+            watch:{
+                newNumGroups: function(){
+
+                    // get the currently selected round (undefined when no round present)
+                    let r = this.selectedEventGroup.rounds.find(r=>r.xRound==this.roundModID);
+
+                    if (this.newGroups.length>this.newNumGroups){
+                        // delete the last groups
+                        this.newGroups.splice(this.newNumGroups);
+                    } else {
+                        // add as many rounds as needed to match newNumGroups
+                        for (let i=this.newGroups.length+1; i<=this.newNumGroups; i++){
+                            // check if the actual stored data still contains this amount of groups (e.g. when numGroups is decreased and increased again without pressing update or abort)
+                            // if this is a new Round, then r is undefined and thus also g must be undefined
+                            let g = r?.groups?.find(g=>g.number == i);
+                            if (g){
+                                this.newGroups.push({
+                                    number: g.number,
+                                    name: g.name, 
+                                    xContest: g.xContest,
+                                    xRound: g.xRound
+                                });
+                            } else {
+                                this.newGroups.push({
+                                    number: i,
+                                    name: `<%= __("Group") %> ${i}`, // TODO put in here the default group-name set for the whole meeting (not necessary in the language of the client)
+                                    xContest: null,
+                                    // there is no xRound yet 
+                                });
+                            }
+
+                        }
+                    }
+                
+
+                },
+                disciplineChanged: function(){
+                    // set the times as the default from the disciplines list
+                },
+                eventGroupRadio: function(){
+                    // if the eventGroupRadio changes to none or create new, we should reset newXEventGroup=undefined
+                    if (this.eventGroupRadio!="existing"){
+                        this.newXEventGroup = undefined;
+                    }
+                },
+                newXDiscipline: function(newDisc, oldDisc){
+                    // automatically change the name of the newEventGroup, except when it was manually set before
+
+                    // check whether is was automatically set before
+                    if (this.newEventGroupName==this.createEGName(oldDisc, this.newXCategory)){
+                        this.newEventGroupName = this.createEGName(newDisc, this.newXCategory);
+                    }
+                },
+                newXCategory: function(newCat, oldCat){
+                    // automatically change the name of the newEventGroup, except when it was manually set before
+
+                    // check whether is was automatically set before
+                    if (this.newEventGroupName==this.createEGName(this.newXDiscipline, oldCat)){
+                        this.newEventGroupName = this.createEGName(this.newXDiscipline, newCat);
+                    }
+                },
+                show: function (showNew, showOld){
+                    // set the search parameters in the URL accordingly to make sure that the same page is loaded again on reload
+
+                    var urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('show', showNew);
+                    
+                    // it seems like setting window.location.search automatically reloads the browser; find a way to avoid this (eventually with the state object)
+                    window.history.replaceState(window.history.state, '', window.location.pathname + '?' + urlParams.toString())
+                    
+                    //window.history.replaceState(oldStateObj, "", document.location.pathname)
+
+                    // window.history.pushState(stateObj, "", newPathname)
+
+                    // eventually we should do this through the pageHandling stuff in order not to breakt its functionality
+
+                }
+            },
+            components:{
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+            }
+        };
+
+        
+        vueEvents = Vue.createApp(vueAppConfig).mount('#vueDiv');
+
+        // load the rooms
+        let ms = getMeetingShortname()
+        var rE = new vuEvents(vueEvents, ms); 
+        var rEG = new vuEventGroups(vueEvents, ms);
+        var rD = new vuDisciplines(vueEvents, ms);
+        var rCa = new vuCategories(vueEvents, ms);
+        var rCo = new vuContests(vueEvents, ms);
+
+        // try to get a previously selected page to show 
+        var urlParams = new URLSearchParams(window.location.search);
+        if (show=urlParams.get('show')){
+            // check if the parameter is valid:
+            if (show=='events' || show=='eventGroups' || show=='contests'){
+                vueEvents.show = show;
+            }
+        }
+    }
+
+    function shutdown(){
+        
+        // "delete" the vueEvents (save some memory)
+        delete vueEvents
+    }
+
+
+</script>
+
+<div id="vueDiv">
+    <button class="btn" v-on:click="show='events'"><%= __("Events") %></button>
+    <button class="btn" v-on:click="show='eventGroups'; selectedEventGroupId=-1"><%= __("Event groups") %></button>
+    <button class="btn" v-on:click="show='contests'"><%= __("Contests") %></button>
+    <div v-if="show=='events'">
+        <h2><%= __("List of events") %></h2>
+        <!-- TODO: add some filtering method here-->
+        <button class="btn btnGreen" v-on:click="addEvent()"><%= __("Add event") %></button>
+        <!-- show a list of events-->
+        <label class="verticalForm">
+            <%= __("Filter events") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <input v-model="filterEvents" type="text" size="30">
+        </label>
+        <button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>
+
+        <v-table :data="eventsForList" :filters="eventFilter"><!-- :filters="inscriptionFilters" -->
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th is="vue:v-th" sortkey="xEvent" v-if="showFullDetails">xEvent</th>
+                        <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                        <th is="vue:v-th" sortkey="catName"><%= __("Category") %></th>
+                        <th><%= __("Entry fee") %></th>
+                        <th is="vue:v-th" sortkey="onlineId" v-if="showFullDetails">onlineID</th>
+                        <th is="vue:v-th" sortkey="formattedDate" defaultsort="asc"><%= __("Date and time") %></th>
+                        <th is="vue:v-th" sortkey="info"><%= __("Info") %></th>
+                        <th is="vue:v-th" sortkey="eventGroupName"><%= __("Event group") %></th> <!-- IMPORTANT: if the value of sortkey is not simply a string but should be bound to a variable, function, etc, we must use v-bind:... respectively its abbreviation :... -->
+                        <th></th><!-- Buttons-->
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="evt in displayData" :key="evt.xEvent">
+                        <td v-if="showFullDetails">{{evt.xEvent}}</td>
+                        <td>{{evt.discName}}</td>
+                        <td>{{evt.catName}}</td>
+                        <td>{{evt.entryFee}}</td>
+                        <td v-if="showFullDetails">{{evt.onlineId}}</td>
+                        <td v-if="evt.date">{{evt.formattedDate}}</td><td v-else></td>
+                        <td>{{evt.info}}</td>
+                        <td class="clickable" v-on:click="show='eventGroups'; selectedEventGroupId=evt.xEventGroup">{{evt.eventGroupName}}</td>
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modEvent(evt.xEvent)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-on:click="deleteEvent(evt.xEvent)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+    </div>
+
+    <div v-if="show=='eventGroups'">
+        <h2><%= __("List of event groups") %></h2>
+        <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
+        <label class="verticalForm">
+            <%= __("Filter event groups") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <input v-model="filterEventGroups" type="text" size="30">
+        </label>
+        <button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>
+        <!-- show a list of event groups-->
+        <v-table :data="eventGroupsForList" :filters="eventGroupFilter">
+            <template #head>
+                <thead>
+                    <tr>
+                        <th is="vue:v-th" sortkey="xEventGroup" v-if="showFullDetails">xEventGroup</th>
+                        <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
+                        <th is="vue:v-th" sortkey="combined"><%= __("is combined") %></th>
+                        <th></th><!-- Buttons-->
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}">
+                <tbody>
+                    <tr v-for="eg in displayData" :key="eg.xEventGroup">
+                        <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
+                        <td>{{eg.discName }}</td>
+                        <td>{{eg.name}}</td>
+                        <td>{{eg.combined}}</td>
+                        <td>
+                            <button v-if="eventGroupNumEvents(eg.xEventGroup)>0" class="btn" v-on:click="show='events'; filterEvents=eg.name"><%= __("Show events") %></button>
+                            <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup"><%= __("Show rounds") %></button>
+                            <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup; addRound()"><%= __("Add round") %></button>
+                            <button class="btn btnGrey" v-on:click="modEventGroup(eg.xEventGroup)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-if="eventGroupNumEvents(eg.xEventGroup)==0 && eg.rounds.length==0" v-on:click="deleteEventGroup(eg.xEventGroup)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+    </div>
+
+    <div v-if="show=='eventGroups' && selectedEventGroupId!=-1"> <!-- TODO: separate from the events-->
+        <h2><%= __("List of rounds for {{selectedEventGroup.name}}") %></h2>
+        <button class="btn btnGreen" v-on:click="addRound()"><%= __("Add round") %></button>
+        <!-- show a list of rounds-->
+        <table>
+            <tr>
+                <th v-if="showFullDetails">xRound</th>
+                <!--<th><%= __("Event group") %></th>-->
+                <th><%= __("Name") %></th>
+                <th><%= __("order") %></th>
+                <!--<th><%= __("# groups") %></th>-->
+                <th><%= __("Groups") %></th>
+                <th><%= __("Qualification") %></th>
+                <th></th><!-- Buttons-->
+                <!-- TODO: make this list drag and droppable!-->
+            </tr>
+            <tr v-for="r in selectedEventGroupRounds">
+                <td v-if="showFullDetails">{{r.xRound}}</td>
+                <td>{{r.name}}</td>
+                <td>{{r.order}}</td>
+                <!--<td>{{r.numGroups}}</td>-->
+                <td><div v-for="g in r.groups">
+                    <!-- provide renaming and contest selection -->
+                    {{g.number}}{{g.name ? " - "+g.name: ""}}
+                    <!--  TODO contest selection and auto-contest creation -->
+                </div></td>
+                <td><button v-if="r.order>1" class="btn" v-on:click=""><%= __("Set qualification") %></button></td>
+                <td>
+                    <!--<button class="btn" v-on:click="groupContestView"><%= __("Match groups to contests") %></button>-->
+                    <button class="btn btnGrey" v-on:click="modRound(r.xRound)" ><%= __("Change") %></button>
+                    <button class="btn btnRed" v-on:click="deleteRound(r.xRound, r.xEventGroup)" v-bind:disabled="r.order != selectedEventGroupRounds.length"><%= __("Delete") %></button>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div v-if="show=='contests'">
+        <h2><%= __("List of contests") %></h2>
+        <button class="btn btnGreen" v-on:click="addContest()"><%= __("Add contest") %></button>
+        <label class="verticalForm">
+            <%= __("Filter contests") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <input v-model="filterContests" type="text" size="30">
+        </label>
+        <button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>
+        <v-table :data="contestsForList" :filters="contestFilter">
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
+                        <th is="vue:v-th" sortkey="xBaseDiscipline" v-if="showFullDetails">xBaseDiscipline</th>
+                        <th is="vue:v-th" sortkey="baseDiscName"><%= __("Base discipline") %></th>
+                        <th is="vue:v-th" sortkey="formattedStarttime" defaultsort="asc"><%= __("Start") %></th>
+                        <th is="vue:v-th" sortkey="formattedAppealtime"><%= __("Appeal") %></th>
+                        <th is="vue:v-th" sortkey="formattedCalltime"><%= __("Call") %></th>
+                        <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
+                        <!--<th is="vue:v-th" sortkey="conf" v-if="showFullDetails"><%= __("Conf") %></th> -->
+                        <th></th><!-- Buttons-->
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="co in displayData" :key="co.xContest">
+                        <td v-if="showFullDetails">{{co.xContest}}</td>
+                        <td v-if="showFullDetails">{{co.xBaseDiscipline}}</td>
+                        <td>{{co.baseDiscName}}</td>
+                        <td>{{co.formattedStarttime}}</td>
+                        <td>{{co.formattedAppealtime}}</td>
+                        <td>{{co.formattedCalltime}}</td>
+                        <td>{{co.status}}</td>
+                        <!--<td v-if="showFullDetails">{{co.conf}}</td>-->
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modContest(co.xContest)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-if="!referencedContests.has(co.xContest)"  v-on:click="deleteContest(co.xContest)"><%= __("Delete") %></button>
+                        </td>
+
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+
+    </div>
+
+    <div class="overlay"  v-bind:class="{shown: overlay}">
+        <div class="overlayContainer">
+            <div id="addEvent" v-if="overlay=='addEvent'">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Add event") %>: </h3>
+                        <label>
+                            <%= __("Discipline") %>: 
+                            <select v-model.number="newXDiscipline" v-on:change="newXEventGroup=undefined">
+                                <option v-for="discipline in disciplinesSeasonFiltered" v-bind:value="discipline.xDiscipline">{{discipline.name}}</option>
+                            </select>
+                        </label>
+                        <!--<div><%= __("Appeal time") %>: </div> <input v-model.number="newAppealTime"  type="number" size="3"><%= __("minutes") %>
+                        <div><%= __("Callroom time") %>: </div> <input v-model.number="newCallTime"  type="number" size="3"><%= __("minutes") %>-->
+                        <label>
+                            <%= __("Category") %>: 
+                            <select v-model.number= "newXCategory">
+                                <option v-for="cat in categories" v-bind:value="cat.xCategory">{{cat.shortname}}</option>
+                            </select>
+                        </label>
+                        <label>
+                            <%= __("Entry fee") %>: 
+                            <input v-model.number="newEntryFee"  type="number" size="3" >
+                        </label>
+                        <label>
+                            <%= __("Date and time") %>:
+                            <input v-bind:value="newDateString" v-on:input="newDate = $event.target.value" type="datetime-local" v-bind:max="maxDateTime" v-bind:min="minDateTime"><!-- v-model = v-bind:value + v-on:input-->
+                        </label>
+                        <label>
+                            <%= __("Info") %>: 
+                            <input v-model="newInfo"  type="text" maxlength="50"> 
+                        </label>
+                        <div style="border:solid">
+                            <%= __("Event group") %>: 
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="none">
+                                <%= __("Defined later") %>
+                            </label>
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="existing">
+                                <%= __("Select existing") %>
+                            </label>
+                            <label style="display:inline-block">
+                                <input type="radio" name="eventGroupRadio" v-model="eventGroupRadio" value="new">
+                                <%= __("Create new") %>
+                            </label>
+                            <div v-if="eventGroupRadio=='existing'">
+                                <select v-if="newXDiscipline" v-model.number= "newXEventGroup">
+                                    <option v-for="eg in eventGroupsForNewDisc" v-bind:value="eg.xEventGroup">{{eg.name}}</option>
+                                </select>
+                                <div v-else><%= __("Choose a discipline first") %></div>
+                            </div>
+                            <div v-if="eventGroupRadio=='new'">
+                                <!--xEventGroup:1, 
+                                xDiscipline:1, 
+                                name:'PV1',
+                                combined:false,
+                                rounds:[
+                                    {
+                                        xRound:1,
+                                        xEventGroup:1,
+                                        name:'TODO',
+                                        order:1,
+                                        numGroups:1, 
+                                        qualiModule:undefined,
+                                        qualiConf:undefined
+                                    }
+                                ]-->
+                                <!-- The discipline is automatically given by the event-->
+                                <label>
+                                    <%= __("Event group name") %>
+                                    <input type="text" v-model="newEventGroupName" maxlength="50">
+                                </label>
+                                <label>
+                                    <input type="checkbox" v-model="newIsCombined">
+                                    <%= __("is a combined event") %> (NOT EVALUATED YET)
+                                </label>
+                            </div>
+                        </div>
+            
+                        <!-- four different buttons for different cases-->
+                        <button type="submit" class="btn btnGreen" v-on:click="createEvent" v-bind:disabled="newXCategory==undefined || newXDiscipline==undefined">
+                            <div v-if="eventGroupRadio!='new' && eventModID==-1"><%= __("Create event") %></div>
+                            <div v-if="eventGroupRadio=='new' && eventModID==-1"><%= __("Create event and event group") %></div>
+                            <div v-if="eventGroupRadio!='new' && eventModID>-1"><%= __("Update event") %></div>
+                            <div v-if="eventGroupRadio=='new' && eventModID>-1"><%= __("Update event and create event group") %></div>
+                        </button>
+                        <!--<button v-if="eventGroupRadio=='new' && eventModID==-1" class="btn btnGreen" v-on:click="createEvent" v-bind:disabled="newXCategory==undefined || newXDiscipline==undefined"></button>-->
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+            <div id="addEventGroup" v-if="overlay=='addEventGroup'">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Add event group") %>: </h3>
+                        <label>
+                            <%= __("Discipline") %>: 
+                            <select v-model.number="newXDiscipline">
+                                <option v-for="discipline in disciplinesSeasonFiltered" v-bind:value="discipline.xDiscipline">{{discipline.name}}</option>
+                            </select>
+                        </label>
+                        <!--<div><%= __("Appeal time") %>: </div> <input v-model.number="newAppealTime"  type="number" size="3"><%= __("minutes") %>
+                        <div><%= __("Callroom time") %>: </div> <input v-model.number="newCallTime"  type="number" size="3"><%= __("minutes") %>-->
+                        <label>
+                            <%= __("Event group name") %>: 
+                            <input v-model = "newEventGroupName" type="text">
+                        </label>
+                        <label>
+                            <%= __("Is combined") %>:<!--TODO: add here a hint what it means--> 
+                            <input v-model="newIsCombined"  type="checkbox" >
+                        </label>
+
+                        <!-- TODO: eventually provide here the possibility to add rounds-->
+
+                        <button type="submit" class="btn btnGreen"v-if="eventGroupModID==-1" v-on:click="createEventGroup" v-bind:disabled="newXDiscipline==undefined"><%= __("Create event group") %></button>
+                        <button type="submit" class="btn btnGreen"v-if="eventGroupModID>-1" v-on:click="createEventGroup" v-bind:disabled="newXDiscipline==undefined"><%= __("Update event group") %></button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+            <div id="addRound" v-if="overlay=='addRound'">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="roundModID==-1"><%= __("Add round for {{selectedEventGroup.name}}") %>: </h3>
+                        <h3 v-if="roundModID!=-1"><%= __("Update round for {{selectedEventGroup.name}}") %>: </h3>
+                        <label>
+                            <%= __("Round name") %>: 
+                            <input v-model = "newRoundName" type="text">
+                        </label>
+                        <label>
+                            <%= __("Number of groups") %>:<!--TODO: add here a hint what it means--> 
+                            <input v-model.number="newNumGroups" type="number">
+                        </label>
+                        <%= __("Groups:") %><div>
+                            <div v-for="g in newGroups" style="border:1px solid black; margin: 2px">
+                                {{g.number}}  <input v-model="g.name" type="text" style="display:inline;"><!-- add a dropdown with contests; add a button to create a new corresponding contest-->
+                                <!-- Link to contest. -->
+                                <br><%= __("Contest") %>: 
+                                <!--<label style="display:inline-block">
+                                    <input type="radio" name="contestRadio" v-model="contestRadio" value="existing">
+                                    <%= __("Select existing") %>
+                                </label>
+                                <label style="display:inline-block">
+                                    <input type="radio" name="contestRadio" v-model="contestRadio" value="none">
+                                    <%= __("Defined later") %>
+                                </label>-->
+                                <div v-if="true"><!--contestRadio=='existing'-->
+                                    <select v-model.number="g.xContest">
+                                        <option value=null><%= __("defined later") %></option>
+                                        <option v-for="contest in contestsForRound" v-bind:value="contest.xContest">{{formatDate(contest.datetimeStart)}}</option><!-- TODO: add site as an identifier and/or implement a name for the contest-->
+                                    </select>
+                                    <button type="button" class="btn" v-on:click="addContestGroup"><%= __('Add contest') %></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div>Here will be the qualification-setups...</div>
+                        <!-- TODO: set appropriate minimum requirement to set send create-->
+                        <button type="submit" class="btn btnGreen" v-if="roundModID==-1" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Create round") %></button>
+                        <!--<button type="submit" class="btn btnGreen" v-if="roundModID==-1 && contestRadio == 'new'" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Create round and contest") %></button>-->
+                        <button type="submit" class="btn btnGreen" v-if="roundModID>-1" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Update round") %></button>
+                        <!--<button type="submit"class="btn btnGreen" v-if="roundModID>-1 && contestRadio =='new'" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Update round and create contest") %></button>-->
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+    <div class="overlay"  v-bind:class="{shown: overlay2}">
+        <div class="overlayContainer">
+            <div id="addContest" v-if="overlay2=='addContest'">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="contestModID==-1"><%= __("Add contest") %>: </h3>
+                        <h3 v-if="contestModID!=-1"><%= __("Update contest") %>: </h3>
+                        <!-- Base discipline -->
+                        <label style="display: inline-block;">
+                            <%= __("Base discipline") %>
+                            <select v-model.number="newXBaseDiscipline" v-bind:disabled="createContestFixedDisc">
+                                <option v-for="bd in baseDisciplines" v-bind:value="bd.xBaseDiscipline">{{getBaseDisciplineName(bd.xBaseDiscipline)}}</option>
+                            </select>
+                        </label>
+                        <label style="display:inline-block">
+                            <%= __("Start time") %>
+                            <input v-bind:value="newDateStartString" v-on:input="newDateStart = $event.target.value;" v-on:blur="dateStartChanged(false)" type="datetime-local" v-bind:max="maxDateTime" v-bind:min="minDateTime">
+                        </label>
+                        <label style="display:inline-block">
+                            <%= __("Appeal time") %>
+                            <input id="testDate" v-bind:value="newDateAppealString" v-on:input="newDateAppeal = $event.target.value" type="datetime-local" v-bind:max="maxDateTime" v-bind:min="minDateTime">
+                        </label>
+                        <label style="display:inline-block">
+                            <%= __("Call time") %>
+                            <input v-bind:value="newDateCallString" v-on:input="newDateCall = $event.target.value" type="datetime-local" v-bind:max="maxDateTime" v-bind:min="minDateTime">
+                        </label>
+                        <button v-if="newDateStartString" type="button" class="btn" v-on:click="resetDateOffset"><%= __("Set default time offsets") %></button>
+                        <!-- add disciplineType-specific conf options -->
+                        <div></div>
+                        <button type="submit"class="btn btnGreen" v-on:click="createContest" v-if="contestModID==-1" v-bind:disabled="newDateStart=='' || newDateCall=='' || newDateAppeal=='' || newXBaseDiscipline==undefined"><%= __("Create contest") %></button>
+                        <button type="submit"class="btn btnGreen" v-on:click="createContest" v-if="contestModID!=-1" v-bind:disabled="newDateStart=='' || newDateCall=='' || newDateAppeal=='' || newXBaseDiscipline==undefined"><%= __("Update contest") %></button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Abort") %></button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+
+    <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+        <!-- overlay used for displaying general information -->
+        <div id="overlayContainer">
+            <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+            <div id="overlayContent">{{infoContent}}</div>
+        </div>
+    </div>
+
+</div>

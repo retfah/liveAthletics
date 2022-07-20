@@ -1,0 +1,49 @@
+// this file will be included in the middle of an object definition
+
+// a list of all contests-states to show the client. 
+// The name given to the state is the default name if no language specific name is given in the language file. It should be in english. 
+
+// TODO: these status are NOT correct yet (just copied from seltec )
+// - the values have some space in between on purpose to allow later additions
+// - eventually it will make sense to add another property "referenced", indicating whether the status is just for information or has a specific meaning for the software. (However, when every software function relying on the status uses a certain range, then this should not be important.)
+// note: the status should never be checked like ==20, but like >=20 && <30 to allow for userdefined status inbetween with the same meaning for the program
+// current official parts:  
+// 0-39: roll call can be done
+// 40-59: intermediate; no changes
+// 60-89: series can be created/changed
+// 90-119: intermediate; no changes. (e.g.startlist official, competition not yet started)
+// 120-139: changes to "auxilary" data, e.g. startheights and notes to athletes. No results yet!
+// 140-179: competition running
+// 180-255: competition finished
+// numbers available (tinyint): 0-255
+
+contestStates: [
+    {value: 10, text: "<%= __('Round defined') %>", backgroundColor:"#444444", textColor:"#FFFFFF"}, // planned
+    {value: 15, text: "<%= __('Roll call printed') %>", backgroundColor:"#696969", textColor:"#FFFFFF"},
+    {value: 50, text: "<%= __('Roll call finished') %>", backgroundColor:"#bdbdbd", textColor:"#FFFFFF"}, 
+    
+    {value: 70, text: "<%= __('Editing Start List') %>", backgroundColor:"#c4003b", textColor:"#FFFFFF"}, // the overlay for the initial series setting shall only be possible when the state is editing startlist 
+    {value: 90, text: "<%= __('Start List finished') %>", backgroundColor:"#c96382", textColor:"#FFFFFF"},
+    {value: 95, text: "<%= __('Start List official') %>", backgroundColor:"#c404c7", textColor:"#FFFFFF"},
+    {value: 140, text: "<%= __('In progress') %>", backgroundColor:"#c1c400", textColor:"#000000"}, 
+    {value: 180, text: "<%= __('Finished') %>", backgroundColor:"#58d91c", textColor:"#FFFFFF"},
+    {value: 200, text: "<%= __('Results Official') %>", backgroundColor:"#399c0b", textColor:"#FFFFFF"},
+    {value: 230, text: "<%= __('Certificate printed') %>", backgroundColor:"#0b819c", textColor:"#FFFFFF"}
+],
+
+// TODO: define the series states that are programmatically needed and their ranges!
+seriesStates: [
+    {value: 10, text: "<%= __('Series under definition') %>", backgroundColor:"#c4003b", textColor:"#000000"}, // 
+    {value: 70, text: "<%= __('Series official') %>", backgroundColor:"#c404c7", textColor:"#000000"}, // 
+    {value: 130, text: "<%= __('Preparing competition') %>", backgroundColor:"#c1c400", textColor:"#000000"}, // 
+    {value: 150, text: "<%= __('In progress') %>", backgroundColor:"#c1c400", textColor:"#000000"}, // 
+    {value: 180, text: "<%= __('Finished') %>", backgroundColor:"#58d91c", textColor:"#000000"}, // 
+    {value: 200, text: "<%= __('Official') %>", backgroundColor:"#399c0b", textColor:"#000000"}, // 
+],
+
+participationStates: [
+    {value: 0, text: "<%= __('regular') %>"},
+    {value: 1, text: "<%= __('retired') %>"},
+    {value: 5, text: "<%= __('DNS') %>"},
+    {value: 6, text: "<%= __('DQ') %>"}
+],
