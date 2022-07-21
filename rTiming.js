@@ -1,5 +1,6 @@
-import roomServer from "./roomServer";
+import roomServer from "./roomServer.js";
 import Net from 'net';
+import {promises as fs} from 'fs';
 
 export default class rTiming extends roomServer{
     
@@ -32,37 +33,7 @@ export class rTimingAlge extends rTiming {
 
         super(timingName, eventHandler, mongoDb, logger)
 
-        // NOTE: in the test, I activated every possible output in the four configurations !!!
 
-        // ALGE DisplayBoard connection options (see Net.socket.connect)
-        let optDisplayGaz = {
-            port: 4445,
-            host: 'localhost',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-        let optDisplayDline = {
-            port: 4446,
-            host: 'localhost',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-
-        // ALGE Output Port
-        let optALGEOutputDline = {
-            port: 4447,
-            host: 'localhost',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-
-        // ALGE Versatile Exchange connection options (see Net.socket.connect)
-        let optVersatileExchange = {
-            port: 4448,
-            host: 'localhost',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
 
     }
 
@@ -116,7 +87,7 @@ export class tcpClientAutoReconnect {
 
             // try to recreate the connection (the timeout was already started, if there was an error previously)
             if (!hadError && !this.ending){
-                setTimeout(this.startConnection, this.retryInterval);
+                setTimeout(this.startConnection.bind(this), this.retryInterval);
             }
         })
 
@@ -151,7 +122,7 @@ export class tcpClientAutoReconnect {
             this.onError(err);
 
             // try to recreate the connection
-            setTimeout(this.startConnection, this.retryInterval);
+            setTimeout(this.startConnection.bind(this), this.retryInterval);
             
         })
 
@@ -166,3 +137,97 @@ export class tcpClientAutoReconnect {
     }
 
 }
+
+/**
+ * open a tcp connection and write everything (connect, error, close, data) to the fileHandles specified
+ */
+class tcpToFile extends tcpClientAutoReconnect{
+    constructor(connectionOptions, name, fileHandles){
+
+        const writer = (data)=>{
+            for (let file of fileHandles){
+                file.write(data);
+            }
+        }
+
+        const onError = (err)=>{
+            const d = new Date();
+            writer(`${d.toISOString()} ${name}, error: ${err}.\n`);
+        }
+        const onClose = (hadError)=>{
+            const d = new Date();
+            writer(`${d.toISOString()} ${name}, closed; after error: ${hadError}.\n`);
+        }
+        const onConnect = ()=>{
+            const d = new Date();
+            writer(`${d.toISOString()} ${name}, connected.\n`);
+        }
+        const onData = (data)=>{
+            const d = new Date();
+            writer(`${d.toISOString()} ${name}, data: ${data}.\n`);
+        }
+
+        super(connectionOptions, onError, onClose, onConnect, onData)
+    }
+} 
+
+/**
+ * Log the different 
+ */
+class ALGElogger {
+
+    static async create(folder, nameAll='all.txt', nameDisplayGaz='displayGaz.txt', nameDisplayDline='displayDline.txt', nameAlgeOutput='algeOutput.txt', nameVersatileExchange='versatileExchange.txt'){
+        // since we want to open files async (instead of sync (very bad idea) or with callbacks (old school), we prepare the file handles first and then call the constructor)
+
+        const fileAll = await fs.open(folder + "\\" + nameAll, 'a+');
+        const fileDisplayGaz = await fs.open(folder + "\\" + nameDisplayGaz, 'a+');
+        const fileDisplayDline = await fs.open(folder + "\\" + nameDisplayDline, 'a+');
+        const fileAlgeOutput = await fs.open(folder + "\\" + nameAlgeOutput, 'a+');
+        const fileVersatileExchange = await fs.open(folder + "\\" + nameVersatileExchange, 'a+');
+
+        return new ALGElogger(fileAll, fileDisplayGaz, fileDisplayDline, fileAlgeOutput, fileVersatileExchange);
+    }
+
+    constructor(fileAll, fileDisplayGaz, fileDisplayDline, fileAlgeOutput, fileVersatileExchange){
+
+        // NOTE: in the test, I activated every possible output in the four configurations !!!
+
+        // ALGE DisplayBoard connection options (see Net.socket.connect)
+        let optDisplayGaz = {
+            port: 4445,
+            host: 'localhost',
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+        let optDisplayDline = {
+            port: 4446,
+            host: 'localhost',
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+
+        // ALGE Output Port
+        let optAlgeOutput = {
+            port: 4447,
+            host: 'localhost',
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+
+        // ALGE Versatile Exchange connection options (see Net.socket.connect)
+        let optVersatileExchange = {
+            port: 4448,
+            host: 'localhost',
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+
+        // create tcpToFile class for every output
+        const oDisplayGaz = new tcpToFile(optDisplayGaz, 'displayGaz__', [fileAll, fileDisplayGaz]); // the underlines are intended to make the string as long as Dline for easier comparison
+        const oDisplayDline = new tcpToFile(optDisplayDline, 'displayDline', [fileAll, fileDisplayDline]);
+        const oAlgeOutput = new tcpToFile(optAlgeOutput, 'algeOutput', [fileAll, fileAlgeOutput]);
+        const oVersatileExchange = new tcpToFile(optVersatileExchange, 'versatileExchange', [fileAll, fileVersatileExchange]);
+
+    }
+}
+ALGElogger.create('C:\\Users\\Reto\\Documents\\Reto\\Programmieren\\liveAthletics\\Zeitmessung\\Alge Schnittstelle')
