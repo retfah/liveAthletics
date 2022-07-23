@@ -1554,8 +1554,12 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 		return
 	} */
 	
-	// TODO: if a meeting was requested that is not running, redirect to the meetingSelection page
-	//res.redirect()
+	// if a meeting was requested that is not running, redirect to the meetingSelection page
+	// get the meeting:
+	const meeting = rooms.meetings.activeMeetings[req.params.meeting];
+	if (!meeting){
+		res.redirect(`/${req.params.lang}/meetingSelection`)
+	}
 	
 	/* test if the requested page is 'valid':
 		- first, get the path without the language and the meeting
@@ -1566,10 +1570,19 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 	//console.log(req.path);
 	//console.log(path);
 	if (path.endsWith('/')){
-		path = path.substr(0,path.length-1); // remove ending /
+		path = path.slice(0,path.length-1); // remove ending /
 	}
-	// if path is empty, go to main
-	if (path==""){path="main"};
+	// if path is empty, proceed either to main (main server) or liveResults (secondary server)
+	if (path==""){
+		// differentiate mode
+		if (meeting.rooms.backup.data.backup.isMain){
+			path = "main";
+		} else {
+			// go to live results
+			path = "liveResults";
+		}
+		
+	};
 
 	// the paths should not contain any '/'. Otherwise, something is wrong. 
 	if (path.indexOf('/')==-1 && pages[path]){

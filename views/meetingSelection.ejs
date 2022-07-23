@@ -75,18 +75,8 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                         basePath: ()=>{
                             // derive the base path from the current path
                             // origin = 'https://www.xy.com:1234', pathname = /hello/world.php, href: 'https://www.xy.com:1234/hello/world.php'
-                            /*let splitted = window.location.href.split('/')
-                            if (splitted.pop()===''){
-                                // the url had "/" at the end --> delete one more element
-                                splitted.pop();
-                            }
-                            return splitted.join('/')+'/';*/ // without /lang
 
-                            if (window.location.href.slice(-1)!='/'){
-                                return window.location.href+'/'; // with lang
-                            } else {
-                                return window.location.href; // with lang
-                            }
+                            return window.location.origin + window.location.pathname.split('/').slice(0,2).join('/') + "/";
 
                         }
                     }

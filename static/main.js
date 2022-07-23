@@ -80,9 +80,20 @@ function loadMe(){
 
     }
 
-    // start roomsManager (top right corner info)
-    // TODO: remove it here and put it in the onload function of each room! (to allow that some pages do not have "aConnection"!)
-    rM = new roomManager('aConnection');
+    // start roomManager 
+    // provide the id of the div that shall be filled with the room information (currently mostly in the top right corner). This info is defined on the page
+    function getRoomManagerDrawing (pageName){
+        if ('roomManagerDrawing' in initPages[pageName]){
+            return initPages[pageName].roomManagerDrawing;
+        } else {
+            if ('parent' in initPages[pageName]){
+                return getRoomManagerDrawing(initPages[pageName].parent);
+            } else {
+                return '';
+            }
+        }
+    }
+    rM = new roomManager(getRoomManagerDrawing(initPageName));
 
     // call onload of the current page
     pH.onLoad();

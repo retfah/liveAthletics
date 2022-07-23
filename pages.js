@@ -20,6 +20,7 @@ export default {
     preloadSelf: [string], optional  array of pages that shall be preloaded for faster page change only if this page is the 'childest' page
     onLoad:     string, optional    function name of the function to be called on loading the page
     onUnload:   string, optional    function name of the function to be called on UNloading the page --> important for termining room-subscriptions; MUST return true on success or false on failure (then the next page will be loaded via http and the unloading is not done, respectively will be done automatically, as the Websocket-connction is lost.)
+    roomManagerDrawing: string, optional    The id of the div that contains the indicator for the roomManager. If not set on the page itself, the parent (and its parent and so on) will be checked recursively, whether they provide this parameter. An empty string will stop this recursive call and means that no indicator shall be shown.
 
     ATTENTION: pages is not allowed to have functions! Only objects that can be stringified!
     */
@@ -125,7 +126,8 @@ export default {
         //parent: "NONE",
         title: "liveAthletics", // default title, when all other elements have no title
         preload : [] ,
-        preloadSelf: []
+        preloadSelf: [],
+        roomManagerDrawing: '',
     },
     main:{
         name:'main',
@@ -134,13 +136,24 @@ export default {
         preload: ['configuration', 'competition'],
         parent:'root',
         title: "liveAthletics",
+        roomManagerDrawing: 'aConnection',
     },
-    liveResults:{
+    liveResultsLocal:{
         name:'liveResults',
         injections: {child1:{file: 'liveResults.ejs'}},
         injectionsSelf:{},
         preload:[],
         parent:'main',
+        title: 'liveResults',
+        onLoad: 'startupLiveResults',
+        onUnload: 'shutdownLiveResults'
+    },
+    liveResults:{
+        name:'liveResults',
+        injections: {body:{file: 'liveResults.ejs'}},
+        injectionsSelf:{},
+        preload:[],
+        parent:'root',
         title: 'liveResults',
         onLoad: 'startupLiveResults',
         onUnload: 'shutdownLiveResults'
