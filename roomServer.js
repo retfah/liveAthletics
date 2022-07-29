@@ -1753,13 +1753,17 @@ class roomServer{
                 this._processChange(ret.doObj, ret.undoObj, tabIdExclude, id)
             }
 
-            // resolve the promise the requesting function is waiting for (on purpose before we call finishedFunc, but I'm not sure whether it will really be called before or whether this will be async, while finishedFun, which si sync, will first be finished, i.e. all other requests are handled first, which would not be ideal...)
-            resolve(ret.response)
-
+            // resolve the promise the requesting function is waiting for 
+            // NOTE: the order of the next two calls does not matter, since resolve is anyway handled last. This is not ideal, since it means that any other change on the workStack is handled before calling resolve when all those cally are sync!
+            
             // call the next writingFunction, if there is any.
             this.finishedFunc();
+            
+            resolve(ret.response)
+
          }).catch(err=>{
              reject(err);
+             this.finishedFunc();
          });
 
     }
@@ -1853,13 +1857,15 @@ class roomServer{
                     // store the last change separately. This is needed for the case that the response could not be sent, but the change was still processed on the server: The client will then send the same change request again and the server will directly answer with the response that the last time did not reach the client without actually processing the request.
                     this.lastChange.request = request;
                     this.lastChange.response = response; // not the response-data (ret.response), but the comnplete sent object
-    
-                    // either just finish (busy=false) or start next function to be processed:
-                    this.finishedFunc();
+
                 } else {
-                    // simply send response. But is must have the same format, therefore put the data in front
+                    // simply send response. But it must have the same format, therefore put the data in front
                     respFunc({data:ret.response});
+
                 }
+
+                // either just finish (busy=false) or start next function to be processed:
+                this.finishedFunc();
             }
 
             return serverProcessing(ret).catch((err)=>{
@@ -1868,6 +1874,7 @@ class roomServer{
                 let text = "Error in processing the change from the room-function '"+ request.funcName +"' in room '"+ this.name +"'. Error: " + err.toString();
                 this.logger.log(3, text)
                 respFunc("Error on the server: " + text, 11)
+                this.finishedFunc();
                 return;
             })
 
@@ -1889,6 +1896,9 @@ class roomServer{
                 err.code = 99;
             }
             respFunc(err.message, err.code); 
+
+            // even if there was a failure, we have to call the next waiting writeFunction
+            this.finishedFunc();
         })
     }
 
@@ -2310,7 +2320,7 @@ class roomServer{
                 }
 
                 this.functionsWorkStack.splice(insertPos,0,{funcName, data, resolve, reject, type:"server", id, oldId, tabIdExclude}) // "server"-type request
-                this.logger.log(67, "Need to put a change on the stack since multiple changes were requested at the same time. Change requested by server.");
+                this.logger.log(67, `${this.name}: Need to put a change on the stack since multiple changes were requested at the same time. Change requested by server.`);
             } else {
                 // do start the function
                 this._startWriteFunctionServer(funcName, data, resolve, reject, id, oldId, tabIdExclude); 
