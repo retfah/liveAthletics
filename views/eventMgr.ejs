@@ -13,7 +13,7 @@
         constructor(vue, meetingShortname){
             // parent constructor: initializes the room
             //(roomName, writing, storeInfos, path, className, datasetName='')
-            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', '')
+            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', 'eventsWithGroups')
 
             // needed to call things in the vue class
             this.vue = vue;
@@ -38,12 +38,13 @@
             // set the changed data-property as data of the vue-instance
             this.vue.events = this.room.data.events;
             this.vue.meeting = this.room.data.meeting;
-            //this.vue.events = this.room.data;
+            this.vue.categories = this.room.data.categories;
 
             // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
             this.room.data.events = this.vue.events;
-            //this.room.data = this.vue.events;
-            this.room.data.meeting = this.vue.meeting;
+            // actually not needed for auxilary data, which should not be changed anyway
+            // this.room.data.meeting = this.vue.meeting;
+            //this.room.data.categories = this.vue.categories;
         }
         
         dataArrived(){
@@ -51,17 +52,9 @@
             // TODO: what about views? They probably also need something like this
             
             this.vue.events = this.room.data.events;
-            //this.vue.events = this.room.data;
         
             // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
             this.room.data.events = this.vue.events;
-            //this.room.data = this.vue.events;
-
-            /*if (this.room.writingTicketID){
-                this.vueServerAdmin.readOnly = false;
-            } else {
-                this.vueServerAdmin.readOnly = true;
-            }*/
         }
     }
 
@@ -121,7 +114,7 @@
         constructor(vue, meetingShortname){
             // parent constructor: initializes the room
             //(roomName, writing, storeInfos, path, className, datasetName='')
-            super('disciplines@' + meetingShortname, true, true, '/static/rDisciplinesClient.js', 'rDisciplinesClient', '')
+            super('disciplines@' + meetingShortname, false, true, '/static/rDisciplinesClient.js', 'rDisciplinesClient', '')
 
             // needed to call things in the vue class
             this.vue = vue;
@@ -169,6 +162,7 @@
         }
 
     }
+    // NOT needed anymore, since the categories are availbale as auxilary data in events
     class vuCategories extends roomClientVue {
         constructor(vue, meetingShortname){
             // parent constructor: initializes the room
@@ -272,118 +266,19 @@
 
     var vueEvents;
 
-    // commented values are currently in the DB, but might either not be used or are not shown in the list here
-    var disciplines=[
-      // sample data with the old properties  
-    /*{
-            xDiscipline:1,
-            disciplineSortorder:1,
-            //disciplineIndoor:false,
-            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
-            disciplineTimeAppeal: new Date(1000*(3600*1+60*30+0)), // how much time before the competition
-            disciplineTimeCall: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
-            //disciplineActive,
-            disciplineRelay:false,
-            disciplineName: 'Pole vault', // translated
-            disciplineShortname: 'PV', // translated
-            //disciplineConfiguration,
-        },
-        {
-            xDiscipline:2,
-            disciplineSortorder:2,
-            //disciplineIndoor:false,
-            disciplineType:1, // e.g. 1=tech-high, 2=tech-long, 3=track, ...
-            disciplineTimeAppeal: new Date(1000*(3600*1+60*0+0)), // how much time before the competition
-            disciplineTimeCall: new Date(1000*(3600*0+60*40+0)), // how much time before the competition
-            //disciplineActive,
-            disciplineRelay: false,
-            disciplineName: 'High jump', // translated
-            disciplineShortname: 'HJ', // translated
-            //disciplineConfiguration,
-        },*/
-        
-    ];
-
-    // the list should already be translated and only active categories are shown
-    var categories = [
-    // sample data with the old properties    
-    /*{
-            xCategory: 1,
-            categoryShortname:"ABCD", // max 4 letters
-            categoryName: "Man",
-            categorySortorder:1,
-            age: 200,
-            categoryCode: "MAN", // whats the difference 
-            sex: "m",
-            //active: true,
-        },
-        {
-            xCategory: 2,
-            categoryShortname:"EFGH", // max 4 letters
-            categoryName: "Woman",
-            categorySortorder:1,
-            age: 200,
-            categoryCode: "MOM", // whats the difference 
-            sex: "f",
-            //active: true,
-        }*/
-    ];
-    var eventsExample = [
-        {xEvent:1, xDiscipline:1, xCategory:1, xEventGroup:2, entryFee:10, onlineId:123, info:'test'},
-        {xEvent:2, xDiscipline:2, xCategory:1, xEventGroup:undefined, entryFee:15, onlineId:100, info:'hello'}
-    ];
-    var contestsExample = [
-        {xContest:1, xBaseDiscipline:1, datetimeAppeal:"2021-05-05T22:15:56Z", datetimeCall:"2021-05-05T23:15:00Z", datetimeStart: "2021-05-05T23:45:00Z", status:0, conf:""}, // conf is used as a general configuration independent of the discipline type.
-        {xContest:2, xBaseDiscipline:2, datetimeAppeal:"2021-05-05T22:00:56Z", datetimeCall:"2021-05-05T23:00:00Z", datetimeStart: "2021-05-05T23:30:00Z", status:1, conf:""}
-    ];
-    var events = [];
-    var eventGroups=[
-        // examples with old naming    
-    /*{
-            xEventGroup:1, 
-            xDiscipline:1,
-            name:'PV1',
-            combined:false,
-            rounds:[
-                {
-                    xRound:1,
-                    xEventGroup:1,
-                    name:'TODO',
-                    order:1,
-                    numGroups:1, 
-                    qualiModule:undefined,
-                    qualiConf:undefined
-                }
-            ]
-        },
-        {
-            xEventGroup:2, 
-            xDiscipline:1,
-            name:'PV2',
-            combined:false,
-            rounds:[]
-        },
-        {
-            xEventGroup:3, 
-            xDiscipline:2,
-            name:'HJ1',
-            combined:false,
-            rounds:[]
-        }*/
-    ]
     
     function startupEventMgr(){
         // the vueApp        
         let vueAppConfig = {
             data(){
                 return {
-                    events:events, // will be overriden by the actual room data
+                    events:[], // will be overriden by the actual room data
                     meeting:undefined,
-                    eventGroups:eventGroups, // will be overriden by the actual room data
-                    categories:categories, 
-                    disciplines:disciplines, // will be overriden by the actual room data
+                    eventGroups:[], // will be overriden by the actual room data
+                    categories:[], 
+                    disciplines:[], // will be overriden by the actual room data
                     baseDisciplines:[],
-                    contests: contestsExample, // will be overridden by the actual room data
+                    contests: [], // will be overridden by the actual room data
                     /*overlayVisible: false, 
                     overlayTitle: '', 
                     overlayContent: '',*/ 
@@ -1198,7 +1093,7 @@
         var rE = new vuEvents(vueEvents, ms); 
         var rEG = new vuEventGroups(vueEvents, ms);
         var rD = new vuDisciplines(vueEvents, ms);
-        var rCa = new vuCategories(vueEvents, ms);
+        //var rCa = new vuCategories(vueEvents, ms);
         var rCo = new vuContests(vueEvents, ms);
 
         // try to get a previously selected page to show 
