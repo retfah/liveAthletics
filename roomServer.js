@@ -832,7 +832,7 @@ class roomServer{
                 writingTicketID = this.offlineWritingClients[sidHash].writingTicketID;
             }
             delete this.offlineWritingClients[sidHash];
-            this.storeOfflineWritingClients;
+            this.storeOfflineWritingClients();
 
         } else {
 
@@ -844,7 +844,7 @@ class roomServer{
                     for (let clientSidHashed in this.offlineWritingClients){
                         if (this.offlineWritingClients[clientSidHashed].writingTicketID==opt.writingTicketID){
                             delete this.offlineWritingClients[clientSidHashed];
-                            this.storeOfflineWritingClients;
+                            this.storeOfflineWritingClients();
                         }
                     }
 
@@ -1467,7 +1467,7 @@ class roomServer{
 
             // delete it from the offlineClients list
             delete this.offlineWritingClients[opt.sidHash];
-            this.storeOfflineWritingClients;
+            this.storeOfflineWritingClients();
 
         } else {
             respFunc('Could not find offline client with given sidHash.',17);
@@ -2423,6 +2423,9 @@ class roomServer{
         if (this.secondaryMode){
             this._revokeAllWritingTickets();
         }
+
+        // recreate all room-datasets, since now we have all data
+        this.recreateRoomDatasets() 
 
         // also invoke the same funciton on inheriting classes, if needed:
         this.onRoomReady();
