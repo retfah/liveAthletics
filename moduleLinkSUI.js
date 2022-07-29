@@ -69,8 +69,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
         // something completely different: get Data from alabus! Works so far!
         this.conf = {
-            //host: 'alabus.swiss-athletics.ch', // live server
-            host: 'alabustest.swiss-athletics.ch', // test server
+            host: 'alabus.swiss-athletics.ch', // live server
+            //host: 'alabustest.swiss-athletics.ch', // test server
             port: 443,
             pathBaseData: '/rest/License/Athletica/ExportStammDataFull',
             pathCompetitionList: "/rest/Event/Athletica/ExportMeetingList",
@@ -210,7 +210,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 }
 
                 let timeDownloaded = new Date();
-                msg = `Download of base data successful. Duration: ${(timeDownloaded - timeStart)/1000}s. (If debug: write to file, then ...) Starting unzipping.`;
+                msg = `Download of base data successful. Duration: ${(timeDownloaded - timeStart)/1000}s. Starting unzipping.`;
                 notes.push(msg);
                 this.logger.log(90, msg);
     
@@ -1058,10 +1058,10 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                             // create the club
                                             const insertClubData= {
                                                 name: athBase.clubName,
-                                                sortValue: athBase.clubSortvalue,
+                                                sortvalue: athBase.clubSortvalue,
                                             }
 
-                                            club = meetingRooms.clubs.serverFuncWrite('addClub', insertClubData).catch(err=>{
+                                            club = await meetingRooms.clubs.serverFuncWrite('addClub', insertClubData).catch(err=>{
                                                 athFailed=true;
                                                 let msg= `Club could not be added: ${JSON.stringify(err)}. Skipping athlete ${ath.$.license}.`;
                                                 notes.push(msg);
@@ -1083,7 +1083,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                                 regionShortname: athBase.regionShortname,
                                             };
 
-                                            region = meetingRooms.regions.serverFuncWrite('addRegion', regionData).catch(err=>{
+                                            region = await meetingRooms.regions.serverFuncWrite('addRegion', regionData).catch(err=>{
                                                 athFailed=true;
                                                 let msg= `Region could not be added: ${JSON.stringify(err)}. Skipping athlete ${ath.$.license}.`;
                                                 notes.push(msg);
