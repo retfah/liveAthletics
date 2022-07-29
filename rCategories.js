@@ -39,7 +39,7 @@ class rCategories extends roomServer{
 
         // get all categories
         this.models.categories.findAll().then(categories=>{
-            this.data = categories;
+            this.data.push(...categories); // do not replace the default, empty array, so that references to this array stay correct
             this.ready = true;
             //this.eH.raise(`${this.name}:initialized`)
         })

@@ -77,8 +77,8 @@ class rMeeting extends roomServer{
             name:this.meeting.name,
             location: '',
             organizer: '',
-            dateFrom: defaultDate,
-            dateTo: defaultDate,
+            dateFrom: defaultDate.toJSON(),
+            dateTo: defaultDate.toJSON(),
             isIndoor:false,
             feeModel: null,
             //importExportModel: null,
@@ -247,7 +247,9 @@ class rMeeting extends roomServer{
             data = raw.meeting;
         }
 
-        this.data = data;
+        // do not simply override the default empty data-object, but copy the properties in it to not change the reference
+        this.propertyTransfer(data, this.data)
+        //this.data = data;
 
         // define the new validation:
         this.validateMeeting = this.createValidator(data);
