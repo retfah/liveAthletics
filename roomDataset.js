@@ -118,7 +118,7 @@ class roomDataset{
      * @param {string} name The name of this roomDataset
      * @param {boolean} isDynamic Whether this roomDataset shall be dynamically closed when there are no clients anymore listening to that data
      */
-    constructor(room, name, isDynamic=false){
+    constructor(room, name, isDynamic=false, autoCreateDataset=true){
         this.room = room;
 
         // logger instance
@@ -142,7 +142,9 @@ class roomDataset{
         this.functionsProcessChange = {};
 
         // create the dataset
-        this.createDataset();
+        if (autoCreateDataset){
+            this.createDataset();
+        }
 
         // know whether the dataset should be automatically closed when the last client leaves
         this.isDynamic = isDynamic;
