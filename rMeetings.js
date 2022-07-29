@@ -845,14 +845,14 @@ class rMeetings extends roomServer{
         // starts in group
         let startsInGroup = new rStartsInGroup(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger)
         this.activeMeetings[shortname].rooms.startsInGroup = startsInGroup;
-        // events:
-        let events = new rEvents(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, disciplines, startsInGroup, meetingAdmin);
-        this.activeMeetings[shortname].rooms.events = events;
-        startsInGroup.events = events;
         // eventGroups
         let eventGroups = new rEventGroups(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup);
         this.activeMeetings[shortname].rooms.eventGroups = eventGroups;
         startsInGroup.eventGroups = eventGroups;
+        // events:
+        let events = new rEvents(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, disciplines, startsInGroup, meetingAdmin, eventGroups);
+        this.activeMeetings[shortname].rooms.events = events;
+        startsInGroup.events = events;
         // regions
         let regions = new rRegions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
         this.activeMeetings[shortname].rooms.regions = regions;
