@@ -5,6 +5,7 @@ import groups from './modelsMeetingDefine/groups.js';
 import roomServer from './roomServer.js';
 
 import Sequelize  from 'sequelize';
+import rdEventsWithGroups from './rdEventsWithGroups.js';
 const Op = Sequelize.Op;
 
 /**
@@ -438,6 +439,9 @@ class rEventGroups extends roomServer{
                 })
             }
 
+            // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups})
+
             // if a contest is linked to the group, notify it about the new group
             round.groups.forEach(g=>{
                 if (g.xContest != null){
@@ -671,6 +675,9 @@ class rEventGroups extends roomServer{
             // replace the round in the local data:
             eG.rounds[i] = roundChanged;
 
+            // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups})
+
             let ret = {
                 isAchange: true, 
                 doObj: {funcName: 'updateRound', data: roundChanged.dataValues}, 
@@ -740,6 +747,9 @@ class rEventGroups extends roomServer{
             await round.destroy().catch((err)=>{
                 throw {message: `Round could not be deleted in DB: ${err}`, code:21}
             });
+
+            // notify the rdEventsWithGroups that the number of groups in the event must be reset to 1 (because 1 is the default and minimum) (NOTE: this information is only needed id order==1, but is sent in any case)
+            this.eH.raise(`${this.name}:resetNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups})
 
             // NOTE: also arrives here when the event actually did not exist (anymore!); However, should always exist!
 

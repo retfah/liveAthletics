@@ -2,6 +2,7 @@
 
 
 
+import rdEventsWithGroups from './rdEventsWithGroups.js';
 import roomServer from './roomServer.js';
 
 /**
@@ -19,7 +20,7 @@ class rEvents extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, categories, baseDisciplines, startsInGroup, rMeeting){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, categories, baseDisciplines, startsInGroup, rMeeting, rEventGroups){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -40,6 +41,7 @@ class rEvents extends roomServer{
         this.baseDisciplines = baseDisciplines;
         this.startsInGroup = startsInGroup;
         this.rMeeting = rMeeting;
+        this.rEventGroups = rEventGroups; // needed in a dataset
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
@@ -60,12 +62,16 @@ class rEvents extends roomServer{
                 /*this.eH.eventSubscribe('disciplines@' + meetingShortname + ':ready', ()=>{
             this.data.disciplines = disciplines.data;
         })*/
-        this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
+        // not needed anymore, since the orginal references are kept now (2022-07)
+        /*this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
             this.data.categories = categories.data;
         })
         this.eH.eventSubscribe('meeting@' + meetingShortname + ':ready', ()=>{
             this.data.meeting = rMeeting.data;
-        })
+        })*/
+
+        // add (sub)-datasets:
+        const rdForInscriptions = new rdEventsWithGroups(this, rEventGroups); // this will automatically add the roomDataset to this room.
 
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
