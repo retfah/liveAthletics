@@ -440,7 +440,7 @@ class rEventGroups extends roomServer{
             }
 
             // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
-            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups})
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups, groups:round.groups})
 
             // if a contest is linked to the group, notify it about the new group
             round.groups.forEach(g=>{
@@ -676,7 +676,7 @@ class rEventGroups extends roomServer{
             eG.rounds[i] = roundChanged;
 
             // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
-            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups})
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups, groups: roundChanged.groups})
 
             let ret = {
                 isAchange: true, 

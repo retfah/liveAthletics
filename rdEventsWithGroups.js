@@ -55,6 +55,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
                     if (event.xEventGroup == data.xEventGroup){
                         changes = true;
                         event.numGroups = 1; // reset numGroups to 1
+                        event.groups = this.createGroups(data.groups);
                     }
                 }
                 
@@ -82,6 +83,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
                         // does the data really change
                         if (event.numGroups != data.numGroups){
                             changes = true;
+                            event.groups = this.createGroups(data.groups);
                             event.numGroups = data.numGroups; // set numGroups
                         }
                     }
@@ -96,6 +98,16 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
             //this.onEventGroupChange();
         })
 
+    }
+
+    /**
+     * Get an array with the names of the groups.
+     * @param {array} groupsObj The groups array/object from sequelize
+     */
+    createGroups(groupsObj){
+        // first, sort the array 8it does not matter for the groups if the yget sorted; actually, they might always be sorted already
+        groupsObj.sort((A, B)=>A.number-B.number);
+        return groupsObj.map(el=>el.name);
     }
 
     // OLD: whenever the number of groups in a first round changes:
@@ -128,17 +140,20 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
             // create a copy of the data in the room
             let data = JSON.parse(JSON.stringify(rEventsData.events));
 
-            // loop over all events and try to add te required information
+            // loop over all events and try to add the required information
             for (let event of data){
                 if (event.xEventGroup == undefined){
                     event.numGroups = 1;
+                    event.groups = [null];
                     continue;
                 }
                 const eG = this.rEventGroups.data.find((eG)=>{return event.xEventGroup==eG.xEventGroup});
                 if (eG && eG.rounds.length>=1) {
                     event.numGroups = eG.rounds[0].numGroups;
+                    event.groups = this.createGroups(eG.rounds[0].groups);
                 } else {
                     // if there is no round yet or the eventGroup could not be found, we assume there is one group
+                    event.groups = [null];
                     event.numGroups = 1; 
                 }
             }

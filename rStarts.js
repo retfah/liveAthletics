@@ -21,7 +21,7 @@ class rStarts extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, startsInGroup){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, startsInGroup, rDisciplines){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -32,13 +32,14 @@ class rStarts extends roomServer{
         this.data = {
             // main data:
             starts:[],
-
+            disciplines:[], // needed in athletes.ejs, since it cannot be transitted in rEvents, since there we use a dataset
             // auxilary data:
 
         }; 
 
         // reference to other rooms, needed to inscribe athletes to a group
         this.startsInGroup = startsInGroup;
+        this.rDisciplines = rDisciplines; // needed in athletes.ejs
         //this.eventGroups = eventGroups;
 
         // the reference to the sequelize connection
@@ -268,6 +269,22 @@ class rStarts extends roomServer{
         } else {
             throw {code: 23, message: this.ajv.errorsText(this.validateUpdateStart.errors)}
         }
+    }
+
+    /**
+     * return a personalized data object, providing the precreated merged list of disciplines (merged with baseDisciplines and the translated stuff) 
+     */
+    getPersonalizedData(client){
+
+        // we cannot add the dynamic auxilary data to the data directly, but we need to create a new object with the same properties and then add the data there
+        let data = {};
+        for (let o in this.data){
+            data[o] = this.data[o];
+        }
+
+        data.disciplines = this.rDisciplines.getTranslatedDisciplines(client.session.lang);
+
+        return data;
     }
 
 }

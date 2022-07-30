@@ -859,7 +859,7 @@ class rMeetings extends roomServer{
         // inscriptions (including athletes, relays and relayAthletes)
         this.activeMeetings[shortname].rooms.inscriptions = new rInscriptions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, regions, meetingAdmin, this.baseModules);
         // starts
-        let starts = new rStarts(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup) // eventually add here the events as auxilary data; 
+        let starts = new rStarts(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup, disciplines) // eventually add here the events as auxilary data; 
         this.activeMeetings[shortname].rooms.starts = starts;
         startsInGroup.starts = starts; // set reference;
         // contests
