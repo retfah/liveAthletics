@@ -290,9 +290,13 @@ INSERT INTO `categories` (`xCategory`, `shortname`, `name`, `sortorder`, `ageMax
 INSERT INTO `basedisciplines` (`xBaseDiscipline`, `type`, `relay`, `nameStd`, `shortnameStd`, `timeAppeal`, `timeCall`) VALUES 
 (NULL, '1', b'0', 'Pole vault', 'PV', '01:30:00.000000', '00:45:00.000000'), 
 (NULL, '1', b'0', 'High jump', 'HJ', '01:00:00.000000', '00:30:00.000000');
-INSERT INTO `disciplines` (`xDiscipline`, `xBaseDiscipline`, `sortorder`, `indoor`, `active`, `configuration`) VALUES 
-(NULL, '1', '1', b'0',  b'1', ''), 
-(NULL, '2', '2', b'0', b'1', '');
+INSERT INTO `disciplines` (`xDiscipline`, `xBaseDiscipline`, `sortorder`, `indoor`, `active`, `configuration`) VALUES
+(206, 1, 1, b'0', b'1', '{\"heightMax\":650, \"jumpoffHeightVariation\":5}'),
+(207, 2, 2, b'0', b'1', '{\"heightMax\":260, \"jumpoffHeightVariation\":2}'),
+(208, 1, 1, b'1', b'1', '{\"heightMax\":650, \"jumpoffHeightVariation\":5}'),
+(209, 2, 2, b'1', b'1', '{\"heightMax\":260, \"jumpoffHeightVariation\":2}'),
+(210, 3, 1, b'0', b'1', '{\"distance\":100, \"startInLanes\":true, \"wind\":true}'),
+(211, 4, 1, b'0', b'1', '{\"distance\":100, \"startInLanes\":true, \"wind\":true, \"height\": 838}');
 INSERT INTO `basedisciplinelocalizations` (`xDisciplinesLocalization`, `xBaseDiscipline`, `language`, `name`, `shortname`) VALUES 
 (NULL, '1', 'de', 'Stabhochsprung', 'Stab'), 
 (NULL, '2', 'de', 'Hochsprung', 'Hoch');
