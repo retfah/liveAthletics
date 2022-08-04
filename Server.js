@@ -202,7 +202,7 @@ const cP=cookieParser(conf.sessionSecret)
 // ------------------
 
 // listen on port 3000, automatically http
-var server     =    app.listen(3000);
+var server     =    app.listen(conf.port);
 
 // the same could be done the follwing way
 //var server = http.createServer(app).listen(3000);

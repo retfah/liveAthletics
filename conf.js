@@ -7,6 +7,9 @@ export default {
     // it is never possible to restore on an older server, since this server cannot know about compatibility!
     version: 1, // i.a. stored along with data-backups
     versionMinForRestore: 1, // minimum required version for restore.
+    
+    // the port to listen on (node/express default is 3000, http is 80)
+    port: 80,
 
     // DB settings
     database: {
