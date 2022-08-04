@@ -33,7 +33,7 @@ export default class nationalBodyLink extends module {
         this.mongoReady = true;
 
         // get the current date of last base update
-        let len = this.collection.countDocuments({type:'lastBaseUpdateDate'});
+        let len = await this.collection.countDocuments({type:'lastBaseUpdateDate'});
         if (len==0){
             // create the document
             await this.collection.updateOne({type:'lastBaseUpdateDate'},{$set:{date:null}},{upsert:true}) //update with upsert=insert when not exists
