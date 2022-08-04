@@ -655,13 +655,45 @@ class rStartsInGroup extends roomServer{
         // if any athlete (in any round and group) is already in a series, we have to abort:
         let changePossible = true;
 
+        // to increase speed, prepare a list of all starts which are related to the deleted event
+        const xStarts = this.starts.data.starts.filter(el=>el.xEvent==data.xEvent).map(el=>el.xStart);
+
         // loop over all rounds; at the same time create a list of all startsInGroup to delete
         let deletedStartsInGroup = [];
-        outerLoop: // this is a label... didnt know it exists ...  can be used to break to the outer loop
+
+        // before, it was loop over all rounds. However, this is actually not needed when we simply filter for the xStarts related to this event
+        let startsInGroup = this.data.startsInGroups.filter(sig => {
+            // check that only startsInGroup of the correct event are deleted (in order not to delete entries from events which are still part of the eventGroup)!
+            return xStarts.indexOf(sig.xStart)!=-1;
+            
+        });
+        for (let j=0; j< startsInGroup.length; j++){
+
+            deletedStartsInGroup.push(startsInGroup[j].xStartgroup);
+
+            // check whether the xStartgroup exists in seriesStartsResults
+            let xStartgroup = startsInGroup[j].xStartgroup
+            // we run this command directly on the DB and not on data since the series-data is split over many rooms. 
+            let cnt = await this.models.seriesstartsresults.count({where:{xStartgroup:xStartgroup}});
+            if (cnt>0){
+                changePossible = false;
+                break;
+            }
+        }
+        
+
+        /*outerLoop: // this is a label... didnt know it exists ...  can be used to break to the outer loop
         for (let i=0; i<eventGroup.rounds.length; i++){
             let xRound = eventGroup.rounds[i].xRound;
             // we do not need to loop over all groups, since we can simply filter the startsINGroup by xRound, without the group
-            let startsInGroup = this.data.startsInGroups.filter(sig => sig.xRound==xRound);
+            let startsInGroup = this.data.startsInGroups.filter(sig => {
+                if (sig.xRound!=xRound){
+                    return false;
+                }
+                //  we must not only compare the group, but also that it is the correct event (in order not to delete entries from events which are still part of the eventGroup)!
+                return xStarts.indexOf(sig.xStart)!=-1;
+                
+            });
             for (let j=0; j< startsInGroup.length; j++){
 
                 deletedStartsInGroup.push(startsInGroup[j].xStartgroup);
@@ -675,7 +707,7 @@ class rStartsInGroup extends roomServer{
                     break outerLoop;
                 }
             }
-        }
+        }*/
 
         if (!changePossible){
             throw {message: `Cannot delete startInGroup entries, since at least one athlete is already assigned to a series.`, code:23}
