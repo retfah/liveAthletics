@@ -998,7 +998,7 @@ class roomServer{
             // FUTURE-TODO: extend this to provide incremental changes also for sub-datasets
             data.type = 'full';
             data.data = dataset.data;
-            data.dataset = datasetName; // this absolutely not needed (since we do never send something else than the requested dataset), but it might help for debugging on the client.
+            data.dataset = datasetName; // this is absolutely not needed (since we do never send something else than the requested dataset), but it might help for debugging on the client.
         } else {
             // listens to the room
             // only send incremental changes if ID is given and still in the stack
@@ -1629,7 +1629,16 @@ class roomServer{
                     }
                     // check schema
                     if(!(this.ajv.validate(schemaFail, err))){
-                        let text = "Error: The error-object returned from the room-function '"+ JSON.stringify(request.funcName) +"' in room '"+ this.name +"' does not fulfill the failure-schema.";
+
+                        // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
+                        let errStr;
+                        if (err instanceof(Error)){
+                            errStr = err;
+                        } else {
+                            JSON.stringify(request.funcName);
+                        }
+
+                        let text = "Error: The error-object returned from the room-function '"+ errStr +"' in room '"+ this.name +"' does not fulfill the failure-schema.";
                         this.logger.log(3, text)
                         respFunc("Error on the server: " + text, 11)
                         return;
@@ -1884,7 +1893,16 @@ class roomServer{
             if (developMode){
                 // check schema
                 if(!(this.validateFail(err))){
-                    let text = "Error: The error-object returned from the room-function '"+ request.funcName +"' in room '"+ this.name +"' does not fulfill the failure-schema. Error: " + JSON.stringify(err);
+
+                    // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
+                    let errStr;
+                    if (err instanceof(Error)){
+                        errStr = err;
+                    } else {
+                        JSON.stringify(request.funcName);
+                    }
+
+                    let text = "Error: The error-object returned from the room-function '"+ request.funcName +"' in room '"+ this.name +"' does not fulfill the failure-schema. Error: " + errStr;
                     this.logger.log(3, text)
                     respFunc("Error on the server: " + text, 11)
                     return;
