@@ -823,7 +823,7 @@ export class rContestTechHighClient extends roomClient{
 
         // create a list of all series to add again and at the same time delete all current series one by one. 
         let oldSeries = [];
-        for (i=0;i<this.data.series.length; i++){
+        for (let i=0;i<this.data.series.length; i++){
             oldSeries.push(this.data.series.shift());
         }
 
@@ -837,10 +837,10 @@ export class rContestTechHighClient extends roomClient{
             // delete all current series and add all old series
             // we cannot just reset the array to [] because we would loose teh proxy
             let l = this.data.series.length;
-            for (i=0;i<l; i++){
+            for (let i=0;i<l; i++){
                 this.data.series.pop()
             }
-            for (i=0; i<oldSeries.length; i++){
+            for (let i=0; i<oldSeries.length; i++){
                 this.data.series.push(oldSeries[i])
             }
             for (let key in this.data.auxData){
@@ -912,7 +912,7 @@ export class rContestTechHighClient extends roomClient{
 
             // basically we just need to replace all xSeries and xSeriesStart 
             // the order in the response array MUST be the same as in our array here --> TODO: check this!
-            for (i=0;i<data.length;i++){
+            for (let i=0;i<data.length;i++){
 
                 const oldXSeries = seriesForIndexReplacement[i].xSeries;
 
@@ -922,7 +922,7 @@ export class rContestTechHighClient extends roomClient{
                 // should have the same length as seriesForIndexReplacement
                 seriesForIndexReplacement[i].xSeries = data[i].xSeries;
                 
-                for (j=0; j<data[i].seriesstartsresults.length; j++){
+                for (let j=0; j<data[i].seriesstartsresults.length; j++){
                     seriesstartsForIndexReplacement[i][j].xSeriesStart = data[i].seriesstartsresults[j];
                     seriesstartsForIndexReplacement[i][j].xSeries = data[i].xSeries;
                 }
@@ -950,13 +950,13 @@ export class rContestTechHighClient extends roomClient{
     }
 
     groupUnlinkedExe(data){
-        let i = this.data.relatedGroups.findIndex(el=>el.number==data.number && el.xRound==data.xRound)
-        if (i>=0){
+        let i2 = this.data.relatedGroups.findIndex(el=>el.number==data.number && el.xRound==data.xRound)
+        if (i2>=0){
             // should always come here
-            this.data.relatedGroups.splice(i,1);
+            this.data.relatedGroups.splice(i2,1);
         }
         // remove startgroups
-        for (i=this.data.startgroups.length-1; i>=0; i--){
+        for (let i=this.data.startgroups.length-1; i>=0; i--){
             let SIG = this.data.startgroups[i];
             if (SIG.xRound == data.xRound && SIG.number == data.number ){
                 this.data.startgroups.splice(i,1);
