@@ -14,6 +14,14 @@ export const confPrint={
         marginRight: 40,
         // no marginTop/bottom, since those will anyway be given elsewhere
 
+        // pdf metadata
+        title: 'liveAthletics document',
+        author: 'liveAthletics',
+        subject: '',
+        producer: 'liveAthletics',
+        creator: 'liveAthletics',
+        keywords: ['liveAthletics', 'athletics', 'track and field'],
+
         headerFooter: {
 
             // header and footer are not drawn "live", but after the document is actually finished. This is to allow to write also the total number of pages, which would not be known at time of regular drawing. 

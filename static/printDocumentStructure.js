@@ -351,11 +351,11 @@ export class printingGeneral {
         // after the minimum number of children there are several possibilities: 
         // A) the remaining children take less space than the prePageBreak would take
         // B) the prePageBreak+separatorPageBreak takes less space than the remaining children (likely always the case) 
-        let hChildrenRemaining = 0;
+        let hChildrenRemaining = 0; // TODO: this is wrong!!!
         for (let i=nChildrenToPrint; i<this.children.length; i++){
             // always also add a separator
             hChildrenRemaining += await this.childSeparatorHeight();
-            hChildrenRemaining += hChildren += (await this.totalChildHeight)[i];
+            hChildrenRemaining += (await this.totalChildHeight)[i];
         }
 
         let hRest = Math.min(hChildrenRemaining, (await this.prePageBreakHeight()) + (await this.childSeparatorPrePageBreakHeight())); 
@@ -935,7 +935,7 @@ export class printer extends printingGeneral {
      */
     static async create(dataContainers, dataToPrint, conf, printInstantly=false){
 
-        let doc = await this.createDocument();
+        let doc = await this.createDocument(conf);
 
         // prepare some default fonts:
         let fonts= {
@@ -994,16 +994,16 @@ export class printer extends printingGeneral {
         return printe;
     }
 
-    static async createDocument(){
+    static async createDocument(conf){
         // create a new document
         let doc = await PDFLib.PDFDocument.create();
 
-        doc.setTitle('🥚 The Life of an Egg 🍳');
-        doc.setAuthor('Humpty Dumpty');
-        doc.setSubject('📘 An Epic Tale of Woe 📖');
-        doc.setKeywords(['liveAthletics', 'athletics', 'track and field']);
-        doc.setProducer('PDF App 9000 🤖');
-        doc.setCreator('PDF App 9000 🤖');
+        doc.setTitle(conf.title);
+        doc.setAuthor(conf.author);
+        doc.setSubject(conf.subject);
+        doc.setKeywords(conf.keywords);
+        doc.setProducer(conf.producer);
+        doc.setCreator(conf.creator);
         doc.setCreationDate(new Date());
         doc.setModificationDate(new Date());
 
