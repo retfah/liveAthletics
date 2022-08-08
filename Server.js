@@ -1547,6 +1547,11 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 	//console.log(req.params)
 	logger.log(99, 'GET: /:lang/:meeting/*')
 
+	if (!roomsReady){
+		res.status(503); // server unavailable
+		res.send('The rooms are not ready yet!')
+	}
+
 	// set the language. If the language was not changed afterwards, then the language does not exist!
 	// should be already set!
 	/*if (req.i18n.setLocale(req.params.lang)!=req.params.lang){
