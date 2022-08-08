@@ -11,6 +11,13 @@ export default {
     // the port to listen on (node/express default is 3000, http is 80)
     port: 80,
 
+    // logging: set various kinds of loggers (currently only types "console" and "file" are supported)
+    // file: must have a path property; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
+    // FUTURE: allow to overrule the default setting for the log level specifically for the chosen logger
+    // optional: maxLevel: highest logged level
+    // optional: minLevel: lowest logged level
+    loggers: [{type:'console', maxLevel:92}, {type:'file', path:'./log.txt'}],
+
     // DB settings
     database: {
         username: "athletica",

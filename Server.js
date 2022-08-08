@@ -258,7 +258,7 @@ server.on('upgrade', function upgrade(req, socket, head) {
 
 
 // start the logger --> define the log level
-const logger = new localLogger(undefined, 92); // 99=everything
+const logger = new localLogger(conf.loggers, 100); // 99=everything
 
 // start the eventhandler-stuff
 //const eH = new eventHandling();

@@ -1,6 +1,9 @@
 
+import {appendFile, open} from 'fs/promises';
 
 // localLogger
+// would it be faster to open the file once and then write severa times to the same file (as it is done in python) or is it not important?
+
 
 /**
  * localLogger: logs everything that happens locally and might send some stuff to the clients in the future (not implemented)
@@ -32,22 +35,42 @@ class localLogger{
     /**
      * Constructor of the logger
      * @constructor
-     * @param {socketIO} ws The websocket class, to send and receive messages to log on the server or locally 
-     * @param {Number} level Optional, define the level to be logged (default=10, 0=nothing, 99=debug)
+     * @param {Array} loggers an array of objects defining where to write the log. 
+     * @param {Number} level Optional, define the level to be logged (default=10, 0=nothing, 99=debug). If a level is set in the specific configuration of each logger, then this general level is disregarded.
      */
-    constructor(ws, level=10){
+    constructor(loggers, level=100){
 
-        this.wsConnected = false;
-        if (ws){
-            this.ws = ws;
-            this.wsConnected = true; 
+        // provide a list of all allowed logger types
+        const loggerTypes = ['file', 'console'];
 
-            // TODO: add socket-listener and process it here...
-
+        // check that all loggers have a type; otherwise delete them
+        for (let i=loggers.length-1;i>=0;i--){
+            if (!('type' in loggers[i])){
+                console.log(`Logger '${JSON.stringify(loggers[i])}' lacks the 'type' property. Neglecting this logger.`)
+                loggers.splice(i,1);
+                continue;
+            }
+            if (loggerTypes.indexOf(loggers[i].type)==-1){
+                console.log(`'${loggers[i].type}' is not a valid logger type. Neglecting this logger.`)
+                loggers.splice(i,1);
+                continue;
+            }
+            // TODO: eventually add here further checks for the different types of loggers
+            // check for the different options
+            if (loggers[i].type=='file'){
+                // try to open the file
+                open(loggers[i].path,'a').then((fileHandle) => {
+                    loggers[i].fileHandle=fileHandle;
+                }).catch(err=>{
+                    console.log(`Cannot open the file for logging: ${err}.`);
+                })
+            }
         }
+
+        // store a list of loggers
+        this.loggers = loggers;
         this.logLevel = level;
 
-        // TODO: hide the log-message-bar (Athletica1=at the bottom) when logLevel=1
     }
 
     /**
@@ -57,13 +80,29 @@ class localLogger{
      * @param {String} msg The message to be logged
      */
     log(level, msg){
-        if (this.wsConnected){
-            // send message to client(s)
-            // TODO
-        }
-        if (level<=this.logLevel && level>0){ // make sure nobody fools the system by setting level=0, when logLevel=0
+
+        if (level>0){ // make sure nobody fools the system by setting level=0, when logLevel=0
             const d = new Date();
-            console.log(d.toISOString() + ": " + msg);
+            let str = d.toISOString() + " " + level.toString().padStart(2,0) + ": " + msg;
+
+            // loop over all loggers (here we can be sure that the logger should exist)
+            for (let logger of this.loggers){
+                let maxLevel = logger.maxLevel ?? this.logLevel;
+                let minLevel = logger.minLevel ?? 0;
+                if (minLevel > level || maxLevel < level){
+                    continue;
+                }
+                if (logger.type=='console'){
+                    console.log(str);
+                } else if (logger.type=='file'){
+                    // if the file could be opened (no failure and the promise has already settled), then we can actually log to file
+                    if (logger.fileHandle){
+                        logger.fileHandle.appendFile(str + '\n').catch((err)=>{
+                            console.log(err);
+                        });
+                    }
+                }
+            }
         }
     }
 }
