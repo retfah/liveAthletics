@@ -223,5 +223,7 @@
 	"Preparing competition": "Preparing competition",
 	"Live Results": "Live Results",
 	"Could not find the page for this type of discipline.": "Could not find the page for this type of discipline.",
-	"Tech High Admin": "Tech High Admin"
+	"Tech High Admin": "Tech High Admin",
+	"retiredAbbreviation": "r",
+	"Current meetings": "Current meetings"
 }

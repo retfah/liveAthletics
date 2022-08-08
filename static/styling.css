@@ -836,6 +836,11 @@ option.catMismatch{
     padding: .375rem .75rem; 
 }
 
+#resultsView2 .result {
+    padding: 0 .375rem;
+    justify-self: start; 
+    grid-column: result;
+}
 #resultsView2 .name{
     padding: 0 .375rem;
     justify-self: start; 
@@ -941,6 +946,21 @@ option.catMismatch{
     position: relative; /* not allowed to be static, since otherwise the centering of the child-circle in absolute manner does not work */
 }
 
+/* the contest class is needed to apply this only on the admin pages and not on the board (which has its own next and current) */
+.contest .current, .contestContainer .current {
+    /* some formatting to highlight the current athletes in lists */
+    background-color: #20c997;
+}
+
+.contest .next, .contestContainer .next {
+    /* some formatting to highlight the current athletes in lists */
+    background-color: #97e4cd;
+}
+.contest .finished {
+    /* not in competition anymore */
+    background-color: rgb(207, 207, 207);
+}
+
 .selectTable{
     width:100%; 
     border-collapse:collapse; 
@@ -993,8 +1013,8 @@ option:hover {
     border:1px solid grey;
     border-radius: var(--border-radius, 4px);
     padding: 5px 10px;
-    max-width: 500px;
-    width:500px;
+    max-width: 650px;
+    /*width:500px;*/
     overflow: auto;
 }
 

@@ -5,17 +5,17 @@ const cLRtechHigh = {
     name:'cLRtechHigh',
     template:`
     
-<div id="vueSeriesAdminTech" style="">
+<div id="vueSeriesAdminTech">
 <h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h2>
-<div v-if="contest.state<90"> <!-- v-if="contest.state<90" -->
+<div v-if="contest.status<90"> <!-- v-if="contest.state<90" -->
 <!--currently, the roll call is beeing done or the series are being created. Show all inscribed athletes. -->
 <h3><%= __("Startlist") %></h3>
-<v-table :data="startgroups" :filters="filters">
+<v-table :data="startgroups" > <!-- :filters="filters"-->
 <template #head> <!-- # head is a shorthand for v-slot:head-->
     <thead>
         <tr>
-            <th is="vue:v-th" sortkey="bib" defaultsort="asc">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
-            <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+            <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+            <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
             <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
             <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
             <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
@@ -45,11 +45,10 @@ const cLRtechHigh = {
 </v-table>
 </div>
 
-<div v-if="contest.state>=90 && contest.state<140"> <!--  v-if="contest.state>=90 && contest.state<140" -->
-    show all series
-    <h3><%= __("Series") %></h3>
+<div v-if="contest.status>=90 && contest.status<140"> <!--  v-if="contest.state>=90 && contest.state<140" -->
+    <h3 v-if="series.length>1"><%= __("Series") %></h3>
     <div v-for="(s,index) in series">
-        <%= __("SeriesSingular") %> {{index+1}}
+        <template v-if="series.length>1"><%= __("SeriesSingular") %> {{index+1}}</template>
         <v-table :data="s.seriesstartsresults">
             <template #head> <!-- # head is a shorthand for v-slot:head-->
                 <thead>
@@ -175,19 +174,22 @@ const cLRtechHigh = {
             grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
 
             <template v-for="h in sortedHeights">
-                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{h.height}}</div>
-                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{h.height}}</div>
+                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
+                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
             </template>
             <template v-for="(startIndex, sortIndex) in sortedStarts2">
                 
-                <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }"> <!--style="justify-self: start; grid-column: athletes"-->
                     {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
                 </div>
                 <!--<div class="bib" v-bind:style="{'grid-row': sortIndex+2}"> 
                     {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup]?.bib}}
                 </div>--><!--style="justify-self: start; grid-column: bib"-->
-                <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                    {{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart]?.rank}}. 
+                <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                    {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                </div>
+                <div class="rank" v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }"> <!--style="justify-self: start; grid-column: rank"-->
+                    {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
                 </div>
                 <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
                     <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
@@ -369,7 +371,7 @@ const cLRtechHigh = {
             currentResultString:'',
             currentResultStringCopy:'',
             resultKeyPressed: -1, // the key that was pressed last inside a addResult-input. If this is the esc-key, the blur event will not be evaluated. 
-            sortValue1: 1,
+            sortValue1: 1, // default: default order
             sortValue2: 1, // default by order (do not choose rank, since it does not work before we have results)
             fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
             temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
@@ -388,7 +390,7 @@ const cLRtechHigh = {
             },*/
             autoAdvance: false,
             attemptTime: "1:00", // TODO: aventually as time instead of string
-            attemptTimeSetting: "00:30",
+            attemptTimeSetting: "01:00",
             shownTime: "0:00", // shall be string
             timeUpdateInterval: undefined,
             last15: false, // last 15 s
@@ -1390,7 +1392,7 @@ const cLRtechHigh = {
                         return r2.jumpoffFailedAtI - r1.jumpoffFailedAtI; // the heigher the better
                     }
 
-                    // 5) it is also deemed 'failure' when an athlete retired after the last height. Thus if both have failed at the same height, but one is finally called reitred, he actually left before and thus is ranked worse
+                    // 5) it is also deemed 'failure' when an athlete retired after the last height. Thus if both have failed at the same height, but one is finally called retired, he actually left before and thus is ranked worse
                     if (r1.resultOverrule != r2.resultOverrule){
                         return r1.resultOverrule - r2.resultOverrule;
                     }
@@ -2187,6 +2189,23 @@ const cLRtechHigh = {
                 resultsHighPassed:false // verzichtet (-)
             },*/
         },
+        resetPositions(){
+            // reset to positions to default order
+
+            // first check if the positions are really not the default ones
+            if (JSON.stringify(this.position) != JSON.stringify(this.defaultPosition)){
+                this.position = this.defaultPosition;
+                this.calculateNextAthlete();
+
+                // since this.position is already changed, calculateNextAthlete will not detect any change and will therefore also not realize, that it should send the new changes auxData to the server. Therefore, we do it manually here 
+                this.roomAuxDataSelected.positionNext = this.positionNext;
+                this.roomAuxDataSelected.position = this.position;
+
+                // send the changed data to the server
+                rCTech.room.updateAuxDataInit(this.roomAuxData);
+            }
+            
+        },
         onPositionMovingEnded(evt){
             if (evt.oldIndex!=evt.newIndex){
                 // on position change, we have to recalculate the next athlete (and the positionNext array.)
@@ -2583,6 +2602,11 @@ const cLRtechHigh = {
             // return the rank as a localized string, e.g. 
             // en: 1st, 2nd, 3rd, 4th, ...
             // de: 1., 2., 3., ...
+            // rank is always based on the number or empty (if no rank)
+            if (rank==0){
+                // there is no rank 0! print no rank when 0
+                return '';
+            }
             if (lang=='de'){
                 return `${rank}.`
             }else {
@@ -2598,6 +2622,50 @@ const cLRtechHigh = {
                 }
             }
         },
+        // resultLOcalizer: create the result string for the given result (inlcuding the resultOverrule)
+        // the result is 
+        // - empty until there is a first cleared height
+        // - the last valid height
+        // - NM_: no valid height, and three failed attempts
+        // - DISQ
+        // - DNS
+        resultLocalizer(ssr, lang="en"){
+
+            const tempRankingData = this.tempRankingData[ssr.xSeriesStart];
+
+            const rank = tempRankingData.rank;
+            const finished = tempRankingData.finished;
+            const resultOverrule = ssr.resultOverrule;
+
+            // DISQ, DNS
+            if (resultOverrule>1){
+                return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+            }
+
+            // retired
+            if (resultOverrule==1){
+                // if the athlete had a result then show the last height together with the abbreviaiton for retired
+                if (tempRankingData.lastValidHeight>0){
+                    return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                } else {
+                    return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                }
+            }
+
+            // regular:
+            if (tempRankingData.lastValidHeight>0){
+                return this.meterStr(tempRankingData.lastValidHeight) + ' m';
+            } else {
+                if (finished){
+                    // no valid result
+                    return '<%= __("NM") %>';
+                } else {
+                    // no result yet
+                    return '';
+                }
+            }
+
+        },
         getLastResults(numRes=2){
             // get the specified number of results 
         },
@@ -2606,7 +2674,7 @@ const cLRtechHigh = {
         mode: function(newMode,oldMode){ 
             if (newMode>0 && oldMode==0){
                 this.sortValue1 = 2;
-                this.sortValue2 = 2;
+                this.sortValue2 = 1; // keep the default order!
             } else if(newMode==0 && oldMode>0){
                 this.sortValue1 = 1;
                 this.sortValue2 = 1;
@@ -2955,6 +3023,17 @@ const cLRtechHigh = {
 
         /* !!! properties for SERIES CREATION only !!! */
 
+        defaultPosition: function(){
+            // returns an array with the default position array; this is needed to reset the array and to know if the order currently is changed or not
+            const ssrs = this.series[this.selectedSeries].seriesstartsresults;
+            let posCopy = this.position.slice();
+            posCopy.sort((xSSR1,xSSR2)=>{
+                const SSR1 = ssrs.find(s=>s.xSeriesStart==xSSR1);
+                const SSR2 = ssrs.find(s=>s.xSeriesStart==xSSR2);
+                return SSR1.position - SSR2.position
+            })
+            return posCopy;
+        },
         // to move around the atheletes e.g. from non-assigned to series we have to work on the startgroups. Create an array with all unassigned startgroups (unassignedAthletes) and one for every series with the same info (seriesAsStartgroups). 
 
         unassignedAthletes: function(){
@@ -3035,8 +3114,43 @@ const cLRtechHigh = {
                     let rA = this.tempRankingData[A.xSeriesStart].rank;
                     let rB = this.tempRankingData[B.xSeriesStart].rank;
                     if (rA==0 && rB==0){
-                        // both have no rank yet: sort by default order
-                        return A.position - B.position;
+                        // both have no rank (yet):
+                        // the order should be: in competition without valid height < retired NM < regular NM < DNS < DQ < not started yet
+                        const assignVal = function(X, rX){
+                            if (X.resultOverrule==0 && !rX.finished){
+                                // differentiate with result and without result
+                                if (rX.failedAttemptsSinceLastValid>0){
+                                    // already has a result
+                                    return 0
+                                } else {
+                                    // no result yet; at the very end
+                                    return 10
+                                }
+                            }
+                            if (X.resultOverrule==1){
+                                // retired, NM
+                                return 2;
+                            }
+                            if (X.resultOverrule==0 && rX.finished){
+                                // regular NM
+                                return 4;
+                            }
+                            if (X.resultOverrule==5){
+                                // DNS
+                                return 6;
+                            }
+                            if (X.resultOverrule==6){
+                                // DQ
+                                return 8;
+                            }
+                            // should never arrive here
+                            alert('should not be here');
+                            return 100;
+                        }
+                        const Aval = assignVal(A, this.tempRankingData[A.xSeriesStart]);
+                        const Bval = assignVal(B, this.tempRankingData[B.xSeriesStart]);
+                            
+                        return Aval - Bval;
                     } else if (rA==0){
                         // A must be lower than B
                         return 1;
@@ -3098,8 +3212,43 @@ const cLRtechHigh = {
                     let rA = this.tempRankingData[A.xSeriesStart].rank;
                     let rB = this.tempRankingData[B.xSeriesStart].rank;
                     if (rA==0 && rB==0){
-                        // both have no rank yet: sort by default order
-                        return A.position - B.position;
+                        // both have no rank (yet):
+                        // the order should be: in competition without valid height < retired NM < regular NM < DNS < DQ < not started yet
+                        const assignVal = function(X, rX){
+                            if (X.resultOverrule==0 && !rX.finished){
+                                // differentiate with result and without result
+                                if (rX.failedAttemptsSinceLastValid>0){
+                                    // already has a result
+                                    return 0
+                                } else {
+                                    // no result yet; at the very end
+                                    return 10
+                                }
+                            }
+                            if (X.resultOverrule==1){
+                                // retired, NM
+                                return 2;
+                            }
+                            if (X.resultOverrule==0 && rX.finished){
+                                // regular NM
+                                return 4;
+                            }
+                            if (X.resultOverrule==5){
+                                // DNS
+                                return 6;
+                            }
+                            if (X.resultOverrule==6){
+                                // DQ
+                                return 8;
+                            }
+                            // should never arrive here
+                            alert('should not be here');
+                            return 100;
+                        }
+                        const Aval = assignVal(A, this.tempRankingData[A.xSeriesStart]);
+                        const Bval = assignVal(B, this.tempRankingData[B.xSeriesStart]);
+                            
+                        return Aval - Bval;
                     } else if (rA==0){
                         // A must be lower than B
                         return 1;
@@ -3153,7 +3302,7 @@ const cLRtechHigh = {
             let i = this.fakeProperty;
 
             let h = this.sortedHeights;
-            let s = '[rank] max-content [bib] max-content [athletes] max-content';
+            let s = '[rank] max-content [bib] max-content [athletes] max-content [result] max-content';
             for (let i=0;i<h.length;i++){
                 s += ' [h' + h[i].xHeight + '] max-content'; /* the label for the line must not be a number, but a string */
             }
@@ -3163,7 +3312,7 @@ const cLRtechHigh = {
         disciplineConfiguration: function(){
             // get the first discipline with matching baseDiscipline and parse its configuration
             let d = this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
-            if (!d){
+            if (!d || d.configuration==''){
                 return {heightMax:800, jumpoffHeightVariation:2};
             } else {
                 let o = JSON.parse(d.configuration);

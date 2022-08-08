@@ -52,7 +52,9 @@
         <div class="ranking">
             <div class="rank">
                 <!-- rank: language specific: german: ., english: th/nd/rd -->
-                {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                <template v-if="tempRankingData[currentAthleteStart.xSeriesStart].rank>0">
+                    {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                </template>
             </div>
             <div class="results">
                 <template v-for="(res, ind) in sortedResults(currentAthleteStart.resultshigh).slice().reverse()">

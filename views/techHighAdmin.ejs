@@ -172,13 +172,13 @@
             <div v-if="contest.status<=39 && show=='rollCall'">
                 <!-- roll call:  -->
                 <h2><%= __("Roll call") %></h2>
-                TODO: eventually include paid status!<br>
+                <!-- TODO: eventually include paid status!<br> -->
                 <!-- provide a table with all athletes and a select box of their status-->
                 <label class="verticalForm" style="display: inline-block">
                     <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-                    <input v-model="filterAthletes" type="text" size="30">
+                    <input v-model="filterAthletes" type="search" size="30">
                 </label>
-                <button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>
+                <!--<button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>-->
                 <v-table :data="startgroups" :filters="filters">
                     <template #head> <!-- # head is a shorthand for v-slot:head-->
                         <thead>
@@ -478,7 +478,9 @@
                             </div>
     
                             <div class="row2 athRes">
-                                <div class="elText"><%= __("Rank") %>: {{tempRankingData[currentAthleteStart.xSeriesStart].rank}}</div>
+                                <div class="elText"><%= __("Rank") %>: 
+                                    {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                                    </div>
                                 <div class="elText"><%= __("Results so far") %>: </div>
                                 <template v-for="res in sortedResults(currentAthleteStart.resultshigh)">
                                     <div class="elText">
@@ -552,7 +554,7 @@
                             </div>
     
                             <div class="row2 athRes">
-                                <div class="elText"><%= __("Rank") %>: {{tempRankingData[currentAthleteStart.xSeriesStart].rank}}</div>
+                                <div class="elText"><%= __("Rank") %>: {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}</div>
                                 <div class="elText"><%= __("Results so far") %>: </div>
                                 <template v-for="res in currentAthleteStart.resultshigh">
                                     <div class="elText">
@@ -588,12 +590,16 @@
                 </div>
                 <div v-if="show=='order'" id="orderPosition" style="display:block">
                     <h2><%= __("Order of athletes") %></h2>
+                    <!-- TODO: this button would ideally only be present if the order is not the default order -->
+                    <button type="button" class="btn" v-on:click="resetPositions" v-if="JSON.stringify(this.position) != JSON.stringify(this.defaultPosition)">
+                        <%= __("Reset order of athletes") %>
+                    </button>
                     <%= __("Drag'n'drop") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
                     <ol>
                         <draggable style="display:inline-block;" v-model="position" @end="onPositionMovingEnded" item-key="index" :disabled="readOnly">
                             <template #item="{element, index}">   
                                 <li class="item"> 
-                                    <div class="dragelement">
+                                    <div class="dragelement" v-bind:class="{ current: currentAthleteStart?.xStartgroup==getStartByXSeriesStart(element).xStartgroup, next: nextAthleteStart?.xStartgroup==getStartByXSeriesStart(element).xStartgroup }">
                                         {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.bib}} 
                                         {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteName}} {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteForename}}
                                     </div>     
@@ -637,12 +643,11 @@
                     -->
                     <div style="display:inline-block" >
                         <template v-for="(startIndex, sortIndex) in sortedStarts1">
-                            <div class="athlete">
+                            <div class="athlete" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }">
                                 <div class="row2">
-                                    
-                                    <div class="elText">{{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank}}.  </div>
+                                    <div class="elText">{{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}} </div>
                                     <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
-                                    <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
+                                    <div class="elText" style="font-weight: bold">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
                                     <div class="elText">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
                                     <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].countryCode}}</div>
                                     <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
@@ -713,19 +718,19 @@
                         grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
         
                         <template v-for="h in sortedHeights">
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{h.height}}</div>
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{h.height}}</div>
+                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
+                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
                         </template>
                         <template v-for="(startIndex, sortIndex) in sortedStarts2">
                             
-                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
                                 {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
                             </div>
-                            <!--<div class="bib" v-bind:style="{'grid-row': sortIndex+2}"> 
-                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup]?.bib}}
-                            </div>--><!--style="justify-self: start; grid-column: bib"-->
+                            <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                            </div>
                             <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                {{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank}}. 
+                                {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
                             </div>
                             <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
                                 <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
@@ -742,7 +747,7 @@
             <div class="overlay" v-bind:class="{shown: overlay2}">
                 <div class="overlayContainerWide">
                     <form>
-                        <button type="button" class="btn" v-on:click="addEmptySeriesInitial()"><%= __("Manually add one series") %></button>
+                        <button type="button" class="btn" v-on:click="addEmptySeriesInitial()"><%= __("Add single series") %></button>
                         <button type="button" class="btn" v-on:click="overlay='automaticSeriesAssignment'"><%= __("Automatic series assignment") %></button>
     
                         <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
@@ -801,7 +806,7 @@
                                 </v-table>
                             </div>
                         </div>
-                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("close") %></button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Close") %></button>
                         <button type="button" class="btn btnGreen" ref="saveInitSeries" v-on:click="saveInitSeries"><%= __("Save") %></button>
                     </form>
                 </div>
