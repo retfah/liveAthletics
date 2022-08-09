@@ -11,12 +11,14 @@ export default {
     // the port to listen on (node/express default is 3000, http is 80)
     port: 80,
 
-    // logging: set various kinds of loggers (currently only types "console" and "file" are supported)
-    // file: must have a path property; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
-    // FUTURE: allow to overrule the default setting for the log level specifically for the chosen logger
-    // optional: maxLevel: highest logged level
-    // optional: minLevel: lowest logged level
-    loggers: [{type:'console', maxLevel:92}, {type:'file', path:'./log.txt'}],
+    // logging: set various kinds of loggers; one logger per object
+    // properties for each logger
+    // type: required, supported types: "console", "file"
+    // maxLevel: optional, highest logged level (if not given, the setting given in the logger constructor is used)
+    // minLevel: optional, lowest logged level (default=0=no min)
+    // path: required if type='file'; must not contain any strings that cannot be part of filenames, e.g. ':'; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
+
+    loggers: [{type:'console', maxLevel:92}, {type:'file', path:`./log/log ${(new Date).toISOString().slice(0,19).replaceAll(':','')}.txt`}], // no : in file names! (at least on windows)
 
     // DB settings
     database: {

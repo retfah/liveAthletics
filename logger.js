@@ -1,5 +1,5 @@
 
-import {appendFile, open} from 'fs/promises';
+import {open} from 'fs/promises';
 
 // localLogger
 // would it be faster to open the file once and then write severa times to the same file (as it is done in python) or is it not important?
@@ -32,6 +32,12 @@ class localLogger{
      * 90-99: debugging level, show (nearly) every message
      */
 
+    // object-format for each logger
+    // type: required, supported types: "console", "file"
+    // maxLevel: optional, highest logged level (if not given, the setting given in the logger constructor is used)
+    // minLevel: optional, lowest logged level (default=0=no min)
+    // path: required if type='file'; must not contain any strings that cannot be part of filenames, e.g. ':'; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
+    
     /**
      * Constructor of the logger
      * @constructor
@@ -55,8 +61,8 @@ class localLogger{
                 loggers.splice(i,1);
                 continue;
             }
-            // TODO: eventually add here further checks for the different types of loggers
-            // check for the different options
+            
+            // check and init for the different options
             if (loggers[i].type=='file'){
                 // try to open the file
                 open(loggers[i].path,'a').then((fileHandle) => {
