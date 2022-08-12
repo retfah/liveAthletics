@@ -79,8 +79,9 @@ import mariadb from 'mariadb'; // access the DB directly. (sequelize also uses m
 import WebSocket from 'ws';	   // websocket server
 const wsServer = WebSocket.Server;
 import signature   from 'cookie-signature'; // used to manually (in websocket instead of automatically in express-session) decode the sid cookie
-import {promisify}  from 'util';
-const readFileAsync = promisify( fs.readFile);
+/*import {promisify}  from 'util';
+const readFileAsync = promisify( fs.readFile);*/
+import {readFile} from 'node:fs/promises';
 import localLogger from './logger.js';
 import  eventHandling2 from './eventHandling2.js';
 //import wsExt from './wsExtension.cjs'; // the syn/ack-stuff for WS
@@ -305,7 +306,7 @@ if (adminDbCreated){
 		// copy the standard DB into the new DB 
 		// the sql code to create the tables must be in a separate file. This code is then run on the DB. We cannot use mysqldump here, as e.g. there is no import option yet for it.
 		
-		let emptyDbCode = await readFileAsync(conf.database.emptyAdminDbPath, 'utf8') // if the encoding is ommitted, a buffer is returned whcih CANNOT be read by sequelize
+		let emptyDbCode = await readFile(conf.database.emptyAdminDbPath, 'utf8') // if the encoding is ommitted, a buffer is returned whcih CANNOT be read by sequelize
 
 		await mysqlbaseConn.query(emptyDbCode);
 	}catch(err){
@@ -408,7 +409,7 @@ const baseModules = {};
 // If World Athletics provides an API, I could also write a module that gets athletes data from there; this module would probably be open to all meetings, since the data could be "open" anyway, in contrast to base data from countries, where more strict rules might apply.
 
 // ATTENTION: baseSui is NOT the instance you imight think of if we keep having the updateDateBase at the end
-const baseSui = moduleLinkSUI.create(logger, mongoclient).then((bs) => {
+const baseSui = moduleLinkSUI.create(logger, mongoclient, mysqlPool).then((bs) => {
 	//bs.updateBaseData({username:'121832', password:'struppi1'}).catch(err=>console.log(err));
 	baseModules['SUI'] = bs;
 

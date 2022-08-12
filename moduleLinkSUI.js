@@ -9,14 +9,91 @@ import { streamToString } from './common.js';
 const Op = Sequelize.Op;
 import {Worker, isMainThread, parentPort, workerData} from  'node:worker_threads';
 
+/*import {promisify}  from 'util';
+const readFileAsync = promisify( fs.readFile);*/
+import {readFile} from 'node:fs/promises';
+
 import initModels from "./modelsBaseSUI/init-models.js"; // es6 with define syntax (based on modified sequelize-auto functions, run as es5 but creating es6-import with define)
 import nationalBodyLink from "./nationalBodyLink.js"
 
 // link to alabus
 export default class moduleLinkSUI extends nationalBodyLink {
 
+    static conf = {
+
+        pathEmptyDb: './emptyDbBaseSui.sql',
+
+        host: 'alabus.swiss-athletics.ch', // live server
+        //host: 'alabustest.swiss-athletics.ch', // test server
+        port: 443,
+        pathBaseData: '/rest/License/Athletica/ExportStammDataFull',
+        pathCompetitionList: "/rest/Event/Athletica/ExportMeetingList",
+        pathCompetitionData: "/rest/Event/Athletica/MeetingData",
+        pathResultsUpload: "/rest/Event/Athletica/ImportResultData",
+        //method: 'GET', // not necessary when https.get is used
+        headers: {
+            authorization: "Basic " + Buffer.from("121832:struppi1").toString('base64'),// base64(username:pw)}
+            connection: 'close'
+        },
+        debug: true, // stores the baseData locally as a file (DOES NOT WORK YET)
+        fileNameBaseData: "StammdatenNode.gz", // only used when debug=true
+
+        // TODO: create a list matching the alabus discipline numbers and the local dicipline numbers; including indoor/outdoor
+        disciplineTranslationTable: {
+            // liveAthletics:Alabus
+            207:310, // high jump
+            206:320, // PV
+
+        },
+        disciplineTranslationTableInv: {
+            // the backtranslation table is created below
+        }
+
+        // the categories are given as code (e.g. MAN_, U20M, ...) --> translate it automatically, by stripping the _ from MAN_ and WOM_ and keep all the rest the same.
+    };
+
     // to initialize this class we should use this static creator function, since the preparation of the sequelize-DB-connection is async
-    static async create(logger, mongoClient){
+    static async create(logger, mongoClient, mysqlPool){
+
+        // first check if the base DB exists; if not, create it
+        // check if there is an adminDB; automatically create it if it is not available.
+        const mysqlbaseConn = await mysqlPool.getConnection().catch(error=>{console.log(error)});
+
+        let dbCreated = false; 
+        await mysqlbaseConn.query(`show databases where "basesui"`).then(async (rows)=>{
+            if (rows.length==0){
+                // create the base admin db
+                let res = await mysqlbaseConn.query(`create database if not exists basesui DEFAULT CHARACTER SET 'utf8' DEFAULT COLLATE 'utf8_general_ci'`).catch(async (error)=>{ throw `basesui-database could not be created: ${error}`});
+                
+                dbCreated = true;
+
+                // the rest is done below
+            }
+        })
+
+        // so far, the base connection was not for a specific DB. Now, select the DB:
+        await mysqlbaseConn.query(`USE basesui`)
+
+        // insert tables etc.
+        if (dbCreated){
+            // load the DB-code through sequelize
+            try {
+                // copy the standard DB into the new DB 
+                // the sql code to create the tables must be in a separate file. This code is then run on the DB. We cannot use mysqldump here, as e.g. there is no import option yet for it.
+                
+                // formerly readFileAsync
+                let emptyDbCode = await readFile(this.conf.pathEmptyDb, 'utf8').catch(err=>{
+                    logger.log(5, `Reading empty basesui code failed: ${err}`);
+                    throw err;
+                }) // if the encoding is ommitted, a buffer is returned which CANNOT be read by sequelize
+
+                await mysqlbaseConn.query(emptyDbCode);
+            }catch(err){
+                await mysqlbaseConn.query(`drop database if exists basesui`)
+                throw(`Could not create the basesui-database: ${err}`);
+            }
+        }
+        
 
         // ------------------
         // Start the connection to the DB with sequelize
@@ -34,7 +111,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
             //operatorsAliases: false, // does not exist anymore
             // application wide model options: 
             define: {
-            timestamps: false // we generally do not want timestamps in the database in every record, or do we?
+                timestamps: false // we generally do not want timestamps in the database in every record, or do we?
             }
             })
 
@@ -67,37 +144,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
         this.models = initModels(seq);
         this.logger = logger;
 
-        // something completely different: get Data from alabus! Works so far!
-        this.conf = {
-            host: 'alabus.swiss-athletics.ch', // live server
-            //host: 'alabustest.swiss-athletics.ch', // test server
-            port: 443,
-            pathBaseData: '/rest/License/Athletica/ExportStammDataFull',
-            pathCompetitionList: "/rest/Event/Athletica/ExportMeetingList",
-            pathCompetitionData: "/rest/Event/Athletica/MeetingData",
-            pathResultsUpload: "/rest/Event/Athletica/ImportResultData",
-            //method: 'GET', // not necessary when https.get is used
-            headers: {
-                authorization: "Basic " + Buffer.from("121832:struppi1").toString('base64'),// base64(username:pw)}
-                connection: 'close'
-            },
-            debug: true, // stores the baseData locally as a file (DOES NOT WORK YET)
-            fileNameBaseData: "StammdatenNode.gz", // only used when debug=true
-
-            // TODO: create a list matching the alabus discipline numbers and the local dicipline numbers; including indoor/outdoor
-            disciplineTranslationTable: {
-                // liveAthletics:Alabus
-                207:310, // high jump
-                206:320, // PV
-
-            },
-            disciplineTranslationTableInv: {
-                // the backtranslation table is created below
-            }
-            
-
-            // the categories are given as code (e.g. MAN_, U20M, ...) --> translate it automatically, by stripping the _ from MAN_ and WOM_ and keep all the rest the same.
-        } 
+        // make the static conf available in this for non-static methods
+        this.conf = this.constructor.conf;
 
         // create the inverse disciplineTranslationTable
         for (const [o,v] of Object.entries(this.conf.disciplineTranslationTable)){
@@ -242,7 +290,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                     notes.push(msg);
                     this.logger.log(90, msg);
                     //parseStringPromise(xmlString, {explicitArray:false,})
-                    this.parseBase(xmlString)
+                    return this.parseBase(xmlString)
                     .then(async (xml)=>{
     
                         let timeUnzipped = new Date();
@@ -440,7 +488,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         await this.sequelize.query(athleteInsertQuery, {logging:false}).then(()=>{athletesInserted=true}).catch(err=>{
                             let msg = 'Inserting all athletes at a time was not successful. Trying to insert them separately.'+err.toString();
                             notes.push(msg);
-                            this.logger.log(98, msg);
+                            this.logger.log(90, msg);
                         });
     
                         const timeAthletesInserted = new Date();
@@ -453,10 +501,10 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         await this.sequelize.query(performanceInsertQuery, {logging:false, raw:true}).then(()=>{performancesInserted=true}).catch(err=>{
                             let msg = 'Inserting all performances at a time was not successful. Trying to insert them separately.';
                             notes.push(msg);
-                            this.logger.log(98, msg + err.toString());
+                            this.logger.log(90, msg + err.toString());
                         });
                         const timePerformancesInserted = new Date();
-                        msg = `Performances sql insertion (attempt) finished. Duration: ${(timePerformancesInserted - timeAthletesInserted)/1000}s. If needed, start single inserts of athletes ${!athletesInserted} and/or performances ${!performancesInserted}.`;
+                        msg = `Performances sql insertion (attempt) finished. Duration: ${(timePerformancesInserted - timeAthletesInserted)/1000}s. If needed, start single inserts of athletes (${!athletesInserted}) and/or performances (${!performancesInserted}).`;
                         notes.push(msg);
                         this.logger.log(90, msg);
     
@@ -480,7 +528,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                             for (let athlete of xml.watDataset.athletes.athlete){
                                 i++;
                                 if ((i%logAfterN)==0){
-                                    msg = `Inserting athletes from ${i-logAfterN} to ${i} took ${((new Date())-timeBefore)/1000}s.`;
+                                    msg = `Inserting athletes/performances from ${i-logAfterN} to ${i} took ${((new Date())-timeBefore)/1000}s.`;
                                     notes.push(msg);
                                     this.logger.log(90, msg);
                                     timeBefore = new Date();
