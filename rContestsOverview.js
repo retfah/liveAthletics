@@ -30,9 +30,10 @@ import roomServer from './roomServer.js';
             categories: rCategories.data,
         }; 
 
-        this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
+        // 2022-08: done when all rooms are ready
+        /*this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
             this.data.categories = rCategories.data;
-        })
+        })*/
 
         // sequelize is not needed here, since we get all data from other rooms
 
@@ -44,8 +45,15 @@ import roomServer from './roomServer.js';
         this.rCategories = rCategories;
         this.meetingShortname = meetingShortname;
 
+        // 2022-08: a room returns a true promise, as soon as it is ready. Use this to create the data when every room is ready 
+        Promise.all([this.rEvents._roomReady(), this.rContests._roomReady(), this.rEventGroups._roomReady(), this.rCategories._roomReady()]).then(()=>{
+            this.data.categories = rCategories.data;
+            this.createData();
+            this.ready = true;
+        })
+
         // all rooms need to be ready first before we can create the data
-        let checkReadiness = ()=>{
+        /*let checkReadiness = ()=>{
             
             if (this.rEvents.ready && this.rEventGroups.ready && this.rContests.ready){
                 this.createData();
@@ -76,7 +84,7 @@ import roomServer from './roomServer.js';
                     this.eH.eventUnsubscribe(`contests@${meetingShortname}:ready`, this.name);
                 }, this.name, true);
             }
-        }
+        }*/
 
 
         // listen to changes in contests, events, eventGroups and make sure that the data here is updated as it should
