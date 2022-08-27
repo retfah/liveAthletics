@@ -2,13 +2,16 @@
 
 // tries to get the room specified in the specified meeting and run the mentioned function; this process is required in both noteHandler and requestHandler as well as in rSideChannel
 
+// CHANGES: 
+// 2022-08: especially for rooms that are created dynamically, simply returning the room is not very helpful, since the following command to the room (e.g. enter) will fail, since the room is not ready. Thus, if awaitRoomReady=true, the function will not resolve until the room is actually ready.  
+
 /**
  * 
  * @param {string} roomName 
  * @param {string} rMeetings What meeting to search for
  * @returns 
  */
-export default async function findRoom(meetingAndRoomName, rMeetings, serverRooms, logger={log:()=>{}}){
+export default async function findRoom(meetingAndRoomName, rMeetings, serverRooms, logger={log:()=>{}}, awaitRoomReady=true){
 
     // if the room is of a specific meeting (contains '@'), check if the user has the rights for this meeting and try to get the room of this meeting
     let splitRoom = meetingAndRoomName.split('@');
@@ -27,13 +30,19 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
 
                 // differentiate: we want a subroom OR the mainroom:
                 if (subrooms==''){
-                    return room;
+                    if (awaitRoomReady){
+                        await room._roomReady();
+                    }
+                    return room; 
                 } else {
                     let subroom = room.getSubroom(subrooms); // return false on failure
                     if (!subroom){
                         logger.log(75, 'The subroom "' + subrooms + '" does not exist in the respective meeting.');
                         throw {message:'The subroom "' + subrooms + '" does not exist in the respective meeting.', code:11} ;
                     } else {
+                        if (awaitRoomReady){
+                            await subroom._roomReady();
+                        }
                         return subroom;
                     }
                 }
@@ -52,6 +61,10 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
         if (meetingAndRoomName in serverRooms){
 
             // delegate the rest to the room:
+            // await ready
+            if (awaitRoomReady){
+                await serverRooms[meetingAndRoomName]._roomReady();
+            }
             return serverRooms[meetingAndRoomName];
 
         }else{
