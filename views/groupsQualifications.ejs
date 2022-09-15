@@ -1,0 +1,1077 @@
+
+
+<script type="text/javascript">
+
+
+
+    // connect to the respective contest; 
+    // in contrast to the vuContestTechHigh in in the respective file, this class here assigns the data from the room to different proeprties in the vue instance. Additionally, we do not request writing rights
+    class vuContestTechHigh2 extends roomClientVue{
+        constructor(vue, meetingShortname, xContest){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super(`contests/${xContest}@${meetingShortname}`, false, true, '/static/rContestTechHighClient.js', 'rContestTechHighClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+            this.xContest = xContest;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            this.vue.readOnly = this.room.writingTicketID==false;
+        }
+
+        onChange(){
+
+            // some computed properties such as resultGridTemplate are not updated when its content changes (e.g. xHeight changed from negative values to the true value); thus we need this stupid fake property
+            // is this still required?
+            this.vue.fakeProperty++;
+
+        }
+
+        setProps(){
+
+            // make sure that the series are sorted
+            this.room.sortSeries();
+
+            // set the changed data-property as data of the vue-instance
+            this.vue.contests[this.xContest] = {
+                series: this.room.data.series,
+                auxData: this.room.data.auxData
+            }
+            /*this.room.data.contest;
+            this.vue.series = this.room.data.series;
+            this.vue.startgroups = this.room.data.startgroups;
+            this.vue.relatedGroups = this.room.data.relatedGroups;
+            this.vue.disciplines = this.room.data.disciplines;
+            this.vue.meeting = this.room.data.meeting;
+            this.vue.categories = this.room.data.categories;
+            this.vue.roomAuxData = this.room.data.auxData;*/
+            
+            
+            // this.vue.baseDisciplines = this.room.data.disciplines;
+            // this.vue.categories = this.room.data.categories;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            // no backtransfer of meeting and categories required
+        }
+        
+        afterFullreload(){
+
+            // first, calculate the time offset of the browser's time and the time on the server
+            // the offset is defiend as serverTime - timeHere; i.e. the value is positive, when the time here is lower than on the server.
+            this.vue.timeOffset = new Date(this.room.data.serverTime) - new Date();
+
+            // 
+            this.setProps()
+
+            // also update the writing status
+            this.onWritingTicketChange();
+
+        }
+        
+        dataArrived(){
+
+            this.setProps();
+            
+            // also update the writing status
+            this.onWritingTicketChange();
+
+        }
+
+    }
+
+    class vuClubs extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('clubs@' + meetingShortname, false, true, '/static/rClubsClient.js', 'rClubsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.clubs = this.room.data.clubs; // this will actually store a proxy of the data!
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            //this.room.data.clubs = this.vue.clubs;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.clubs = this.room.data.clubs;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            //this.room.data.clubs = this.vue.clubs;
+
+        }
+    }
+    
+    // for a singeEventGroup (to set qualification and groups of athletes)
+    class vuEventGroup extends roomClientVue{
+        
+        constructor(vue, meetingShortname, xEventGroup){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super(`eventGroups/${xEventGroup}@${meetingShortname}`, true, true, '/static/rEventGroupClient.js', 'rEventGroupClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.eventGroup = this.room.data; // this will actually store a proxy of the data!
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.eventGroup;
+
+            // sort the rounds and within each round by 
+            this.room.data.rounds.sort((a,b)=>a.order-b.order);
+
+            for (let r of this.room.data.rounds){
+                r.groups.sort((a,b)=>a.number-b.number)
+            }
+        }
+        
+        dataArrived(){
+            // the same as after full reload
+            this.afterFullreload()
+        }
+    }
+
+    class vuStartsInGroups extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super(`startsInGroup@${meetingShortname}`, true, true, '/static/rStartsInGroupClient.js', 'rStartsInGroupsClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.startsInGroups = this.room.data.startsInGroups; // this will actually store a proxy of the data!
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.startsInGroups = this.vue.startsInGroups;
+
+        }
+        
+        dataArrived(){
+            // the same as after full reload
+            this.afterFullreload()
+        }
+    }
+
+    class vuStarts extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('starts@' + meetingShortname, false, true, '/static/rStartsClient.js', 'rStartsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.startsAll = this.room.data.starts; // this will actually store a proxy of the data!
+            this.vue.disciplines = this.room.data.disciplines;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.starts = this.vue.startsAll;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.startsAll = this.room.data.starts;
+            this.vue.disciplines = this.room.data.disciplines;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.starts = this.vue.startsAll;
+
+        }
+    }
+
+    class vuInscriptions extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('inscriptions@' + meetingShortname, false, true, '/static/rInscriptionsClient.js', 'rInscriptionsClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.inscriptions = this.room.data.inscriptions; // this will actually store a proxy of the data!
+
+            //this.vue.regions = this.room.data.regions;
+            this.vue.meeting = this.room.data.meeting;
+            //this.vue.regions = this.room.data.regions;
+            this.vue.categories = this.room.data.categories;
+
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.inscriptions = this.vue.inscriptions;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            
+            this.vue.inscriptions = this.room.data.inscriptions;
+            
+            //this.vue.regions = this.room.data.regions;
+            this.vue.meeting = this.room.data.meeting;
+            //this.vue.regions = this.room.data.regions;
+            this.vue.categories = this.room.data.categories;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.inscriptions = this.vue.inscriptions;
+
+        }
+    }
+    
+    var vueGQ={};
+    var rEG = undefined;
+    var rStarts = undefined;
+    var rInscriptions = undefined;
+    var rStartsInGroups = undefined;
+    var rClubs = undefined; 
+
+    function startupGQ(){
+    
+        let vueAppConfig = {
+            data(){
+                return {
+                    contests: {}, // here, the single contests store their data, referenced with xContest, e.g. {123:{contestData}, 456:{contestData}}
+                    contestVUs: {}, // store the VU of each contest
+                    contestsRequested: [], // the contests that should soon have the data registered in contests.
+                    clubs: [],
+                    eventGroup: {}, // the eventGroup data
+                    disciplines: [],
+                    startsAll: [],
+                    inscriptions: [],
+                    startsInGroups: [],
+                    categories: [],
+                    meeting: [],
+                    showFullDetails: false,
+                    //assignmentForRound: 0, // 0 if there is nothing to change currently and the round number for the round to do the change
+                    showLastPerfRound: true, // whether to show the rounod of the performance in the last round.
+                    showEvent: true, // whether to show the event (and category) of each entry
+
+                    infoTitle:'',
+                    infoContent:'',
+                    infoVisible:false,
+                    overlay: undefined,
+
+                    filters: {}, // TODO: needed?
+
+                    // add contest and seriesStates; they are translated
+                    // <%- include('contestStates.ejs') %>
+                    
+                }
+
+            },
+            methods:{
+
+                // TODO: add here a formatter for the results / values
+
+                updateContests(){
+                    // TODO: put all contestsUpdate stuff here and add watchers which call this function!
+                    // changes in eventGroup --> will be called too often then, but this is better than the other way around
+                    // watch all contests
+
+                    var oldContestsRequested = this.contestsRequested;
+                    
+                    // get all contests that are required from now on; use map and filter then all undefined values
+                    var requiredNew;
+                    if (this.roundForContests){
+                        requiredNew = this.eventGroup.rounds[this.roundForContests-1].groups.map(g=>g.xContest).filter(c=>c);
+                    } else {
+                        requiredNew = [];
+                    }
+
+                    // compare the old and new list of requested contests
+                    // request the contests that were previously not needed and delete the contests that are not needed anymore
+                    for (let xcNew of requiredNew){
+                        // if the contest is not loaded yet, load it
+                        if (oldContestsRequested.indexOf(xcNew)==-1){
+                            // get the vue
+                            this.contestVUs[xcNew] = new vuContestTechHigh2(this, ms, xcNew);
+                        }
+                    }
+                    for (let xcOld of oldContestsRequested){
+                        if (requiredNew.indexOf(xcOld)==-1){
+                            // return the vue, since it is not used anymore
+                            // TODO
+                        }
+                    }
+
+                    this.contestsRequested = requiredNew;
+
+                },
+
+                groupChanged(start, event){
+                    // start is what createAssignmentData provides
+
+                    let data = {
+                        xStartgroup: start.xStartgroup, 
+                        number: parseInt(event.target.value), // note that this number is changed in the data due to the vue binding, but actually we then have an inconsistent group-object, which will be the old name together with the new group number
+                    }
+                    rStartsInGroups.room.updateStartsInGroupInit(data);
+                    // reset the value back, so that it is clear to the user that the change is not yet processed on the server!
+                    event.target.value = start.group.number;
+                },
+
+                // TODO: replace with funciton in the formatter-include
+                formatTime(time, dateIfNeeded=true, secondsIfNeeded=true){
+                    // return a formatted time value.
+                    // if dateFrom=dateTo, only return the time; otherwise include the portion of date needed.
+                    // if seconds are given, include them
+                    let s = '';
+                    let d = new Date(time);
+                    if (dateIfNeeded && this.meeting.dateFrom != this.meeting.dateTo){
+                        s += (d.getMonth()+1).toString().padStart(2,0);
+                        s += "." + d.getDate().toString().padStart(2,0) + ' ';
+                    }
+                    s += `${d.getHours()}`.padStart(2, '0');
+                    s += ":" + `${d.getMinutes()}`.padStart(2,'0');
+                    if (secondsIfNeeded && d.getSeconds() != 0){
+                        s += ':' + `${d.getSeconds()}`.padStart(2,'0');
+                    }
+
+                    return s;
+
+                },
+
+                // TODO: REPLACE
+                addClub(){
+                    
+                    this.clubModID = -1;
+    
+                    this.newClubName = '';
+                    this.newClubSortname = '';
+                    
+                    this.overlay = "addClub";
+                },
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+                
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                /**
+                 * The same as findObjInArrayByProp, but only the object is returned
+                 **/
+                findObjInArrayByProp2(arr, prop, val){
+                    return this.findObjInArrayByProp(arr, prop, val)[1];
+                },
+
+                /**
+                 * Transfer the values of the properties in objFrom to the properties in objTo. Recursive. 
+                 * If updateOnly=false (default), then properties that do exist only in objTo will be deleted. 
+                 * @param {object or array} objFrom 
+                 * @param {object or array} objTo 
+                 * @param {boolean} updateOnly If true, properties in objTo are not deleted when they do not exist in objFrom. Default: false 
+                 */
+                propertyTransfer(objFrom, objTo, updateOnly=false){
+
+                    if (Array.isArray(objFrom)){
+
+                        if (!Array.isArray(objTo)){
+                            console.log('objTo was not of type array, but objFrom was. The property transfer would fail and thus is aborted.')
+                            return
+                        }
+
+                        // use pop and push to alter the length of the array. Note that we do not detect moved elements. We rather delete or add elements at the end and just transfer the values at each position. (Push is actually not needed, since assigning to elements outside the range is possible.)
+                        while (objTo.length>objFrom.length){
+                            objTo.pop();
+                        }
+                        /*
+                        let l = objTo.length; 
+                        for (let i=0;i<l-objFrom.length;i++){
+                            // delete the last elements
+                            objTo.pop();
+                        }*/
+
+                        // copy the elements
+                        for (let i=0;i<objFrom.length;i++){
+                            // pay attention to objects and arrays --> recursive calls needed
+                            if (typeof(objFrom[i])=='object'){
+                                // since typeof(null)=object, we have to handle this separately here
+                                if (objTo[i]===null){
+                                    objTo[i] = objFrom[i];
+                                } else if (typeof(objTo[i])!='object'){
+                                    // if this is not done here and if objTo[i] is just a property, the recursive call on propertyTransfer will not occur byReference, as it must be to work.
+                                    if (Array.isArray(objFrom[i])){
+                                        objTo[i] = [];
+                                    } else {
+                                        objTo[i] = {};
+                                    }
+                                } else {
+                                    // typeof(null)=object; therefore
+                                    // is it of the same type? otherwise reset the element in objTo
+                                    if (Array.isArray(objTo[i]) && !Array.isArray(objFrom[i])){
+                                        objTo[i] = {};
+                                    } else if (!Array.isArray(objTo[i]) && Array.isArray(objFrom[i])){
+                                        objTo[i] = [];
+                                    }
+                                }
+                                this.propertyTransfer(objFrom[i], objTo[i], updateOnly);
+                            } else {
+                                objTo[i] = objFrom[i];
+                            }
+                        }
+                        
+                    } else {
+
+                        if (Array.isArray(objTo)){
+                            console.log('objTo was of type array, but should be a normal object as objFrom. The property transfer would fail and thus is aborted.')
+                            return
+                        }
+
+                        // is a regular object
+                        // copy new to objTo
+                        for (let prop in objFrom){
+                            if (typeof(objFrom[prop])=='object' && objFrom[prop] != null){ // null interestingly is an object...
+
+                                if (!(prop in objTo)){
+                                    if (Array.isArray(objFrom[prop])){
+                                        objTo[prop] = [];
+                                    } else {
+                                        objTo[prop] = {};
+                                    }
+                                } else {
+                                    // is it of the same type? otherwise reset the property in objTo
+                                    if ((typeof(objTo[prop])!='object' || Array.isArray(objTo[prop])) && !Array.isArray(objFrom[prop])){
+                                        objTo[prop] = {};
+                                    } else if ((typeof(objTo[prop])!='object' || !Array.isArray(objTo[prop])) && Array.isArray(objFrom[prop])){
+                                        objTo[prop] = [];
+                                    }
+                                }
+                                // transfer the property
+                                this.propertyTransfer(objFrom[prop], objTo[prop], updateOnly);
+                            } else {
+                                // just copy from/to
+                                // the problem is that if properties are added in the property transfer, using the simple assignement does not raise any observer set by Vue. Thus vue will not be updated! 
+                                objTo[prop] = objFrom[prop];
+
+                                // TEST: if the property is not available in objTo, do not assign it to a property, but use a method that is observed
+                                //objTo = Object.assign(objTo, {[prop]:objFrom[prop]}) // does not work
+
+                            }
+                        }
+                        // delete all properties in objTo, which are not present in objFrom
+                        if (!updateOnly){
+                            for (let prop in objTo){
+                                if (!(prop in objFrom)){
+                                    delete objTo[prop];
+                                }
+                            }
+                        }
+                    }
+                },
+                
+                // create all data to be shown in the list for group assignment and qualifications
+                // this data includes start, inscription, startgroup (if available); 
+                createAssignmentData: function(start, SIG, ssr, group){
+
+                    // what to get from where: 
+                    // inscriptions: name, firstname, bib, birthdate, sex, xClub, xRegion
+                    // start: bestPerf, bestPerfLast
+                    // startgroup: group assignment
+                    // (last) contest: the performance in the last contest
+                    // round: the round of the last performance
+
+                    let data = {
+                        group:{},
+                        club:{},
+                    };
+
+                    const inscription = this.inscriptions.find(i=>i.xInscription==start.xInscription);
+                    const club = this.clubs.find(c=>c.xClub == inscription?.athlete.xClub);
+
+
+                    this.propertyTransfer(start, data, true);
+                    this.propertyTransfer(SIG, data, true);
+                    this.propertyTransfer(group, data.group, true);
+                    this.propertyTransfer(inscription, data, true);
+                    this.propertyTransfer(club, data.club, true);
+                    this.propertyTransfer(ssr, data, true);
+
+                    // create a combination of category and event info
+                    let info = ' ' + this.eventGroup.events.find(e=>e.xEvent==data.xEvent)?.info;
+                    info = info.length>1 ? info : ''; 
+                    data.eventStr = this.categories.find(c=>c.xCategory==data.xCategory)?.name + info;
+
+
+                    return data;
+                },
+                // add formatting of performances
+                //<%- include('formatters.js') %>
+
+            },
+            computed:{
+
+                // the discipline of this contest
+                discipline: function(){
+                    return this.disciplines.find(d=>d.xDiscipline==this.eventGroup.xDiscipline)
+                },
+                
+
+                // get a list of all xEvents of this 
+                xEvents: function(){
+                    return this.eventGroup.events.map(e=>e.xEvent);
+                },
+
+                // get all starts related to this eventGroup
+                xStarts: function(){
+                    return this.starts.map(s=>s.xStart);
+                },
+                starts: function(){
+                    return this.startsAll.filter(s=>this.xEvents.indexOf(s.xEvent)>-1)
+                },
+
+                // list of all startInGroup per round, e.g. [[{SIG1 of orund 1}, {SIG2 of roud 1}], [{SIG1 of round 2}, ...], ...]
+                SIGs: function(){
+                    let SIGs = [];
+                    for (let r of this.eventGroup.rounds){
+                        SIGs.push(this.startsInGroups.filter(sig=>sig.xRound==r.xRound))
+                    }
+                    return SIGs;
+                },
+                xSIGs: function(){
+                    let xSIGs = [];
+                    for (let i=0; i<this.SIGs.length; i++){
+                        xSIGs.push(this.SIGs[i].map(sig=>sig.xStartgroup));
+                    }
+                    return xSIGs;
+                },
+
+                // calculate for every round in which state it is, returns an array.
+                // 0 = the contests of all groups (if there is a linked one) are still in the initial state, i.e. before the end of the roll call 
+                // 1 = at least one group is still in the initial state, i.e. we can assign an athlete to this group, but eventually no others
+                // 2 = currently, all contests are ongoing and no group assignements are possible
+                // 3 = all contests are finished, i.e. it is possible to do the qualifications for the next round
+                roundStates: function(){
+                    // we assume that the rounds are sorted
+
+                    if (!this.eventGroup?.rounds){
+                        // the data is not yet loaded; return empty array
+                        return [];
+                    }
+                    let states = Array.from(this.eventGroup.rounds.length);
+
+                    for (let iR=0; iR<this.eventGroup.rounds.length; iR++){
+                        const r = this.eventGroup.rounds[iR];
+                        let rollCallCount = 0;
+                        let finishedCount = 0;
+                        let ongoingCount = 0;
+                        for (let iG=0; iG<r.groups.length; iG++) {
+                            const g = r.groups[iG];
+                            if (g.contest){
+                                // if contest is null, just ignore it (i.e. a group that has no contest does not matter, escept that we could show a warning)
+                                if (g.contest.status<40){
+                                    // in roll Call mode
+                                    rollCallCount += 1;
+                                } else if (g.contest.status>=180){
+                                    // finished
+                                    finishedCount += 1;
+                                } else {
+                                    ongoingCount += 1;
+                                }
+                            } else {
+                                // if contest is not given, the state is considered as before roll call
+                                rollCallCount += 1;
+                            }
+                        }
+
+                        if (finishedCount==r.groups.length){
+                            states[iR] = 3;
+                        } else if (rollCallCount==r.groups.length){
+                            states[iR] = 0;
+                        } else if (rollCallCount>0){
+                            states[iR] = 1;
+                        } else {
+                            states[iR] = 2;
+                        }
+                    }
+
+                    return states;
+                },
+                
+                // get the round-order that we can modify currently; returns null if none
+                assignmentForRound: function(){
+                    // the first round with state <=1
+                    for (let i =0; i<this.roundStates.length; i++){
+                        if (this.roundStates[i]<=1){
+                            return i+1;
+                        }
+                    }
+                    return null;
+                },
+                workRound: function(){
+                    return this.eventGroup.rounds[this.assignmentForRound-1];
+                },
+
+                // create an object for each entry to show with all needed data, including start, inscription, startgroup (if available); 
+                // there will be three different arrays:
+                // (1) Q=qualified: people participating (startgroup defined, but eventually no SSR!) in the last round which are qualified, i.e. they have the qualification tag in SSR
+                // (2) NQ=non-qualified: people participating in the last round but not qualificated
+                // (3) PQ=pre-qualified: starts that do not have any startgroup entry (this obviously includes everybody in the first round) and starts people that were qualified in a previous round but since then were never in a startgroup. NOTE: those are e.g. people that were allowed to leave out (a) round(s). (Such a direct qualification for the semi-finals was used at the Europeam Championships 2022 in Munich). 
+                // the groups 1 + 3 can get a group assigned, while group 2 cannot
+                
+                // group 1 (qualified)
+                startsQ: function(){
+                    // TODO: create a list of all qualified persons in the last round. Do this on the basis of the qualified flags in the seriesstartsresults (SSR) of the previous round.
+                    return [];
+                },
+                // groups 2 (non-qualified)
+                startsNQ: function(){
+                    // TODO: create a list of all persons that perticipated in the previous round, but did not qualify there. This list contains all persons of the last round, when the qualifications were not done yet
+                    return [];
+                },
+                // group 3 (pre-qualified)
+                startsPQ: function(){
+
+                    // if there is no assignmentForROnd defined, do not run the next aprt, sicne it would fail
+                    if (!(this?.assignmentForRound)){
+                        return [];
+                    }
+
+                    const startsPQdata = [];
+
+                    // loop over all starts of this eventGroup
+
+                    // begin with all starts and remove all entries from startsNQ and startsQ, i.e. all starts which have a result in the last round
+                    const startsPQ = this.starts.filter(s=> !( this.startsNQ.find(s2=> s2.xStart==s.xStart) || this.startsQ.find(s2=> s2.xStart==s.xStart)));
+
+                    startLoop:
+                    for (let i=startsPQ.length-1; i>=0; i--){
+                        
+                        const start = startsPQ[i];
+
+                        
+                        let ssr;
+                        let SIG;
+                        //let roundIndex;
+                        // get the group entry of the person of the round to be changed
+                        SIG = this.SIGs[this.assignmentForRound-1].find(sig=>sig.xStart==start.xStart);
+                        const group = this.eventGroup.rounds[this.assignmentForRound-1].groups.find(gr=> gr.number == SIG?.number);
+
+                        // loop backwards over all rounds from the assignmentForRound
+
+                        // -2 because assignment for round is already 1-based and here we only want to loop over the rounds before this round
+                        for(let roundIndex=this.assignmentForRound-2; roundIndex>=0; roundIndex--){
+                            // is there a startgroup entry for this start for this round?
+                            SIG = this.SIGs[roundIndex].find(sig=>sig.xStart==start.xStart);
+                            if (SIG){
+                                // check if an SSR exists for this round
+                                // get the contest, then try to get the series and SSR
+                                const group2 = this.eventGroup.rounds[roundIndex].groups.find(gr=> gr.number == SIG.number); // it should not be necessary to check xRound as well
+
+                                const contest = this.contests[group2.contest.xContest];
+                                if (!group2 || !contest){
+                                    alert('Could not find the group or contest; this should never happen and startsPQ cannot be calculated because of that');
+                                    return [];
+                                }
+                                // loop over all series and try to find the SIG
+                                for (let iS=0; iS<contest.series.length; iS++){
+                                    ssr = contest.series[iS].seriesstartsresults.find(ssr=>ssr.xStartgroup=SIG.xStartgroup);
+                                    if (ssr){
+                                        // we have found the ssr and can stop the loop over the series     
+                                        break;
+                                    }
+                                }
+                                if (!ssr){
+                                    // it seems like the person actually is part in this contest, but has no ssr entry; 
+                                    // I dont know if this ever happens; but in any case, remove the person
+                                    startsPQ.splice(i,1);
+                                    continue startLoop;
+                                }
+
+
+                                // if the person has a result in a previous round and was NOT qualified, remove it from the list
+                                if (ssr.qualification==0){
+                                    startsPQ.splice(i,1);
+                                    continue startLoop;
+                                }
+
+                            } else {
+                                // has no entry; try in previous round
+                                // nothing to do here
+                            }
+                        }
+
+                        // create the actual data
+                        startsPQdata.push(this.createAssignmentData(start, SIG, ssr, group));
+
+                    }
+
+                    // TODO: eventually create here the data for each start that we need to show to the user, i.e. a combination of start, inscription, ...
+                    return startsPQdata;
+                },
+
+                roundForContests: function(){
+                    // only to allow that the watcher to get the contests could be reused in the future for other rounds than 'assignmentforRound' function
+                    return this.assignmentForRound;
+                },
+                
+                // always make sure that the contests present in the round "assignmentForRound" exist
+                contestsRequested2: function(){
+                    // it is not perfectly proper programming to set other variables than the one this function is made for; however, we should use this approach, since a watcher would only watch e.g. roundForContests, but there must also be a reaction to changes in group.xContest
+
+                    // TODO: this does not work!!! contestsRequested seems to be always undefined 
+                    var oldContestsRequested;
+                    if (this.contestsRequested){
+                        oldContestsRequested = this.contestsRequested.slice();
+                    } else {
+                        oldContestsRequested = [];
+                    }
+                    
+                    // get all contests that are required from now on; use map and filter then all undefined values
+                    var requiredNew;
+                    if (this.roundForContests){
+                        requiredNew = this.eventGroup.rounds[this.roundForContests-1].groups.map(g=>g.xContest).filter(c=>c);
+                    } else {
+                        requiredNew = [];
+                    }
+
+                    // compare the old and new list of requested contests
+                    // request the contests that were previously not needed and delete the contests that are not needed anymore
+                    for (let xcNew of requiredNew){
+                        // if the contest is not loaded yet, load it
+                        if (oldContestsRequested.indexOf(xcNew)==-1){
+                            // get the vue
+                            this.contestVUs[xcNew] = new vuContestTechHigh2(this, ms, xcNew);
+                        }
+                    }
+                    for (let xcOld of oldContestsRequested){
+                        if (requiredNew.indexOf(xcOld)==-1){
+                            // return the vue, since it is not used anymore
+                            // TODO
+                        }
+                    }
+
+                    return requiredNew;
+                },
+
+                
+            },
+            watch:{
+                assignmentForRound: function() {
+                    this.updateContests();
+                },
+                /*contests: {
+                    deep:true,
+                    handler: function(newVal, oldVal){
+                        // TOOD: actually updateContests only need to be called when the state of a contest changes, contests are added/deleted (etc), but not when a result is added
+                        this.updateContests();
+                    }
+                },*/
+                eventGroup: function(newVal, oldVal){
+                    this.updateContests();
+                },
+
+            },
+            components:{
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+            }
+        }
+
+        // mount it 
+        vueGQ = Vue.createApp(vueAppConfig).mount('#vueGQ');
+        
+        let ms = getMeetingShortname();
+        
+        // get the GET-parameter xContest (null if not found)
+        let xEventGroup = findGetParameter('xEventGroup');
+        
+        rEG = new vuEventGroup(vueGQ, ms, xEventGroup);
+        rStarts = new vuStarts(vueGQ, ms);
+        rInscriptions = new vuInscriptions(vueGQ, ms);
+        rStartsInGroups = new vuStartsInGroups(vueGQ, ms);
+        rClubs = new vuClubs(vueGQ, ms);
+        
+    }
+    </script>
+    
+    <div id="vueGQ">
+        <h1>{{discipline?.name}} {{eventGroup.name}}</h1>
+        <h2><%= __('Events') %>:</h2>
+        <ul>
+            <li v-for="(event, eventIndex) in eventGroup.events">
+                {{categories.find(c=>c.xCategory==event.xCategory)?.name}}
+                {{event.info}}
+                <!--<br>{{event.xEvent}}-->
+            </li>
+        </ul>
+        <h2><%= __('Rounds') %>: </h2>
+        <div v-for="r in eventGroup.rounds" style="border:1px solid black; border-radius:3px; padding: 3px;">
+            <h3><%= __("Round") %> {{r.order}}<template v-if="r.name!=''">: {{r.name}}</template></h3>
+            <%= __("Groups") %>: 
+            <ul>
+                <li v-for="g in r.groups">
+                    {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template> 
+                    <template v-if="g.contest">
+                        , <a v-bind:href="'./techHighAdmin?xContest='+g.contest.xContest" v-bind:style="{'background-color':contestStates.find(cs=>cs.value==g.contest.status).backgroundColor, color:contestStates.find(cs=>cs.value==g.contest.status).textColor}">{{formatTime(g.contest.datetimeStart)}} {{g.contest.name}}, <!--<%= __("Status") %>--> {{contestStates.find(cs=>cs.value==g.contest.status).text}}</a>
+                    </template>
+                    <template v-else>
+                        , <%= ("No contest linked to this group.") %>
+                    </template>
+                    <!--{{g}}-->
+                </li>
+            </ul>
+            <label>
+                <input type="checkbox" v-model="showLastPerfRound">
+                Show round of last performance
+            </label>
+            <label>
+                <input type="checkbox" v-model="showEvent">
+                Show event and category of each inscription
+            </label> 
+            <label>
+                <input type="checkbox" v-model="showFullDetails">
+                Show full details (for debugging)
+            </label> 
+            <div v-if="assignmentForRound==1 ">
+                <h3><%= __('Group assignment') %></h3>
+                <v-table :data="startsPQ" ><!--:filters="filters"-->
+                    <template #head>
+                        <thead>
+                            <tr>
+                                <th v-if="showFullDetails" is="vue:v-th" sortkey="xInscription">xInscription</th>
+                                <th v-if="showFullDetails" is="vue:v-th" sortkey="xStart">xStart</th>
+                                <th v-if="showFullDetails" is="vue:v-th" sortkey="xStartgroup">xStartgroup</th>
+                                <th is="vue:v-th" sortkey="bib" defaultsort="asc"><%= __('Bib') %></th>
+                                <th is="vue:v-th" sortkey="athlete.lastname"><%= __('Name') %></th>
+                                <th is="vue:v-th" sortkey="athlete.forename"><%= __('First name') %></th>
+                                <th is="vue:v-th" sortkey="club.name"><%= __('Club') %></th>
+                                <th v-if="showEvent" is="vue:v-th" sortkey="eventStr">Events</th>
+                                <th is="vue:v-th" sortkey="bestPerf">PB</th>
+                                <th is="vue:v-th" sortkey="bestPerfLast">SB</th>
+                                <!-- for qualification, add here the result from the last round -->
+                                <th is="vue:v-th" sortkey="group.number"><%= __('Group') %></th>
+                                <th><!--buttons--></th>
+                            </tr>
+                        </thead>
+                    </template>
+                    <template v-slot:body="{displayData}"> 
+                        <tbody>
+                            <tr v-for="row in displayData" :key="row.xInscription">
+                                <td v-if="showFullDetails">{{row.xInscription}}</td>
+                                <td  v-if="showFullDetails">{{ row.xStart }}</td>
+                                <td  v-if="showFullDetails">{{ row.xStartgroup }}</td>
+                                <td>{{row.number}}</td>
+                                <td>{{row?.athlete?.lastname}}</td>
+                                <td>{{row?.athlete?.forename}}</td>
+                                <td>{{row?.club?.name}}</td>
+                                <td v-if="showEvent">{{row.eventStr}}</td>
+                                <td>{{formatPerf(row?.bestPerf, discipline.xBaseDiscipline)}}</td>
+                                <td>{{formatPerf(row?.bestPerfLast, discipline.xBaseDiscipline)}}</td>
+                                <td v-if="workRound.numGroups==1">{{row?.group?.number}}</td>
+                                <td v-if="workRound.numGroups>1">
+                                    <select class="select" v-on:change="groupChanged(row, $event)"> <!-- do not use v-model="row.group.number" here to not change the data until it is changed on the server -->
+                                        <template v-for="(g, gIndex) in workRound.groups">
+                                            <option :value="g.number" selected v-if="row.group.number==g.number">
+                                                {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template>
+                                            </option>
+                                            <option :value="g.number" v-else> <!-- without selected -->
+                                                {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template>
+                                            </option>
+                                        </template>
+                                    </select>
+                                </td>
+                                <td>
+                                    <button class="btn btnGrey marginRight" v-on:click="modClub(row.xClub)" ><%= __("Change") %></button>
+                                    <button class="btn btnRed" v-on:click="deleteClub(row.xClub)"><%= __("Delete") %></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </template>
+                </v-table>
+            </div>
+            
+        </div>
+
+
+        <!--<h2><%= __("List of clubs") %>:</h2>
+        <button type="button" class="btn btnGreen" v-on:click="addClub()"><%= __("Add club") %></button><br>
+        <label class="verticalForm">
+            <%= __("Filter clubs") %>: 
+            <input v-model="filterClubs" type="text" size="30">
+        </label>
+        <v-table :data="clubs" :filters="filters">
+            <template #head>
+                <thead>
+                    <tr>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xClub">xClub</th>
+                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <th is="vue:v-th" sortkey="sortvalue"><%= __('Sortvalue') %></th>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="deleted"><%= __('Deleted') %></th>
+                        <th></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> 
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xClub">
+                        <td v-if="showFullDetails">{{row.xClub}}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.sortvalue }}</td>
+                        <td v-if="showFullDetails">{{row.deleted}}</td>
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modClub(row.xClub)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-on:click="deleteClub(row.xClub)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+        
+        
+        <div class="overlay" v-bind:class="{shown: overlay=='addClub'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="clubModID == -1"><%= __("Add club") %>: </h3>
+                        <h3 v-if="clubModID > -1"><%= __("Update club") %>: </h3>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newClubName" maxlength="100" v-on:blur="clubChanged">
+                        </label>
+                        <label>
+                            <%= __("Name for sorting") %>: 
+                            <input type="text" v-model="newClubSortname" maxlength="100">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="createClub" v-bind:disabled="newClubName==undefined || newClubSortname==undefined ">
+                            <div v-if="clubModID==-1"><%= __("Create club") %></div>
+                            <div v-if="clubModID>-1"><%= __("Update club") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
+            <div class="overlayContainer">
+                <%= __("Club could not be deleted, because it is referenced (e.g. an athlete or team is member of this club).") %>
+                <br><button type="button" class="btn"><%= __("OK") %></button>
+            </div>
+        </div>-->
+    
+        <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+            <!-- overlay used for displaying general information -->
+            <div id="overlayContainer">
+                <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+                <div id="overlayContent">{{infoContent}}</div>
+            </div>
+        </div>
+    
+    </div>
+    

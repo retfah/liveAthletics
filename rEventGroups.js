@@ -3,6 +3,7 @@
 
 import groups from './modelsMeetingDefine/groups.js';
 import roomServer from './roomServer.js';
+import rEventGroup from './rEventGroup.js';
 
 import Sequelize  from 'sequelize';
 import rdEventsWithGroups from './rdEventsWithGroups.js';
@@ -23,7 +24,7 @@ class rEventGroups extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, startsInGroup){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, startsInGroup, inscriptions, starts){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -39,6 +40,10 @@ class rEventGroups extends roomServer{
 
         // reference to other rooms:
         this.startsInGroup = startsInGroup;
+        this.rContests = undefined; // will be set later
+        this.rInscriptions = inscriptions;
+        this.rStarts = starts;
+        this.rEvents = undefined; // will be set later
 
         this.ready = false; // as we have async stuff here, we need to know whether we are ready to do something or not (e.g. the sequelize data is loaded.)
 
@@ -46,6 +51,18 @@ class rEventGroups extends roomServer{
         this.models.eventgroups.findAll({include: [{model:this.models.rounds, as:"rounds", include:[{model:this.models.groups, as:"groups"}]}]}).then(eventGroups=>{
             this.data = eventGroups;
             this.ready = true;
+
+            // TODO: for testing only
+            let eG = eventGroups[0];
+            let dynamicRoom = {
+                parentRoom: this,
+                timeout: 1000 // keep the room open forever; to be changed in the future, when we have a timeout function (without the timeout, I think it's better to keep the room open)
+            };
+            setTimeout(()=>{
+                let subroom = new rEventGroup(dynamicRoom, eG, this.meetingShortname, this.mongoDB, this.eH, this.logger, this, this.rContests, this.startsInGroup, this.rInscriptions, this.rStarts, this.rEvents);
+
+            }, 1000) // make sure that the other rooms are defined
+            
         })
 
         // add the functions to the respective object of the parent
@@ -785,6 +802,45 @@ class rEventGroups extends roomServer{
             
         }else {
             throw {message: this.ajv.errorsText(this.validateDeleteRound.errors), code:26};
+        }
+    }
+
+    /**
+     * Try to start a dynamic subroom. This function shall be overriden by the inheriting class if needed. 
+     * @param {string} subroomName The name of the subroom
+     * @returns {boolean} returns the room on success, and false if it could not be created.
+     */
+    startDynamicSubroom(subroomName){
+        // IMPORTANT: the dynamic room creation MUST provide the reference to parentRoom=this to the constructor of the subroom! 
+
+        let xEventGroup = Number(subroomName);
+        if (isNaN(xEventGroup)){
+            return false;
+        }
+
+        // the subroom should be xEventGroup; try to get the contest
+        let eG = this.data.find(c=>c.xEventGroup==xEventGroup);
+        if (!eG){
+            return false;
+        }
+
+        // start the room
+        let dynamicRoom = {
+            parentRoom: this,
+            timeout: 1000 // keep the room open forever; to be changed in the future, when we have a timeout function (without the timeout, I think it's better to keep the room open)
+        }
+
+        try{
+            // TODO: eventually rEventGroup will be dependent on the type of discipline!
+            let subroom = new rEventGroup(dynamicRoom, eG, this.meetingShortname, this.mongoDB, this.eH, this.logger, this, this.rContests, this.startsInGroup, this.rInscriptions, this.rStarts, this.rEvents);
+
+            // save the room: 
+            this.subrooms[subroomName] = subroom;
+
+            return subroom;
+        }catch (ex) {
+            this.logger.log(22, `Could not create the subroom ${xEventGroup} in meeting ${this.meetingShortname}: ${ex}`)
+            return false;
         }
     }
 

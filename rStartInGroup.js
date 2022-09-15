@@ -1,12 +1,11 @@
 
 
 // starts in group: this room is used to "forward" entries from "start" (in the first round) or from a qualification (after first round) to a group in the next round. Additioanlly, this room also handles (in the future) the positioning athlethes in relays
-// which athlete starts in which group and for relays, in what order do the athletes start. On the client it may make sense to have a tool to assign the grops to the athletes; by default they will be assigned to group 1. (As long as there is only one group and the automatic assignement to group 1 works, there is no need to ave afrontend on the client.) Eventually the implementation on the client is also kind of a qualification-definition tool: While the shown qualification status (in the rankinglist) will be stored to seriesStartsResults, this must also be "replicated" by adding an entry to startsInGroup (by default for group 1). If there is a qualifiation mode over multiple groups, the qualifications can however not be defined within one group/series, but an overview would be needed, where the qualification is handles on the basis of all groups. (Before we have such a tool, it should always be possible to do it manually.) 
+// which athlete starts in which group and for relays, in what order do the athletes start. On the client it may make sense to have a tool to assign the grops to the athletes; by default they will be assigned to group 1. (As long as there is only one group and the automatic assignement to group 1 works, there is no need to have afrontend on the client.) Eventually the implementation on the client is also kind of a qualification-definition tool: While the shown qualification status (in the rankinglist) will be stored to seriesStartsResults, this must also be "replicated" by adding an entry to startsInGroup (by default for group 1). If there is a qualifiation mode over multiple groups, the qualifications can however not be defined within one group/series, but an overview would be needed, where the qualification is handled on the basis of all groups. (Before we have such a tool, it should always be possible to do it manually.) 
 
 // eager load relayAthletePositions
 
 
-// TODO: we need an interface how other rooms on the server can access the functions in a room in a similar way as a client would do, except that the answer is nto sent to the client, but to the other room. 
 // roomServer.func: validity check and split whether read or write function:
 // - WRITING:  check for rights, check if the last request was the same (only needed for requests over wsProcessor), ID check and if necessary conflict checking (both not needed here), check if another funciton is running --> either put it on the functionsWorkStack or run it now (This has to be followed here as well!); 
 //   --> finally it would arrive at _startWriteFunction: checks the Tab-ID for security reasons (would need an overrule here), do an ID and conflict check again (since wthings could have changed), then call this.functionsWrite[request.func](request.data).then((ret)=>{...}); unfortunately, calls respFunc(response) "hardcoded", broadcasts the change and finally calls finishedFunc; this handles the functionsWorkStack and calls the next write-request if there is one. 
@@ -59,7 +58,9 @@ class rStartsInGroup extends roomServer{
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
-        super(eventHandler, mongoDb, logger, "startsInGroups@" + meetingShortname, true, -1, false);
+        // old idea: no writing tickets at all; only use this room through other rooms
+        // new 2022-09 when adding group assignment: allow to have writing clients; however, they should be always online (no offline clients).
+        super(eventHandler, mongoDb, logger, "startsInGroup@" + meetingShortname, true, -1, false);
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
@@ -1160,7 +1161,7 @@ class rStartsInGroup extends roomServer{
             });
 
         } else {
-            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
+            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateStartsInGroup.errors)}
         }
     }
 

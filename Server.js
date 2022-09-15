@@ -615,7 +615,7 @@ app.use(function(req, res, next){
 		if (req.body.username && req.body.password) {
 			if (users[req.body.username]===req.body.password) {
 					// login successful
-					logger.log(85,'login success')
+					logger.log(98,'login success')
 					req.session.logged_in = true
 					req.session.isAdmin = true; // TODO: currently only admins have ot login; add other functionality here as soon as also normal users have to login
 					res.redirect(redirect);
@@ -679,7 +679,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 	ws.sid = req.session.id; // before I had the session stuff stored to the connection-object I only stored the sid; 
 	ws.session = req.session;
 	
-	logger.log(85, 'link established!');
+	logger.log(98, 'link established!');
 
 	
 	// NOTE: very, very important: the following cannot work:
@@ -864,7 +864,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 			 * get the description of the requested page to be preloaded on the client and return it
 			 */
 
-			logger.log(85, 'socketEvent: preloadPage: ' + data);
+			logger.log(98, 'socketEvent: preloadPage: ' + data);
 			if (data in pages){
 				// we have to make a deep conpy of the page, as we do not want to modify the basic data (that unfortunately cannot be protected from modifying (const does not exist)) --> according to the internet it is very fast to do via json (if no funcitons need to be transferred):
 				var page = JSON.parse(JSON.stringify(pages[data]));
@@ -948,13 +948,13 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 
 			// based on the sid, we also know what language the user has chosen (as this definition is always done by reloading via http and not via websocket and afterwards it is again updated in the session storage) and the possible login (TBD)
 
-			logger.log(85, "successfully reported sid: "+ sid);
+			logger.log(98, "successfully reported sid: "+ sid);
 			responseFunc(true);
 
 		} else if (name=='setTabId'){ // 2021-01: new, "instead" of sid (sid is now taken directly from the http-cookie during the handshake/upgrade; the tabId is new and replaces the sid as an identifier for the rooms to allow for multiple tabs to be connected to the same room. (Before there were unwanted interactions, because the room-server could handle only one ws-connection per sid-client; now it is one connection per tabId-client, which is correct.)
 			ws.tabID = data;
 
-			logger.log(85, "successfully reported tabId: "+ data);
+			logger.log(98, "successfully reported tabId: "+ data);
 			responseFunc(true);
 
 		} else if (name=='preloadFile')
@@ -962,7 +962,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 			/**
 			 * get a file to be preloaded
 			 */
-			logger.log(85, 'socketEvent: preloadFile: '+data)
+			logger.log(98, 'socketEvent: preloadFile: '+data)
 			var renderData = {} // + lang/translation, see below
 
 			// series assignements

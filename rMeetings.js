@@ -833,6 +833,9 @@ class rMeetings extends roomServer{
         // room with meeting-wide settings; stored actually in mongoDb and not MariaDb
         let meetingAdmin = new rMeeting(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, meeting, this, this.baseModules) 
         this.activeMeetings[shortname].rooms.meeting = meetingAdmin;
+        // regions
+        let regions = new rRegions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
+        this.activeMeetings[shortname].rooms.regions = regions;
         let disciplines = new rDisciplines(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
         this.activeMeetings[shortname].rooms.disciplines = disciplines;
         // clubs
@@ -845,27 +848,27 @@ class rMeetings extends roomServer{
         // starts in group
         let startsInGroup = new rStartsInGroup(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger)
         this.activeMeetings[shortname].rooms.startsInGroup = startsInGroup;
-        // eventGroups
-        let eventGroups = new rEventGroups(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup);
-        this.activeMeetings[shortname].rooms.eventGroups = eventGroups;
-        startsInGroup.eventGroups = eventGroups;
-        // events:
-        let events = new rEvents(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, disciplines, startsInGroup, meetingAdmin, eventGroups);
-        this.activeMeetings[shortname].rooms.events = events;
-        startsInGroup.events = events;
-        // regions
-        let regions = new rRegions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        this.activeMeetings[shortname].rooms.regions = regions;
         // inscriptions (including athletes, relays and relayAthletes)
-        this.activeMeetings[shortname].rooms.inscriptions = new rInscriptions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, regions, meetingAdmin, this.baseModules);
+        const inscriptions = new rInscriptions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, regions, meetingAdmin, this.baseModules);
+        this.activeMeetings[shortname].rooms.inscriptions = inscriptions; 
         // starts
         let starts = new rStarts(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup, disciplines) // eventually add here the events as auxilary data; 
         this.activeMeetings[shortname].rooms.starts = starts;
         startsInGroup.starts = starts; // set reference;
+        // eventGroups
+        let eventGroups = new rEventGroups(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup, inscriptions, starts);
+        this.activeMeetings[shortname].rooms.eventGroups = eventGroups;
+        startsInGroup.eventGroups = eventGroups;
+        // events:
+        let events = new rEvents(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, disciplines, startsInGroup, meetingAdmin, eventGroups);
+        eventGroups.rEvents = events;
+        this.activeMeetings[shortname].rooms.events = events;
+        startsInGroup.events = events;
         // contests
         let contests = new rContests(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, events, eventGroups, starts, startsInGroup, disciplines, meetingAdmin, categories);
         this.activeMeetings[shortname].rooms.contests = contests;
         this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
+        eventGroups.rContests = contests;
     }
 
     /**
