@@ -134,7 +134,7 @@
         constructor(vue, meetingShortname, xEventGroup){
             // parent constructor: initializes the room
             //(roomName, writing, storeInfos, path, className, datasetName='')
-            super(`eventGroups/${xEventGroup}@${meetingShortname}`, true, true, '/static/rEventGroupClient.js', 'rEventGroupClient', '')
+            super(`eventGroups/${xEventGroup}@${meetingShortname}`, false, true, '/static/rEventGroupClient.js', 'rEventGroupClient', '')
     
             // needed to call things in the vue class
             this.vue = vue;

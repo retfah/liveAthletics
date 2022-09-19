@@ -356,6 +356,9 @@ class rEventGroups extends roomServer{
                 return eventGroup.update(data, {include: [{model:this.models.rounds, as:"rounds", include:[{model:this.models.groups, as:"groups"}]}]}).then(async(eventGroupChanged)=>{
                     // the data should be updated in th DB by now.
 
+                    // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
+                    this.eH.raise(`eventGroupUpdated${eventGroupChanged.xEventGroup}`, eventGroupChanged)
+
                     // set the local data
                     this.data[i] = eventGroupChanged;
 
@@ -466,6 +469,9 @@ class rEventGroups extends roomServer{
                 }
             })
 
+            // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
+            this.eH.raise(`eventGroupUpdated${eG.xEventGroup}`, eG)
+
 
             // the data to be sent back to the client requesting the add is the full data
             let sendData = round.dataValues;
@@ -562,10 +568,10 @@ class rEventGroups extends roomServer{
                     if (g.xContest != gNew.xContest){
                         if (gNew.xContest == null){
                             // xContest gets deleted
-                            groupsWithContestChange.push(g);
+                            groupsWithContestDeletion.push(g);
                         } else {
                             // xContest changes
-                            groupsWithContestDeletion.push(g);
+                            groupsWithContestChange.push(g);
                         }
                     }
 
@@ -695,6 +701,9 @@ class rEventGroups extends roomServer{
             // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
             this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups, groups: roundChanged.groups})
 
+            // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
+            this.eH.raise(`eventGroupUpdated${eG.xEventGroup}`, eG)
+
             let ret = {
                 isAchange: true, 
                 doObj: {funcName: 'updateRound', data: roundChanged.dataValues}, 
@@ -775,6 +784,9 @@ class rEventGroups extends roomServer{
             if (ind>=0){
                 eG.rounds.splice(ind,1);
             }
+
+            // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
+            this.eH.raise(`eventGroupUpdated${eG.xEventGroup}`, eG)
 
             // object storing all data needed to DO the change
             let doObj = {

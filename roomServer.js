@@ -296,7 +296,7 @@ class roomServer{
      * @param {object} dynamicRoom An object with properties for a dynamic room
      * @param {object} dynamicRoom.parentRoom The parent room of the dynamic room
      * @param {number} dynamicRoom.timeout The timeout after which the room closes automatically (not implemented yet). If the dynamic room should not close automatically, set it to a negative value (e.g. -1).
-     * @param {boolean} reportToSideChannel Report changes to the sideChannel; typically true, except for e.g. rSideChannel, rBackup, rMeetings
+     * @param {boolean} reportToSideChannel Report changes to the sideChannel; typically true, except for e.g. rSideChannel, rBackup, rMeetings or when the data is fully dynamic
      * @param {boolean} keepWritingTicket If a client disconnects without properly leaving, keep its writing ticket. At the same time, when this is set to false, all writingTickets will be deleted when the server reloads. (This is needed e.g. in the sideChannel.)
      * //@param {socketProcessor2} wsProcessor UNUSED The websocket processor instance; needed obviously for the
      * //@param {roomManager} roomManager UNUSED The room manager instance. Needed for showing the status information to the user.

@@ -136,6 +136,7 @@ import roomServer from './roomServer.js';
 
 
         // create a copy of the contests array as the basis for the further assignments
+        // NOTE: this does not contain the actual data of the contest! The actual data can only be found in the reqpective subroom!
         let contestOverview = Array.from(this.rContests.data, el=>{
             let c=Object.assign({}, el.dataValues);
             c.groups = [];

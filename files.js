@@ -38,6 +38,12 @@ export default {
     "contestsOverview.ejs":{
         childs:[]
     },
+    "competitionOverview.ejs":{
+        childs:[]
+    },
+    "groupsQualifications.ejs":{
+        childs:[]
+    },
     "seriesAdminTech.ejs":{
         childs:[]
     },

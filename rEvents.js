@@ -174,6 +174,9 @@ class rEvents extends roomServer{
                         throw(err);
                     }
                 });
+
+                // raise an event to notify the eventGroup
+                this.eH.raise(`eventAddedToEventGroup${event.xEventGroup}`, event)
             }
 
 
@@ -248,6 +251,11 @@ class rEvents extends roomServer{
                 this.data.events.splice(ind,1);
             }
 
+            if (event.xEventGroup){
+                // raise an event to notify the eventGroup
+                this.eH.raise(`eventDeletedFromEventGroup${event.xEventGroup}`, null)
+            }
+
             // object storing all data needed to DO the change
             let doObj = {
                 funcName: 'deleteEvent',
@@ -303,6 +311,9 @@ class rEvents extends roomServer{
                 await this.startsInGroup.serverFuncWrite('deleteEventFromEventGroup', data).catch(err=>{
                     throw(err);
                 });
+
+                // raise an event to notify the eventGroup
+                this.eH.raise(`eventDeletedFromEventGroup${o.xEventGroup}`, null)
             }
 
             let eventOld = o.dataValues;
@@ -326,7 +337,10 @@ class rEvents extends roomServer{
                             this.logger.log(20, `There was an unexpected error when adding the startsInGroup entry after a change of xEventGroup: ${JSON.stringify(err)}`);
                         }
                     });
-                }
+
+                    // raise an event to notify the eventGroup
+                    this.eH.raise(`eventAddedToEventGroup${eventChanged.xEventGroup}`, eventChanged)
+                    }
 
                 let ret = {
                     isAchange: true, 

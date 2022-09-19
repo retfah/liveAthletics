@@ -465,5 +465,9 @@
 	"NM": "o.g.V.",
 	"retiredAbbreviation": "verz.",
 	"did not start": "nicht angetreten",
-	"disqualified": "disqualifiziert"
+	"disqualified": "disqualifiziert",
+	"Manually add one series": "Manually add one series",
+	"Groups and qualifications": "Groups and qualifications",
+	"Rounds": "Runden",
+	"Round": "Round"
 }

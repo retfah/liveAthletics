@@ -55,7 +55,10 @@ export default {
     },
     competition: {
         name: 'competition',
-        injections: {child1: {file:'contestsOverview.ejs'}},
+        // before 2022-08:
+        //injections: {child1: {file:'contestsOverview.ejs'}},
+        // now: 
+        injections: {child1: {file:'competitionOverview.ejs'}},
         //injections: {child1: {text:'eventually: on the right, provide lists with all contests and eventgroups which guide you to the correct appeal/series definition/competition or results page'}},
         preload: ['configuration'],
         parent: 'main',
@@ -71,6 +74,14 @@ export default {
         preload : [ 'competition', 'definition'], // TODO: change this to the real values, this is only for testing
         parent: 'main',
         title: 'Configuration' 
+    },
+    groupsQualifications:{
+        name:"groupsQualifications",
+        injections: {child1: {file: "groupsQualifications.ejs"}},
+        injectionsSelf: {},
+        parent: 'main',
+        title: 'Groups and qualifications',
+        onLoad: 'startupGQ'
     },
     meetingAdmin:{
         name: 'meetingAdmin',

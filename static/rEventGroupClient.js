@@ -28,55 +28,11 @@ export class rEventGroupClient extends roomClient{
         super(v, roomName, wsHandler, eventHandler, true, writing, successCB, failCB, storeInfos, rM, datasetName); 
 
         // set the available functions
-        /*this._addFunction('addClub', this.addClubExe);
-        this._addFunction('deleteClub', this.deleteClubExe);
-        this._addFunction('updateClub', this.updateClubExe);*/
+        this._addFunction('updateData', this.updateDataExe);
     }
 
-    /*addClubInit(club){
-        // club should contain all mandatory properties except the index...
-        this.addToStack('addClub', club)
+    updateDataExe(data){
+        this.propertyTransfer(data, this.data, true);
     }
-
-    addClubExe(club){
-        // the data should contain the complete object
-        this.data.clubs.push(club);
-        this.sort();
-    }
-
-    deleteClubInit(clubId){
-        this.addToStack('deleteClub', clubId);
-    }
-
-    deleteClubExe(clubId){
-        let ind = this.data.clubs.findIndex(el=>el.xClub == clubId);
-        this.data.clubs.splice(ind, 1);
-        this.sort();
-    }
-
-    updateClubInit(club){
-        this.addToStack('updateClub', club);
-    }
-
-    updateClubExe(clubUpdated){
-        let club = this.data.clubs.find(el=>el.xClub == clubUpdated.xClub);
-        this.propertyTransfer(clubUpdated, club, true)
-        this.sort();
-    }
-    
-    sort(){
-        // sort the data; should be done after every change
-        this.data.clubs.sort((el1, el2)=>{
-            let v1 = el1.sortvalue.toLowerCase();
-            let v2 = el2.sortvalue.toLowerCase();
-            if (v1<v2){
-                return -1;
-            } else if (v1==v2){
-                return 0;
-            } else {
-                return 1;
-            }
-        })
-    }*/
 
 }
