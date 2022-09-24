@@ -16,6 +16,7 @@ export default class disciplinesonsite extends Model {
     xBaseDiscipline: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'basedisciplines',
         key: 'xBaseDiscipline'
@@ -31,6 +32,7 @@ export default class disciplinesonsite extends Model {
         using: "BTREE",
         fields: [
           { name: "xSite" },
+          { name: "xBaseDiscipline" },
         ]
       },
       {
@@ -38,13 +40,6 @@ export default class disciplinesonsite extends Model {
         using: "BTREE",
         fields: [
           { name: "xSite" },
-        ]
-      },
-      {
-        name: "fk_disciplinesOnSite_baseDisciplines1",
-        using: "BTREE",
-        fields: [
-          { name: "xBaseDiscipline" },
         ]
       },
     ]

@@ -1,11 +1,11 @@
 # Sequelize-auto:
-**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit Klassen:**
+**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit Klassen (nicht mehr verwenden!!!):**
 ```
 node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeeting" -e "mysql" -l esm 
 node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d athletica2_admin -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsAthletica2Admin2" -e "mysql" -l esm
 ```
 
-**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit .define syntax:**
+**folgender Befehl auf kommandozeile ausführen für ecmascript-module mit .define syntax (diesen Ansatz verwenden!):**
 ```
 node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeeting" -e "mysql" -l esm --useDefine
 node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d athletica2_admin -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsAthletica2Admin2" -e "mysql" -l esm --useDefine
@@ -34,7 +34,7 @@ See teh following problem description (copied from rMeetings.js):
 - For the export ("Forward engineer") form mysql workbench, check "Omit schema qualifier in object names". The export function in my installed verison of Mysql Workbench crashes. My portable version of Mysql workbench however works fine. 
 - Alternatviely use Tools/synchronize models, which allows more thing to be set.
 
-## ATTENTION: 
+## ATTENTION:
 If the room adds data to sequelize objects, it will not make it into a JSON object, since sequelize adds toJSON functions to its objects, which overrides the default stringify process. Therefore, manually added properties are lost on stringify! There are several ways to overcome the problem: 
 - add a virtual property in the model:     newProp: {type: DataTypes.VIRTUAL, allowNull: false, defaultValue: false } OR
 - add an instanceMethod in the model: sequelize.define('tablename', {properties}, {instanceMethods:{toJSON: function(){...}}}) 

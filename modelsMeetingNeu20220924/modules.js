@@ -1,36 +1,31 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class sites extends Model {
+export default class modules extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('sites', {
-    xSite: {
+  return sequelize.define('modules', {
+    xModule: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true
     },
-    name: {
-      type: DataTypes.STRING(50),
+    moduleName: {
+      type: DataTypes.STRING(100),
       allowNull: false,
-      defaultValue: ""
+      unique: "moduleName_UNIQUE"
     },
-    homologated: {
+    moduleActivated: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
-      defaultValue: false
+      defaultValue: true
     },
-    type: {
-      type: DataTypes.TINYINT.UNSIGNED,
+    moduleType: {
+      type: DataTypes.SMALLINT,
       allowNull: false
-    },
-    conf: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      defaultValue: "''"
     }
   }, {
-    tableName: 'sites',
+    tableName: 'modules',
     timestamps: false,
     indexes: [
       {
@@ -38,7 +33,15 @@ export default class sites extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
+          { name: "xModule" },
+        ]
+      },
+      {
+        name: "moduleName_UNIQUE",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "moduleName" },
         ]
       },
     ]

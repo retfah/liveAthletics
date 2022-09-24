@@ -1,7 +1,8 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default function(sequelize, DataTypes) {
+export default class resultstrack extends Model {
+  static init(sequelize, DataTypes) {
   return sequelize.define('resultstrack', {
     xResultTrack: {
       type: DataTypes.INTEGER.UNSIGNED,
@@ -28,7 +29,6 @@ export default function(sequelize, DataTypes) {
       comment: "the ranking made by the finish-judge must be used and not the ranking given by the time!"
     }
   }, {
-    sequelize,
     tableName: 'resultstrack',
     timestamps: false,
     indexes: [
@@ -42,4 +42,5 @@ export default function(sequelize, DataTypes) {
       },
     ]
   });
-};
+  }
+}

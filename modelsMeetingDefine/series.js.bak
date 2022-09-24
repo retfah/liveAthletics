@@ -1,7 +1,8 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default function(sequelize, DataTypes) {
+export default class series extends Model {
+  static init(sequelize, DataTypes) {
   return sequelize.define('series', {
     xSeries: {
       autoIncrement: true,
@@ -28,12 +29,13 @@ export default function(sequelize, DataTypes) {
     },
     status: {
       type: DataTypes.TINYINT.UNSIGNED,
-      allowNull: false
+      allowNull: false,
+      defaultValue: 10
     },
     number: {
       type: DataTypes.SMALLINT.UNSIGNED,
       allowNull: false,
-      comment: "the number of the series; this was not implemented so far, the order of serie was given propably through xSeries; however, this is not very sexy."
+      comment: "the number of the series; this was not implemented so far, the order of serie was given propably through xSeries; however, this is not very sexy.\nTODO: we could make xContest and number a unique constraint, but that would be difficult for series reordering"
     },
     name: {
       type: DataTypes.STRING(50),
@@ -42,7 +44,6 @@ export default function(sequelize, DataTypes) {
       comment: "the name of the series: can be empty, but also e.g. \"A\" (for Final A; Final should be written in the round)"
     }
   }, {
-    sequelize,
     tableName: 'series',
     timestamps: false,
     indexes: [
@@ -70,4 +71,5 @@ export default function(sequelize, DataTypes) {
       },
     ]
   });
-};
+  }
+}

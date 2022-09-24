@@ -36,8 +36,6 @@ import _resultstrack from  "./resultstrack.js";
 import _rounds from  "./rounds.js";
 import _series from  "./series.js";
 import _series_track from  "./series_track.js";
-import _seriesstarts_high from  "./seriesstarts_high.js";
-import _seriesstarts_track from  "./seriesstarts_track.js";
 import _seriesstartsresults from  "./seriesstartsresults.js";
 import _sites from  "./sites.js";
 import _sites_track from  "./sites_track.js";
@@ -200,10 +198,6 @@ export default function initModels(sequelize) {
   seriesstartsresults.hasMany(resultstechwind, { as: "resultstechwinds", foreignKey: "xResult"});
   resultstrack.belongsTo(seriesstartsresults, { as: "xResultTrack_seriesstartsresult", foreignKey: "xResultTrack"});
   seriesstartsresults.hasOne(resultstrack, { as: "resultstrack", foreignKey: "xResultTrack"});
-  seriesstarts_high.belongsTo(seriesstartsresults, { as: "xSeriesStart_high_seriesstartsresult", foreignKey: "xSeriesStart_high"});
-  seriesstartsresults.hasOne(seriesstarts_high, { as: "seriesstarts_high", foreignKey: "xSeriesStart_high"});
-  seriesstarts_track.belongsTo(seriesstartsresults, { as: "xSeriesStart_track_seriesstartsresult", foreignKey: "xSeriesStart_track"});
-  seriesstartsresults.hasOne(seriesstarts_track, { as: "seriesstarts_track", foreignKey: "xSeriesStart_track"});
   disciplinesonsite.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
   sites.hasMany(disciplinesonsite, { as: "disciplinesonsites", foreignKey: "xSite"});
   series.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
@@ -255,8 +249,6 @@ export default function initModels(sequelize) {
     rounds,
     series,
     series_track,
-    seriesstarts_high,
-    seriesstarts_track,
     seriesstartsresults,
     sites,
     sites_track,

@@ -1,5 +1,4 @@
 import _sequelize from "sequelize";
-const Op = _sequelize.Op;
 const DataTypes = _sequelize.DataTypes;
 import _athletes from  "./athletes.js";
 import _basedisciplinelocalizations from  "./basedisciplinelocalizations.js";
@@ -36,8 +35,6 @@ import _resultstrack from  "./resultstrack.js";
 import _rounds from  "./rounds.js";
 import _series from  "./series.js";
 import _series_track from  "./series_track.js";
-import _seriesstarts_high from  "./seriesstarts_high.js";
-import _seriesstarts_track from  "./seriesstarts_track.js";
 import _seriesstartsresults from  "./seriesstartsresults.js";
 import _sites from  "./sites.js";
 import _sites_track from  "./sites_track.js";
@@ -82,8 +79,6 @@ export default function initModels(sequelize) {
   const rounds = _rounds.init(sequelize, DataTypes);
   const series = _series.init(sequelize, DataTypes);
   const series_track = _series_track.init(sequelize, DataTypes);
-  const seriesstarts_high = _seriesstarts_high.init(sequelize, DataTypes);
-  const seriesstarts_track = _seriesstarts_track.init(sequelize, DataTypes);
   const seriesstartsresults = _seriesstartsresults.init(sequelize, DataTypes);
   const sites = _sites.init(sequelize, DataTypes);
   const sites_track = _sites_track.init(sequelize, DataTypes);
@@ -92,17 +87,17 @@ export default function initModels(sequelize) {
   const teaminscriptions = _teaminscriptions.init(sequelize, DataTypes);
   const teams = _teams.init(sequelize, DataTypes);
 
-  categories.belongsToMany(clubs, { through: relays, foreignKey: "xCategory", otherKey: "xClub" });
-  clubs.belongsToMany(categories, { through: relays, foreignKey: "xClub", otherKey: "xCategory" });
-  conversions.belongsToMany(disciplines, { through: conversionparams, foreignKey: "xConversion", otherKey: "xDiscipline" });
-  disciplines.belongsToMany(conversions, { through: conversionparams, foreignKey: "xDiscipline", otherKey: "xConversion" });
-  heights.belongsToMany(seriesstartsresults, { through: resultshigh, foreignKey: "xHeight", otherKey: "xResult" });
-  inscriptions.belongsToMany(teams, { through: teaminscriptions, foreignKey: "xInscription", otherKey: "xTeam" });
-  relayathletes.belongsToMany(startsingroup, { through: relayathletepositions, foreignKey: "xRelayAthlete", otherKey: "xStartgroup" });
-  seriesstartsresults.belongsToMany(heights, { through: resultshigh, foreignKey: "xResult", otherKey: "xHeight" });
-  startsingroup.belongsToMany(relayathletes, { through: relayathletepositions, foreignKey: "xStartgroup", otherKey: "xRelayAthlete" });
-  teams.belongsToMany(inscriptions, { through: teaminscriptions, foreignKey: "xTeam", otherKey: "xInscription" });
-  relayathletes.belongsTo(athletes, { as: "athlete", foreignKey: "xAthlete"});
+  categories.belongsToMany(clubs, { as: 'xClub_clubs', through: relays, foreignKey: "xCategory", otherKey: "xClub" });
+  clubs.belongsToMany(categories, { as: 'xCategory_categories', through: relays, foreignKey: "xClub", otherKey: "xCategory" });
+  conversions.belongsToMany(disciplines, { as: 'xDiscipline_disciplines', through: conversionparams, foreignKey: "xConversion", otherKey: "xDiscipline" });
+  disciplines.belongsToMany(conversions, { as: 'xConversion_conversions', through: conversionparams, foreignKey: "xDiscipline", otherKey: "xConversion" });
+  heights.belongsToMany(seriesstartsresults, { as: 'xResult_seriesstartsresults', through: resultshigh, foreignKey: "xHeight", otherKey: "xResult" });
+  inscriptions.belongsToMany(teams, { as: 'xTeam_teams', through: teaminscriptions, foreignKey: "xInscription", otherKey: "xTeam" });
+  relayathletes.belongsToMany(startsingroup, { as: 'xStartgroup_startsingroups', through: relayathletepositions, foreignKey: "xRelayAthlete", otherKey: "xStartgroup" });
+  seriesstartsresults.belongsToMany(heights, { as: 'xHeight_heights', through: resultshigh, foreignKey: "xResult", otherKey: "xHeight" });
+  startsingroup.belongsToMany(relayathletes, { as: 'xRelayAthlete_relayathletes', through: relayathletepositions, foreignKey: "xStartgroup", otherKey: "xRelayAthlete" });
+  teams.belongsToMany(inscriptions, { as: 'xInscription_inscriptions', through: teaminscriptions, foreignKey: "xTeam", otherKey: "xInscription" });
+  relayathletes.belongsTo(athletes, { as: "xAthlete_athlete", foreignKey: "xAthlete"});
   athletes.hasMany(relayathletes, { as: "relayathletes", foreignKey: "xAthlete"});
   basedisciplinelocalizations.belongsTo(basedisciplines, { as: "xBaseDiscipline_basediscipline", foreignKey: "xBaseDiscipline"});
   basedisciplines.hasMany(basedisciplinelocalizations, { as: "basedisciplinelocalizations", foreignKey: "xBaseDiscipline"});
@@ -110,19 +105,19 @@ export default function initModels(sequelize) {
   basedisciplines.hasMany(contests, { as: "contests", foreignKey: "xBaseDiscipline"});
   disciplines.belongsTo(basedisciplines, { as: "xBaseDiscipline_basediscipline", foreignKey: "xBaseDiscipline"});
   basedisciplines.hasMany(disciplines, { as: "disciplines", foreignKey: "xBaseDiscipline"});
-  combinedevents.belongsTo(categories, { as: "category", foreignKey: "xCategory"});
+  combinedevents.belongsTo(categories, { as: "xCategory_category", foreignKey: "xCategory"});
   categories.hasMany(combinedevents, { as: "combinedevents", foreignKey: "xCategory"});
-  events.belongsTo(categories, { as: "category", foreignKey: "xCategory"});
+  events.belongsTo(categories, { as: "xCategory_category", foreignKey: "xCategory"});
   categories.hasMany(events, { as: "events", foreignKey: "xCategory"});
-  inscriptions.belongsTo(categories, { as: "category", foreignKey: "xCategory"});
+  inscriptions.belongsTo(categories, { as: "xCategory_category", foreignKey: "xCategory"});
   categories.hasMany(inscriptions, { as: "inscriptions", foreignKey: "xCategory"});
-  relays.belongsTo(categories, { as: "category", foreignKey: "xCategory"});
+  relays.belongsTo(categories, { as: "xCategory_category", foreignKey: "xCategory"});
   categories.hasMany(relays, { as: "relays", foreignKey: "xCategory"});
-  athletes.belongsTo(clubs, { as: "club", foreignKey: "xClub"});
+  athletes.belongsTo(clubs, { as: "xClub_club", foreignKey: "xClub"});
   clubs.hasMany(athletes, { as: "athletes", foreignKey: "xClub"});
-  relays.belongsTo(clubs, { as: "club", foreignKey: "xClub"});
+  relays.belongsTo(clubs, { as: "xClub_club", foreignKey: "xClub"});
   clubs.hasMany(relays, { as: "relays", foreignKey: "xClub"});
-  teams.belongsTo(clubs, { as: "club", foreignKey: "xClub"});
+  teams.belongsTo(clubs, { as: "xClub_club", foreignKey: "xClub"});
   clubs.hasMany(teams, { as: "teams", foreignKey: "xClub"});
   teams.belongsTo(competitions, { as: "xCompetition_competition", foreignKey: "xCompetition"});
   competitions.hasMany(teams, { as: "teams", foreignKey: "xCompetition"});
@@ -137,7 +132,7 @@ export default function initModels(sequelize) {
   groups.belongsTo(contests, { as: "xContest_contest", foreignKey: "xContest"});
   contests.hasMany(groups, { as: "groups", foreignKey: "xContest"});
   series.belongsTo(contests, { as: "xContest_contest", foreignKey: "xContest"});
-  contests.hasMany(series, { as: "series", foreignKey: "xContest"});
+  contests.hasMany(series, { as: "seriess", foreignKey: "xContest"});
   combinedevents.belongsTo(conversions, { as: "xConversion_conversion", foreignKey: "xConversion"});
   conversions.hasMany(combinedevents, { as: "combinedevents", foreignKey: "xConversion"});
   conversionparams.belongsTo(conversions, { as: "xConversion_conversion", foreignKey: "xConversion"});
@@ -146,75 +141,63 @@ export default function initModels(sequelize) {
   disciplines.hasMany(conversionparams, { as: "conversionparams", foreignKey: "xDiscipline"});
   eventgroups.belongsTo(disciplines, { as: "xDiscipline_discipline", foreignKey: "xDiscipline"});
   disciplines.hasMany(eventgroups, { as: "eventgroups", foreignKey: "xDiscipline"});
-  events.belongsTo(disciplines, { as: "discipline", foreignKey: "xDiscipline"});
+  events.belongsTo(disciplines, { as: "xDiscipline_discipline", foreignKey: "xDiscipline"});
   disciplines.hasMany(events, { as: "events", foreignKey: "xDiscipline"});
-  events.belongsTo(eventgroups, { as: "eventgroup", foreignKey: "xEventGroup"});
+  events.belongsTo(eventgroups, { as: "xEventGroup_eventgroup", foreignKey: "xEventGroup"});
   eventgroups.hasMany(events, { as: "events", foreignKey: "xEventGroup"});
-  rounds.belongsTo(eventgroups, { as: "eventgroup", foreignKey: "xEventGroup"}); // formerly as: "xEventGroup_eventgroup"; changed 2021-12-05
+  rounds.belongsTo(eventgroups, { as: "xEventGroup_eventgroup", foreignKey: "xEventGroup"});
   eventgroups.hasMany(rounds, { as: "rounds", foreignKey: "xEventGroup"});
-  starts.belongsTo(events, { as: "event", foreignKey: "xEvent"});
+  starts.belongsTo(events, { as: "xEvent_event", foreignKey: "xEvent"});
   events.hasMany(starts, { as: "starts", foreignKey: "xEvent"});
-  startsingroup.belongsTo(groups, { 
-    as: "group", 
-    foreignKey: "xRound",
-    scope:{ // add the additional constraint of the second foreign key
-      [Op.and]: sequelize.where(sequelize.col("group.number"),
-          Op.eq, // or you can use '=',
-          sequelize.col("startsingroup.number")),
-  },
-  }); 
+  startsingroup.belongsTo(groups, { as: "xRound_group", foreignKey: "xRound"});
   groups.hasMany(startsingroup, { as: "startsingroups", foreignKey: "xRound"});
-  startsingroup.belongsTo(groups, { as: "number_group", foreignKey: "number"}); // DO NOT USE THIS ASSOCIATION, since the xRound constraint would not match. Use the one above with the additional scope!
+  startsingroup.belongsTo(groups, { as: "number_group", foreignKey: "number"});
   groups.hasMany(startsingroup, { as: "number_startsingroups", foreignKey: "number"});
   resultshigh.belongsTo(heights, { as: "xHeight_height", foreignKey: "xHeight"});
   heights.hasMany(resultshigh, { as: "resultshighs", foreignKey: "xHeight"});
-  athletes.belongsTo(inscriptions, { as: "inscription", foreignKey: "xInscription"}); 
-  inscriptions.hasOne(athletes, { as: "athlete", foreignKey: "xInscription"});//manually changed to hasOne (seems that sequelize-auto gets that wrong
-  relays.belongsTo(inscriptions, { as: "inscription", foreignKey: "xInscription"});
-  inscriptions.hasOne(relays, { as: "relay", foreignKey: "xInscription"}); //manually changed to hasOne (seems that sequelize-auto gets that wrong
-  starts.belongsTo(inscriptions, { as: "inscription", foreignKey: "xInscription"});
+  athletes.belongsTo(inscriptions, { as: "xInscription_inscription", foreignKey: "xInscription"});
+  inscriptions.hasMany(athletes, { as: "athletes", foreignKey: "xInscription"});
+  relays.belongsTo(inscriptions, { as: "xInscription_inscription", foreignKey: "xInscription"});
+  inscriptions.hasMany(relays, { as: "relays", foreignKey: "xInscription"});
+  starts.belongsTo(inscriptions, { as: "xInscription_inscription", foreignKey: "xInscription"});
   inscriptions.hasMany(starts, { as: "starts", foreignKey: "xInscription"});
-  teaminscriptions.belongsTo(inscriptions, { as: "inscription", foreignKey: "xInscription"});
+  teaminscriptions.belongsTo(inscriptions, { as: "xInscription_inscription", foreignKey: "xInscription"});
   inscriptions.hasMany(teaminscriptions, { as: "teaminscriptions", foreignKey: "xInscription"});
-  athletes.belongsTo(regions, { as: "region", foreignKey: "xRegion"});
+  athletes.belongsTo(regions, { as: "xRegion_region", foreignKey: "xRegion"});
   regions.hasMany(athletes, { as: "athletes", foreignKey: "xRegion"});
-  relays.belongsTo(regions, { as: "region", foreignKey: "xRegion"});
+  relays.belongsTo(regions, { as: "xRegion_region", foreignKey: "xRegion"});
   regions.hasMany(relays, { as: "relays", foreignKey: "xRegion"});
   relayathletepositions.belongsTo(relayathletes, { as: "xRelayAthlete_relayathlete", foreignKey: "xRelayAthlete"});
   relayathletes.hasMany(relayathletepositions, { as: "relayathletepositions", foreignKey: "xRelayAthlete"});
   relayathletes.belongsTo(relays, { as: "xRelay_relay", foreignKey: "xRelay"});
   relays.hasMany(relayathletes, { as: "relayathletes", foreignKey: "xRelay"});
-  groups.belongsTo(rounds, { as: "round", foreignKey: "xRound"});
+  groups.belongsTo(rounds, { as: "xRound_round", foreignKey: "xRound"});
   rounds.hasMany(groups, { as: "groups", foreignKey: "xRound"});
-  heights.belongsTo(series, { as: "series", foreignKey: "xSeries"});
+  heights.belongsTo(series, { as: "xSeries_sery", foreignKey: "xSeries"});
   series.hasMany(heights, { as: "heights", foreignKey: "xSeries"});
   series_track.belongsTo(series, { as: "xSeries_sery", foreignKey: "xSeries"});
   series.hasOne(series_track, { as: "series_track", foreignKey: "xSeries"});
-  seriesstartsresults.belongsTo(series, { as: "series", foreignKey: "xSeries"});
+  seriesstartsresults.belongsTo(series, { as: "xSeries_sery", foreignKey: "xSeries"});
   series.hasMany(seriesstartsresults, { as: "seriesstartsresults", foreignKey: "xSeries"});
-  resultshigh.belongsTo(seriesstartsresults, { as: "seriesstartsresult", foreignKey: "xResult"});
-  seriesstartsresults.hasMany(resultshigh, { as: "resultshigh", foreignKey: "xResult"});
+  resultshigh.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
+  seriesstartsresults.hasMany(resultshigh, { as: "resultshighs", foreignKey: "xResult"});
   resultstech.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
   seriesstartsresults.hasMany(resultstech, { as: "resultsteches", foreignKey: "xResult"});
   resultstechwind.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
   seriesstartsresults.hasMany(resultstechwind, { as: "resultstechwinds", foreignKey: "xResult"});
   resultstrack.belongsTo(seriesstartsresults, { as: "xResultTrack_seriesstartsresult", foreignKey: "xResultTrack"});
   seriesstartsresults.hasOne(resultstrack, { as: "resultstrack", foreignKey: "xResultTrack"});
-  seriesstarts_high.belongsTo(seriesstartsresults, { as: "xSeriesStart_high_seriesstartsresult", foreignKey: "xSeriesStart_high"});
-  seriesstartsresults.hasOne(seriesstarts_high, { as: "seriesstarts_high", foreignKey: "xSeriesStart_high"});
-  seriesstarts_track.belongsTo(seriesstartsresults, { as: "xSeriesStart_track_seriesstartsresult", foreignKey: "xSeriesStart_track"});
-  seriesstartsresults.hasOne(seriesstarts_track, { as: "seriesstarts_track", foreignKey: "xSeriesStart_track"});
   disciplinesonsite.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
   sites.hasMany(disciplinesonsite, { as: "disciplinesonsites", foreignKey: "xSite"});
   series.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
-  sites.hasMany(series, { as: "series", foreignKey: "xSite"});
+  sites.hasMany(series, { as: "seriess", foreignKey: "xSite"});
   sites_track.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
   sites.hasOne(sites_track, { as: "sites_track", foreignKey: "xSite"});
-  startsingroup.belongsTo(starts, { as: "start", foreignKey: "xStart"});
+  startsingroup.belongsTo(starts, { as: "xStart_start", foreignKey: "xStart"});
   starts.hasMany(startsingroup, { as: "startsingroups", foreignKey: "xStart"});
   relayathletepositions.belongsTo(startsingroup, { as: "xStartgroup_startsingroup", foreignKey: "xStartgroup"});
   startsingroup.hasMany(relayathletepositions, { as: "relayathletepositions", foreignKey: "xStartgroup"});
-  seriesstartsresults.belongsTo(startsingroup, { as: "startsingroup", foreignKey: "xStartgroup"});
+  seriesstartsresults.belongsTo(startsingroup, { as: "xStartgroup_startsingroup", foreignKey: "xStartgroup"});
   startsingroup.hasOne(seriesstartsresults, { as: "seriesstartsresult", foreignKey: "xStartgroup"});
   teaminscriptions.belongsTo(teams, { as: "xTeam_team", foreignKey: "xTeam"});
   teams.hasMany(teaminscriptions, { as: "teaminscriptions", foreignKey: "xTeam"});
@@ -255,8 +238,6 @@ export default function initModels(sequelize) {
     rounds,
     series,
     series_track,
-    seriesstarts_high,
-    seriesstarts_track,
     seriesstartsresults,
     sites,
     sites_track,

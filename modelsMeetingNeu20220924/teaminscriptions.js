@@ -1,28 +1,29 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class disciplinesonsite extends Model {
+export default class teaminscriptions extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('disciplinesonsite', {
-    xSite: {
+  return sequelize.define('teaminscriptions', {
+    xInscription: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true,
       references: {
-        model: 'sites',
-        key: 'xSite'
+        model: 'inscriptions',
+        key: 'xInscription'
       }
     },
-    xBaseDiscipline: {
+    xTeam: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
+      primaryKey: true,
       references: {
-        model: 'basedisciplines',
-        key: 'xBaseDiscipline'
+        model: 'teams',
+        key: 'xTeam'
       }
     }
   }, {
-    tableName: 'disciplinesonsite',
+    tableName: 'teaminscriptions',
     timestamps: false,
     indexes: [
       {
@@ -30,21 +31,15 @@ export default class disciplinesonsite extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
+          { name: "xInscription" },
+          { name: "xTeam" },
         ]
       },
       {
-        name: "fk_disciplines_on_site_sites1_idx",
+        name: "fk_teamInscriptions_teams1_idx",
         using: "BTREE",
         fields: [
-          { name: "xSite" },
-        ]
-      },
-      {
-        name: "fk_disciplinesOnSite_baseDisciplines1",
-        using: "BTREE",
-        fields: [
-          { name: "xBaseDiscipline" },
+          { name: "xTeam" },
         ]
       },
     ]

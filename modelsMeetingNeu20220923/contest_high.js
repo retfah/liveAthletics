@@ -1,32 +1,27 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class sites extends Model {
+export default class contest_high extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('sites', {
-    xSite: {
+  return sequelize.define('contest_high', {
+    xContests: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true
+      primaryKey: true,
+      references: {
+        model: 'contests',
+        key: 'xContest'
+      }
     },
-    name: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      defaultValue: ""
-    },
-    homologated: {
+    jumpoff: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
-      defaultValue: false
-    },
-    isTrack: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false
+      defaultValue: 0,
+      comment: "=Stichkampf yes\/no\ngeneraly only on championshiops, therefore the standard is no"
     }
   }, {
-    tableName: 'sites',
+    tableName: 'contest_high',
     timestamps: false,
     indexes: [
       {
@@ -34,7 +29,7 @@ export default class sites extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
+          { name: "xContests" },
         ]
       },
     ]
