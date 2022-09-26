@@ -1289,7 +1289,7 @@ const wsManager = new wsManagerClass(logger, eH, requestHandlerForS2S, noteHandl
 // translated configurations (e.g. for printing)
 // --------------
 
-// for printing it is possible to have language dependent configurations. However, in the specific language only the parts that are not identical to the nglish part need to be specified. Therefore, on startup (or once every day), create the configurations for each available language.
+// for printing it is possible to have language dependent configurations. However, in the specific language only the parts that are not identical to the english part need to be specified. Therefore, on startup (or once every day), create the configurations for each available language.
 const confPrintByLang = {};
 const translateConfPrint = async ()=>{
 	// TODO: if this function shall be rerun by a certain timer, but without a restart of the server, we must dynamically import the conf file. Otherwise, the changes in the conf file would anyway not be seen here.
@@ -1551,6 +1551,7 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 	if (!roomsReady){
 		res.status(503); // server unavailable
 		res.send('The rooms are not ready yet!')
+		return
 	}
 
 	// set the language. If the language was not changed afterwards, then the language does not exist!
@@ -1565,6 +1566,7 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 	const meeting = rooms.meetings.activeMeetings[req.params.meeting];
 	if (!meeting){
 		res.redirect(`/${req.params.lang}/meetingSelection`)
+		return
 	}
 	
 	/* test if the requested page is 'valid':
