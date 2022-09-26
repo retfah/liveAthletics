@@ -36,6 +36,7 @@ import rContestsOverview from './rContestsOverview.js';
 import rBackup from './rBackup.js';
 import rSideChannel from './rSideChannel.js';
 import rMeeting from './rMeeting.js';
+import rSites from './rSites.js';
 
 //import correctAssociations from './sequelize-mod.js';
 //import SAI from 'sequelize-auto-import';
@@ -44,7 +45,7 @@ import conf from './conf.js';
 
 
 /**
- * the room for the meeting management (adding, deletign, starting, stopping, configurations, ...)
+ * the room for the meeting management (adding, deleting, starting, stopping, configurations, ...)
  * The data stores a list of objects with the meeting data: data =[{meeting1}, {meeting2}]
  */
 class rMeetings extends roomServer{
@@ -869,6 +870,7 @@ class rMeetings extends roomServer{
         this.activeMeetings[shortname].rooms.contests = contests;
         this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
         eventGroups.rContests = contests;
+        this.activeMeetings[shortname].rooms.sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger)
     }
 
     /**

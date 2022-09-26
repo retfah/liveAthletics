@@ -1,7 +1,361 @@
-<script>
-    function startupSites(){
-        alert('Sites loaded.');
-    }
-</script>
 
-Put here everything for the site management, including the configuration of the connection to timing units. 
+
+<!--<script type="text/javascript">-->
+<script type="module">
+
+    // TODO: categories and regions data could be part of auxilary data of the athletes (or inscription) room instead of beeing separate rooms 
+    
+    class vuSites extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('sites@' + meetingShortname, true, true, '/static/rSitesClient.js', 'rSitesClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.sites = this.room.data.sites; // this will actually store a proxy of the data!
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.sites = this.vue.sites;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.site = this.room.data.sites;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data.sites = this.vue.sites;
+    
+        }
+    }
+    
+    
+    
+    var vueSites={};
+    function startupSites(){
+    
+        let vueAppConfig = {
+            data(){
+                return {
+                    sites:[], 
+                    infoTitle:'',
+                    infoContent:'',
+                    infoVisible:false,
+                    showFullDetails: true, // TODO: set to false for production
+                    overlay: undefined,
+                    //overlay2: undefined,
+                    newSiteName:'',
+                    newSiteConf:'',
+                    newSiteHomologated:false,
+                    newSiteType:0,
+                    siteModID: -1,
+                    timingModIndex: -1,
+                    filterSites: '',
+                    showDeleteFailed: false,
+
+                    // the following line is commented out to avoid wring error reports (since this is nto real javascript code)
+                    //<%- include('siteTypes.ejs') %>
+
+                }
+            },
+            methods:{
+
+                typeChanged(event){
+                    // the type of teh site got changed; make sure that the conf-object is a correct representation for that type
+                    if (this.newSiteType==0){
+                        // Track; 
+                        if (typeof(this.newSiteConf) != 'object' || Array.isArray(this.newSiteConf)) {
+                            // make sure that the conf is an object with a timings property.
+                            this.newSiteConf = {
+                                timings:[],
+                                // add here eventual other properties
+                            };
+                        }
+                    }
+
+                },
+
+                addTiming(){
+                    this.newSiteConf.timings.push({
+                        name: '',
+                        token: uuidv4(),
+                        isMain: this.newSiteConf.timings.length==0, // only one timing can be the main timing and only this timing will have the right to write results.  
+                    })
+                },
+                
+                addSite(){
+                    
+                    this.siteModID = -1;
+    
+                    this.newSiteName = '';
+                    this.newSiteHomologated = false;
+                    this.newSiteType = -1;
+                    this.newSiteConf = '';
+                    
+                    this.overlay = "addSite";
+                },
+                createSite(){
+                    if (this.siteModID==-1){
+                        // new site
+                        let data = {
+                            name: this.newSiteName,
+                            homologated: this.newSiteHomologated,
+                            type: this.newSiteType,
+                            conf: JSON.stringify(this.newSiteConf)
+                        };
+    
+                        rSites.room.addToStack('addSite', data)
+                    } else {
+                        let data = {
+                            xSite: this.siteModID,
+                            name: this.newSiteName,
+                            homologated: this.newSiteHomologated,
+                            type: this.newSiteType,
+                            conf: JSON.stringify(this.newSiteConf)
+                        };
+    
+                        rSites.room.addToStack('updateSite', data)
+                    }
+                    this.overlay = "undefined";
+    
+                },
+                deleteSite(xSite){
+                    let opt = {
+                        errorHandling:[{
+                            from:20, 
+                            rule:"deleteContinue", 
+                            customErrMsg:(code, msg)=>{
+                                
+                                this.showDeleteFailed = true;
+                            }, 
+                            popupErrMsg: false,
+                            createErrMsg: false,
+                        }], // note: the rule would have to chnage if we change sites to work offline as well
+                        
+                    }
+                    rSites.room.addToStack('deleteSite', xSite, undefined, ()=>{}, opt);
+                },
+                modSite(xSite){
+                    this.siteModID = xSite;
+    
+                    let site = this.sites.find(el=>el.xSite==xSite);
+    
+                    this.newSiteName = site.name;
+                    this.newSiteHomologated = site.homologated; // TODO: probably needs to be translated to boolean
+                    this.newSiteType = site.type;
+                    this.newSiteConf = JSON.parse(site.conf); // probably needs to be parsed to object
+                    
+                    this.overlay = "addSite";
+    
+                },
+
+                getTypeText(value){
+                    return this.siteTypes.find(st=>st.value==value)?.text;
+                },
+
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+                
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                /**
+                 * The same as findObjInArrayByProp, but only the object is returned
+                 **/
+                findObjInArrayByProp2(arr, prop, val){
+                    return this.findObjInArrayByProp(arr, prop, val)[1];
+                }
+            },
+            computed:{
+                filters: function(){
+                    return {filter1:{keys:['name'], value:this.filterSites}} 
+                },
+            },
+            components:{
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+            }
+        }
+
+        // mount it 
+        vueSites = Vue.createApp(vueAppConfig).mount('#vueDiv');
+        
+        let ms = getMeetingShortname();
+        var rSites = new vuSites(vueSites, ms);
+        
+    }
+    
+    window.vueSites = vueSites;
+    window.startupSites = startupSites;
+</script>
+    
+    <div id="vueDiv">
+        <h2><%= __("List of sites") %>:</h2>
+        <button type="button" class="btn btnGreen" v-on:click="addSite()"><%= __("Add site") %></button><br>
+        <label class="verticalForm">
+            <%= __("Filter sites") %>: 
+            <input v-model="filterSites" type="search" size="30">
+        </label>
+        <v-table :data="sites" :filters="filters">
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xSite">xSite</th>
+                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="homologated"><%= __('Homologated') %></th>
+                        <th is="vue:v-th" sortkey="type"><%= __('Type') %></th>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="conf"><%= __("configuration") %></th>
+                        <th><!-- Buttons --></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xSite">
+                        <td v-if="showFullDetails">{{row.xSite}}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.homologated }}</td>
+                        <td>{{ getTypeText(row.type) }}</td>
+                        <td v-if="showFullDetails">{{row.conf}}</td>
+                        <td>
+                            <button class="btn btnGrey" v-on:click="modSite(row.xSite)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-on:click="deleteSite(row.xSite)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+        
+        <!-- overlay for adding sites -->
+        <div class="overlay" v-bind:class="{shown: overlay=='addSite'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="siteModID == -1"><%= __("Add site") %>: </h3>
+                        <h3 v-if="siteModID > -1"><%= __("Update site") %>: </h3>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newSiteName" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Homologated") %>: 
+                            <input type="checkbox" v-model="newSiteHomologated" >
+                        </label>
+                        <label>
+                            <%= __("Type") %>: 
+                            <select class="select" v-model="newSiteType" v-on:change="typeChanged($event)">
+                                <template v-for="(st, stIndex) in siteTypes">
+                                    <option :value="st.value">
+                                        {{st.text}}
+                                    </option>
+                                </template>
+                            </select>
+                        </label>
+                        <template v-if="newSiteType==0 && overlay=='addSite'">
+                            <button class="btn" type="button" v-on:click="addTiming"><%= __("Add timing") %></button>
+                            <v-table :data="newSiteConf.timings">
+                                <thead>
+                                    <template v-slot:head>
+                                        <tr>
+                                            <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th>
+                                            <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                                            <th></th>
+                                        </tr>
+                                    </template>
+                                </thead>
+                                
+                                <template v-slot:body="{displayData}"> 
+                                    <tbody>
+                                        <tr v-for="(row,i) in displayData" :key="row.token">
+                                            <td>{{ row.name }}</td>
+                                            <td>{{ row.token }}</td>
+                                            <td>
+                                                <button type="button" class="btn btnGrey" v-on:click="timingModIndex=i" ><%= __("Change") %></button>
+                                                <button type="button" class="btn btnRed" v-on:click="newSiteConf.timings.splice(i,1)"><%= __("Delete") %></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </template>
+                        <button type="button" class="btn btnGreen" v-on:click="createSite" v-bind:disabled="newSiteName==undefined || newSiteType==-1">
+                            <div v-if="siteModID==-1"><%= __("Create site") %></div>
+                            <div v-if="siteModID>-1"><%= __("Update site") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+        TODO: add a second overlay for the tokens and name of the timings!
+        <div class="overlay" v-bind:class="{shown: timingModIndex>=0}">
+            <div class="overlayContainer" v-if="timingModIndex>=0">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Modify timing") %>: </h3>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newSiteConf.timings[timingModIndex].name" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Token") %>: 
+                            <input type="text" v-model="newSiteConf.timings[timingModIndex].token" maxlength="36">
+                        </label>
+                        <button type="button" class="btn" v-on:click="timingModIndex=-1"><%= __("Save") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
+            <div class="overlayContainer">
+                <%= __("Site could not be deleted, because it is referenced.") %>
+                <br><button type="button" class="btn"><%= __("OK") %></button>
+            </div>
+        </div>
+    
+        <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+            <!-- overlay used for displaying general information -->
+            <div id="overlayContainer">
+                <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+                <div id="overlayContent">{{infoContent}}</div>
+            </div>
+        </div>
+    
+    </div> 
