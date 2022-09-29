@@ -231,7 +231,7 @@ class r<%= roomUpperPlural %> extends roomServer{
             });
 
         } else {
-            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
+            throw {code: 23, message: this.ajv.errorsText(this.validateUpdate<%= roomUpper %>.errors)}
         }
     }
 
