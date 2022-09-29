@@ -121,7 +121,7 @@
                             name: this.newSiteName,
                             homologated: this.newSiteHomologated,
                             type: this.newSiteType,
-                            conf: JSON.stringify(this.newSiteConf)
+                            conf: JSON.stringify(this.newSiteConf),  
                         };
     
                         rSites.room.addToStack('addSite', data)
@@ -131,7 +131,7 @@
                             name: this.newSiteName,
                             homologated: this.newSiteHomologated,
                             type: this.newSiteType,
-                            conf: JSON.stringify(this.newSiteConf)
+                            conf: JSON.stringify(this.newSiteConf), 
                         };
     
                         rSites.room.addToStack('updateSite', data)
@@ -293,8 +293,10 @@
                                 <thead>
                                     <template v-slot:head>
                                         <tr>
-                                            <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th>
-                                            <th is="vue:v-th" sortkey="token"><%= __('Token') %></th>
+                                            <!-- IMPROTANT: do NOT allow any sorting here! otherwise, the modify button does not work appropriately, since the index in displayData does not match the actual index anymore!-->
+                                            <th ><%= __('Name') %></th>
+                                            <th><%= __('Token') %></th>
+                                            <th><%= __('Main') %></th>
                                             <th></th>
                                         </tr>
                                     </template>
@@ -305,6 +307,7 @@
                                         <tr v-for="(row,i) in displayData" :key="row.token">
                                             <td>{{ row.name }}</td>
                                             <td>{{ row.token }}</td>
+                                            <td>{{ row.isMain }}</td>
                                             <td>
                                                 <button type="button" class="btn btnGrey" v-on:click="timingModIndex=i" ><%= __("Change") %></button>
                                                 <button type="button" class="btn btnRed" v-on:click="newSiteConf.timings.splice(i,1)"><%= __("Delete") %></button>
@@ -323,7 +326,6 @@
                 </form>
             </div>
         </div>
-        TODO: add a second overlay for the tokens and name of the timings!
         <div class="overlay" v-bind:class="{shown: timingModIndex>=0}">
             <div class="overlayContainer" v-if="timingModIndex>=0">
                 <form>
@@ -336,6 +338,10 @@
                         <label>
                             <%= __("Token") %>: 
                             <input type="text" v-model="newSiteConf.timings[timingModIndex].token" maxlength="36">
+                        </label>
+                        <label>
+                            <%= __("Main") %>: 
+                            <input type="checkbox" v-model="newSiteConf.timings[timingModIndex].isMain">
                         </label>
                         <button type="button" class="btn" v-on:click="timingModIndex=-1"><%= __("Save") %></button>
                     </div>

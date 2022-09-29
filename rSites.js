@@ -3,6 +3,7 @@
 
 
 
+import { TopologyDescriptionChangedEvent } from 'mongodb';
 import roomServer from './roomServer.js';
 
 /**
@@ -61,8 +62,44 @@ class rSites extends roomServer{
         this.functionsWrite.deleteSite = this.deleteSite.bind(this);
         this.functionsWrite.updateSite = this.updateSite.bind(this);
 
+        // add here all type specific requirements
+        // to be added in an allOf clause
+        const schemaConfValidation = {
+            type:'object',
+            allOf:[
+                {
+                    if:{
+                        properties:{type:{const:0}}, // track 
+                        required:['type'],
+                    },
+                    then: {
+                        properties: {
+                            conf: {
+                                type:'object',
+                                properties: {
+                                    timings:{
+                                        type:'array',
+                                        items:{
+                                            type:"object",
+                                            properties:{
+                                                name: {type:'string'},
+                                                token: {type:'string'}, // actually uuidv4 is intended, but we accept any string
+                                                isMain: {type:'boolean'},
+                                            },
+                                            required:['name', 'token', 'isMain']
+                                        }
+                                    }
+                                },
+                                required:['timings'],
+                            }
+                        },
+                    }
+                }
+            ],
+        }
+
         // define, compile and store the schemas:
-        let schemaAddSite = {
+        const schemaAddSite = {
             type: "object",
             properties: {
                 xSite: {type: "integer"},
@@ -72,9 +109,9 @@ class rSites extends roomServer{
                 conf: {type: "string"},
             },
             required: ['name', 'homologated', "type"],
-            additionalProperties: false
+            additionalProperties: false,
         };
-        let schemaUpdateSite = {
+        const schemaUpdateSite = {
             type: "object",
             properties: {
                 xSite: {type: "integer"},
@@ -84,15 +121,43 @@ class rSites extends roomServer{
                 conf: {type: "string"},
             },
             required: ["xSite", 'name', 'homologated', "type"],
-            additionalProperties: false
+            additionalProperties: false,
         };
-        let schemaDeleteSite = {
+        const schemaDeleteSite = {
             type: "integer"
         }
         this.validateAddSite = this.ajv.compile(schemaAddSite);
         this.validateUpdateSite = this.ajv.compile(schemaUpdateSite);
         this.validateDeleteSite = this.ajv.compile(schemaDeleteSite);
- 
+        this.validateConf = this.ajv.compile(schemaConfValidation);
+    }
+
+    /**
+     * validate the configuration-JSON
+     * @param {integer} type
+     * @param {string} confStr the configuration as a JSON
+     */
+    checkConf(type, confStr){
+        // create an object which will then be checked with ajv. (Note: we cannot do this check directly in the checks of add/update because the conf object needs to be parsed first, as done here:)
+        const conf = JSON.parse(confStr);
+        const testObject = {
+            type,
+            conf,
+        }
+        if (!this.validateConf(testObject)){
+            throw {message: this.ajv.errorsText(this.validateConf.errors), code:29};
+        }
+
+        // for type=0 (track) check that only one timing isMain
+        let mainCount = 0;
+        for (let t of conf.timings){
+            if (t.isMain){
+                mainCount++;
+            }
+        }
+        if (mainCount>1){
+            throw {message: 'Only one timing can be main!', code:29};
+        }
     }
 
     /**
@@ -104,6 +169,9 @@ class rSites extends roomServer{
         // validate the data based on the schema
         let valid = this.validateAddSite(data);
         if (valid) {
+
+            // check that also the conf matches the criteria:
+            this.checkConf(data.type, data.conf); // checkConf will throw an error
 
             // translate the boolean values; it would work in the DB (translated automatically), but in the locally stored data and returned value in 'meeting' from sequelize, it would still be the untranslated data, i.e. with true/false instead of 1/0. 
             // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every function like addSite, updateSite, ... would have to actively call this function in it
@@ -209,6 +277,15 @@ class rSites extends roomServer{
         let valid = this.validateUpdateSite(data);
         if (valid) {
 
+            
+            // check that also the conf matches the criteria:
+            this.checkConf(data.type, data.conf); // checkConf will throw an error
+
+            // // check that also the conf matches the criteria:
+            // if (!this.checkConf(data.type, data.conf)){
+            //     throw {message: this.ajv.errorsText(this.validateConf.errors), code:29};
+            // }
+
             // get the instance to update
             let [i, o] = this.findObjInArrayByProp(this.data.sites, 'xSite', data.xSite);
             if (i<0){
@@ -239,7 +316,7 @@ class rSites extends roomServer{
             });
 
         } else {
-            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
+            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateSite.errors)}
         }
     }
 
