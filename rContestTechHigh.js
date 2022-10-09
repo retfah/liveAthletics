@@ -36,7 +36,7 @@ class rContestTechHigh extends roomServer{
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom)
 
-        // a subroom must have the full room name, e.g. "hello/world@meeting". Otherwise clients cannot process broadcasted changes appropriately, since they always store the full name and not shortened room name as it mihgt work for the server.
+        // a subroom must have the full room name, e.g. "hello/world@meeting". Otherwise clients cannot process broadcasted changes appropriately, since they always store the full name and not shortened room name as it might work for the server.
 
         //let roomName = `${contest.xContest}`;
         let roomName = `contests/${contest.xContest}@${meetingShortname}`
@@ -113,7 +113,6 @@ class rContestTechHigh extends roomServer{
 
         // TODO: provide somewhere (rStartsInGroup?) a general function to create such simplified person data. This "room" (or whatever it is) could then also listen to changes (clubName, athlete, inscription, country) and send an event, so that rooms with this athlete can listen to the respective event and push the change 
 
-        // IDEA: should we really have a dataset for each startsInGroup or shouldn't we better really store the athletes and relays? 
         // --> startsingroup
         //      --> (ev.) groups
         //          --> (ev.) rounds
@@ -127,7 +126,7 @@ class rContestTechHigh extends roomServer{
         //                  --> club
         //                  --> regions
         //        
-        // get this data together from the rooms or directly as a DB-query? Probably the latter is easier. And then simply update on a change event.
+        // get this data directly as a DB-query and have events to listen to changes
 
         // TODO: can we create the sql query, store it, and then reuse it every time? since nothing is dynamic (per room), it does not make sense to recreate this complex query each and every time when the data is to be updated! (But eventually the structure is needed also for creating the object structure. 
 
@@ -141,7 +140,8 @@ class rContestTechHigh extends roomServer{
             return obj;
         }
 
-        let startsInGroups = []; // list of all starts in group of this contest
+        //let startsInGroups = []; // list of all starts in group of this contest
+        // TODO: there might be the following problem: since we do not use the data from rInscriptions but get our own models, a change of e.g. the name of an athlete (done in rInscriptions) would not show up here in the auxilary data!
         let promiseStartsInGroup = this.models.startsingroup.findAll({
             //where: {"xStartgroup":{[Op.in]:startsInGroups}}, // TODO: include
             attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
@@ -163,7 +163,6 @@ class rContestTechHigh extends roomServer{
                 console.log(`Error when creating the startsingroup for contest ${contest.xContest}: ${err}`);
             })
         
-        // TODO: listen to added and removed athletes in startsInGroup for all groups that are connected to this contest. Add/remove those athletes when required.
 
         // get all groups assigned to this contest; include also the information until the events
         //let promiseGroups = this.models.groups.findAll({attributes:['xRound', 'number', 'name'], where:{"xContest":{[Op.eq]:this.contest.xContest}}, include: [{model:this.models.rounds, as:'round', include: [{model:this.models.eventgroups, as:"eventgroup", include:[{model:this.models.events, as:"events"}]}]}]})
@@ -272,8 +271,6 @@ class rContestTechHigh extends roomServer{
                     group: undefined,
                     startgroups: []
                 };
-
-                // TODO: there must be an error somewhere here!
 
                 // get group etc object and add it to relatedGroups
                 let promGroup = this.models.groups.findOne({attributes:['xRound', 'number', 'name'], where:{"xRound":data.xRound, number:data.number}, include: [{model:this.models.rounds, as:'round', include: [{model:this.models.eventgroups, as:"eventgroup", include:[{model:this.models.events, as:"events"}]}]}]}).then((group)=>{
