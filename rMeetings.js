@@ -870,7 +870,7 @@ class rMeetings extends roomServer{
         this.activeMeetings[shortname].rooms.contests = contests;
         this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
         eventGroups.rContests = contests;
-        this.activeMeetings[shortname].rooms.sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger)
+        this.activeMeetings[shortname].rooms.sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, contests, disciplines);
     }
 
     /**
@@ -944,46 +944,6 @@ class rMeetings extends roomServer{
 
         // first create all general rooms
         this.createRoomsForMeeting(shortname, seq, modelsMeeting, meetingMongoDb);
-
-        // room with meeting-wide settings; storen actaully in mongoDb and not MariaDb
-        /*let meetingAdmin = new rMeeting(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, meeting, this) 
-        this.activeMeetings[shortname].rooms.meeting = meetingAdmin;
-        let disciplines = new rDisciplines(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        this.activeMeetings[shortname].rooms.disciplines = disciplines;
-        // clubs
-        this.activeMeetings[shortname].rooms.clubs = new rClubs(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        // athletes
-        this.activeMeetings[shortname].rooms.athletes = new rAthletes(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        // categories
-        let categories = new rCategories(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        this.activeMeetings[shortname].rooms.categories = categories;
-        // starts in group
-        let startsInGroup = new rStartsInGroup(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger)
-        this.activeMeetings[shortname].rooms.startsInGroup = startsInGroup;
-        // events:
-        let events = new rEvents(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, disciplines, startsInGroup);
-        this.activeMeetings[shortname].rooms.events = events;
-        startsInGroup.events = events;
-        // eventGroups
-        let eventGroups = new rEventGroups(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup);
-        this.activeMeetings[shortname].rooms.eventGroups = eventGroups;
-        startsInGroup.eventGroups = eventGroups;
-        // regions
-        let regions = new rRegions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger);
-        this.activeMeetings[shortname].rooms.regions = regions;
-        // inscriptions (including athletes, relays and relayAthletes)
-        this.activeMeetings[shortname].rooms.inscriptions = new rInscriptions(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, categories, regions, this.activeMeetings[shortname]);
-        // starts
-        let starts = new rStarts(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, startsInGroup) // eventually add here the events as auxilary data; 
-        this.activeMeetings[shortname].rooms.starts = starts;
-        startsInGroup.starts = starts; // set reference;
-        // contests
-        let contests = new rContests(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, events, eventGroups, starts, startsInGroup);
-        this.activeMeetings[shortname].rooms.contests = contests;
-        this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
-        */
-
-        // TODO: start the side channel room; eventually as the first room, when we need to reference it in all other rooms
 
         // then start the backup room
         // IMPORTANT: keep this after the main rooms, because it assumes that the other rooms were already added to activeMeeting[shortname].rooms!

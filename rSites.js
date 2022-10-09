@@ -1,10 +1,7 @@
 
 
-
-
-
-import { TopologyDescriptionChangedEvent } from 'mongodb';
 import roomServer from './roomServer.js';
+import { rSiteTrack } from './rSite.js';
 
 /**
  * the room for site management (adding, deleting, updating,  ...)
@@ -21,7 +18,7 @@ class rSites extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rContests, rDisciplines){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -36,6 +33,9 @@ class rSites extends roomServer{
             // auxilary data:
 
         }; 
+
+        this.rContests = rContests;
+        this.rDisciplines = rDisciplines;
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
@@ -319,6 +319,54 @@ class rSites extends roomServer{
             throw {code: 23, message: this.ajv.errorsText(this.validateUpdateSite.errors)}
         }
     }
+    /**
+     * Try to start a dynamic subroom. This function shall be overriden by the inheriting class if needed. 
+     * @param {string} subroomName The name of the subroom
+     * @returns {boolean} returns the room on success, and false if it could not be created.
+     */
+    startDynamicSubroom(subroomName){
+        // if we are here, then we can be sure that the room does not yet exist.
+
+        // return false if the room cannot be generated.
+
+        let xSite = Number(subroomName);
+        if (isNaN(xSite)){
+            return false;
+        }
+
+        // the subroom should be xSite; try to get the site
+        let site = this.data.sites.find(s=>s.xSite==xSite);
+        if (!site){
+            return false;
+        }
+
+        // differentiate the different kinds of sites
+        let type = site.type;
+
+        // start the room
+        let dynamicRoom = {
+            parentRoom: this,
+            timeout: -1 // keep the room open forever; to be changed in the future, when we have a timeout function (without the timeout, I think it's better to keep the room open)
+        }
+        try{
+            if (type==0){
+
+                let subroom = new rSiteTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, this, site, this.rContests, this.rDisciplines)
+
+                // save the room: 
+                this.subrooms[subroomName] = subroom;
+
+                return subroom;
+            } // add here other types
+            
+            return false;
+        }catch (ex) {
+            this.logger.log(22, `Could not create the subroom ${xSite} in meeting ${this.meetingShortname}: ${ex}`)
+            return false;
+        }
+        
+    }
+
 
 }
 
