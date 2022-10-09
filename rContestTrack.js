@@ -236,8 +236,8 @@ class rContestTrack extends roomServer{
                 this.data.startgroups = this.data.startgroups.filter(el=> el.xRound != data.xRound || el.number != data.number);
 
                 // remove event listeners: 
-                this.eH.eventUnsubscribe(`startsInGroups@${this.meetingShortname}:addedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, this.name)
-                this.eH.eventUnsubscribe(`startsInGroups@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, this.name)
+                this.eH.eventUnsubscribe(`startsInGroup@${this.meetingShortname}:addedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, this.name)
+                this.eH.eventUnsubscribe(`startsInGroup@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, this.name)
 
                 // broadcast the unlink
                 // broadcast for room clients (not in a dataset)
@@ -309,15 +309,15 @@ class rContestTrack extends roomServer{
                 });
 
                 // add listener for this group
-                this.eH.eventSubscribe(`startsInGroups@${this.meetingShortname}:addedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, listenerAddAth, this.name, true)
-                this.eH.eventSubscribe(`startsInGroups@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, listenerDeleteAth, this.name, true)
+                this.eH.eventSubscribe(`startsInGroup@${this.meetingShortname}:addedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, listenerAddAth, this.name, true)
+                this.eH.eventSubscribe(`startsInGroup@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${data.xRound}/${data.number}`, listenerDeleteAth, this.name, true)
             }
 
             // for every group associated to this contest, we have to listen for added and deleted athletes
             for (let [index, group] of data.entries()){
                 // events for adding/deleting single athletes and changing group-contest assignments
-                this.eH.eventSubscribe(`startsInGroups@${this.meetingShortname}:addedAthleteForRound/GrpNbr${group.xRound}/${group.number}`, listenerAddAth, this.name, true)
-                this.eH.eventSubscribe(`startsInGroups@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${group.xRound}/${group.number}`, listenerDeleteAth, this.name, true)
+                this.eH.eventSubscribe(`startsInGroup@${this.meetingShortname}:addedAthleteForRound/GrpNbr${group.xRound}/${group.number}`, listenerAddAth, this.name, true)
+                this.eH.eventSubscribe(`startsInGroup@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${group.xRound}/${group.number}`, listenerDeleteAth, this.name, true)
             }
             this.eH.eventSubscribe(`eventGroups@${this.meetingShortname}:contestUnlink${contest.xContest}`, listenerContestUnlink, this.name, true)
             this.eH.eventSubscribe(`eventGroups@${this.meetingShortname}:contestLink${contest.xContest}`, listenerContestLink, this.name, true)
