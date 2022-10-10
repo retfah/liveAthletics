@@ -225,7 +225,7 @@
             <div v-if="contest.status>=60 && contest.status<=89 && show=='series'">
                 <button class="btn" v-if="series.length==0" v-on:click="showInitialSeriesAssignment()" :disabled="readOnly"><%= __("Create Series") %></button>
                 <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
-                <button type="button" onclick="printContest()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
+                <button type="button" onclick="printSeriesTechHigh()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
                 <button type="button" v-on:click="deleteAllSeries()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %> (without warning!)</button>
                 <div v-if="series.length>0">
                     <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
