@@ -37,16 +37,32 @@ export const disciplineFormatters = {
             const valObj = disciplineValueProcessors[3](value, showMillis ? 3:2); 
             if (conf.distance<=400){
                 // only show seconds, even if there are minutes
+                let txt;
+                if (showMillis){
+                    txt = `${valObj.minutes*60 + valObj.seconds}.${valObj.millis.toString().padStart(3,'0')}`
+                } else{
+                    txt = `${valObj.minutes*60 + valObj.seconds}.${valObj.hundreths.toString().padStart(2,'0')}`
+                }
+                
                 if (showUnit){
-                    return `${valObj.minutes*60 + valObj.seconds}.${valObj.millis.toString().slice(0, showMillis ? 3 : 2)} s`;    
+                    return `${txt} s`;    
                 }
-                return `${valObj.minutes*60 + valObj.seconds}.${valObj.millis.toString().slice(0, showMillis ? 3 : 2)}`;
+                return txt;
             } else {
-                // never show the unit here, since it is clear from the format with ":". But differentiate whether there are hourse or not
+                // never show the unit here, since it is clear from the format with ":". But differentiate whether there are hours or not
                 if (valObj.hours){
-                    return `${valObj.hours}:${valObj.minutes}:${valObj.seconds}.${valObj.millis.toString().slice(0, showMillis ? 3 : 2)}`;    
+                    if (showMillis){
+                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.millis.toString().pad(3,'0')}`
+                    } else{
+                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.hundreths.toString().pad(2,'0')}`
+                    }
                 }
-                return `${valObj.minutes}:${valObj.seconds}.${valObj.millis.toString().slice(0, showMillis ? 3 : 2)}`;  
+                // no hours --> no need to pad minutes, but the seconds
+                if (showMillis){
+                    return `${valObj.minutes}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.millis.toString().padStart(3,'0')}`
+                } else {
+                    return `${valObj.minutes}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.hundreths.toString().padStart(2,'0')}`
+                }
             }
         } else {
             // >10000m, do not show anything smaller than milliseconds
@@ -420,7 +436,7 @@ export const disciplineValidators = {
                 indexMax = i;
             }
         }
-        console.log(scoreMax);
+        //console.log(scoreMax);
 
         // the best match is found
         return {
