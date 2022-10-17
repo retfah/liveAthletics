@@ -23,14 +23,42 @@
     <div v-if="seriesAssignmentConfiguration.techDefault.sortBy!='random'">
         <%= __("Sorting") %>: 
         <label style="display:inline-block">
-            <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-            <%= __("Best first") %>
-        </label>
-        <label style="display:inline-block">
-            <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-            <%= __("Best last") %>
-        </label>
+            <input type="checkbox" name="commonSorting" value="true" v-model="seriesAssignmentConfiguration.techDefault.commonSorting">
+            <%= __("Same sorting strategy for series and within series") %>
+        </label><br>
+        <template v-if="seriesAssignmentConfiguration.techDefault.commonSorting">
+            <label style="display:inline-block">
+                <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                <%= __("Best first") %>
+            </label>
+            <label style="display:inline-block">
+                <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                <%= __("Best last") %>
+            </label>
+        </template>
+        <template v-if="!seriesAssignmentConfiguration.techDefault.commonSorting">
+            <%= __("Sorting of the series") %>:
+            <label style="display:inline-block">
+                <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                <%= __("Best first") %>
+            </label>
+            <label style="display:inline-block">
+                <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                <%= __("Best last") %>
+            </label>
+            <br>
+            <%= __("Sorting within the series") %>:
+            <label style="display:inline-block">
+                <input type="radio" name="sortingWithin" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
+                <%= __("Best first") %>
+            </label>
+            <label style="display:inline-block">
+                <input type="radio" name="sortingWithin" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
+                <%= __("Best last") %>
+            </label>
+        </template>
     </div>
+
 </div>
 
 <% }else{ %> // must have a non-code line here, since it will be commented out!
@@ -88,6 +116,11 @@
                 for (j=0; j<numAthAssign;j++){
                     sig.push(this.unassignedAthletesCreate.shift())
                 }
+
+                // if the athletes shall be sorted inversely compared to the series (i.e. the best series first, but the best athlete within the series last), reverse the series
+                if (this.seriesAssignmentConfiguration.techDefault.commonSorting==false && this.seriesAssignmentConfiguration.techDefault.sortingWithin !=this.seriesAssignmentConfiguration.techDefault.sorting){
+                    this.seriesObj[i].startsingroup.reverse();
+                } 
             }
 
 
@@ -95,8 +128,10 @@
         initFunc: function(){
             this.seriesAssignmentConfiguration.techDefault = {
                 maxAthletes: 30,
-                sorting: -1, // 1: Best first, 2: Best last
+                sorting: -1, // 1: Best first, -1: Best last
                 sortBy: "bestPerfLast", // either of: bestPerf, bestPerfLast, random
+                sortingWithin: -1,
+                commonSorting: true,
             }
         }, // function called on initialization of the series assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
         baseDisciplines: [], // the baseDisciplines-IDs where this series assignment opiton shall be present (probably only needed for track disciplines)
