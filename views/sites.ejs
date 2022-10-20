@@ -87,7 +87,10 @@
                         if (typeof(this.newSiteConf) != 'object' || Array.isArray(this.newSiteConf)) {
                             // make sure that the conf is an object with a timings property.
                             this.newSiteConf = {
-                                timings:[],
+                                timings: [],
+                                lanesStraight: 8,
+                                lanesAround: 8,
+                                heatSizeRuns: 26,
                                 // add here eventual other properties
                             };
                         }
@@ -279,7 +282,7 @@
                         </label>
                         <label>
                             <%= __("Type") %>: 
-                            <select class="select" v-model="newSiteType" v-on:change="typeChanged($event)">
+                            <select v-bind:disabled="siteModID > -1" class="select" v-model="newSiteType" v-on:change="typeChanged($event)">
                                 <template v-for="(st, stIndex) in siteTypes">
                                     <option :value="st.value">
                                         {{st.text}}
@@ -288,6 +291,20 @@
                             </select>
                         </label>
                         <template v-if="newSiteType==0 && overlay=='addSite'">
+                            <h3><%= __("Track settings") %></h3>
+                            <label>
+                                <%= __("Lanes straight") %>:
+                                <input type="number" min="1" v-model="newSiteConf.lanesStraight">
+                            </label>
+                            <label>
+                                <%= __("Lanes around") %>:
+                                <input type="number" min="1" v-model="newSiteConf.lanesAround">
+                            </label>
+                            <label>
+                                <%= __("Heat size distance events") %>:
+                                <input type="number" min="1" v-model="newSiteConf.heatSizeRuns">
+                            </label>
+                            <h3><%= __("Timings") %></h3>
                             <button class="btn" type="button" v-on:click="addTiming"><%= __("Add timing") %></button>
                             <v-table :data="newSiteConf.timings">
                                 <thead>
