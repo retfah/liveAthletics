@@ -72,7 +72,7 @@ class rContests extends roomServer{
             datetimeAppeal: {type:["string"], format:"date-time"},
             datetimeCall: {type:["string"], format:"date-time"},
             datetimeStart: {type:["string"], format:"date-time"},
-            xSite: {type: "integer"},
+            //xSite: {type: "integer"},
             status: {type: "integer"},
             name:{type:'string', maxLength:50},
             conf: {type:"string"}
@@ -112,6 +112,28 @@ class rContests extends roomServer{
             // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every function like addContest, updateContest, ... would have to actively call this function in it
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
+
+            if (!data.conf){
+                // add the default (for this baseDiscipline/type) contest.conf(iguration)
+                // get the baseDiscipline
+                const bd = this.rBaseDisciplines.data.find(x=>x.xBaseDiscipline == data.xBaseDiscipline);
+                if (bd?.type == 1){
+                    // tech high
+                    data.conf = JSON.stringify({heightIncreases:[], jumpoff:false});
+                } else if (bd?.type == 2){
+                    // tech long
+                    // TODO
+                } else if (bd?.type == 3){
+                    // track
+                    // try to get the default from the discipline; simply use the values given in the first discipline
+                    const dConf = JSON.parse(bd.disciplines[0].configuration);
+                    const c = {
+                        startInLanes: dConf.startInLanes ?? true,
+                        groupSize: dConf.groupSize ?? 1 // number of persons per lane (when startInLanes) or persons per group (when startInLanes==false) 
+                    }
+                    data.conf = JSON.stringify(c);
+                }
+            }
 
             var contest = await this.models.contests.create(dataTranslated).catch((err)=>{throw {message: `Sequelize-problem: Contest could not be created: ${err}`, code:22}})
 
@@ -285,8 +307,15 @@ class rContests extends roomServer{
             timeout: -1 // keep the room open forever; to be changed in the future, when we have a timeout function (without the timeout, I think it's better to keep the room open)
         }
         try{
-            let subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories)
-
+            let subroom;
+            if (type==1){
+                subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories)
+            } else if (type==3) {
+                subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories)
+            } else {
+                this.logger.log(22, `Could not create the subroom for contest ${xContest} in meeting ${this.meetingShortname} since the contest type ${type} is not supported.`);
+                return false;
+            }
             // save the room: 
             this.subrooms[subroomName] = subroom;
 
