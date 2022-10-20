@@ -13,7 +13,7 @@
         constructor(vue, meetingShortname){
             // parent constructor: initializes the room
             //(roomName, writing, storeInfos, path, className, datasetName='')
-            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', 'eventsWithGroups')
+            super('events@' + meetingShortname, true, true, '/static/rEventsClient.js', 'rEventsClient', '')
 
             // needed to call things in the vue class
             this.vue = vue;
@@ -561,7 +561,7 @@
 
                 },
                 deleteContest: function(xContest){
-                    rEG.room.addToStack('deleteContest', xContest)
+                    rCo.room.addToStack('deleteContest', xContest)
                 },
 
                 addEventGroup: function(){
@@ -1126,9 +1126,9 @@
         <!-- show a list of events-->
         <label class="verticalForm">
             <%= __("Filter events") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterEvents" type="text" size="30">
+            <input v-model="filterEvents" type="search" size="30">
         </label>
-        <button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>
+        <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
 
         <v-table :data="eventsForList" :filters="eventFilter"><!-- :filters="inscriptionFilters" -->
             <template #head> <!-- # head is a shorthand for v-slot:head-->
@@ -1172,9 +1172,9 @@
         <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
         <label class="verticalForm">
             <%= __("Filter event groups") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterEventGroups" type="text" size="30">
+            <input v-model="filterEventGroups" type="search" size="30">
         </label>
-        <button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>
+        <!--<button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>-->
         <!-- show a list of event groups-->
         <v-table :data="eventGroupsForList" :filters="eventGroupFilter">
             <template #head>
@@ -1249,9 +1249,9 @@
         <button class="btn btnGreen" v-on:click="addContest()"><%= __("Add contest") %></button>
         <label class="verticalForm">
             <%= __("Filter contests") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterContests" type="text" size="30">
+            <input v-model="filterContests" type="search" size="30">
         </label>
-        <button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>
+        <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
         <v-table :data="contestsForList" :filters="contestFilter">
             <template #head> <!-- # head is a shorthand for v-slot:head-->
                 <thead>
