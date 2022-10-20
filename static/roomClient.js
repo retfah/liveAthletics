@@ -796,7 +796,7 @@ class roomClient {
                 var deleteContinue = (ruleObj)=>{
                     // ruleObj is the applied rule-object, containing among others the options for showing the errors.
 
-                    this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete request and continue. (Room: ${this.name}, request content: ${request})`);
+                    this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete request and continue. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                     if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
                         let popupErrMsg = "popupErrMsg" in ruleObj ? ruleObj.popupErrMsg : false;
@@ -820,7 +820,7 @@ class roomClient {
                 // ruleObj is the applied rule-object, containing among others the options for showing the errors.
                 var deleteRollback = (ruleObj)=>{
 
-                    this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete and rollback the request. (Room: ${this.name}, request content: ${request})`);
+                    this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete and rollback the request. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                     if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
                         let popupErrMsg = "popupErrMsg" in ruleObj ? ruleObj.popupErrMsg : true;
@@ -903,7 +903,7 @@ class roomClient {
                         // the data is still on the stack and will stay there.
                         // if this rule is applied when the connection was lost, sync will not be executed until the connection is back (inlc TabID reported) anyway:
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send teh request again. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send teh request again. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // notify user
                         if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
@@ -933,7 +933,7 @@ class roomClient {
 
                         },1000*timeout)
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to resend the request after a timeout. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to resend the request after a timeout. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // notify user
                         if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
@@ -955,7 +955,7 @@ class roomClient {
                     } else if (ruleObj.rule=="user"){
                         // simply call the provided function. Attention: the function must be appropriately implemented!
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. A user-function is executed for error handling. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. A user-function is executed for error handling. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // do not add anything to the message system of the room manager; the called function could do this on its own  when needed. However, using the function is probably anyway better, since this will also allow to translate the respective errCode to the language of the user
                         ruleObj.userFunc(errCode, errMsg)
