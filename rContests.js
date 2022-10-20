@@ -127,7 +127,7 @@ class rContests extends roomServer{
                 } else if (bd?.type == 3){
                     // track
                     // try to get default values for number of persons per heat first from a track site and second from the discipline
-                    
+
                     // try to get the default from the discipline; simply use the values given in the first discipline
                     const dConf = JSON.parse(bd.disciplines[0].configuration);
                     
@@ -138,14 +138,16 @@ class rContests extends roomServer{
                     let lanes = 8;
                     if (site){
                         const siteConf = JSON.parse(site.conf);
-                        heatSizeRuns = siteConf.heatSizeRuns ?? heatSizeRuns;
                         // differentiate lanes straight and lanes around
-                        if ('straight' in siteConf){
-                            if (siteConf.straight){
+                        if ('straight' in dConf){
+                            if (dConf.straight){
                                 lanes = siteConf.lanesStraight ?? lanes;
                             } else {
                                 lanes = siteConf.lanesAround ?? lanes;
+                                heatSizeRuns = siteConf.heatSizeRuns ?? heatSizeRuns;
                             }
+                        } else {
+                            lanes = siteConf.lanesStraight ?? lanes;
                         }
                     }
 

@@ -294,15 +294,15 @@
                             <h3><%= __("Track settings") %></h3>
                             <label>
                                 <%= __("Lanes straight") %>:
-                                <input type="number" min="1" v-model="newSiteConf.lanesStraight">
+                                <input type="number" min="1" v-model.number="newSiteConf.lanesStraight">
                             </label>
                             <label>
                                 <%= __("Lanes around") %>:
-                                <input type="number" min="1" v-model="newSiteConf.lanesAround">
+                                <input type="number" min="1" v-model.number="newSiteConf.lanesAround">
                             </label>
                             <label>
                                 <%= __("Heat size distance events") %>:
-                                <input type="number" min="1" v-model="newSiteConf.heatSizeRuns">
+                                <input type="number" min="1" v-model.number="newSiteConf.heatSizeRuns">
                             </label>
                             <h3><%= __("Timings") %></h3>
                             <button class="btn" type="button" v-on:click="addTiming"><%= __("Add timing") %></button>
