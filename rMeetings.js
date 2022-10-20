@@ -870,7 +870,9 @@ class rMeetings extends roomServer{
         this.activeMeetings[shortname].rooms.contests = contests;
         this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
         eventGroups.rContests = contests;
-        this.activeMeetings[shortname].rooms.sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, contests, disciplines);
+        const sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, contests, disciplines);
+        this.activeMeetings[shortname].rooms.sites = sites;
+        contests.sites = sites;
     }
 
     /**

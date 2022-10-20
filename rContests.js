@@ -37,6 +37,7 @@ class rContests extends roomServer{
         this.rBaseDisciplines = rBaseDisciplines;
         this.rMeeting = rMeeting;// needed e.g. to print the header/footer with meeting information on the client
         this.rCategories = rCategories;
+        this.rSites = {data:{sites:[]}}; // will be overwritten as soon as the sites room is created
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
@@ -125,11 +126,33 @@ class rContests extends roomServer{
                     // TODO
                 } else if (bd?.type == 3){
                     // track
+                    // try to get default values for number of persons per heat first from a track site and second from the discipline
+                    
                     // try to get the default from the discipline; simply use the values given in the first discipline
                     const dConf = JSON.parse(bd.disciplines[0].configuration);
+                    
+                    // try to get a site for track (type==0)
+                    const site = this.rSites.data.sites.find(s=>s.type==0);
+                    // get the configuration for the site
+                    let heatSizeRuns = dConf.groupSize ?? 1;
+                    let lanes = 8;
+                    if (site){
+                        const siteConf = JSON.parse(site.conf);
+                        heatSizeRuns = siteConf.heatSizeRuns ?? heatSizeRuns;
+                        // differentiate lanes straight and lanes around
+                        if ('straight' in siteConf){
+                            if (siteConf.straight){
+                                lanes = siteConf.lanesStraight ?? lanes;
+                            } else {
+                                lanes = siteConf.lanesAround ?? lanes;
+                            }
+                        }
+                    }
+
                     const c = {
                         startInLanes: dConf.startInLanes ?? true,
-                        groupSize: dConf.groupSize ?? 1 // number of persons per lane (when startInLanes) or persons per group (when startInLanes==false) 
+                        groupSize: heatSizeRuns, // number of persons per lane (when startInLanes) or persons per group (when startInLanes==false) 
+                        lanes, 
                     }
                     data.conf = JSON.stringify(c);
                 }
