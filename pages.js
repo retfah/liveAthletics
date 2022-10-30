@@ -213,6 +213,25 @@ export default {
         onLoad: "startSeriesAdminTechRead",
     },
 
+    // contains all javascript-vue logic for techHigh disciplines. Does not contain the actual drawings
+    trackBase: {
+        name: 'trackBase',
+        title: 'trackBase',
+        parent: 'main',
+        preload: [],
+        injections: {child1: {file:"trackBase.ejs"}},
+        onLoad: "", // call startSeriesAdminTech in the child pages to make it work
+    },
+
+    trackAdmin: {
+        name: "trackAdmin",
+        title: "Track Admin",
+        parent: "trackBase",
+        preload: ['competition'],
+        injections: {content:{file:"trackAdmin.ejs"}},
+        onLoad: "startTrackAdmin",
+    },
+
     /* does not exist anymore, since it is its own page without the pageHandling stuff
     adminServer: {
         name: 'adminServer',

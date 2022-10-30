@@ -1431,7 +1431,7 @@ app.get('/static/wsProcessorBrowser.js', (req, res)=>{
 });
 
 // serve static files (URL must be "/static" and teh fiels lie in "/static")
-app.use('/static', express.static('static'))
+app.use('/static', express.static('static'));
 
 // TODO: remove, for testing only
 app.get('/techHigh', (req, res, next)=>{

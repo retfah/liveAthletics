@@ -56,7 +56,7 @@ export default {
     },
     "techHighBase.ejs":{
         childs:['content'],
-        description: 'Contains the Vue-javascript-stuff for a technical verical discipline (pole vault and high jump). The actual content (html-vue) shall be inserted in "content'
+        description: 'Contains the Vue-javascript-stuff for a technical verical discipline (pole vault and high jump). The actual content (html-vue) shall be inserted in "content".'
     },
     "techHighBoard.ejs":{
         childs:['content'],
@@ -69,6 +69,14 @@ export default {
     "techHighAdmin.ejs":{
         childs: [],
         description: "The vue-drawings of the administration (series assignment and competition) page for tech high disciplines. "
+    },
+    "trackBase.ejs":{
+        childs:['content'],
+        description: 'Contains the Vue-javascript-stuff for a track discipline. The actual content (html-vue) shall be inserted in "content".'
+    },
+    "trackAdmin.ejs":{
+        childs: [],
+        description: "The vue-drawings of the administration (series assignment and competition) page for track disciplines. "
     },
     "liveResults.ejs":{
         childs:[],

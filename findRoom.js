@@ -6,10 +6,13 @@
 // 2022-08: especially for rooms that are created dynamically, simply returning the room is not very helpful, since the following command to the room (e.g. enter) will fail, since the room is not ready. Thus, if awaitRoomReady=true, the function will not resolve until the room is actually ready.  
 
 /**
- * 
- * @param {string} roomName 
- * @param {string} rMeetings What meeting to search for
- * @returns 
+ * return a room on the basis of the name of the room. This can also be a subroom. Throws an error when the room cannot be found or started.
+ * @param {string} meetingAndRoomName The full room name including the meeting shortname 
+ * @param {roomServer} rMeetings The "rMeetings"-room, storing all activeMeetings and their rooms
+ * @param {object} serverRooms Object with all server rooms
+ * @param {logger} logger: instance of logger, which has a function "log" with two parameters: code, message. default is a fake logger
+ * @param {boolean} awaitRoomReady Do not return the room until it is ready. If false, a room will instantly be returned, even if it is not ready yet. default= true
+ * @returns  {roomServer} The room that was searched for
  */
 export default async function findRoom(meetingAndRoomName, rMeetings, serverRooms, logger={log:()=>{}}, awaitRoomReady=true){
 
@@ -30,12 +33,15 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
 
                 // differentiate: we want a subroom OR the mainroom:
                 if (subrooms==''){
+                    // return the room itself
                     if (awaitRoomReady){
                         await room._roomReady();
                     }
                     return room; 
                 } else {
-                    let subroom = room.getSubroom(subrooms); // return false on failure
+                    // return a subroom, if it exists
+                    return findSubroom(room, subrooms, logger, awaitRoomReady)
+                    /*let subroom = room.getSubroom(subrooms); // return false on failure
                     if (!subroom){
                         logger.log(75, 'The subroom "' + subrooms + '" does not exist in the respective meeting.');
                         throw {message:'The subroom "' + subrooms + '" does not exist in the respective meeting.', code:11} ;
@@ -44,7 +50,7 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
                             await subroom._roomReady();
                         }
                         return subroom;
-                    }
+                    }*/
                 }
                 
             } else {
@@ -72,5 +78,18 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
             logger.log(75, 'The room "' + meetingAndRoomName + '" does not exist');
             throw  {message: 'The room "' + meetingAndRoomName + '" does not exist', code:13};
         }
+    }
+}
+
+export async function findSubroom(room, strSubrooms, logger={log:()=>{}}, awaitRoomReady=true){
+    const subroom = room.getSubroom(strSubrooms); // return false on failure
+    if (!subroom){
+        logger.log(75, 'The subroom "' + strSubrooms + '" does not exist in the respective meeting.');
+        throw {message:'The subroom "' + strSubrooms + '" does not exist in the respective meeting.', code:11} ;
+    } else {
+        if (awaitRoomReady){
+            await subroom._roomReady();
+        }
+        return subroom;
     }
 }

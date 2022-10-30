@@ -502,5 +502,6 @@
 	"Lanes around": "Bahnen Kurve",
 	"Heat size distance events": "Laufgrösse",
 	"Timings": "Zeitmessungen",
-	"Number of lanes": "Anzahl Bahnen"
+	"Number of lanes": "Anzahl Bahnen",
+	"empty": "leer"
 }

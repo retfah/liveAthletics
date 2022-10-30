@@ -209,6 +209,11 @@ a.Conn:not([href]):not([tabIndex]) {
     padding: 1px;
 }
 
+/* this class is added to the connection indicator when a request is hanging */ 
+.requestPending {
+    animation: 3.0s ease-in-out infinite requestPending;
+}
+
 .ItemNav1:hover{
     text-decoration-line: underline;
     cursor: pointer;
@@ -662,7 +667,8 @@ option.catMismatch{
     border-radius: var(--border-radius, 4px);
 }
 
-.dragelement {
+/* dragelementH is with highlighting on hover */
+.dragelement, .dragelementH {
     padding: 6px 12px;
     border: 1px solid RGB(206, 212, 218);
     border-radius: var(--border-radius, 4px);
@@ -672,7 +678,23 @@ option.catMismatch{
     margin-bottom: 1px;
     width:auto; /* TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
 }
+.dragelementH:hover, .seriesDragH:hover {
+    background-color: #007BFF;
+}
+.swappos {
+    background-color: #20c997;
+}
 
+.dragelement.alert1, .dragelementH.alert1 {
+    background-color: red;
+}
+.emptyLane.alert2 {
+    background-color: lightyellow;
+}
+
+.noDrag {
+    cursor:auto;
+}
 .row2{
     /* padding: 2px 0px; */
 }
@@ -923,7 +945,7 @@ option.catMismatch{
     animation-duration: 4s;
 }
 
-/* the circle moving left and right to show a loaind process */
+/* NOT NEEDED ANYMORE 2022-10 the circle moving left and right to show a loaind process */
 .requestPendingCircle {
     --dim: 10px;
     height: var(--dim);
@@ -941,7 +963,7 @@ option.catMismatch{
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite; */
 }
-
+/* NOT NEEDED ANYMORE 2022-10 */
 .requestPendingContainer {
     position: relative; /* not allowed to be static, since otherwise the centering of the child-circle in absolute manner does not work */
 }
@@ -1298,6 +1320,13 @@ option:hover {
     }
     100% {
         opacity: 0;
+    }
+}
+
+@keyframes requestPending {
+    /* alternatively we could show a background pattern (Schraffur) */
+    50% {
+        background-color: #ffc107;
     }
 }
 

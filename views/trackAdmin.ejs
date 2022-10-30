@@ -1,0 +1,938 @@
+
+<div id="vueSeriesAdminTrack">
+    <div class="notWriting"  v-if="readOnly">
+        <%= __('Currently this client has no rights to do changes.') %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Writing rights') %>:', '<%= __('There can only be one writing client at a time. If a former writing client has not left properly, you can revoke its writing rights by clicking on connection/contests... and the red (=offline) client with the W. Do not revoke its writing rights when the client is just temporarily offline, e.g. due to a network interuption. Otherwise the client will not be able to upload its locally applied changes on reconnect.') %>')"><%= __('i') %></button>
+    </div>
+    <div class="hideDesktop flexHeadline"><!-- This is the head, contianing the title and the hamburger menu on small screens -->
+        <input class="side-menu" type="checkbox" id="side-menu" v-model="burgerChecked" />
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h1>
+    </div>
+    <div class="contest">
+        <div class="nav" v-bind:class="{shown: burgerChecked}">
+            <div class="navItem">
+                <%= __("Status") %>: 
+                <select class="formCtrl" v-model.number="contest.status" v-on:change="propagateChange=true; statusChanged();" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(contest.status), '--backColorHover': statusBackgroundColorHover(contest.status), color: statusTextColor(contest.status) }">
+                    <template v-for="status in contestStates">
+                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                            {{status.text}}
+                        </option>
+                    </template>
+                </select>
+            </div>
+            <div class="navItem" v-if="contest.status>=95 && contest.status<=180 && series.length>0">
+                <div v-if="series.length>1" style="padding-bottom:5px;">
+                    <%= __("Series Selection") %>
+                    <select class="content dropdown" v-model="selectedSeries" v-on:change="selectedSeriesChanged">
+                        <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesIndex">
+                            {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
+                        </option>
+                    </select>
+                </div>
+                <%= __("Series Status") %>
+                <select class="content dropdown" v-model="series[selectedSeries].status" v-on:change="seriesStatusChanged" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
+                    <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
+                        {{option.text}}
+                    </option>
+                </select><br>
+            </div>
+            <a class="navItem" v-on:click="show='contestInfo'; burgerChecked=false" v-bind:class="{active: show=='contestInfo'}">
+                <%= __('Contest info') %>
+            </a>
+            <a class="navItem" v-on:click="show='settings'; burgerChecked=false" v-bind:class="{active: show=='settings'}">
+                <%= __('Settings') %>
+            </a>
+            <!-- Roll call: -->
+            <div v-if="contest.status<39">
+                <a class="navItem" v-on:click="show='rollCall'; burgerChecked=false" v-bind:class="{active: show=='rollCall'}">
+                    <%= __('Roll call') %>
+                </a>
+            </div>
+
+            <!-- Series assignment: -->
+            <div v-if="contest.status>=60 && contest.status<=89">
+                <a class="navItem" v-on:click="show='series'; burgerChecked=false" v-bind:class="{active: show=='series'}">
+                    <%= __('Series assignment') %>
+                </a>
+            </div>
+
+            <!-- Competition: -->
+            <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
+                <a class="navItem" v-on:click="show='startheights'; burgerChecked=false" v-bind:class="{active: show=='startheights'}">
+                    <%= __('Startheights') %>
+                </a>
+                <a class="navItem" v-on:click="show='competition'; burgerChecked=false" v-bind:class="{active: show=='competition'}">
+                    <%= __('Competition') %>
+                </a>
+                <a class="navItem" v-on:click="show='order'; burgerChecked=false" v-bind:class="{active: show=='order'}">
+                    <%= __('Athletes order') %>
+                </a>
+                <a class="navItem" v-on:click="show='resMod'; burgerChecked=false" v-bind:class="{active: show=='resMod'}">
+                    <%= __('Change results') %>
+                </a>
+                <a class="navItem" v-on:click="show='resShow'; burgerChecked=false" v-bind:class="{active: show=='resShow'}">
+                    <%= __('Show results') %>
+                </a>
+            </div>
+
+        </div>
+        <div class="main" style="padding-left:10px">
+            <!--
+        TODO: initially create the series in an overlay or not: 
+            pro: 
+                - reduces the number of changes sent over the network
+                - the spectators anyway do not need to see it, when it is done.
+            contra:
+                - we either need separate functions where we still have the single changes separately OR the server must find the changes between the series before and after and then translate this to single changes. This would mean additional programming effort. 
+            think about which functions should exist and what they should do and find a simple solution: 
+            - addSeriesAndAthletes: This is made only for the initial series definition; add series and set seriesStartsResults where xStartgroup =...; athletes must not have had a previous series assignment!
+            - addSeries: simply add a series; do not assign any athletes yet
+            - assignAthlete: assign an athlete to a series (it is either a ); automatically delete it from possible prevoious series; always check first that there were no results!
+            - resignAthlete: delete seriesStartResult for a certain athelete, i.e. it can be reassigned again later
+            - deleteSeries: delete a series and all athletes (=all seriesStartsResult entries for this series); only if there were no results yet
+            - changeSeries: change a property of the series (Name, time, ...), but not the athletes of it
+            - reorderSeries: might be needed, especially when we swap series and we have a constrain, that every seriesindex shall exist only once -> then we need that both indices are changed at the same time.
+    
+            simple: assigning positions 
+    
+            difficulties: assignment of equal lanes to multiple persons in 600m/800m
+            idea: two step approach: first define the series and the positions, then provide a button/function to automatically create lanes from the positions. This shall be shown in textfields, which can also be manually overriden.
+            The hole function should probably be accessible on request, while otherwise lane=position and no textfield for the lane is shown. (show yes/no slider for lane=position)-->
+            
+            <!-- TODO: put the following together with the table in a collapsable tool.-->
+
+            <!-- Show this header only on desktop -->
+            <div class="hideMobile">
+                <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h1>
+            </div>
+            <div v-if="show=='contestInfo'">
+                <h2><%= __('Contest info') %></h2>
+                <div style=" margin: 3px;"><%= __('Appeal time') %>: {{formatTime(contest.datetimeAppeal)}}</div>
+                <div style=" margin: 3px;"><%= __('Call time') %>: {{formatTime(contest.datetimeCall)}}</div>
+            
+                <!--Contest: {{contest.xContest}}<br>-->
+                <br>
+                <table>
+                    <th>
+                        <tr>
+                            <td><%= __("Events") %><br><%= __("Category (info)") %></td>
+                            <td v-if="developMode">xEventGroup</td>
+                            <td><%= __("Eventgroup name") %></td>
+                            <td v-if="developMode">xRound</td>
+                            <td><%= __("Round name") %></td>
+                            <td><%= __("Round order") %></td>
+                            <td><%= __("Group name") %></td>
+                            <td><%= __("Group order") %></td>
+                        </tr>
+                    </th>
+                    <template v-for="rG in relatedGroups">
+                        <tr>               
+                            <td>
+                                <template v-for="(event, eventIndex) in rG.round.eventgroup.events">
+                                    <br v-if="eventIndex>0">
+                                    {{getCategory(event.xCategory)}}
+                                    <div style="display: inline;" v-if="event.info">({{event.info}})</div>
+                                    <div style="display: inline;" v-if="developMode">{{event.xEvent}}<div>
+                                    <!-- for throws with different weights in the same contest  -->
+                                    <!--{{disciplines.find(d=>d.xDiscipline==event.xDiscipline)?.shortname}}-->
+                                
+                                </template>
+                                <!--<table>
+                                    <template v-for="event in rG.round.eventgroup.events">
+                                        <tr>
+                                            <td>{{getCategory(event.xCategory)}}</td>
+                                            <td>{{event.info}}</td>
+                                            <td v-if="developMode">{{event.xEvent}}</td>
+                                        </tr>
+                                    </template>
+                                </table>-->
+                            </td>
+                            <td v-if="developMode">{{rG.round.eventgroup.xEventGroup}}</td>
+                            <td>{{rG.round.eventgroup.name}}</td>
+                            <td v-if="developMode">{{rG.xRound}}</td>
+                            <td>{{rG.round.name}}</td>
+                            <td>{{rG.round.order}}</td>
+                            <td>{{rG.name}}</td>
+                            <td>{{rG.number}}</td>
+                        </tr>
+                    </template>
+                    
+                </table>
+
+                <h3><%= __("Print") %></h3>
+                <button type="button" class="btn" onclick="printSeriesTrack()"><%= __("Print series")%></button>
+
+                <h3><%= __("Links") %></h3>
+                <!--<div><%= __("Live results") %>: TODO</div>-->
+                <div><%= __("Field monitor") %>: <a v-bind:href="urlFieldMonitor">{{urlFieldMonitor}}</a> </div>
+
+            </div>
+    
+    
+            <div v-if="contest.status<=39 && show=='rollCall'">
+                <!-- roll call:  -->
+                <h2><%= __("Roll call") %></h2>
+                <!-- TODO: eventually include paid status!<br> -->
+                <!-- provide a table with all athletes and a select box of their status-->
+                <label class="verticalForm" style="display: inline-block">
+                    <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                    <input v-model="filterAthletes" type="search" size="30">
+                </label>
+                <!--<button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>-->
+                <v-table :data="startgroups" :filters="filters">
+                    <template #head> <!-- # head is a shorthand for v-slot:head-->
+                        <thead>
+                            <tr>
+                                <th><%= __("Present") %></th>
+                                <th v-if="showFullDetails">xAthlete</th>
+                                <th v-if="showFullDetails">xInscription</th>
+                                <th is="vue:v-th" sortkey="bib" defaultsort="asc">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                                <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                                <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                                <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
+                                <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                                
+                            </tr>
+                        </thead>
+                    </template>
+                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                        <tbody>
+                            <tr v-for="row in displayData" :key="row.xInscription">
+                                <td><input type="checkbox" :disabled="readOnly" v-model="row.present" v-on:change="presentChanged(row)"></td>
+                                <td v-if="showFullDetails">{{row.xAthlete}}</td>
+                                <td v-if="showFullDetails">{{row.xInscription}}</td>
+                                <td>{{ row.bib }}</td>
+                                <td>{{ row.athleteName }}</td>
+                                <td>{{ row.athleteForename }}</td>
+                                <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                                <td>{{ row.sex }}</td>
+                                <td>{{ row.clubName }}</td>
+                                <!--<td>{{ row.country }}</td>-->
+        
+                            </tr>
+                        </tbody>
+                    </template>
+    
+                </v-table>
+                <button type="button" class="btn" v-on:click="endRollCallCreateSeries"><%= __("Finish roll call and create series") %></button>
+            </div>
+    
+            <!-- TODO: create a general view for series assignment, apart of the initial assignment (to be shown when 60<=states<=89 and at least one series exists)  -->
+
+            
+            <div v-if="contest.status>=60 && contest.status<=89 && show=='series'">
+
+                <!--<div>
+                    <draggable v-model="list1" item-key="number" group="g1" :swap="true">
+                        <template #item="{element, index}">
+                            <div class="dragelement">
+                                {{element}}
+                            </div>
+                        </template>
+                    </draggable>
+                    <br>
+                    <br>
+                    <draggable v-model="list2" item-key="number" group="g1" :swap="true">
+                        <template #item="{element, index}">
+                            <div class="dragelement">
+                                {{element}}
+                            </div>
+                        </template>
+                    </draggable>
+                </div>-->
+
+                <button class="btn" v-if="series.length==0" v-on:click="showInitialSeriesAssignment()" :disabled="readOnly"><%= __("Create Series") %></button>
+                <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
+                <button type="button" onclick="printContest()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
+                <button type="button" v-on:click="deleteAllSeries()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %> (without warning!)</button>
+                <div v-if="series.length>0">
+                    <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
+                        <div style="grid-area: series; padding: 5px;">
+                            <%= __("Series") %>: 
+                            TODO: Add here position and lane, eventually extend lane with 5.1 and 5.2 if two Person are on the same lane;
+                            Make an option in te series assignment for startInLane; how many athletes per lane will be automatically given by the numbe of lanes and the numer of athletes in the series.  
+                            <draggable v-model="seriesAsStartgroups" item-key="number" group="seriesMain" @change="moveSeries">
+                                <template #item="{element, index}">
+                                    <div class="dragelement">
+                                        <b><%= __("SeriesSingular") %> {{index+1}}</b>
+                                        <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th><%= __("Position") %></th>
+                                                    <th><%= __("Lane") %></th>
+                                                    <th><%= __("Name") %></th>
+                                                    <th><%= __("Firstname") %></th>
+                                                    <th><%= __("Club") %></th>
+                                                    <th><%= __("PB") %></th>
+                                                    <th><%= __("SB") %></th>
+                                                </tr>
+                                            </thead>
+                                            <!-- the following draggable must be named as tbody to make it work, however, we then need to specify that it actually is a vue component by using the is="vue:draggable" label. Finally, draggable would usually result in a div, but we want it to be a tbody element, so we set tag="tbody".-->
+                                            <tbody is="vue:draggable" v-model="seriesAsStartgroups[index].seriesstartsresults" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody">
+                                                <template #item="{element, index}">
+                                                    <tr class="dragelement">
+                                                        <td>{{element.position}}</td>
+                                                        <td>{{parseJSON(element.startConf)?.lane}}</td>
+                                                        <td>{{element.startgroup.athleteName}}</td>
+                                                        <td>{{element.startgroup.athleteForename}}</td>
+                                                        <td>{{element.startgroup.clubName}}</td>
+                                                        <td>{{formatPerf(element.startgroup.bestPerf)}}</td>
+                                                        <td>{{formatPerf(element.startgroup.bestPerfLast)}}</td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                            </draggable>
+                        </div>
+                        <div style="grid-area: athletes; padding: 5px;">
+                            <%= __("Athletes to assign") %>: 
+                            <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
+                            <v-table :data="unassignedAthletes" >
+                                <template #head> 
+                                    <thead>
+                                        <tr>
+                                            <th is="vue:v-th" sortkey="present"><%= __('Present') %></th>
+                                            <th is="vue:v-th" sortkey="athleteName" defaultSort="asc"><%= __('Name') %></th>
+                                            <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                            <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                            <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                            <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                        </tr>
+                                    </thead>
+                                </template>
+                                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                                    <tbody is="vue:draggable" v-model="displayData" item-key="index" group="athleteSeriesAssignment2"  @change="removeSSR"  tag="tbody">
+                                        <template #item="{element, index}" >
+                                            <tr class="dragelement">
+                                                <td>{{ element.present }}</td>
+                                                <td>{{ element.athleteName }}</td>
+                                                <td>{{ element.athleteForename }}</td>
+                                                <td>{{ element.clubName }}</td>
+                                                <td>{{formatPerf(element.bestPerf)}}</td>
+                                                <td>{{formatPerf(element.bestPerfLast)}}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>   
+                                </template>
+                            </v-table>
+                        </div>
+                    </div>
+        
+                </div>
+            </div> 
+
+            <div v-if="show=='settings'">
+                <h2><%= __('Settings') %></h2>
+                <h3><%= __("Contest settings (effective for all series)") %></h3>
+                <button class="btn" v-on:click="startUpdateConf"><%= __("Contest configuration") %></button>
+
+            </div>
+    
+            <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
+    
+    
+                <div v-if="show=='settings'" id="settings" style="width:100%">
+
+                    <!-- TODO: format this -->
+                    <h3><%= __("Series Settings") %></h3>
+                    What kind of settings do we need here for track? eventually none
+                    
+                </div>
+                
+                <div v-if="show=='startheights'" id="startHeights" class="container" style="width:100%">
+                    <!-- startheights should only be changeable until an athlet has a result -->
+                    <h2><%= __("Startheights") %></h2>
+                    <table class="table">
+                        <tr><th class="d-none d-md-block"><%= __("Nbr.") %></th><th><%= __("Name") %></th><th class="d-none d-md-block"><%= __("Club")%></th><th></th></tr>
+                        <template v-for="(xSeriesStartEl, xSeriesStartElIndex) in series[selectedSeries].seriesstartsresults">
+                            <!-- The athletes data is in the auxData! -->
+                            <tr>
+                                <td class="d-none d-md-block">{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].bib}}</td>
+                                <td>{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].athleteForename}} {{auxData.xStartgroup[xSeriesStartEl.xStartgroup].athleteName}}</td>
+                                <td class="d-none d-md-block">{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].clubName}}</td>
+                                <td>
+                                    <select class="formCtrl" :id="'startHeightSelection' + xSeriesStartEl.xStartgroup.toString()" onmousedown="if(this.options.length>6){this.size=6;}; " onchange="this.size=0" onblur="if (this.selectedIndex==-1){this.size=0; this.selectedIndex=-1} else {this.size=0;}" v-model.string="xSeriesStartEl.startConf" v-on:change="startHeightChanged(xSeriesStartEl)" :disabled="readOnly"> <!-- I dont want an extremely long dropdown, so we quickly increase the size of the select to make it not a dropdown, but a list, and then reset it: Problem in Chrome: When nothing is selected and blur is raised, changing the size back to 0 makes the first item appear selected, however it is not (no change or input event raised neither). The if in the onblur event is the workaround for that, since it corrects the problem currently 02.2020 -->
+                                    <template v-for="(height, heightIndex) in allHeights">
+                                        <option v-bind:value="height">{{height.toString()}}</option>
+                                    </template>
+                                </select></td>
+                            </tr>
+    
+                        </template>
+                    </table>
+                </div>
+    
+                <!-- change result mode, eventually including a mode to enter results in the TIC -->
+    
+                <!-- competition mode (standard): -->
+                <div v-if="show=='competition'" id="competition" style="margin-right:auto">
+                    <h2><%= __("Competition") %></h2>
+                    <div v-if="mode == 0"><%= __("Please define the start heights.") %></div>
+                    <div v-if="mode == 1" style="display:inline-block"> 
+                        <div id="currentAth" v-if="position.length>0" class="athlete">
+                            <div class="row2">                            
+                                <div class="el"><%= __("Current athlete") %>: </div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].bib}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}}</div>
+                                <div class="elText">{{birthdayToXX(auxData.xStartgroup[currentAthleteStart.xStartgroup].birthdate)}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].countryCode}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].clubName}}</div>
+                                <section class="collapsable el2 marginRight" v-if="!readOnly">
+                                    <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                    <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
+                                    <label for="hiddenInput" class="marginRight">
+                                        <%= __("Change participation status") %>  
+                                    </label>
+                                    <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart)">
+                                        <option v-for="option in participationStates" v-bind:value="option.value">
+                                            {{option.text}}
+                                        </option>
+                                    </select>
+                                </section>
+                            </div>
+                            
+                            <div class="row2">
+                                <div class="elText">{{meterStr(currentHeight)}} m</div>
+                                <div class="elText">{{attempt2}}. <%= __("Attempt") %>: </div>
+                                <div class="el2">
+                                    <!-- 
+                                        if not result yet: select XO- 
+                                        if result entered: select "vorlegen/stage/advance/next" -->
+                                    <div v-if="resultOnCurrentHeight">
+                                        <template v-if="readOnly">
+                                            <!-- add some formatting -->
+                                            {{resultOnCurrentHeight}}
+                                        </template>
+                                        <template v-else>
+                                            <button class="btn" type="button" v-on:click="calculateNextAthlete"><%= __("Advance") %></button> 
+                                        </template>
+                                    </div>
+                                    <div v-else>    
+                                        <button type="button" class="el width3" v-on:click="cleared()" v-bind:disabled="readOnly">O</button>
+                                        <button type="button" class="el width3" v-on:click="failed()" v-bind:disabled="readOnly">X</button>
+                                        <button type="button" class="el width3" v-on:click="passed()" v-bind:disabled="readOnly">-</button>
+                                    </div>
+    
+                                    <!-- time period stuff: -->
+                                        <!-- Note: we use hours as minutes and minutes as seconds -->
+                                    <!--<div v-if="autoAdvance==false">
+                                        <input type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
+                                        <button type="button" class="btn" v-on:click="setTime" v-if="!readOnly"><%= __("Set") %></button>
+                                        <div v-if="roomAuxData[selectedXSeries].showAttemptPeriod">
+                                            <h3 v-bind:class="{yellowBg: last15}">{{shownTime}}</h3>
+                                            <button type="button" class="btn" v-on:click="startPeriod" v-if="!readOnly">&#9654;</button>
+                                            <button type="button" class="btn" v-on:click="hidePeriod" v-if="!readOnly">&#9209;</button>
+                                        </div>
+                                    </div>-->
+                                </div>
+    
+                                <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)"
+                                v-bind:disabled="readOnly">
+                            </div>
+                            <div class="row2" v-if="autoAdvance==false && resultOnCurrentHeight==false">
+                                <!-- time period stuff: -->
+                                <div class="el2">
+                                    <!-- Note: we use hours as minutes and minutes as seconds -->
+                                    <input style="padding:6px 12px; border-radius: 4px; border: 1px solid rgb(206,212,218); line-height:24px; font-size: 16px;" type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
+                                    <button type="button" class="el" v-on:click="setTime" v-if="!readOnly"><%= __("Set") %></button>
+                                </div>
+                                <div class="el2">
+                                    <div style="display: inline-block;" v-if="roomAuxData[selectedXSeries].showAttemptPeriod">
+                                        <button type="button" class="el width3" v-on:click="startPeriod" v-if="!readOnly">&#9654;</button>
+                                        <button type="button" class="el width3" v-on:click="hidePeriod" v-if="!readOnly">&#9209;</button>
+                                        <div style="display: inline-block; font-weight: bold; font-size:1rem; padding: 6px 12px; border: 1px solid rgb(206,212,218); border-radius: 4px;" v-bind:class="{yellowBg: last15}">{{shownTime}}</div>
+                                    </div>
+                              </div>
+                            </div>
+    
+                            <div class="row2 athRes">
+                                <div class="elText"><%= __("Rank") %>: 
+                                    {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                                    </div>
+                                <div class="elText"><%= __("Results so far") %>: </div>
+                                <template v-for="res in sortedResults(currentAthleteStart.resultshigh)">
+                                    <div class="elText">
+                                        {{getHeight(res.xHeight)}}: {{resultToStr(res)}}
+                                    </div>
+                                </template>
+                            </div>
+    
+                        </div>
+                        <br />
+                        <div id="nextAth" v-if="positionNext.length>1" class="athlete">
+                            <div class="row2">
+                                <div class="elText"><%= __("Next athlete") %>: </div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].bib}}</div>
+                                <div class="elText">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteName}} {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteForename}}</div>
+                                <div class="elText">{{birthdayToXX(auxData.xStartgroup[nextAthleteStart.xStartgroup].birthdate)}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].countryCode}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].clubName}}</div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText">{{attemptNext2}}. <%= __("Attempt") %></div>
+                                <div class="elText">{{meterStr(currentHeight)}} m</div>
+                            </div>
+    
+                            <!-- <div><%= __("Rank") %>: {{tempRankingData[nextAthleteStart.xSeriesStart].rank}}</div> -->
+                        </div>
+                    </div>
+                    <div v-if="mode == 2 && jumpoffHeightRequired ">
+                        <%= __("Define the next height in the jumpoff") %>: 
+                        <input class="formCtrl" type="text" id="manualJumpoffHeight" v-model="manualJumpoffHeight" size="3" v-bind:max="disciplineConfiguration.heightMax" min="0" v-on:keyup="addManualJumpoffHeightEnter" :disabled="readOnly">
+                        <button class="btn btnGrey" v-on:click="addManualJumpoffHeight()" :disabled="readOnly"><%= __("Add") %></button>
+                    </div>
+                    <div v-if="mode == 2 && jumpoffHeightRequired == false">
+                        <!-- Jumpoff: -->
+                        <%= __("Jumpoff") %>
+                        <div id="currentAth" v-if="position.length>0" class="athlete">
+                            <div class="row2">                            
+                                <div class="el"><%= __("Current athlete") %>: </div>
+                            </div>
+                            <div class="row2" >
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].bib}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}}</div>
+                                <div class="elText">{{birthdayToXX(auxData.xStartgroup[currentAthleteStart.xStartgroup].birthdate)}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].countryCode}}</div>
+                                <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].clubName}}</div>
+                                <section class="collapsable el2 marginRight" v-if="!readOnly">
+                                    <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                    <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
+                                    <label for="hiddenInput" class="marginRight">
+                                        <%= __("Change participation status") %>  
+                                    </label>
+                                    <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart);">
+                                        <option v-for="option in participationStates" v-bind:value="option.value">
+                                            {{option.text}}
+                                        </option>
+                                    </select>
+                                </section>
+                            </div>
+                            
+                            <div class="row2">
+                                <div class="elText">{{currentJumpoffHeight}} m</div>
+                                <div class="elText">{{currentJumpoffHeightInd}}<%= __(". jumpoff height") %>: </div>
+                                <div class="el2">
+                                    <button class="el" v-on:click="clearedJumpoff()">O</button>
+                                    <button class="el" v-on:click="failedJumpoff()">X</button> <!-- athletes must jump (thus only options cleared or failed), or they can retire => change status to retired -->
+                                </div>
+    
+                                <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)" v-bind:disabled="readOnly">
+                            </div>
+    
+                            <div class="row2 athRes">
+                                <div class="elText"><%= __("Rank") %>: {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}</div>
+                                <div class="elText"><%= __("Results so far") %>: </div>
+                                <template v-for="res in currentAthleteStart.resultshigh">
+                                    <div class="elText">
+                                        {{getHeight(res.xHeight)}}: {{resultToStr(res)}}
+                                    </div>
+                                </template>
+                            </div>
+    
+                        </div>
+                        <br />
+                        <div id="nextAth" v-if="positionNext.length>1" class="athlete" >
+                            <div class="row2">
+                                <div class="elText"><%= __("Next athlete") %>: </div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].bib}}</div>
+                                <div class="elText">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteName}} {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteForename}}</div>
+                                <div class="elText">{{birthdayToXX(auxData.xStartgroup[nextAthleteStart.xStartgroup].birthdate)}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].countryCode}}</div>
+                                <div class="elText Sl_hide">{{auxData.xStartgroup[nextAthleteStart.xStartgroup].clubName}}</div>
+                            </div>
+                            <div class="row2">
+                                <div class="elText">{{currentJumpoffHeight}} m</div>
+                                <div class="elText">{{currentJumpoffHeightInd}}<%= __(". jumpoff height") %></div>
+                            </div>
+    
+                            <!-- <div><%= __("Rank") %>: {{tempRankingData[nextAthleteStart.xSeriesStart].rank}}</div> -->
+                        </div>
+                    </div>
+                    <div v-if="mode == 3">
+                        <%= __("The competition is finished.") %>
+                    </div>
+                </div>
+                <div v-if="show=='order'" id="orderPosition" style="display:block">
+                    <h2><%= __("Order of athletes") %></h2>
+                    <!-- TODO: this button would ideally only be present if the order is not the default order -->
+                    <button type="button" class="btn" v-on:click="resetPositions" v-if="JSON.stringify(this.position) != JSON.stringify(this.defaultPosition)">
+                        <%= __("Reset order of athletes") %>
+                    </button>
+                    <%= __("Drag'n'drop") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
+                    <ol>
+                        <draggable style="display:inline-block;" v-model="position" @end="onPositionMovingEnded" item-key="index" :disabled="readOnly">
+                            <template #item="{element, index}">   
+                                <li class="item"> 
+                                    <div class="dragelement" v-bind:class="{ current: currentAthleteStart?.xStartgroup==getStartByXSeriesStart(element).xStartgroup, next: nextAthleteStart?.xStartgroup==getStartByXSeriesStart(element).xStartgroup }">
+                                        {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.bib}} 
+                                        {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteName}} {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteForename}}
+                                    </div>     
+                                </li>     
+                            </template>
+                        </draggable>
+                    </ol>
+        <!--
+                    Same, but as grid
+                    <draggable style="display: flex; flex-wrap: wrap; width: 400px; justify-content: center" v-model="position" @end="onPositionMovingEnded" item-key="index" :disabled="readOnly">
+                        <template #item="{element, index}">   
+                            <template v-if="index==position.length-1">
+                                <div class="dragelement">
+                                    {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.bib}} 
+                                    {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteName}} {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteForename}}
+                                </div> 
+                            </template>
+                            <template v-else>
+                                <div class="dragelement"> 
+                                    {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.bib}} 
+                                    {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteName}} {{auxData.xStartgroup[getStartByXSeriesStart(element).xStartgroup]?.athleteForename}}
+                                </div> 
+                            </template>    
+                        </template>
+                    </draggable>-->
+                </div>
+                <div v-if="show=='resMod'" id="resultsView" v-if="mode>0" style="display:block">
+                    <h2><%= __("View / add / change results") %>:</h2>
+                    <%= __("Sorting") %>: 
+                    <select v-model="sortValue1" class="dropdown marginS">
+                        <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
+                        <option value="2"><%= __("Rank") %></option>
+                        <option value="3"><%= __("Name") %></option>
+                        <option value="4"><%= __("Bib") %></option>
+                    </select><br />
+                    <!-- 
+                        Two different views of the results are possible (while the athlete data in both is +- the same):
+                        1) Just show a list of the athletes, their rank and the best valid height. In small, show the details of every height. This view is mobile-friendly and columns could be hidden dependent on screen size. 
+                        2) Show a big table in the style as the judge has it on his paper: one column per height. Gives a wider table than option 1, which is less mobile friendly.
+                        => so far only option 1 is implemented
+                    -->
+                    <div style="display:inline-block" >
+                        <template v-for="(startIndex, sortIndex) in sortedStarts1">
+                            <div class="athlete" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }">
+                                <div class="row2">
+                                    <div class="elText">{{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}} </div>
+                                    <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
+                                    <div class="elText" style="font-weight: bold">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
+                                    <div class="elText">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
+                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].countryCode}}</div>
+                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
+                                </div>
+                                <div class="row2">
+                                    <div class="elText"><%= __("Valid height") %>: {{(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].lastValidHeight/100).toFixed(2)}} m</div>
+                                    <template v-for="res in sortedResults(series[selectedSeries].seriesstartsresults[startIndex].resultshigh)"> 
+                                        <div class="el2" v-bind:class="{hidden: res==currentResultChange}">
+                                            <button class="btn btnGrey" v-on:click="changeResult(res)" v-bind:class="{validHeight: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].lastValidHeight==getHeight(res.xHeight)}" :disabled="readOnly">{{getHeight(res.xHeight)}}: {{resultToStr(res)}}</button>
+                                        </div>
+                                        <div class="el2" v-bind:class="{hidden: res!=currentResultChange}">
+                                            <input class="formCtrl" type="text" size=3 maxlength=3 name="result" v-bind:id="'resChange' + res.xResult" v-model="currentResultString" v-on:blur="saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex])" :disabled="readOnly">
+                                        </div>
+                                    </template>
+                                    
+                                    <div class="elText"><%= __("# failed attempts") %>: {{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].totalFailedAttempts}}</div>
+                                </div>
+                                
+                                <div class="row2" v-if="readOnly==false">
+                                    <!-- provide here the possibility to add a result (as it would be useful in TIC mode): -->
+                                    <div v-if="!tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished">
+                                        <div class="elText" style="display:inline-block"><%= __('Add result') %>: </div>
+                                        <!-- dropdown with heights that were not jumped yet by this athlete; the next higher height is preselected -->
+                                        <select class="dropdown" name="" v-bind:id="'newResultHeight' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart">
+                                            <option v-for="hEl in getNewHeigthsByXSeriesStart(series[selectedSeries].seriesstartsresults[startIndex])" v-bind:value="hEl.value" v-bind:selected="hEl.next">
+                                                {{hEl.text}}
+                                            </option>
+                                        </select>
+                                        <input class="formCtrl" size="3" maxlength="3" type="text" name="newResult" v-bind:id="'newResultValue' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" v-on:blur="addResultBlur(series[selectedSeries].seriesstartsresults[startIndex], $event)" v-on:keydown="resultKeyPressed=$event.which || $event.keyCode">
+                                    </div>
+                                    <div class="marginLeft">
+                                        <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
+                                    </div>
+    
+                                    <section class="el2 collapsable marginLeft marginRight">
+                                        <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correctly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
+                                        <input type="checkbox" v-bind:id="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" name="participationStatusHider" ></input><!-- do not show the radio button; tha label is still clickable -->
+                                        <label v-bind:for="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart">
+                                            <%= __("Change participation status") %>    
+                                        </label>
+                                        <!-- TODO: participation should be changed only after confirmation or in a usually hidden menu (e.g. click on "change status" to show the dropdown) -->
+                                        <select class="content dropdown marginLeft" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
+                                            <option v-for="option in participationStates" v-bind:value="option.value">
+                                                {{option.text}}
+                                            </option>
+                                        </select>
+                                    </section>
+                                </div>
+                            </div>
+                            <br />
+                        </template>
+                    </div>
+                </div>
+                <div v-if="show=='resShow'">
+                    <h2><%= __("Results (table view)") %>:</h2>
+                    <%= __("Sorting") %>: 
+                    <select v-model="sortValue2" class="dropdown marginS">
+                        <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
+                        <option value="2"><%= __("Rank") %></option>
+                        <option value="3"><%= __("Name") %></option>
+                        <option value="4"><%= __("Bib") %></option>
+                    </select>
+                    <div id="resultsView2" v-if="mode>0" style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+                        <!-- table view of the results with a grid layout -->
+                        <!-- show all the heights; the column is given by height in cm + 100 -->
+        
+                        <!-- eventually we can also use Vue to create named lines and use those to order the items; woudl probably be faster! 
+                        grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
+        
+                        <template v-for="h in sortedHeights">
+                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
+                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
+                        </template>
+                        <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                            
+                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
+                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                            </div>
+                            <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                            </div>
+                            <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                            </div>
+                            <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
+                                <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
+                                    {{resultToStr(hRes)}}
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+    
+            <!-- Overlay for the initial series assignment: -->
+            <div class="overlay" v-bind:class="{shown: overlay2}">
+                <div class="overlayContainerWide">
+                    <form>
+                        <button type="button" class="btn" v-on:click="startUpdateConf"><%= __("Contest configuration") %></button><br>
+                        <button type="button" class="btn" v-on:click="addEmptySeriesInitial()"><%= __("Add single series") %></button>
+                        <button type="button" class="btn" v-on:click="overlay='automaticSeriesAssignment'"><%= __("Automatic series assignment") %></button>
+    
+                        <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
+                            <div style="grid-area: series;">
+                                <%= __("Series") %>
+                                <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
+                                    <template #item="{element:series, index}">
+                                        <div class="dragelement">
+                                            <div class="seriesDragH"><%= __("SeriesSingular") %> {{index+1}}</div>
+                                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th><%= __("Lane") %></th>
+                                                        <th v-if="conf.groupSize>1"><%= __("Position") %></th>
+                                                        <th><%= __("Name") %></th>
+                                                        <th><%= __("Firstname") %></th>
+                                                        <th><%= __("Club") %></th>
+                                                        <th><%= __("PB") %></th>
+                                                        <th><%= __("SB") %></th>
+                                                    </tr>
+                                                </thead>
+                                                                                                    <!-- TODO: differentiate startInLanes or not: 
+                                                        - conf.startInLanes = true: show as many lanes as selected
+                                                        - ATTENTION: startInLane should NOT be given by the discipline, but by the configuration of the contest! (But the default of the contest will be taken from disciplines)
+                                                        - startInLane=1: always show all lanes once (crouch start, in lanes)
+                                                        - startInLane=2: always show each lane multiple times, by default twice (standing start, in lanes)
+                                                        - startInLane=0: do not show lanes, but only the positions (standing start without lanes)
+                                                        seriesObj[index]
+                                                    -->
+                                                <tbody style="background-color: white;">
+                                                    <template v-for="(element, index) in series.SSRs">
+                                                        <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
+                                                            <td>{{element.lane}}</td>
+                                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                            <td><%= __("empty") %></td>
+                                                            <td> </td>
+                                                            <td> </td>
+                                                            <td> </td>
+                                                            <td> </td>
+                                                        </tr>
+                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                            <td>{{element.lane}}</td>
+                                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                            <td>{{element.startsingroup.athleteName}}</td>
+                                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                                            <td>{{element.startsingroup.clubName}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                                <!--<tbody is="vue:draggable" v-model="seriesObj[index].SSRs" item-key="index" group="athleteSeriesAssignment" @end="dragEnded" :move="dragMove" @start="dragStarted" @change="changeOnSeries($event, element, index)"  v-bind:id="'s' + (index+1)" tag="tbody" :swap="true" swap-class="swappos" replace-class="swappos" :replace="false">
+                                                    <template  #item="{element, index}">
+                                                        <tr class="dragelementH" v-if="element.startsingroup==null">
+                                                            <td>{{element.posInLane}}</td>
+                                                            <td>{{element.lane}}</td>
+                                                            <td><%= __("empty") %></td>
+                                                            <td></td>
+                                                            <td></td>
+                                                            <td></td>
+                                                            <td></td>
+                                                        </tr>
+                                                        <tr class="dragelementH" v-else>
+                                                            <td>{{element.posInLane}}</td>
+                                                            <td>{{element.lane}}</td>
+                                                            <td>{{element.startsingroup.athleteName}}</td>
+                                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                                            <td>{{element.startsingroup.clubName}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>-->
+                                            </table>
+                                        </div>
+                                    </template>
+                                </draggable>
+                            </div>
+                            <div style="grid-area: athletes;">
+                                <div><%= __("Athletes to assign") %></div> <!-- TODO remove the DIV around; was just for testing-->
+                                
+                                <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
+                                <v-table :data="unassignedAthletesCreate" >
+                                    <template #head> 
+                                        <thead>
+                                            <tr @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
+                                                <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                                                <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                                <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                            </tr>
+                                        </thead>
+                                    </template>
+                                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                                        <!-- NEW 2022-10-28: manually handle the draggable stuff based on th html api -->
+                                        <template v-for="(element, index) in displayData">
+                                            <tr class="dragelementH" draggable="true" @dragstart="dragStart(unassignedAthletesCreate, element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
+                                                <td>{{ element.athleteName }}</td>
+                                                <td>{{ element.athleteForename }}</td>
+                                                <td>{{ element.clubName }}</td>
+                                                <td>{{ formatPerf(element.bestPerf)}}</td>
+                                                <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                            </tr>
+                                        </template>
+                                        <!--<draggable v-model="displayData" item-key="index" group="athleteSeriesAssignment"   tag="tbody" :swap="true" :replace="false" swap-class="swappos" replace-class="swappos" :move="dragMove" :sort="false" id="unassignedAthletesInit">
+                                            <template #item="{element, index}">
+                                                <tr class="dragelementH">
+                                                    <td>{{ element.athleteName }}</td>
+                                                    <td>{{ element.athleteForename }}</td>
+                                                    <td>{{ element.clubName }}</td>
+                                                    <td>{{ formatPerf(element.bestPerf)}}</td>
+                                                    <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                                </tr>
+                                            </template>
+                                        </draggable> -->  
+                                    </template>
+                                </v-table>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Close") %></button>
+                        <button type="button" class="btn btnGreen" ref="saveInitSeries" v-on:click="saveInitSeries"><%= __("Save") %></button>
+                    </form>
+                </div>
+            </div>
+    
+            <div class="overlay"  v-bind:class="{shown: overlay}">
+                <div class="overlayContainer">
+                    <!--<div id="confTechHigh" v-if="overlay=='config'">
+
+                    </div>-->
+    
+                    <div v-if="overlay=='automaticSeriesAssignment'">
+                        <form>
+                            <!-- if there are multiple assignment algorithms, show a dropdown to select-->
+                            <div v-if="seriesAssignments.length>1">
+                                <%= __("Series assignment") %>: <!-- for track it is called heat --> 
+                                <!-- if there are multiple series assignment algorithms, show a dropdown to choose from -->
+                                <select class="formCtrl" v-model.number="selectedSeriesAssignment">
+                                    <template v-for="(SA, id) in seriesAssignments">
+                                        <option v-bind:value="id">{{SA.name}}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            <!-- include teh different series assignment configuration wizards -->
+                            <% seriesAssignments.forEach((SA)=>{ %>
+                                <%- include(SA, {type:"html"}) %>
+                            <% }); %>
+                            <button type="button" class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
+                            <button type="submit" class="btn btnGreen" v-on:click="createSeriesAutomatically()"><%= __("(Re-)create series") %></button>
+                        </form>
+                    </div>
+    
+                    <!-- insert here all series assignment settings -->
+    
+    
+                </div>
+            </div>
+
+            <!-- overlay for the configuration; must be on top of series assignment to allow its access from there-->
+            <div class="overlay"  v-bind:class="{shown: overlay3}">
+                <div class="overlayContainer">
+                    <div id="confTechHigh" v-if="overlay3=='config'">
+                        <form>
+                            <div class="verticalForm">
+                                <h3><%= __("Contest configuration") %>: </h3>
+                                <label>
+                                    <%= __("Number of lanes") %>:
+                                    <input type="number" min="1" v-model.number="confForMod.lanes">
+                                </label>
+                                <label>
+                                    <%= __("Start in lanes") %>: 
+                                    <input type="checkbox" v-model.number="confForMod.startInLanes" v-on:change="startInLanesChanged">
+                                </label>
+                                <div v-if="confForMod.startInLanes==0">
+                                    <label>
+                                        <%= __("Max. number of athletes per group") %>:
+                                        <input type="number" min="1" v-model.number="confForMod.groupSize">
+                                    </label>
+                                </div>
+                                <div v-if="confForMod.startInLanes==1">
+                                    <label>
+                                        <%= __("Max. number of athletes per lane") %>:
+                                        <input type="number" min="1" v-model.number="confForMod.groupSize">
+                                    </label>
+                                </div>
+                    
+                                <button type="submit" class="btn btnGreen" v-on:click="saveUpdateConf" :disabled="readOnly">
+                                    <%= __("Save") %>
+                                </button>
+                                <button type="button" class="btn btnRed" v-on:click="abortUpdateConf"><%= __("Abort") %></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+    
+            <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+                <!-- overlay used for displaying general information -->
+                <div id="overlayContainer">
+                    <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+                    <div id="overlayContent">{{infoContent}}</div>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+
+    
+</div>

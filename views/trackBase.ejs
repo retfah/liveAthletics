@@ -1,4 +1,12 @@
 <script src="/static/vuContestTrack.js"></script>
+<script type="module">
+    // include stuff which is in a module; add it to window, so that it can be used 
+    import {formatCountryRegion, disciplineFormatters, validatePerformance} from '/static/performanceProcessing.js';
+    window.formatCountryRegion = formatCountryRegion;
+    window.disciplineFormatters = disciplineFormatters;
+    window.validatePerformance = validatePerformance;
+
+</script>
 <script>
 
     // this code originally was based on techHigh
@@ -12,15 +20,54 @@
     // connect to the room (defined by te ID in the URL/http-GET-param)
     // class vuContestTest is imported above
 
-    var rCTech;
-    var vueSeriesAdminTech; 
-
-    function startSeriesAdminTechRead(){
-        // no writing right
-        startSeriesAdminTech(false);
+    class vuSites extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('sites@' + meetingShortname, false, true, '/static/rSitesClient.js', 'rSitesClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.sites = this.room.data.sites; // this will actually store a proxy of the data!
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.site = this.room.data.sites;
+    
+        }
     }
 
-    function startSeriesAdminTech(writing=true){
+    var rCTrack;
+    var rSites;
+    var vueSeriesAdminTrack; 
+
+    function startTrackAdminRead(){
+        // no writing right
+        startTrackAdmin(false);
+    }
+
+    function startTrackAdmin(writing=true){
 
         /**
          * IMPORTANT NOTE: 
@@ -36,11 +83,19 @@
             data(){
                 return {
 
+                    list1:[1,2,3],
+                    list2:[4,5,6],
+
+                    dragged:null, // note which element is currently dragged
+
+                    sites:[],
+
                     developMode:false,
                     //showContestInfo: false,
                     show:'none', // TODO: automatically show most reasonable thing at startup
-                    overlay: undefined, // either undefined or 'createSeries' or 'config'
+                    overlay: undefined, // either undefined or 'createSeries'
                     overlay2: undefined, // createSeries or undefined
+                    overlay3: undefined, // config or undefined
                     // there will be no waiting page, but a limit to one client and this will be the first offline working page.
                     burgerChecked: false, // burger menu activated
 
@@ -181,7 +236,131 @@
             },
             methods:{
 
+                // to make an element a dropzone, it needs the following event handlers:
+                // - ondragover
+                // - ondrop
+                preventDrag(evt){
+                    // this is needed on all placeholders to make sure that the click is not propagated to the underlying series (to drag series). This should only be possible around the athletes
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    evt.stopImmediatePropagation();
+                },
+                dragOver(element, list, evt){
+                    //console.log('dragOver');
+                    if (!this.dragged){
+                        return false;
+                    }
+                    // prevent unassigned athlete to be dropped on existing athlet
+                    if (this.dragged.replace && (element.startsingroup || list==this.unassignedAthletesCreate)){
+                        evt.dataTransfer.dropEffect = "none";
+                    } else {
+                        evt.dataTransfer.dropEffect = "move";
+                    }
+                    evt.preventDefault();
+                },
+                dragEnd(evt){
+                    // if we dropped the element, dragged will already be null, since drop-event is fired first
+                    console.log('dragEnd')
+                    this.dragged=null;
+                },
+                dragEnter(evt){
+                    console.log('dragEnter')
+                    if (!this.dragged){
+                        return false;
+                    }
+                    // change color
+                    evt.currentTarget.classList.add('swappos');
+                    evt.preventDefault();
+                },
+                dragLeave(evt){
+                    console.log('dragLeave')
+                    if (!this.dragged){
+                        return false;
+                    }
+                    // this event is called whenever the lowermost element (here: td) is left, and not only when the element with the drag-listener (here: tr) is left; thus, we need to differentiate whether the tr was left or only the td
+                    // NOTE: it seems like toElement and fromElement are swapped here
+                    // NOTE: this is also called when drop ends over an element, even if dropping is not possible. In that case fromElement is empty (it would make more sense if toElement was empty...). Thus, first make sure both elements exist
+                    if (evt.toElement && evt.fromElement && evt.toElement.parentNode!=evt.fromElement.parentNode){
+                        // change color
+                        evt.currentTarget.classList.remove('swappos');
+                    }
+
+                },
+                drop(list, index, evt){
+                    // do not react on dragged series:
+                    if (!this.dragged){
+                        return;
+                    }
+                    console.log('drop');
+                    evt.preventDefault();
+
+                    // differentiate different cases
+                    // within the same series
+                    if (this.dragged.list==list){
+                        if (list == this.unassignedAthletesCreate){
+                            // do not sort within the unassigned athletes
+                            this.dragged=null;
+                            return false;
+                        }
+                        // swap the startsingroup
+                        var sig1 = list[index].startsingroup;
+                        list[index].startsingroup = this.dragged.element.startsingroup;
+                        this.dragged.element.startsingroup = sig1;
+                    } else {
+
+                        if (this.dragged.list == this.unassignedAthletesCreate){
+                            // unassigned to series
+                            // remove in unassigned athletes
+                            // NOTE: since the unassignedAthletesCreate can be sorted different from the view, we need to find the index and cannot use the provided index
+                            let ind = this.unassignedAthletesCreate.indexOf(this.dragged.element);
+                            this.unassignedAthletesCreate.splice(ind,1);
+
+                            // replace placeholder in series
+                            list[index].startsingroup= this.dragged.element;
+
+                        } else if (list == this.unassignedAthletesCreate){
+                            // series to unassigned
+
+                            // add athlete to unassigned athletes
+                            this.unassignedAthletesCreate.push(this.dragged.element.startsingroup)
+
+                            // change the element to a placeholder
+                            this.dragged.element.startsingroup=null;
+
+                        } else{
+                            // series to series
+                            // swap the startsingroup
+                            var sig1 = list[index].startsingroup;
+                            list[index].startsingroup = this.dragged.element.startsingroup;
+                            this.dragged.element.startsingroup = sig1;
+                        }
+
+
+                    }
+                    this.dragged = null;
+                    evt.currentTarget.classList.remove('swappos');
+                    this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
+                },
+                dragStart(list, element, index, evt, replace=false){
+                    // set replace to true for 
+                    // - drag elements in unassignedAthletes
+                    // - invalid lanes (e.g. when the number of persons per lane or the number of lanes gets reduced after persons were assigned)
+                    console.log('dragStart');
+                    // since we must know later, what vue data (and not only which html-element) was dragged, we must keep that record
+                    this.dragged = {list, element, index, replace}; // if replace is false, swap is used
+                    // prevent that also the series (drag element on the parent) will change
+                    evt.stopPropagation();
+                },
+
                 /* !!! methods for both SERIES creation and COMPETITION !!! */
+
+                parseJSON(startConf){
+                    if (startConf){
+                        return JSON.parse(startConf);
+                    }else {
+                        return {}
+                    }
+                },
 
                 statusChanged(){
                     // check whether the current "show" property is meaningful; if not, automatically set a meaningful property
@@ -318,7 +497,7 @@
                     }
                     
                     if (changed && autoSaveToServer && !this.readOnly){
-                        rCTech.room.updateAuxDataInit(this.roomAuxData);
+                        rCTrack.room.updateAuxDataInit(this.roomAuxData);
                     }
                     return changed;*/
                 },
@@ -326,40 +505,6 @@
                     this.infoTitle = title;
                     this.infoContent = content;
                     this.infoVisible = true;
-                },
-                startUpdatingHeightIncrease(heightIncreaseIndex){
-                    this.updateHeightIncrease = heightIncreaseIndex;
-                    this.heightIncreaseBeforeUpdate = JSON.parse(JSON.stringify(this.confForMod.heightIncreases[heightIncreaseIndex]));
-                },
-                deleteHeightIncrease(index){
-                    this.confForMod.heightIncreases.splice(index,1);
-                    //this.createAllHeights();
-                },
-                saveUpdateHeightIncrease(){
-                    this.updateHeightIncrease = -1;
-                    this.sortHeightIncrease();
-                    //this.createAllHeights();
-                },
-                abortUpdateHeightIncrease(index){
-                    this.confForMod.heightIncreases[index] = this.heightIncreaseBeforeUpdate; // TODO: change this! It does not work, as it will remove the observers! TODO: check if this is still the case in Vue3!
-                    this.updateHeightIncrease = -1;
-                },
-                addHeightIncrease(){
-                    this.confForMod.heightIncreases.push({
-                        // TODO: check the values
-                        heightIncreaseStartheight: parseInt(this.newHeightIncreaseStart),
-                        heightIncrease: parseInt(this.newInterval)
-                    })
-                    this.sortHeightIncrease();
-                    //this.createAllHeights();
-                    // reset the create field
-                    this.newHeightIncreaseStart = undefined;
-                    this.newInterval = undefined;
-                },
-                sortHeightIncrease(){
-                    this.confForMod.heightIncreases.sort((el1, el2)=>{
-                        return el1.heightIncreaseStartheight-el2.heightIncreaseStartheight;
-                    });
                 },
                 sortSeries(){
                     //this.series.sort((s1, s2)=>s1.number-s2.number);
@@ -370,23 +515,93 @@
 
                 dragEnded(evt){
                     // TODO implement here all the logic to derive the changes on athletes (in the version where the changes are propagated live.)
-                    console.log(`from ${evt.from.id} to ${evt.to.id}`);
+                    console.log(`1: from ${evt.from.id} to ${evt.to.id}`);
+                    console.log(evt);
                 },
-                unassignedAthleteChanged(evt){
-                    // override the default behavior (add/remove to/from 'displayData' within v-table, which does not work) and add/remove the element instead to/from 'unassignedAthletesCreate'
-                    console.log('drag changed');
-                    if ('removed' in evt){
-                        // remove the element from 'unassignedAthletesCreate'
-                        var i = this.unassignedAthletesCreate.indexOf(evt.removed.element);
-                        if (i!=-1){
-                            // should always come here; remove the element
-                            this.unassignedAthletesCreate.splice(i,1);
+                dragStarted(evt){
+                    console.log('1');
+                    console.log(evt);
+                },
+                dragEnded2(evt){
+                    // TODO implement here all the logic to derive the changes on athletes (in the version where the changes are propagated live.)
+                    console.log(`2: from ${evt.from.id} to ${evt.to.id}`);
+                    console.log(evt);
+                },
+                dragStarted2(evt){
+                    console.log('2');
+                    console.log(evt);
+                },
+                dragMove(evt){
+                    console.log(evt);
+                    // within the same list, we actually want sorting and not swapping (which would be the default
+                    function xy(){
+                    if (evt.from==evt.to){
+                        evt.from.__draggable_component__._sortable.option("swap", false);
+                        evt.from.__draggable_component__._sortable.option("replace", false);
+                        evt.to.__draggable_component__._sortable.option("swap", false);
+                        evt.to.__draggable_component__._sortable.option("replace", false);
+                        /*evt.from.__draggable_component__._sortable.options.swap = false;
+                        evt.from.__draggable_component__._sortable.options.replace = false;*/
+                    } else {
+                        // if "to" (relatedContext) is the "unassigned athlete list", then it must also be sort and not swap (otherwise we could not remove an athlete from series without adding another one...)
+                        if(evt.to.id === "unassignedAthletesInit"){
+                            evt.from.__draggable_component__._sortable.option("swap", false);
+                            evt.from.__draggable_component__._sortable.option("replace", false);
+                            evt.to.__draggable_component__._sortable.option("swap", false);
+                            evt.to.__draggable_component__._sortable.option("replace", false);
+                            /*evt.from.__draggable_component__._sortable.options.swap=false;
+                            evt.from.__draggable_component__._sortable.options.replace=false;*/
+                        }else {
+                            if (evt.from.id === "unassignedAthletesInit"){
+                                // from unassigned to series: 
+                                //  use mode replace
+                                evt.from.__draggable_component__._sortable.option("swap", false);
+                                evt.from.__draggable_component__._sortable.option("replace", true);
+                                evt.to.__draggable_component__._sortable.option("swap", false);
+                                evt.to.__draggable_component__._sortable.option("replace", true);
+                                /*evt.from.__draggable_component__._sortable.options.swap=false;
+                                evt.from.__draggable_component__._sortable.options.replace=true;*/
+                                // allow position only on empty lanes:
+                                if (evt.relatedContext.list[evt.relatedContext.index].startsingroup){
+                                    return false;
+                                }
+                            } else {
+                                // from series to series: regular swap
+                                evt.from.__draggable_component__._sortable.option("swap", true);
+                                evt.from.__draggable_component__._sortable.option("replace", false);
+                                evt.to.__draggable_component__._sortable.option("swap", true);
+                                evt.to.__draggable_component__._sortable.option("replace", false);
+                                /*evt.from.__draggable_component__._sortable.options.swap=true;
+                                evt.from.__draggable_component__._sortable.options.replace=false;*/
+                            }
+
                         }
 
-                    } else if ('added' in evt){
-                        // add the element to 'unassignedAthletesCreate'
-                        this.unassignedAthletesCreate.push(evt.added.element)
+                        // empty lanes cannot be dragged to other series, but within a series:
+                        if (evt.draggedContext.element.startsingroup===null){
+                            return false;
+                        }
+
                     }
+                    }
+                    
+                },
+                changeOnSeries(evt, series, index){
+                    console.log(`ath changed in series`);
+                    console.log(evt);
+
+                    /*if ('added' in evt && !("lane" in evt.added.element)){
+                        // if the element was actually from the unassigned athletes, we have to make sure it is a correct object for the present list
+                        // overwrite the default behavior
+                        this.seriesObj[index].SSRs[evt.added.newIndex] = {
+                        //series.SSRs[evt.added.newIndex] = {
+                            lane: 0,
+                            alert: 0,
+                            posInLane:0,
+                            position: 0,
+                            startsingroup: evt.added.element,
+                        }
+                    }*/
                 },
                 seriesChanged(evt){
                     // TODO: implement reordering of series here
@@ -397,22 +612,29 @@
                 },
                 presentChanged(affectedRow){
                     // the present status of an athlete was changed. Hand over the request to the room. 
-                    rCTech.room.updatePresentStateInit(affectedRow);
+                    rCTrack.room.updatePresentStateInit(affectedRow);
                 },
                 startUpdateConf(){
                     this.confForMod = this.parseConf(this.contest.conf);
-                    this.overlay = 'config';
+                    this.overlay3 = 'config';
                 },
                 abortUpdateConf(){
-                    this.overlay = undefined;
+                    this.overlay3 = undefined;
                 },
                 saveUpdateConf(){
-                    this.overlay = undefined;
+                    this.overlay3 = undefined;
                     this.propagateChange = true; // store the change to server!
                     this.contest.conf = JSON.stringify(this.confForMod);
-                    this.createAllHeights();
+                    this.updateEmptyInitLanes(this.seriesObj);
                 },
-
+                startInLanesChanged(){
+                    if (this.confForMod?.startInLanes===false){
+                        // set the value for the group size to the default of the default-site
+                        this.confForMod.groupSize = this.defaultSiteConf?.heatSizeRuns ?? 26;
+                    } else if (this.confForMod?.startInLanes===true){
+                        this.confForMod.groupSize = 1;
+                    }
+                },
                 parseConf(jason){
                     // a valid JSON must contain {} or []; an empty string, as it might occur in the DB as a default, is not valid!
                     let conf;
@@ -421,9 +643,14 @@
                     }catch(ex){
                         conf = {};
                     }
-                    // make sure conf has an array called heightIncreases
-                    if (!('heightIncreases' in conf)){
-                        conf.heightIncreases = [];
+                    // make sure that the reuired stuff is present
+                    if (!('groupSize' in conf)){
+                        logger.log(2, 'GroupSize not in the contest configuration.')
+                        conf.groupSize = 1;
+                    }
+                    if (!('startInLanes' in conf)){
+                        logger.log(2, 'StartInLanes not in the contest configuration.')
+                        conf.startInLanes = true;
                     }
                     return conf;
                 },
@@ -447,9 +674,9 @@
                         this.showInitialSeriesAssignment();
                     }
                 },
-                formatHeight(heightInDB){
+                formatPerf(heightInDB){
                     if (heightInDB){
-                        return (heightInDB/100).toString() + " m";
+                        return window.disciplineFormatters[3](heightInDB, this.discipline, true);
                     }
 
                     return "";
@@ -479,11 +706,92 @@
                     
                     this.overlay2 = 'createSeries';
                 },
+                updateEmptyInitLanes: function(seriesObj2){
+                    // called e.g. after the number of lanes/groupSize/startInLanes have changed, when a new series is added, when an seriesStart is added or deleted,
+
+                    // there is nothing to do when the contest is not started in lanes
+                    if (!this.conf.startInLanes){
+                        return;
+                    }
+                    
+                    for (let heat of seriesObj2){
+                        // every startsingroup/seriesStartResult-object should look like this:
+                        // {position, lane, posInLane, startsingroup, alert}
+
+                        // first, delete unnecessary empty lanes or mark filled lanes with alert=1
+                        for (let iLane=heat.SSRs.length-1; iLane>=0; iLane--){
+                            const lane = heat.SSRs[iLane];
+                            if (lane.lane>this.conf.lanes || lane.posInLane>this.conf.groupSize){
+                                // empty lanes can be deleted, occupied ones must be marked with alert=1
+                                if (lane.startsingroup){
+                                    lane.alert=1;
+                                } else {
+                                    heat.SSRs.splice(iLane, 1);
+                                }
+                            } else {
+                                lane.alert = 0;
+                            }
+                        }
+
+                        // add missing lanes:
+                        for (let iLane = 1; iLane<=this.conf.lanes; iLane++){
+                            for (let iPosInLane = 1; iPosInLane<=this.conf.groupSize; iPosInLane++){
+                                // try to find the lane; if not, add an empty one
+                                if (!heat.SSRs.find(ssr=>ssr.lane==iLane && ssr.posInLane == iPosInLane)){
+                                    heat.SSRs.push({
+                                        position: 0,
+                                        lane: iLane,
+                                        alert: 0,
+                                        posInLane: iPosInLane,
+                                        startsingroup: null,
+                                    })
+                                } 
+                            }
+                        }
+
+                        // sort the elements (important: this must be done before the next step!)
+                        heat.SSRs.sort((lane1, lane2)=>{
+                            if (lane1.lane != lane2.lane) return lane1.lane-lane2.lane;
+                            if (lane1.posInLane != lane2.posInLane) return lane1.posInLane - lane2.posInLane;
+                            return 0
+                        })
+
+                        // finally update the positions (Note: this cannot be done earlier, since the positions must also consider invalidated lanes and added lanes)
+                        // at the same time: check whether there are empty lanes between occupied lanes
+                        // add alert=2 to those SSRs
+                        let position = 1;
+                        let firstOccupied = -1;
+                        let lastOccupied;
+                        let empty = []
+                        for (let iLane=0;iLane< heat.SSRs.length; iLane++){
+                            const lane = heat.SSRs[iLane];
+                            lane.position = position++;
+                            if (lane.startsingroup){
+                                lastOccupied = iLane;
+                                if (firstOccupied<0){
+                                    firstOccupied = iLane;
+                                }
+                            } else {
+                                // reset alert here, since the non-empty lanes are already defined and should not be overwritten
+                                lane.alert = 0;
+                                empty.push(iLane)
+                            }
+                        }
+                        for (let emptyLane of empty){
+                            if (emptyLane>firstOccupied && emptyLane<lastOccupied){
+                                heat.SSRs[emptyLane].alert=2;
+                            }
+                        }
+
+                    }
+                },
                 addEmptySeriesInitial: function(){
                     // add an empty series to the seriesObj used in the inital series configuration tool
                     this.seriesObj.push({
-                        number:this.seriesObj.length+1, xSite: undefined, status: 10, name:'', startsingroup:[]
+                        number:this.seriesObj.length+1, xSite: undefined, status: 10, name:'', 
+                        SSRs:[], // will be filled by updateEmptyInitLanes
                     });
+                    this.updateEmptyInitLanes(this.seriesObj);
                 },
                 resetInitialSeriesAssignment: function(){
                     // recreate the set of unassigned athletes (=all startingroup where present=true): 
@@ -519,7 +827,7 @@
                     // series[0].seriesstartsresults[0].resultshigh : the results of the athletes
 
                     // do all the data managament in the room and not within vue!
-                    rCTech.room.initialSeriesCreationInit(this.seriesObj);
+                    rCTrack.room.initialSeriesCreationInit(this.seriesObj);
 
                     this.overlay2 = undefined;
 
@@ -528,25 +836,25 @@
                 },
                 addSeries: function(){
                     // add an empty series
-                    rCTech.room.addSeriesInit();
+                    rCTrack.room.addSeriesInit();
                 },
                 deleteAllSeries: function(){
                     // TODO: implement a warning dialog!
 
                     // the room functiuon will also change the local data
-                    rCTech.room.deleteAllSeriesInit();
+                    rCTrack.room.deleteAllSeriesInit();
                 },
                 moveSeries: function(evt){
                     // called, when series are reordered
                     // no differentiation needed between moved/added/removed, since only move is possible; 
 
                     // Note: evt.moved.element is NOT the series-element in data.series, since we work on a copy seriesAsStartgroups
-                    rCTech.room.moveSeriesInit(evt.moved.oldIndex, evt.moved.newIndex)
+                    rCTrack.room.moveSeriesInit(evt.moved.oldIndex, evt.moved.newIndex)
 
                 },
                 removeSSR: function(evt){
                     if ("added" in evt){
-                        rCTech.room.deleteSSR(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
+                        rCTrack.room.deleteSSR(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
                     }
                     // nothing to do when removed or moved; removed is handled in the add event of the series and moving within the unassignedAthletes is useless, since it is done via the sortable table.
                 },
@@ -569,19 +877,19 @@
                         if ("athleteName" in evt.added.element){
                             // previously was an unassigned athlete
                             // create seriesstartsresults
-                            rCTech.room.addSSR(series.seriesOriginal, evt.added.element.xStartgroup, evt.added.newIndex);
+                            rCTrack.room.addSSR(series.seriesOriginal, evt.added.element.xStartgroup, evt.added.newIndex);
                         } else {
                             // athlete moved from one series to another; data is a seriesstartsresults entry
                             // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
                             // let the room do the rest
-                            rCTech.room.changePositionInit(evt.added.element.ssrOriginal, evt.added.element.seriesOriginal, series.seriesOriginal, evt.added.newIndex);
+                            rCTrack.room.changePositionInit(evt.added.element.ssrOriginal, evt.added.element.seriesOriginal, series.seriesOriginal, evt.added.newIndex);
                         }
 
 
                     } else if ("moved" in evt){
                         // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
                         // let the room do the rest
-                        rCTech.room.changePositionInit(evt.moved.element.ssrOriginal, evt.moved.element.seriesOriginal, series.seriesOriginal, evt.moved.newIndex);
+                        rCTrack.room.changePositionInit(evt.moved.element.ssrOriginal, evt.moved.element.seriesOriginal, series.seriesOriginal, evt.moved.newIndex);
                     }
                     
                 },
@@ -613,7 +921,7 @@
                         this.roomAuxDataSelected.showAttemptPeriod = true;
                         this.roomAuxDataSelected.periodStartTime = null;
 
-                        rCTech.room.updateAuxDataInit(this.roomAuxData);
+                        rCTrack.room.updateAuxDataInit(this.roomAuxData);
                     }
                     this.updateShownTime();
 
@@ -776,7 +1084,7 @@
                         // do not actually add the height to the local data here, but through the room
 
                         // let the room add the height on the server
-                        rCTech.room.addHeightInit(this.series[this.selectedSeries], newHeight)
+                        rCTrack.room.addHeightInit(this.series[this.selectedSeries], newHeight)
 
                         this.sortHeightsAddOrder()
                         return true;
@@ -897,7 +1205,7 @@
                     // do not actually add the height to the local data here, but through the room
 
                     // let the room add the height on the server
-                    rCTech.room.addHeightInit(this.series[this.selectedSeries], newHeight)
+                    rCTrack.room.addHeightInit(this.series[this.selectedSeries], newHeight)
 
                     this.sortHeightsAddOrder();
                     return true;
@@ -908,7 +1216,7 @@
                     // get the height
                     let height = this.sortedHeights[index];
 
-                    rCTech.room.deleteHeightInit(height);
+                    rCTrack.room.deleteHeightInit(height);
 
                     this.createAllHeights();
                     if (this.mode==2){
@@ -940,7 +1248,7 @@
                     this.evaluateHeightDeletable();
 
                     // send the change to the server
-                    rCTech.room.updateSSRInit(xSeriesStartEl);
+                    rCTrack.room.updateSSRInit(xSeriesStartEl);
 
 
                     // check if the competition can start already
@@ -949,7 +1257,7 @@
                 },
                 updateSSR(ssr){
                     // send the change to the server
-                    rCTech.room.updateSSRInit(ssr);
+                    rCTrack.room.updateSSRInit(ssr);
 
                 },
                 allStartHeightsDefined(){
@@ -1578,7 +1886,7 @@
                                     this.roomAuxData[series.xSeries].attemptNext = this.attemptNext2;
 
                                     // send the changed data to the server
-                                    rCTech.room.updateAuxDataInit(this.roomAuxData);
+                                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
                                 }
                                 this.position = position;
                                 this.positionNext = positionNext;
@@ -1726,7 +2034,7 @@
                                     this.roomAuxData[series.xSeries].attemptNext = this.attemptNext2;
 
                                     // send the changed data to the server
-                                    rCTech.room.updateAuxDataInit(this.roomAuxData);
+                                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
                                 }
                                 this.position = position;
                                 this.positionNext = positionNext;
@@ -1788,9 +2096,9 @@
 
                     // send change:
                     if (isNew){
-                        rCTech.room.addResultInit(h, start);
+                        rCTrack.room.addResultInit(h, start);
                     } else {
-                        rCTech.room.updateResultInit(h, start);
+                        rCTrack.room.updateResultInit(h, start);
                     }
 
                 },
@@ -1886,7 +2194,7 @@
                     }
 
                     // send change:
-                    rCTech.room.addResultInit(resEl, start);
+                    rCTrack.room.addResultInit(resEl, start);
 
                     // calculateNextAthlete will be called by series watcher
                     this.onSeriesChangeCalcNextAth = true;
@@ -1984,7 +2292,7 @@
                     this.roomAuxDataSelected.position = this.position;
 
                     // send the changed data to the server
-                    rCTech.room.updateAuxDataInit(this.roomAuxData);
+                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
 
                 },
                 saveCurrentResChange(start){
@@ -1998,7 +2306,7 @@
                     // if the string is empty, delete the result completely, otherwise, just alter it
                     if (this.currentResultString==''){
                         
-                        rCTech.room.deleteResultInit(this.currentResultChange, start)
+                        rCTrack.room.deleteResultInit(this.currentResultChange, start)
 
                         // recalculate the next athlete
                         // calculateNextAthlete will be called by series watcher
@@ -2021,7 +2329,7 @@
                             this.currentResultChange.resultsHighValid = raw.resultsHighValid;
                             this.currentResultChange.resultsHighFailedAttempts= raw.resultsHighFailedAttempts;
 
-                            rCTech.room.updateResultInit(this.currentResultChange, start)
+                            rCTrack.room.updateResultInit(this.currentResultChange, start)
 
                             // recalculate the next athlete
                             // calculateNextAthlete will be called by series watcher
@@ -2157,7 +2465,7 @@
                         start.resultshigh.push(res)
 
                         // send the change to the server
-                        rCTech.room.addResultInit(res, start);
+                        rCTrack.room.addResultInit(res, start);
 
                         // recalculate the next athlete. This will also update the tempRankingData, which is needed below  
                         // TODO: will calculateNextAthlete be called already when here?
@@ -2213,7 +2521,7 @@
                         let hA = this.sortedHeights.find(h=>h.xHeight==resA.xHeight);
                         let hB = this.sortedHeights.find(h=>h.xHeight==resB.xHeight);
                         if (hA==undefined || hB==undefined){
-                            this.logger.log(20, `Could not sort the result-array. Returning the unsorted array.`);
+                            logger.log(20, `Could not sort the result-array. Returning the unsorted array.`);
                             sortingFailed = true;
                             return 0;
                         } else {
@@ -2229,7 +2537,7 @@
                 seriesStatusChanged(){
 
                     // send the change to the server
-                    rCTech.room.updateSeriesInit(this.series[this.selectedSeries]);
+                    rCTrack.room.updateSeriesInit(this.series[this.selectedSeries]);
                 },
                 startPeriod(){
                     // current time:
@@ -2240,7 +2548,7 @@
                     // since the time we store shwll be the virtual time on the server when the period is started, we have to correct it with the offset this client has to the server:
 
                     this.roomAuxDataSelected.periodStartTime = dServer;
-                    rCTech.room.updateAuxDataInit(this.roomAuxData);
+                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
 
                     // make the time being updated regularly
                     this.timeUpdateInterval = setInterval(this.updateShownTime, 100);
@@ -2251,7 +2559,7 @@
                     
                     if (!this.readOnly){
                         this.roomAuxDataSelected.showAttemptPeriod = false;
-                        rCTech.room.updateAuxDataInit(this.roomAuxData);
+                        rCTrack.room.updateAuxDataInit(this.roomAuxData);
                     }
                 },
                 stopPeriod(sendChange=true, setNull=true){
@@ -2264,7 +2572,7 @@
                             this.roomAuxDataSelected.periodStartTime = null;
                         }
                         if (sendChange && !this.readOnly){
-                            rCTech.room.updateAuxDataInit(this.roomAuxData);
+                            rCTrack.room.updateAuxDataInit(this.roomAuxData);
                         }
                     }
                 },
@@ -2500,7 +2808,7 @@
                         // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
                         // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.
                         if (this.propagateChange){
-                            rCTech.room.updateContest2Init(newContestObj, oldContestObj);
+                            rCTrack.room.updateContest2Init(newContestObj, oldContestObj);
                             this.propagateChange = false;
                         }
                     }
@@ -2511,6 +2819,19 @@
                 
                 /* !!! properties for SERIES CREATION and COMPETITION !!! */
 
+                defaultSite: function(){
+                    return this.sites.find(s=>s.type==0);
+                },
+                defaultSiteConf: function(){
+                    if (this.defaultSite){
+                        try{
+                            const conf = JSON.parse(this.defaultSite.conf);
+                            return conf;
+                        }catch(ex){
+                            logger.log(10, 'The site configuration object is not a valid JSON.')
+                        }
+                    }
+                },
 
                 // transfer some of the aux properties form the writing room, if this room is a readOnly room (position and positionNext are transferred in calculateNextAthlete)
                     // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
@@ -2660,7 +2981,7 @@
 
                 urlFieldMonitor: function(){
                     // the url of the field monitor for the selected series
-                    return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/techHighBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
+                    return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/trackBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
                 },
 
                 contestWatching: function(){
@@ -2945,18 +3266,26 @@
                     s += ' [end]';
                     return s;
                 },
+                // TODO: is this used: 
                 disciplineConfiguration: function(){
                     // get the first discipline with matching baseDiscipline and parse its configuration
                     let d = this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
                     if (!d){
-                        return {heightMax:800, jumpoffHeightVariation:2};
+                        return {startInLanes:true, groupSize:1, distance: 0, wind:true, straight:true};
                     } else {
                         let o = JSON.parse(d.configuration);
-                        o.heightMax = o.heightMax ?? 800;
-                        o.jumpoffHeightVariation = o.jumpoffHeightVariation ?? 2;
+                        // avoid problems when the definition was not right in the DB
+                        o.startInLanes = o.startInLanes ?? true;
+                        o.groupSize = o.groupSize ?? 1;
+                        o.distance = o.distance ?? 0;
+                        o.wind = o.wind ?? true;
+                        o.straight = o.straight ?? true;
                         return o;
                     }
                 },
+                discipline: function(){
+                    return this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
+                }, 
                 resultOnCurrentHeight: function(){
                     // get the result of the athlete in the current attempt. This function will only return a non-null value when the currentAthlete has already jumped on the height. This only happens when autoAdvance=false and the writing client has not pressed "advance" yet (i.e. calculateNextAthlete was not yet run) 
                     // returns the result as a string (O, X, -) or False (when no result yet)
@@ -3017,7 +3346,7 @@
             },
         }
 
-        vueSeriesAdminTech = Vue.createApp(vueAppConfig).mount('#vueSeriesAdminTech')
+        vueSeriesAdminTrack = Vue.createApp(vueAppConfig).mount('#vueSeriesAdminTrack')
 
         // load the room:
         let ms = getMeetingShortname();
@@ -3030,16 +3359,19 @@
         if (xContest!=null && !isNaN(xContest)){
             xContest = Number(xContest)
             // start the roomClientView
-            rCTech = new vuContestTechHigh(vueSeriesAdminTech, ms, xContest, writing);
+            rCTrack = new vuContestTrack(vueSeriesAdminTrack, ms, xContest, writing);
         } else {
             // eventually show a message that there is no  
         }
+
+        rSites = new vuSites(vueSeriesAdminTrack, ms);
 
     }
 
 </script>
 <script type="module">
     // MODULE stuff for printing
+    // TODO: modify for track disciplines
     import {dContestSheet, dSeriesSheetHigh, dPersonContestSheet, dHeaderFooter, printer, pPersonContestSheetHigh, pSeriesContestSheetHigh, pContestSheetHigh, pHeaderFooter} from "/static/printDocumentStructure.js";
 
 
@@ -3104,8 +3436,8 @@
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructure(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups,null);
-        let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
+        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.allHeights, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups,null);
+        let hf = new dHeaderFooter([cContest], vueSeriesAdminTrack.meeting);
 
         // define the translations from dataContainers to prtContainers
         const dataToPrint = {

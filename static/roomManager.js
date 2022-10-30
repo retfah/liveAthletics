@@ -21,8 +21,10 @@ class roomManager{
 
 		// the room-indicator shown to the users
 		this.indicatorID = indicatorID;
-		// if there is an indicator, we modify it a little here and add a circle, to be used as a request-indicator (when somethign is requested from te server): 
-		if (this.indicatorID){
+		// the previoud approach with adding a moving ball, when a request is pending had the shortcoming that the outer div needed a fixed width, which contrasts the other elements in the top row, which are as large as to fill the line; 
+		// the new approach is to avoid modifying the content of the indicator element, but only changing its css (e.g. background modification)
+		// OLD: if there is an indicator, we modify it a little here and add a circle, to be used as a request-indicator (when somethign is requested from te server): 
+		/* if (this.indicatorID){
 			var el = document.getElementById(this.indicatorID);
 			// all previoud content will be moved in div, which is a child of the indicatorElement. This is needed just to make sure that the positioning of the content is not static, so that the stacking order gets correct (e.g. circle behind text)
 			var contentText = el.innerHTML;
@@ -43,7 +45,7 @@ class roomManager{
 			contentDiv.innerHTML = contentText;
 			contentDiv.style = "position: absolute; width: 100%;" // some formatting to make sure the content is correctly on top of the circle and the centering still works --> TODO: find another solution, because with this solution the flex wrap does not work properly. Without this setting the flex stuff would work.
 			el.append(contentDiv);
-		}
+		}*/
 
 		// the eventhandler (eH) and the websocketHandler (wsHandler) are gobal objects and thus do not need to be storen in here (and probably are not even used)
 
@@ -134,7 +136,18 @@ class roomManager{
 
 					// additional task: format the indicator, if available
 					if (indicatorID){
-						let el = document.getElementById('requestPendingCircle'); // the element has the same name as the css-class	
+						let el = document.getElementById(indicatorID); // the element has the same name as the css-class	
+						if (requestPend){
+							if (!el.classList.contains('requestPending')){
+								el.classList.add('requestPending');
+							}
+							
+						}else{
+							if (el.classList.contains('requestPending')){
+								el.classList.remove('requestPending');
+							}
+						}
+						/*let el = document.getElementById('requestPendingCircle'); // the element has the same name as the css-class	
 						if (requestPend){
 							if (!el.classList.contains('requestPendingCircle')){
 								el.classList.add('requestPendingCircle');
@@ -144,7 +157,7 @@ class roomManager{
 							if (el.classList.contains('requestPendingCircle')){
 								el.classList.remove('requestPendingCircle');
 							}
-						}
+						}*/
 					}
 
 					return requestPend;

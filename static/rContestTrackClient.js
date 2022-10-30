@@ -814,7 +814,7 @@ export class rContestTrackClient extends roomClient{
 
         // create a list of all series to add again and at the same time delete all current series one by one. 
         let oldSeries = [];
-        for (i=0;i<this.data.series.length; i++){
+        for (let i=0;i<this.data.series.length; i++){
             oldSeries.push(this.data.series.shift());
         }
 
@@ -828,10 +828,10 @@ export class rContestTrackClient extends roomClient{
             // delete all current series and add all old series
             // we cannot just reset the array to [] because we would loose teh proxy
             let l = this.data.series.length;
-            for (i=0;i<l; i++){
+            for (let i=0;i<l; i++){
                 this.data.series.pop()
             }
-            for (i=0; i<oldSeries.length; i++){
+            for (let i=0; i<oldSeries.length; i++){
                 this.data.series.push(oldSeries[i])
             }
             for (let key in this.data.auxData){
@@ -846,33 +846,32 @@ export class rContestTrackClient extends roomClient{
         // now populate the empty series array with the new series
         // The series structure should look like this
         // series : all series objects
-        // series[0].heights : the heights jumped in this series
         // series[0].seriesstartsresults : all athletes in this series
-        // series[0].seriesstartsresults[0].resultshigh : the results of the athletes
         
         // temporary key for xSeries; needed to reference the auxData 
         let xSeries = -1;
         for (let series of newSeries){
 
-            // TODO: we probably need some temporary keys for the series and the seriesstartsresults as an identifier.
-
             // make sure all possible properties are initialized!
 
             // prepare seriesStartsResults:
-            let seriesstartsresults = []
-            for (let i=0;i< series.startsingroup.length; i++){
-                let SIG = series.startsingroup[i];
-                seriesstartsresults.push({
-                    //xSeriesStart: xSeries, // not defined yet
-                    xStartgroup: SIG.xStartgroup,
-                    xSeries: -1, // not defined yet
-                    position: i+1,
-                    resultOverrule: 0,
-                    resultRemark: '',
-                    qualification: 0, // not used yet
-                    startConf: '', // here will be the startheight as JSON
-                    resultshigh: [], // no results yet
-                })
+            let seriesstartsresults = [];
+            // Remark about positions: positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane== lane-of-previous athlete, this-posInLane=posInLane-previous+1, else posInLane=1"
+            let position = 1;
+            for (let i=0;i< series.SSRs.length; i++){
+                if (series.SSRs.startsingroup){
+                    // it is not an empty lane
+                    seriesstartsresults.push({
+                        //xSeriesStart: xSeries, // not defined yet
+                        xStartgroup: series.SSRs[i].startsingroup.xStartgroup,
+                        xSeries: -1, // not defined yet
+                        position: position++,
+                        resultOverrule: 0,
+                        resultRemark: '',
+                        qualification: 0, // not used yet
+                        startConf: series.SSRs[i].lane, // lane
+                    })
+                }
             }
 
             this.data.series.push({
@@ -883,7 +882,6 @@ export class rContestTrackClient extends roomClient{
                 number: series.number,
                 name: series.name,
                 seriesstartsresults: seriesstartsresults,
-                heights: [], // no heights defined yet
             })
 
             // create the local auxData for each series; the server will create the same there
@@ -903,7 +901,7 @@ export class rContestTrackClient extends roomClient{
 
             // basically we just need to replace all xSeries and xSeriesStart 
             // the order in the response array MUST be the same as in our array here --> TODO: check this!
-            for (i=0;i<data.length;i++){
+            for (let i=0;i<data.length;i++){
 
                 const oldXSeries = seriesForIndexReplacement[i].xSeries;
 
@@ -913,7 +911,7 @@ export class rContestTrackClient extends roomClient{
                 // should have the same length as seriesForIndexReplacement
                 seriesForIndexReplacement[i].xSeries = data[i].xSeries;
                 
-                for (j=0; j<data[i].seriesstartsresults.length; j++){
+                for (let j=0; j<data[i].seriesstartsresults.length; j++){
                     seriesstartsForIndexReplacement[i][j].xSeriesStart = data[i].seriesstartsresults[j];
                     seriesstartsForIndexReplacement[i][j].xSeries = data[i].xSeries;
                 }

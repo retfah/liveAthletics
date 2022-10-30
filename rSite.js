@@ -2,11 +2,10 @@
 // a room per site; 
 
 import roomServer from './roomServer.js';
+import { findSubroom } from './findRoom.js';
+import { ssrContextKey } from 'vue';
 
-/**
- * the room for site management (adding, deleting, updating,  ...)
- * The data stores a list of objects: data =[{site1}, {site2}]
- */
+
 class rSite extends roomServer{
 
     /** Constructor for the site-room
@@ -18,49 +17,38 @@ class rSite extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
-        super(eventHandler, mongoDb, logger, "sites@" + meetingShortname, true, -1, false);
+        super(eventHandler, mongoDb, logger, `sites/${site.xSite}@${meetingShortname}`, true, -1, false, dynamicRoom);
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
         this.data = {
-            // main data:
-            sites:[],
-
-            // auxilary data:
+            site: {}, // add here the data from the parentRoom, as an info
 
         }; 
+
+        this.site = site; // the site object from rSites
+        this.rSites = rSites;
+        this.rContests = rContests;
+        this.meetingShortname = meetingShortname;
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
         this.models = modelsMeeting;
 
-        this.ready = false; // as we have async stuff here, we need to know whether we are ready to do something or not (e.g. the sequelize data is loaded.)
-
-        // get all sites
-        this.models.sites.findAll().then(sites=>{
-            this.data.sites = sites;
-            // aux data:
-            //TODO
-            this.ready = true;
-        })
-
-        // listen to ausxilary data events:
-        // TODO
+        this.ready = false; 
 
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         
-        this.functionsWrite.addSite = this.addSite.bind(this);
-        this.functionsWrite.deleteSite = this.deleteSite.bind(this);
-        this.functionsWrite.updateSite = this.updateSite.bind(this);
+        /*this.functionsWrite.addSite = this.addSite.bind(this);*/
 
         // define, compile and store the schemas:
-        let schemaAddSite = {
+        /*let schemaAddSite = {
             type: "object",
             properties: {
                 xTODO: {type: "integer"}
@@ -68,20 +56,7 @@ class rSite extends roomServer{
             required: [],
             additionalProperties: false
         };
-        let schemaUpdateSite = {
-            type: "object",
-            properties: {
-                xTODO: {type: "integer"}
-            },
-            required: ["TODO"],
-            additionalProperties: false
-        };
-        let schemaDeleteSite = {
-            type: "integer"
-        }
-        this.validateAddSite = this.ajv.compile(schemaAddSite);
-        this.validateUpdateSite = this.ajv.compile(schemaUpdateSite);
-        this.validateDeleteSite = this.ajv.compile(schemaDeleteSite);
+        this.validateAddSite = this.ajv.compile(schemaAddSite);*/
  
     }
 
@@ -89,6 +64,7 @@ class rSite extends roomServer{
      * add an site
      * @param {object} data This data shall already be in the format as can be used by Sequelize to insert the data. It will be checked with the schema first.
      */
+    // TODO: remove/adapt
     async addSite(data){
 
         // validate the data based on the schema
@@ -137,108 +113,104 @@ class rSite extends roomServer{
         }
     }
 
-
-    async deleteSite(data){
-
-        // data must be an integer (the xSite id)
-        let valid = this.validateDeleteSite(data);
-
-        if (valid){
-
-            // get the entry from the data (respectively its index first):
-            let [ind, site] = this.findObjInArrayByProp(this.data.sites, 'xSite', data)
-
-            // delete the entry in the sites table
-            await this.models.sites.destroy({where:{xSite: data}}).catch(()=>{
-                throw {message: "Site could not be deleted!", code:21}
-            });
-
-            // NOTE: also arrives here when the event actually did not exist (anymore!); However, should always exist!
-
-            // delete the entry locally from the data:
-            [ind, ] = this.findObjInArrayByProp(this.data.sites, 'xSite', data) // must be reqpeated, since the index could have changed due to the async call.
-            if (ind>=0){
-                this.data.sites.splice(ind,1);
-            }
-
-            // object storing all data needed to DO the change
-            let doObj = {
-                funcName: 'deleteSite',
-                data: data
-            }
-
-            // object storing all data needed to UNDO the change
-            // Not needed yet / TODO...
-            let undoObj = {
-                funcName: 'TODO', // addSite
-                data: {}
-                // the ID will be added on resolve
-            };
-            
-            // do the rest (put on stack and report to other clients etc)
-            let ret = {
-                isAchange: true, 
-                doObj: doObj, 
-                undoObj: undoObj,
-                response: data,
-                preventBroadcastToCaller: true
-            };
-            return ret;
-            
-        }else {
-            throw {message: this.ajv.errorsText(this.validateDeleteSite.errors), code:23};
-        }
-    }
-
-    
-    async updateSite(data){
-        // check if the client has the rights to do a change!
-        // TODO
-        
-        // validate the data based on the schema
-        let valid = this.validateUpdateSite(data);
-        if (valid) {
-
-            // get the instance to update
-            let [i, o] = this.findObjInArrayByProp(this.data.sites, 'xSite', data.xSite);
-            if (i<0){
-                throw {code:24, message:"The site does not exist anymore on the server (should actually never happen)."};
-            }
-
-            let siteOld = o.dataValues;
-
-            return o.update(data).then(async(siteChanged)=>{
-                // the data should be updated in th DB by now.
-
-                // set the local data
-                this.data.sites[i] = siteChanged;
-
-                let ret = {
-                    isAchange: true, 
-                    doObj: {funcName: 'updateSite', data: siteChanged.dataValues}, 
-                    undoObj: {funcName: 'updateSite', data: siteOld, ID: this.ID},
-                    response: siteChanged.dataValues,
-                    preventBroadcastToCaller: true
-                };
-                
-                // the rest is done in the parent
-                return ret;
-
-            }).catch((err)=>{
-                throw {code: 22, message: "Could not update the site with the respective Id. Error: " + err};
-            });
-
-        } else {
-            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
-        }
-    }
-
 }
 
 export class rSiteTrack extends rSite{
     // implement here the track specific stuff for the rSite
 
-    // 2022-09: basically, this shall be a room that collects all series of all contests that take place on this site. it must keep a list of the  
+    // 2022-09: basically, this shall be a room that collects all series of all contests that take place on this site. it must keep a list of the
+    
+    /** Constructor for the site-room
+     * @method constructor
+     * @param {string} meetingShortname
+     * @param {sequelize} sequelizeMeeting sequelize The sequelize connection to the meetingDB
+     * @param {sequelizeModels} modelsMeeting sequelize-models The sequelize models of the Meeting-DB
+     * @param {mongoDb} mongoDb The mongoDb instance to be used.
+     * @param {eventHandler} eventHandler The eventhandler instance
+     * @param {logger} logger A logger instance
+     */
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests, rDisciplines){
+
+        // call parent constructor
+        super(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests);
+
+        this.rDisciplines = rDisciplines;
+
+        // register events to listen to changes of the series
+        // TODO:
+
+        this.createData.then(()=>{this.ready = true});
+
+    }
+
+    async createData (){
+
+        // initially get all series that use this site. Then, get all aux-information from the respective contests
+        // when the site of a series is changed this shall be notified with an event, so that above process only needs to be started once
+
+        // TODO: test everything
+        // TODO: eventually move this to rSite instead of rSiteTrack
+        const series = this.models.series.findAll({where:{xSite:xSite}});
+
+        // create the data in a new array
+        const data = [];
+
+        for (let i = series.length-1; i>=0; i--){
+            let s = series[i];
+
+            // try to get the contest
+            let contest = findSubroom(this.rContests, s.xContest.toString(), this.logger, true)
+
+            // a series without contest can actually not exist
+            if (!contest){
+                throw({code: 1, message:`The contest ${s.xContest} for series ${s.xSeries} does not exist. This should never happen!`})
+            }
+
+            // get the same series from the contest (since this includes the ssr)
+            const sDetail = contest.series.find(s2=>s.xSeries==s2.xSeries);
+            
+            // make sure that the discipline is of the right type
+            const d = this.rDisciplines.data.find(d2=>d2.xBaseDiscipline == contest.xBaseDiscipline); 
+
+            // TODO: adapt allowed values of type if there are mutiple types in the future (e.g. if we need separate types for wind yes/no, start in lanes yes/no, # persons per lane)
+            if (d.type!=3){
+                // remove the series from the series of this site, since we cannot process this data
+                this.logger.log(33, `rSite/${this.site.xSite}: The baseDiscipline (${contest.xBaseDiscipline}) of xSeries ${series.xSeries} in contest ${contest.xContest} has a type (${d.type}) which cannot be processed for this site. Ignoring this series.`);
+                series.splice(i,1);
+            }
+
+            // create an array with all athletes and their positions
+            const SSRs = [];
+            for (let ssr in sDetail.seriesstartsresults){
+                // get the auxilariy data for this person
+                const SG = contest.startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
+
+                // put all data for this person into one object and add it to the list of athletes
+                const ssrDetail = {};
+                this.propertyTransfer(ssr, ssrDetail, true);
+                this.propertyTransfer(SG, ssrDetail, true);
+
+                SSRs.push(ssrDetail);
+            }
+
+            // add the series to the main data object
+            data.push({
+                SSRs: SSRs,
+                xSeries: sDetail.xSeries,
+                status: sDetail.status,
+                number: sDetail.number,
+                name: sDetail.name,
+                datetime: sDetail.datetime,
+                id: sDetail.id,
+            })
+
+        }
+        // TODO: continue here, as soon as series creation with track events is done!
+
+        // finally:
+        this.data = data
+        this.ready = true;
+    }
 }
 
 export default rSite;

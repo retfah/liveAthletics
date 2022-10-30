@@ -220,7 +220,11 @@
                     let bd = this.baseDisciplines.find(bd=> bd.xBaseDiscipline==co.xBaseDiscipline);
                     if (bd){
                         if (bd.type==1){
+                            // tech high
                             window.location = "./techHighAdmin?xContest="+co.xContest; // TOOD: do this via the preloaded pages!
+                        } else if (bd.type==3){
+                            // track
+                            window.location = "./trackAdmin?xContest="+co.xContest; // TOOD: do this via the preloaded pages!
                         } else {
                             alert("<%= __('Could not find the page for this type of discipline.') %>");
                         }

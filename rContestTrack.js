@@ -9,7 +9,7 @@ import Sequelize  from 'sequelize';
 const Op = Sequelize.Op;
 
 /**
- * the room for a single tech high contest
+ * the room for a single track contest
  * The data stores an object: data ={series: [], contest: {the contest object; to be modified in the rContests room}}
  */
 class rContestTrack extends roomServer{
@@ -42,8 +42,7 @@ class rContestTrack extends roomServer{
 
         super(eventHandler, mongoDb, logger, roomName, true, 1, false, dynamicRoom);
 
-        // if mysql is loaded and mongo is ready, do the stuff for the auxData. Finally, we are ready.
-        // mongoConnected might be called before we even 
+        // if mysql is loaded and mongo is ready, do the stuff for the auxData. Finally, we are ready. 
         this.mongoConnected;
         this.mysqlDataLoaded;
         let pMongoLoaded = new Promise((res, rej)=>{
@@ -74,8 +73,9 @@ class rContestTrack extends roomServer{
         // HowTo (in startsInGroup): 
         // - for every startsInGroup-entry, keep a corresponding dataset with the most 
 
-        // ATTENTION: the same (!) default data must be present in the client room as well!
-        this.defaultAuxData = {}
+        // ATTENTION: the same (!) default data (for each series!) must be present in the client room as well!
+        // TODO: 
+        this.defaultAuxData = {};
 
         this.data = {
             startgroups:[],
@@ -94,7 +94,7 @@ class rContestTrack extends roomServer{
 
         /**
          * The data needed:
-         * - all from series to seriesStartsResults with all results etc
+         * - all from series to seriesStartsResults with the resultsTrack
          * - a list of all startsInGroup, so that we can now what athletes must/can be assigned to a series
          * - auxilary data with all athletes/relays (name etc) of the participants.
          * - (eventually the two latter are in one structure)
@@ -102,7 +102,6 @@ class rContestTrack extends roomServer{
 
         // TODO: provide somewhere (rStartsInGroup?) a general function to create such simplified person data. This "room" (or whatever it is) could then also listen to changes (clubName, athlete, inscription, country) and send an event, so that rooms with this athlete can listen to the respective event and push the change 
 
-        // IDEA: should we really have a dataset for each startsInGroup or shouldn't we better really store the athletes and relays? 
         // --> startsingroup
         //      --> (ev.) groups
         //          --> (ev.) rounds
@@ -116,7 +115,7 @@ class rContestTrack extends roomServer{
         //                  --> club
         //                  --> regions
         //        
-        // get this data together from the rooms or directly as a DB-query? Probably the latter is easier. And then simply update on a change event.
+        // get this data directly as a DB-query and have events to listen to changes
 
         // TODO: can we create the sql query, store it, and then reuse it every time? since nothing is dynamic (per room), it does not make sense to recreate this complex query each and every time when the data is to be updated! (But eventually the structure is needed also for creating the object structure. 
 
@@ -130,7 +129,8 @@ class rContestTrack extends roomServer{
             return obj;
         }
 
-        let startsInGroups = []; // list of all starts in group of this contest
+        //let startsInGroups = []; // list of all starts in group of this contest
+        // TODO: there might be the following problem: since we do not use the data from rInscriptions but get our own models, a change of e.g. the name of an athlete (done in rInscriptions) would not show up here in the auxilary data!
         let promiseStartsInGroup = this.models.startsingroup.findAll({
             //where: {"xStartgroup":{[Op.in]:startsInGroups}}, // TODO: include
             attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
@@ -152,7 +152,6 @@ class rContestTrack extends roomServer{
                 console.log(`Error when creating the startsingroup for contest ${contest.xContest}: ${err}`);
             })
         
-        // TODO: listen to added and removed athletes in startsInGroup for all groups that are connected to this contest. Add/remove those athletes when required.
 
         // get all groups assigned to this contest; include also the information until the events
         //let promiseGroups = this.models.groups.findAll({attributes:['xRound', 'number', 'name'], where:{"xContest":{[Op.eq]:this.contest.xContest}}, include: [{model:this.models.rounds, as:'round', include: [{model:this.models.eventgroups, as:"eventgroup", include:[{model:this.models.events, as:"events"}]}]}]})
@@ -262,8 +261,6 @@ class rContestTrack extends roomServer{
                     startgroups: []
                 };
 
-                // TODO: there must be an error somewhere here!
-
                 // get group etc object and add it to relatedGroups
                 let promGroup = this.models.groups.findOne({attributes:['xRound', 'number', 'name'], where:{"xRound":data.xRound, number:data.number}, include: [{model:this.models.rounds, as:'round', include: [{model:this.models.eventgroups, as:"eventgroup", include:[{model:this.models.events, as:"events"}]}]}]}).then((group)=>{
                     this.data.relatedGroups.push(group);
@@ -332,11 +329,10 @@ class rContestTrack extends roomServer{
         // get all series
         // it shall have the following structure: 
         // series : all series objects
-        // series[0].heights : the heights jumped in this series
         // series[0].seriesstartsresults : all athletes in this series
-        // series[0].seriesstartsresults[0].resultshigh : the results of the athletes
+        // series[0].seriesstartsresults[0].resultstrack : the track specific result and position
         // 
-        let promiseSeries = this.models.series.findAll({where:{xContest:contest.xContest}, include:[{model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultshigh, as:"resultshigh"}]}, {model:this.models.heights, as:"heights"}]}).then(series=>{
+        let promiseSeries = this.models.series.findAll({where:{xContest:contest.xContest}, include:[{model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}]}).then(series=>{
             this.data.series = series;
         })
 
@@ -378,24 +374,22 @@ class rContestTrack extends roomServer{
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
-        
+        // TODO: activate one function after the other, when needed
         this.functionsWrite.updateContest2 = this.updateContest2.bind(this);
         this.functionsWrite.updatePresentState = this.updatePresentState.bind(this);
         this.functionsWrite.initialSeriesCreation = this.initialSeriesCreation.bind(this);
         this.functionsWrite.deleteAllSeries = this.deleteAllSeries.bind(this);
         this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
-        this.functionsWrite.addSSR = this.addSSR.bind(this);
-        this.functionsWrite.changePosition = this.changePosition.bind(this);
-        this.functionsWrite.moveSeries = this.moveSeries.bind(this);
-        this.functionsWrite.addHeight = this.addHeight.bind(this);
-        this.functionsWrite.deleteHeight = this.deleteHeight.bind(this);
-        this.functionsWrite.updateSSR = this.updateSSR.bind(this);
-        this.functionsWrite.addResult = this.addResult.bind(this);
-        this.functionsWrite.updateResult = this.updateResult.bind(this);
-        this.functionsWrite.deleteResult = this.deleteResult.bind(this);
-        this.functionsWrite.updateSeries = this.updateSeries.bind(this);
-        this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
-        this.functionsWrite.addSeries = this.addSeries.bind(this);
+        // this.functionsWrite.addSSR = this.addSSR.bind(this);
+        // this.functionsWrite.changePosition = this.changePosition.bind(this);
+        // this.functionsWrite.moveSeries = this.moveSeries.bind(this);
+        // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
+        // this.functionsWrite.addResult = this.addResult.bind(this);
+        // this.functionsWrite.updateResult = this.updateResult.bind(this);
+        // this.functionsWrite.deleteResult = this.deleteResult.bind(this);
+        // this.functionsWrite.updateSeries = this.updateSeries.bind(this);
+        // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
+        // this.functionsWrite.addSeries = this.addSeries.bind(this);
 
         // define, compile and store the schemas:
         const schemaAuxDataPerSeries = {
@@ -437,9 +431,10 @@ class rContestTrack extends roomServer{
                 datetimeAppeal: {type:["string"], format:"date-time"},
                 datetimeCall: {type:["string"], format:"date-time"},
                 datetimeStart: {type:["string"], format:"date-time"},
-                xSite: {type: ["integer", "null"]},
+                //xSite: {type: ["integer", "null"]},
                 status: {type: "integer"},
-                conf: {type:"string"}
+                conf: {type:"string"},
+                name: {type:"string", maxLength:50},
             },
             required: ["xContest", "xBaseDiscipline", "datetimeAppeal", "datetimeCall", "datetimeStart"]
         };
@@ -454,30 +449,17 @@ class rContestTrack extends roomServer{
             required: ['xStart', 'xStartgroup', 'newState']
         }
 
-        // also check in ajv that the result is valid:
-        // - maximum 3 failed attempts 
-        // - if 3 failed attempts: passed=false and valid=false
-        // - valid and passed cannot be true at the same time
-        // checked with online validator: the specification below should work
-        const schemaResultsHigh = {
-            type: "object",
-            properties: {
-                xResult: {type:"integer"}, // reference to xSeriesStart! 
-                xHeight: {type:"integer"}, // reference to xHeight
-                resultsHighFailedAttempts: {type:"integer", maximum:3, minimum:0},
-                resultsHighValid: {type:"boolean"},
-                resultsHighPassed: {type:"boolean"},
+        const schemaResultsTrack = {
+            type:'object',
+            properties:{
+                xResultTrack: {type:'integer'},
+                time: {type: "integer", minimum:0},
+                timeRounded: {type: "integer", minimum:0},
+                rank: {type: 'integer', minimum:1},
+                official: {type: 'boolean'},
             },
-            additionalProperties: false,
-            required:["xHeight", "resultsHighFailedAttempts", "resultsHighValid", "resultsHighPassed"],
-            "allOf":[
-                {"if":{"properties":{"resultsHighFailedAttempts":{"const":3}}},
-                 "then":{"properties":{"resultsHighValid":{"const":false}, "resultsHighPassed": {"const":false}}}
-                },
-                {"not":{"properties":{"resultsHighValid":{"const":true}, "resultsHighPassed": {"const":true}}}},
-                
-            ],
-            
+            additionalProperties:false,
+            required:['time', 'timeRounded', 'rank', 'official'], // note: if there will be an addResult function, xResultTrack will be needed!
         }
 
         const schemaSeriesStartsResults = {
@@ -491,25 +473,10 @@ class rContestTrack extends roomServer{
                 resultRemark: {type:"string", maxLength:100},
                 qualification: {type:"integer"}, 
                 startConf: {type:["string", "integer"]}, // actually the length is limited to 65536 bytes, which means the same or less characters! This cannot be checked yet with JSON schema. Allow integers as well; they will be casted to string
-                resultshigh: {
-                    type:"array",
-                    items: schemaResultsHigh,
-                }
+                resultstrack: schemaResultsTrack,
             },
             required: ["xSeries", "xStartgroup", "position"],
             additionalProperties: false, 
-        }
-
-        const schemaHeights = {
-            type:"object",
-            properties: {
-                xHeight: {type:"integer"},
-                xSeries: {type: "integer"},
-                jumpoffOrder: {type: "integer"},
-                height: {type: "integer"},
-            },
-            required:["xSeries", "jumpoffOrder", "height"], // if it is server to server communication, then it must also include the xHeight 
-            additionalProperties: false,
         }
 
         const schemaSeries = {
@@ -525,10 +492,6 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
-                heights: {
-                    type:"array",
-                    items: schemaHeights // reference to the heights
-                } 
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -553,7 +516,7 @@ class rContestTrack extends roomServer{
         const schemaInitialSeriesCreation = {
             // must be based on the series schema, but some properties shall not be included, e.g. results
             type:"array",
-            items: {
+            items: schemaSeries/*{
                 // limit some stuff, e.g. no heights property in series and no
                 allOf:[
                     // must fulfill the general schema (with al possible props)
@@ -569,7 +532,7 @@ class rContestTrack extends roomServer{
                         }
                     },
                 ]
-            }
+            }*/
         }
 
         const schemaAddSeries = {
@@ -584,10 +547,6 @@ class rContestTrack extends roomServer{
                 seriesstartsresults: {
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
-                },
-                heights: {
-                    type:"array",
-                    items: schemaHeights // reference to the heights
                 },
             },
             required: ["xContest", "status", "number"],
@@ -626,26 +585,18 @@ class rContestTrack extends roomServer{
             additionalProperties: false
         }
 
-        const schemaDeleteHeight = {
-            type:"object",
-            properties: {
-                xSeries: {type:"integer"}, // for simplicity only, to find the height to delete a little easier
-                xHeight: {type: "integer"}
-            },
-            required:['xSeries', 'xHeight'],
-            additionalProperties: false
-        }
-
+        // TODO: change or include in updateSSR
         const schemaAddResult = {
             type: "object",
             properties: {
-                result: schemaResultsHigh,
+                result: schemaResultsTrack,
                 xSeries: {type:"integer"}
             },
             required: ["result", "xSeries"],
             additionalProperties: false,
         };
 
+        // TODO: probably not needed anymore, when included in 
         const schemaDeleteResult = {
             type:"object",
             properties: {
@@ -666,8 +617,6 @@ class rContestTrack extends roomServer{
         this.validateUpdatePresentState = this.ajv.compile(schemaUpdatePresentState);
         this.validateInitialSeriesCreation = this.ajv.compile(schemaInitialSeriesCreation);
         this.validateMoveSeries = this.ajv.compile(schemaMoveSeries);
-        this.validateAddHeight = this.ajv.compile(schemaHeights);
-        this.validateDeleteHeight = this.ajv.compile(schemaDeleteHeight);
         this.validateUpdateSSR = this.ajv.compile(schemaSeriesStartsResults);
         this.validateAddResult = this.ajv.compile(schemaAddResult);
         this.validateUpdateResult = this.ajv.compile(schemaUpdateResult);
@@ -799,14 +748,6 @@ class rContestTrack extends roomServer{
 
     }
 
-    validateJumpoffResult(result){
-        return !(
-            result.resultsHighFailedAttempts>1 ||
-            result.resultsHighPassed ||
-            (result.resultsHighValid && result.resultsHighFailedAttempts==1)
-        )
-    }
-
     async addResult(data){
         if (!this.validateAddResult(data)){
             throw {code: 21, message:this.ajv.errorsText(this.validateAddResult.errors)};
@@ -819,17 +760,6 @@ class rContestTrack extends roomServer{
         let s = this.data.series.find(s=>s.xSeries==data.xSeries);
         if (!s){
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
-        }
-
-        // if the result is a jumpoff result, we must manually do the plausibility checks (the validation only checks it for results in the regular part of the competition)
-        let h = s.heights.find(h=>h.xHeight==data.result.xHeight);
-        if (!h){
-            throw {code:25, message:`Height of the result to be stored not found.`}
-        }
-        if (h.jumpoffOrder>0){
-            if (!this.validateJumpoffResult(data.result)){
-                throw {code:26, message:`Jumpoff result is invalid and cannot be added.`}
-            }
         }
 
         let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
@@ -864,17 +794,6 @@ class rContestTrack extends roomServer{
         let s = this.data.series.find(s=>s.xSeries==data.xSeries);
         if (!s){
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
-        }
-
-        // if the result is a jumpoff result, we must manually do the plausibility checks (the validation only checks it for results in the regular part of the competition)
-        let h = s.heights.find(h=>h.xHeight==data.result.xHeight);
-        if (!h){
-            throw {code:25, message:`Height of the result to be stored not found.`}
-        }
-        if (h.jumpoffOrder>0){
-            if (!this.validateJumpoffResult(data.result)){
-                throw {code:26, message:`Jumpoff result is invalid and cannot be added.`}
-            }
         }
 
         let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
@@ -928,97 +847,13 @@ class rContestTrack extends roomServer{
             throw {code:23, message:`The position cannot be changed in the update SSR function! Use 'changePosition'.`}
         }
 
-        // remove results
-        delete data.resultshigh
-
         await ssr.update(data).catch(err=>{
             throw {code: 24, message: `Could not update the seriesstartresult: ${err}`}
         })
 
-        // return the xHeight to the calling client and broadcast the newly created height-object to all other clients (including the xHeight)
         let ret = {
             isAchange: true, 
             doObj: {funcName: 'updateSSR', data: data},
-            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
-            response: true, 
-            preventBroadcastToCaller: true
-        };
-
-        return ret
-
-    }
-
-    // add a new height
-    async addHeight(data){
-
-        if (!this.validateAddHeight(data)){
-            throw {code:21, message: this.ajv.errorsText(this.validateAddHeight.errors)};
-        }
-
-        // find the corresponding series
-        let series = this.data.series.find(s=>s.xSeries == data.xSeries);
-        if (!series){
-            throw {code:22, message:`xSeries ${data.xSeries} was not found in the respective contest. Height cannot be added.`}
-        }
-
-        // check whether there is already the same height (neither based on xHeight, nor based on height (both for jumpoffOrder=0), neither the same jumpoffOrder (when jumpoffOrder>0))
-        if (data.jumpoffOrder==0){
-            if (series.heights.findIndex(h=>h.height==data.height || h.xHeight==data.xHeight)>=0){
-                throw {code:23, message:`The height already exists on the server. (xHeight and/or height matches).`}
-            }
-        } else {
-            if (series.heights.findIndex(h=>h.jumpoffOrder==data.jumpoffOrder)>=0){
-                throw {code:23, message: `Jumpoff-height could not be added, since for this jumpoffOrder value a height already exists.`}
-            }
-        }
-
-        // add the height
-        let newHeight = await this.models.heights.create(data).catch(err=>{throw {code: 24, message: `new height could not be created: ${err}`}})
-
-        // add the height to the local series object
-        series.heights.push(newHeight);
-
-        // return the xHeight to the calling client and broadcast the newly created height-object to all other clients (including the xHeight)
-        let ret = {
-            isAchange: true, 
-            doObj: {funcName: 'addHeight', data: newHeight.dataValues},
-            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
-            response: newHeight.xHeight, 
-            preventBroadcastToCaller: true
-        };
-
-        return ret
-
-    }
-
-    async deleteHeight(data){
-        if (!this.validateDeleteHeight(data)){
-            throw {code:21, message:this.ajv.errorsText(this.validateDeleteHeight.errors)}
-        }
-
-        // find the corresponding series
-        let series = this.data.series.find(s=>s.xSeries == data.xSeries);
-        if (!series){
-            throw {code:22, message:`xSeries ${data.xSeries} was not found in the respective contest. Height cannot be deleted.`}
-        }
-
-        // find the index of the height
-        let heightIndex = series.heights.findIndex(h=>h.xHeight==data.xHeight);
-        if (heightIndex == -1){
-            throw {code: 23, message: `Height could not be found and therefore could not be deleted.`}
-        }
-        let height = series.heights[heightIndex];
-        await height.destroy().catch(err=>{
-            throw {code: 24, message: `Height could not be destroyed, e.g. because it is references in a result: ${err}.`}
-        })
-
-        // delete from the series object
-        series.heights.splice(heightIndex,1);
-
-        // broadcast change:
-        let ret = {
-            isAchange: true, 
-            doObj: {funcName: 'deleteHeight', data: data},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true
@@ -1100,6 +935,7 @@ class rContestTrack extends roomServer{
             }
 
             // you cannot change the position when there are already results
+            // TODO!!!
             if (ssr.resultshigh.length>0){
                 throw {code: 24, message: `Cannot change the position of an athlete with results.`};
             }
@@ -1165,13 +1001,8 @@ class rContestTrack extends roomServer{
                 throw {code: 23, message: `xStartgroup ${ssr.xStartgroup} is not available in this contest.` };
             }
 
-            // if resultshigh is not present in the data to create, it will not be part of the returned ned ssr-model. So simply add it here
-            if (!('resultshigh' in ssr)){
-                ssr.resultshigh = [];
-            }
-
             // create SSR
-            return this.models.seriesstartsresults.create(ssr, {include: [{model:this.models.resultshigh, as:"resultshigh"}]}).then(async (newSSR)=>{
+            return this.models.seriesstartsresults.create(ssr, {include: [{model:this.models.resultstrack, as:"resultstrack"}]}).then(async (newSSR)=>{
                 // move all positions that are >= the new position
                 for (let i=0; i<series.seriesstartsresults.length; i++){
                     let currentSSR = series.seriesstartsresults[i];
@@ -1263,31 +1094,24 @@ class rContestTrack extends roomServer{
         // nothing to validate
 
         // check that the seriesstatus and conteststatus are correct!
-        // This should also ensure that there are no heights and results yet.
         // TODO
 
         // destroy all at once (looping over teh array and do it one by one)
         
-        // first delete all seriesstartsresults and heights
+        // first delete all seriesstartsresults
         for (let i=0; i<this.data.series.length; i++){
             // first try to delete the seriesstarts results; this only works when there are no results yet/anymore!
             await this.models.seriesstartsresults.destroy({where:{xSeries:this.data.series[i].xSeries}}).catch(err=>{
                 throw {message:`Could not delete the seriesstartsresults of series ${this.data.series[i].xSeries}: ${err}` ,code:22}
             })
             this.data.series[i].seriesstartsresults = [];
-
-            // then delete all heights
-            await this.models.heights.destroy({where:{xSeries:this.data.series[i].xSeries}}).catch(err=>{
-                throw {message:`Could not delete all heights of series ${this.data.series[i].xSeries}: ${JSON.stringify(err)}`, code:24};
-            })
-
         }
 
         // then delete all series
         return this.models.series.destroy({where:{xContest: this.contest.xContest}}).then(async ()=>{
             // sucessfully deleted everything in the DB; now also delete the auxData
 
-
+            // TODO: check whether we really use auxData here in the same way as with techHigh
             for (let key in this.data.auxData){
                 delete this.data.auxData[key];
             }
@@ -1300,7 +1124,7 @@ class rContestTrack extends roomServer{
             let ret = {
                 isAchange: true, 
                 doObj: {funcName: 'deleteAllSeries', data: true},
-                undoObj: {funcName: 'TODO', data: {}, ID: this.ID}, // could use initialSeriesCreation, but we have to remove the arrays for heights and results
+                undoObj: {funcName: 'TODO', data: {}, ID: this.ID}, 
                 response: true, 
                 preventBroadcastToCaller: true
             };
@@ -1320,7 +1144,6 @@ class rContestTrack extends roomServer{
         //
         if (this.validateAddSeries(series)){
             
-            series.heights = [];
             series.seriesstartsresults = [];
 
             // check that xContest is correct
@@ -1335,7 +1158,7 @@ class rContestTrack extends roomServer{
 
             let dataReturn, dataBroadcast;
             await this.models.series.create(series, {include:[
-                {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultshigh, as:"resultshigh"}]},{model:this.models.heights, as:"heights"}
+                {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}
                 ]}).then(async (s)=>{
 
                 // broadcast the new series object
@@ -1395,12 +1218,9 @@ class rContestTrack extends roomServer{
             // eager-insert the data, series by series (since it seems like sequelize has no "multi-create" method)
             for (let i=0; i<series.length; i++){
                 // IMPORTANT: there MUST be no sorting at all! The order of seriesstartsresults must stay the same to ensure the requesting client gets the correct order of the indices!
-                
-                // without having (empty) heights in the input, sequelize would not create the empty heights array in the returned series 
-                series[i].heights = [];
 
                 await this.models.series.create(series[i], {include:[
-                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultshigh, as:"resultshigh"}]},{model:this.models.heights, as:"heights"}
+                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}
                     ]}).then((s)=>{
 
                     // add the series to the broadcast array 
@@ -1496,8 +1316,7 @@ class rContestTrack extends roomServer{
 
             // TODO: check that a status change is allowed:
             // - need at least one series to allow series defined
-            // - must not have neither results nor heights to go back from the competition part to series definition
-
+            // - must not have results to go back from the competition part to series definition
 
             // if everything is fine, call the update function on the contests room
             return this.rContests.serverFuncWrite('updateContest', data).then(result=>{
