@@ -873,6 +873,7 @@
                             <% seriesAssignments.forEach((SA)=>{ %>
                                 <%- include(SA, {type:"html"}) %>
                             <% }); %>
+                            <br>
                             <button type="button" class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
                             <button type="submit" class="btn btnGreen" v-on:click="createSeriesAutomatically()"><%= __("(Re-)create series") %></button>
                         </form>

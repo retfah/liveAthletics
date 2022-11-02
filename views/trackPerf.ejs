@@ -1,0 +1,169 @@
+<% if(type=="html"){ %>
+<!-- the configuration window for this kind of series assignment-->
+<div v-if="seriesAssignmentOverlay=='trackPerf'" class="verticalForm">
+    <h3><%= __("Configuration") %></h3>
+    <%= __("First sort the athletes based on a performance, then distribute them over the required heats.") %><br>
+    <!-- TODO FUTURE: introduce some approach on how to seed runs started in lanes with more than one person per lane; eventually we want there to only have the outer/inner lanes to be filled with two athletes or whatever-->
+    <fieldset>
+        <legend><%= __("Sort athletes by") %>: </legend>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortAthletesBy" value="bestPerfLast" v-model="seriesAssignmentConfiguration.trackPerf.sortAthletesBy">
+            <%= __("Registration value") %>
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortAthletesBy" value="bestPerf" v-model="seriesAssignmentConfiguration.trackPerf.sortAthletesBy">
+            <%= __("Personal best") %>
+        </label>
+        <label>
+            <input type="checkbox" v-model="seriesAssignmentConfiguration.trackPerf.includePerfPreviousRounds">
+            <%= __("Consider performances of previous rounds") %>
+        </label>
+        <!--<label>
+            <input type="checkbox" v-model="seriesAssignmentConfiguration.trackPerf.includePerfOtherEvents">
+            <%= __("Consider performances of other events in this meeting") %>
+        </label>-->
+    </fieldset>
+
+    <fieldset>
+        <legend><%= __("Distribute athletes over the heats") %>:</legend>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="distributeAthletes" value="bestFirst" v-model="seriesAssignmentConfiguration.trackPerf.distributeAthletes">
+            <%= __("Best first") %>
+        </label>   
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="distributeAthletes" value="bestLast" v-model="seriesAssignmentConfiguration.trackPerf.distributeAthletes">
+            <%= __("Best last") %>   
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="distributeAthletes" value="IAAF" v-model="seriesAssignmentConfiguration.trackPerf.distributeAthletes">
+            <%= __("IAAF (zig-zag)") %>
+        </label>
+    </fieldset>
+    <fieldset>
+        <legend><%= __("Distribute athletes within the heats") %>:</legend>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortWithinHeat" value="arrow" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeat">
+            <%= __("Arrow") %>
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortWithinHeat" value="IAAF" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeat">
+            <%= __("IAAF") %>
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortWithinHeat" value="random" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeat">
+            <%= __("Random") %>
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortWithinHeat" value="positive" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeat">
+            <%= __("Best first") %>
+        </label>
+        <label style="display:inline-block; margin-right:15px;">
+            <input type="radio" name="sortWithinHeat" value="negative" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeat">
+            <%= __("Best last") %>
+        </label>
+    </fieldset>
+    <template v-if="conf.startInLanes">
+        <fieldset>
+            <legend><%= __("Position of athletes in heats with empty lanes") %>:</legend>
+            <label style="display:inline-block; margin-right:15px;">
+                <input type="radio" name="positioningInSeries" value="left" v-model.number="seriesAssignmentConfiguration.trackPerf.positioningInSeries">
+                <%= __("Left") %>
+            </label>
+            <label style="display:inline-block; margin-right:15px;">
+                <input type="radio" name="positioningInSeries" value="centerLeft" v-model.number="seriesAssignmentConfiguration.trackPerf.positioningInSeries">
+                <%= __("Center left") %>
+            </label>
+            <label style="display:inline-block; margin-right:15px;">
+                <input type="radio" name="positioningInSeries" value="centerRight" v-model.number="seriesAssignmentConfiguration.trackPerf.positioningInSeries">
+                <%= __("Center right") %>
+            </label>
+            <label style="display:inline-block; margin-right:15px;">
+                <input type="radio" name="positioningInSeries" value="right" v-model.number="seriesAssignmentConfiguration.trackPerf.positioningInSeries">
+                <%= __("Right") %>
+            </label>
+        </fieldset>
+
+    </template>
+
+
+
+</div>
+
+<% }else{ %> // must have a non-code line here, since it will be commented out!
+    {
+        name: '<%= __("By Performance") %>',  // the name of the series assignment.
+        overlayName: "trackPerf", // the name of the overlay
+        assignFunc: function (args){
+            // eventually we should reset everything at the beginning.
+
+            // calculate how many series are needed and add those series
+            this.numSeries = Math.ceil(this.unassignedAthletesCreate.length/this.seriesAssignmentConfiguration.trackPerf.maxAthletes); // TODO
+
+            this.seriesObj = [];
+            for (let i=0; i<this.numSeries; i++){
+                this.addEmptySeriesInitial()
+            }
+            // the series are created
+
+            // first sort startsingroup accordingly.
+            if (this.seriesAssignmentConfiguration.trackPerf.sortAthletesBy=="random"){
+                // Fisher Yates shuffle
+                for (i = this.unassignedAthletesCreate.length -1; i > 0; i--) {
+                    let j = Math.floor(Math.random() * i)
+                    let k = this.unassignedAthletesCreate[i]
+                    this.unassignedAthletesCreate[i] = this.unassignedAthletesCreate[j]
+                    this.unassignedAthletesCreate[j] = k
+                }
+            }else {
+                const getVal = (x)=>{
+                    // get the correct sort value
+                    if (this.seriesAssignmentConfiguration.trackPerf.sortAthletesBy=="bestPerf"){
+                        if (x.bestPerf){
+                            return x.bestPerf
+                        } 
+                        
+                    } else {
+                        if (x.bestPerfLast){
+                            return x.bestPerfLast
+                        }
+                    }
+                    return 0
+                }
+                
+                this.unassignedAthletesCreate.sort((a, b)=>{
+                    return (getVal(a)-getVal(b))*this.seriesAssignmentConfiguration.trackPerf.sorting*-1;
+                })
+            }
+            
+            for (i=0;i<this.numSeries;i++){
+                // count the remaining athletes to assign and calculate how many athletes shall be in this series
+                // how many athletes to assign: 
+                let numAthAssign = Math.ceil(this.unassignedAthletesCreate.length/(this.numSeries-i));
+
+                let sig = this.seriesObj[i].startsingroup;
+                for (j=0; j<numAthAssign;j++){
+                    sig.push(this.unassignedAthletesCreate.shift())
+                }
+
+                // if the athletes shall be sorted inversely compared to the series (i.e. the best series first, but the best athlete within the series last), reverse the series
+                if (this.seriesAssignmentConfiguration.trackPerf.commonSorting==false && this.seriesAssignmentConfiguration.trackPerf.sortingWithin !=this.seriesAssignmentConfiguration.trackPerf.sorting){
+                    this.seriesObj[i].startsingroup.reverse();
+                } 
+            }
+
+
+        }, // the function to call to assign the series. arguments and return stuff to be defined. Eventually there is nothing to be returned, but we simply bind the function to the  of vue this and the function shall/can access all properties available.
+        initFunc: function(){
+            this.seriesAssignmentConfiguration.trackPerf = {
+                sortAthletesBy: "bestPerfLast", // either of: bestPerf, bestPerfLast
+                includePerfPreviousRounds: true,
+                includePerfOtherEvents: false, // TODO: whether or not to include the results from other events on the same competition
+                distributeAthletes: 'bestFirst', // bestFirst, bestLast, IAAF
+                sortWithinHeat: 'arrow', // IAAF, arrow, random, positive, negative
+                positioningInSeries: 'centerRight', // left, centerLeft, centerRight, right; prefer not to use the inner lane by default, but center the athletes
+            }
+        }, // function called on initialization of the series assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
+        baseDisciplineTypes: [3], // the baseDisciplines-types where this series assignment opiton shall be present (probably only needed for track disciplines)
+    }
+
+<% } %>

@@ -101,7 +101,7 @@
                     newInterval: undefined,
 
                     // series assignments (the different strategies that can be applied)
-                    seriesAssignments: [
+                    seriesAssignmentsAll: [
                     //includes<% seriesAssignments.forEach((SA)=>{ %>
                         // next include:<%- include(SA, {type:"js"}) %>,
                     //<% }); %>
@@ -2804,6 +2804,11 @@
 
 
                 /* !!! properties for SERIES CREATION only !!! */
+
+                seriesAssignments: function(){
+                    // filter all series assignments to show only track (ytype==3) assignements
+                    return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(3)>=0);
+                },
 
                 defaultPosition: function(){
                     // returns an array with the default position array; this is needed to reset the array and to know if the order currently is changed or not

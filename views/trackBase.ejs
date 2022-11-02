@@ -157,7 +157,7 @@
                     newInterval: undefined,
 
                     // series assignments (the different strategies that can be applied)
-                    seriesAssignments: [
+                    seriesAssignmentsAll: [
                     //includes<% seriesAssignments.forEach((SA)=>{ %>
                         // next include:<%- include(SA, {type:"js"}) %>,
                     //<% }); %>
@@ -3081,6 +3081,11 @@
                         })
                     }
                     return unassignedAthletes;
+                },
+
+                seriesAssignments: function(){
+                    // filter all series assignments to show only track (ytype==3) assignements
+                    return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(3)>=0);
                 },
                 
                 seriesAssignmentOverlay: function(){

@@ -61,7 +61,7 @@ export default {
         //modelsMeetings:'./modelsMeeting/', // this path will be used in importing in rMeetings.mjs; however, imports are not allowed to be dynamic (i.e. dependent ona  variable); thus it is hardcoded now and this variable is not used!
     },
 
-    seriesAssignments:['techDefault.ejs'], 
+    seriesAssignments:['techDefault.ejs', 'trackPerf.ejs', 'trackRandom.ejs'], 
 
     // define the users that are allowed to administrate the meetings (create new ones, link to master servers, getMaster, ...)
     adminUsers: {"Admin":"athletica"}, // multiple users: [{"user1": "password1"}, {"user2": "password2"}, {...}]

@@ -503,5 +503,22 @@
 	"Heat size distance events": "Laufgrösse",
 	"Timings": "Zeitmessungen",
 	"Number of lanes": "Anzahl Bahnen",
-	"empty": "leer"
+	"empty": "leer",
+	"By Performance": "Nach Leistung",
+	"Assign the athletes randomly over the required number of heats": "Weise die Athleten zufällig über die benötigte Anzahl Serien zu",
+	"Position of athletes in heats with empty lanes": "Position der Athleten in Serien mit leeren Bahnen",
+	"Left": "Links",
+	"Center left": "Mittig links",
+	"Center right": "Mittig rechts",
+	"Right": "Rechts",
+	"First sort the athletes based on a performance, then distribute them over the required heats.": "Sortiere zuerst alle Athleten nach Leistung und verteile sie dann auf die benötigte Anzahl Serien.",
+	"Sort athletes by": "Sortiere Athleten nach",
+	"Consider performances of previous rounds": "Berücksichtige Leistungen aus vorherigen Runden",
+	"Distribute athletes over the heats": "Verteilung auf die Serien",
+	"IAAF (zig-zag)": "IAAF (zick-zack)",
+	"Distribute athletes within the heats": "Verteilung der Athleten über die Serien",
+	"Arrow": "Pfeilform",
+	"IAAF": "IAAF",
+	"Random": "Zufällig",
+	"Consider performances of other events in this meeting": "Berücksichtige Leistungen aus anderen Wettkämpfen an diesem Meeting"
 }
