@@ -36,8 +36,8 @@
 
             // first sort startsingroup randomly.
             // Fisher Yates shuffle
-            for (i = this.unassignedAthletesCreate.length -1; i > 0; i--) {
-                let j = Math.floor(Math.random() * i)
+            for (let i = this.unassignedAthletesCreate.length -1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i+1));
                 let k = this.unassignedAthletesCreate[i]
                 this.unassignedAthletesCreate[i] = this.unassignedAthletesCreate[j]
                 this.unassignedAthletesCreate[j] = k
@@ -74,18 +74,18 @@
                         let occupiedLanes = Math.min(this.conf.lanes, remainingAthInSeries)
                         let emptyLanes = this.conf.lanes - occupiedLanes;
 
-                        let emptyLanesBefore = 0;
+                        let emptyLanesLeft = 0;
                         if (emptyLanes>0){
                             if (this.seriesAssignmentConfiguration.trackRandom.positioningInSeries=='right'){
-                                emptyLanesBefore = emptyLanes;
+                                emptyLanesLeft = emptyLanes;
                             } else if (this.seriesAssignmentConfiguration.trackRandom.positioningInSeries=='centerRight'){
-                                emptyLanesBefore = Math.ceil(emptyLanes/2);
+                                emptyLanesLeft = Math.ceil(emptyLanes/2);
                             } else if (this.seriesAssignmentConfiguration.trackRandom.positioningInSeries=='centerLeft'){
-                                emptyLanesBefore = Math.floor(emptyLanes/2);
+                                emptyLanesLeft = Math.floor(emptyLanes/2);
                             }
                         }
                         
-                        for (let k=emptyLanesBefore; k<emptyLanesBefore + occupiedLanes; k++ ){
+                        for (let k=emptyLanesLeft; k<emptyLanesLeft + occupiedLanes; k++ ){
                             // search for the right SSR entry: 
                             let ssr = ssrs.find(ssr=>ssr.lane==k+1 && ssr.posInLane==j+1);
                             ssr.startsingroup = this.unassignedAthletesCreate.shift();
