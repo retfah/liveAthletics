@@ -101,7 +101,7 @@
 
                     onSeriesChangeCalcNextAth: true,
 
-                    // show a clock on some screens; 
+                    // show a clock on some screens (e.g. live screen); 
                     // start an interval to update the time in "mounted", if the time is odd, show the ":" between minutes and hours 
                     timeHours:'00',
                     timeMinutes:'00',
@@ -235,6 +235,23 @@
                 }
             },
             methods:{
+
+                unassignedAthleteChanged(evt){
+                    // override the default behavior (add/remove to/from 'displayData' within v-table, which does not work) and add/remove the element instead to/from 'unassignedAthletesCreate'
+                    console.log('drag changed');
+                    if ('removed' in evt){
+                        // remove the element from 'unassignedAthletesCreate'
+                        var i = this.unassignedAthletesCreate.indexOf(evt.removed.element);
+                        if (i!=-1){
+                            // should always come here; remove the element
+                            this.unassignedAthletesCreate.splice(i,1);
+                        }
+
+                    } else if ('added' in evt){
+                        // add the element to 'unassignedAthletesCreate'
+                        this.unassignedAthletesCreate.push(evt.added.element.startsingroup)
+                    }
+                },
 
                 // to make an element a dropzone, it needs the following event handlers:
                 // - ondragover
@@ -531,66 +548,11 @@
                     console.log('2');
                     console.log(evt);
                 },
-                dragMove(evt){
-                    console.log(evt);
-                    // within the same list, we actually want sorting and not swapping (which would be the default
-                    function xy(){
-                    if (evt.from==evt.to){
-                        evt.from.__draggable_component__._sortable.option("swap", false);
-                        evt.from.__draggable_component__._sortable.option("replace", false);
-                        evt.to.__draggable_component__._sortable.option("swap", false);
-                        evt.to.__draggable_component__._sortable.option("replace", false);
-                        /*evt.from.__draggable_component__._sortable.options.swap = false;
-                        evt.from.__draggable_component__._sortable.options.replace = false;*/
-                    } else {
-                        // if "to" (relatedContext) is the "unassigned athlete list", then it must also be sort and not swap (otherwise we could not remove an athlete from series without adding another one...)
-                        if(evt.to.id === "unassignedAthletesInit"){
-                            evt.from.__draggable_component__._sortable.option("swap", false);
-                            evt.from.__draggable_component__._sortable.option("replace", false);
-                            evt.to.__draggable_component__._sortable.option("swap", false);
-                            evt.to.__draggable_component__._sortable.option("replace", false);
-                            /*evt.from.__draggable_component__._sortable.options.swap=false;
-                            evt.from.__draggable_component__._sortable.options.replace=false;*/
-                        }else {
-                            if (evt.from.id === "unassignedAthletesInit"){
-                                // from unassigned to series: 
-                                //  use mode replace
-                                evt.from.__draggable_component__._sortable.option("swap", false);
-                                evt.from.__draggable_component__._sortable.option("replace", true);
-                                evt.to.__draggable_component__._sortable.option("swap", false);
-                                evt.to.__draggable_component__._sortable.option("replace", true);
-                                /*evt.from.__draggable_component__._sortable.options.swap=false;
-                                evt.from.__draggable_component__._sortable.options.replace=true;*/
-                                // allow position only on empty lanes:
-                                if (evt.relatedContext.list[evt.relatedContext.index].startsingroup){
-                                    return false;
-                                }
-                            } else {
-                                // from series to series: regular swap
-                                evt.from.__draggable_component__._sortable.option("swap", true);
-                                evt.from.__draggable_component__._sortable.option("replace", false);
-                                evt.to.__draggable_component__._sortable.option("swap", true);
-                                evt.to.__draggable_component__._sortable.option("replace", false);
-                                /*evt.from.__draggable_component__._sortable.options.swap=true;
-                                evt.from.__draggable_component__._sortable.options.replace=false;*/
-                            }
-
-                        }
-
-                        // empty lanes cannot be dragged to other series, but within a series:
-                        if (evt.draggedContext.element.startsingroup===null){
-                            return false;
-                        }
-
-                    }
-                    }
-                    
-                },
                 changeOnSeries(evt, series, index){
                     console.log(`ath changed in series`);
                     console.log(evt);
 
-                    /*if ('added' in evt && !("lane" in evt.added.element)){
+                    if ('added' in evt && !("lane" in evt.added.element)){
                         // if the element was actually from the unassigned athletes, we have to make sure it is a correct object for the present list
                         // overwrite the default behavior
                         this.seriesObj[index].SSRs[evt.added.newIndex] = {
@@ -601,7 +563,9 @@
                             position: 0,
                             startsingroup: evt.added.element,
                         }
-                    }*/
+                    }
+                    this.updatePositions(series);
+                    return true;
                 },
                 seriesChanged(evt){
                     // TODO: implement reordering of series here
@@ -705,6 +669,20 @@
                     this.resetInitialSeriesAssignment()
                     
                     this.overlay2 = 'createSeries';
+                },
+                updatePositions: function(seriesObj2){
+                    // update the position (and lane) values if not startInLanes
+                    if (this.conf.startInLanes){
+                        return;
+                    }
+                    
+                    // simply loop over the series and recreate all positions and lanes
+                    for (let i=0; i < seriesObj2.SSRs.length; i++){
+                        const ssr = seriesObj2.SSRs[i];
+                        ssr.lane = i+1;
+                        ssr.position = i+1;
+                        ssr.posInLane = 1;
+                    }
                 },
                 updateEmptyInitLanes: function(seriesObj2){
                     // called e.g. after the number of lanes/groupSize/startInLanes have changed, when a new series is added, when an seriesStart is added or deleted,

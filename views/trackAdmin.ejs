@@ -727,123 +727,192 @@
                         <button type="button" class="btn" v-on:click="overlay='automaticSeriesAssignment'"><%= __("Automatic series assignment") %></button>
     
                         <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
-                            <div style="grid-area: series;">
-                                <%= __("Series") %>
-                                <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
-                                    <template #item="{element:series, index}">
-                                        <div class="dragelement">
-                                            <div class="seriesDragH"><%= __("SeriesSingular") %> {{index+1}}</div>
-                                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
-                                            <table>
-                                                <thead>
-                                                    <tr>
-                                                        <th><%= __("Lane") %></th>
-                                                        <th v-if="conf.groupSize>1"><%= __("Position") %></th>
-                                                        <th><%= __("Name") %></th>
-                                                        <th><%= __("Firstname") %></th>
-                                                        <th><%= __("Club") %></th>
-                                                        <th><%= __("PB") %></th>
-                                                        <th><%= __("SB") %></th>
-                                                    </tr>
-                                                </thead>
-                                                                                                    <!-- TODO: differentiate startInLanes or not: 
-                                                        - conf.startInLanes = true: show as many lanes as selected
-                                                        - ATTENTION: startInLane should NOT be given by the discipline, but by the configuration of the contest! (But the default of the contest will be taken from disciplines)
-                                                        - startInLane=1: always show all lanes once (crouch start, in lanes)
-                                                        - startInLane=2: always show each lane multiple times, by default twice (standing start, in lanes)
-                                                        - startInLane=0: do not show lanes, but only the positions (standing start without lanes)
-                                                        seriesObj[index]
-                                                    -->
-                                                <tbody style="background-color: white;">
-                                                    <template v-for="(element, index) in series.SSRs">
-                                                        <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
-                                                            <td>{{element.lane}}</td>
-                                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                            <td><%= __("empty") %></td>
-                                                            <td> </td>
-                                                            <td> </td>
-                                                            <td> </td>
-                                                            <td> </td>
+                            <!-- differentiate startInLanes-->
+                            <template v-if="conf.startInLanes">
+                                <!-- started in lanes -->
+                                <div style="grid-area: series;">
+                                    <%= __("Series") %>
+    
+                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
+                                        <template #item="{element:series, index}">
+                                            <div class="dragelement">
+                                                <div class="seriesDragH"><%= __("SeriesSingular") %> {{index+1}}</div>
+                                                <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th><%= __("Lane") %></th>
+                                                            <th v-if="conf.groupSize>1"><%= __("Position") %></th>
+                                                            <th><%= __("Name") %></th>
+                                                            <th><%= __("Firstname") %></th>
+                                                            <th><%= __("Club") %></th>
+                                                            <th><%= __("PB") %></th>
+                                                            <th><%= __("SB") %></th>
                                                         </tr>
-                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
-                                                            <td>{{element.lane}}</td>
-                                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                            <td>{{element.startsingroup.athleteName}}</td>
-                                                            <td>{{element.startsingroup.athleteForename}}</td>
-                                                            <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
-                                                        </tr>
-                                                    </template>
-                                                </tbody>
-                                                <!--<tbody is="vue:draggable" v-model="seriesObj[index].SSRs" item-key="index" group="athleteSeriesAssignment" @end="dragEnded" :move="dragMove" @start="dragStarted" @change="changeOnSeries($event, element, index)"  v-bind:id="'s' + (index+1)" tag="tbody" :swap="true" swap-class="swappos" replace-class="swappos" :replace="false">
-                                                    <template  #item="{element, index}">
-                                                        <tr class="dragelementH" v-if="element.startsingroup==null">
-                                                            <td>{{element.posInLane}}</td>
-                                                            <td>{{element.lane}}</td>
-                                                            <td><%= __("empty") %></td>
-                                                            <td></td>
-                                                            <td></td>
-                                                            <td></td>
-                                                            <td></td>
-                                                        </tr>
-                                                        <tr class="dragelementH" v-else>
-                                                            <td>{{element.posInLane}}</td>
-                                                            <td>{{element.lane}}</td>
-                                                            <td>{{element.startsingroup.athleteName}}</td>
-                                                            <td>{{element.startsingroup.athleteForename}}</td>
-                                                            <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
-                                                        </tr>
-                                                    </template>
-                                                </tbody>-->
-                                            </table>
-                                        </div>
-                                    </template>
-                                </draggable>
-                            </div>
-                            <div style="grid-area: athletes;">
-                                <div><%= __("Athletes to assign") %></div> <!-- TODO remove the DIV around; was just for testing-->
-                                
-                                <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
-                                <v-table :data="unassignedAthletesCreate" >
-                                    <template #head> 
-                                        <thead>
-                                            <tr @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
-                                                <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
-                                                <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
-                                                <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
-                                                <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
-                                            </tr>
-                                        </thead>
-                                    </template>
-                                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                                        <!-- NEW 2022-10-28: manually handle the draggable stuff based on th html api -->
-                                        <template v-for="(element, index) in displayData">
-                                            <tr class="dragelementH" draggable="true" @dragstart="dragStart(unassignedAthletesCreate, element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
-                                                <td>{{ element.athleteName }}</td>
-                                                <td>{{ element.athleteForename }}</td>
-                                                <td>{{ element.clubName }}</td>
-                                                <td>{{ formatPerf(element.bestPerf)}}</td>
-                                                <td>{{ formatPerf(element.bestPerfLast)}}</td>
-                                            </tr>
+                                                    </thead>
+                                                                                
+                                                    <tbody style="background-color: white;">
+                                                        <template v-for="(element, index) in series.SSRs">
+                                                            <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
+                                                                <td>{{element.lane}}</td>
+                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                                <td><%= __("empty") %></td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                            </tr>
+                                                            <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                                <td>{{element.lane}}</td>
+                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                                <td>{{element.startsingroup.athleteName}}</td>
+                                                                <td>{{element.startsingroup.athleteForename}}</td>
+                                                                <td>{{element.startsingroup.clubName}}</td>
+                                                                <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                                <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </template>
-                                        <!--<draggable v-model="displayData" item-key="index" group="athleteSeriesAssignment"   tag="tbody" :swap="true" :replace="false" swap-class="swappos" replace-class="swappos" :move="dragMove" :sort="false" id="unassignedAthletesInit">
-                                            <template #item="{element, index}">
-                                                <tr class="dragelementH">
+                                    </draggable>
+                                </div>
+                                <div style="grid-area: athletes;">
+                                    <%= __("Athletes to assign") %>
+                                    
+                                    <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
+                                    <v-table :data="unassignedAthletesCreate" >
+                                        <template #head> 
+                                            <thead>
+                                                <tr @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
+                                                    <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                                                    <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                                    <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                </tr>
+                                            </thead>
+                                        </template>
+                                        <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                                            <!-- NEW 2022-10-28: manually handle the draggable stuff based on th html api -->
+                                            <template v-for="(element, index) in displayData">
+                                                <tr class="dragelementH" draggable="true" @dragstart="dragStart(unassignedAthletesCreate, element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
                                                     <td>{{ formatPerf(element.bestPerf)}}</td>
                                                     <td>{{ formatPerf(element.bestPerfLast)}}</td>
                                                 </tr>
-                                            </template>
-                                        </draggable> -->  
-                                    </template>
-                                </v-table>
-                            </div>
+                                            </template> 
+                                        </template>
+                                    </v-table>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <!-- not started in lanes; use draggable for athgletes instead of the custom drag/drop use when started in lanes-->
+                                <div style="grid-area: series;">
+                                    <%= __("Series") %>
+    
+                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
+                                        <template #item="{element:series, index}">
+                                            <div class="dragelement">
+                                                <div class="seriesDragH"><%= __("SeriesSingular") %> {{index+1}}</div>
+                                                <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th><%= __("Position") %></th>
+                                                            <th><%= __("Name") %></th>
+                                                            <th><%= __("Firstname") %></th>
+                                                            <th><%= __("Club") %></th>
+                                                            <th><%= __("PB") %></th>
+                                                            <th><%= __("SB") %></th>
+                                                        </tr>
+                                                    </thead>
+                                                                                    
+                                                    <!--<tbody style="background-color: white;">
+                                                        <template v-for="(element, index) in series.SSRs">
+                                                            <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
+                                                                <td>{{element.lane}}</td>
+                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                                <td><%= __("empty") %></td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                                <td> </td>
+                                                            </tr>
+                                                            <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                                <td>{{element.lane}}</td>
+                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                                <td>{{element.startsingroup.athleteName}}</td>
+                                                                <td>{{element.startsingroup.athleteForename}}</td>
+                                                                <td>{{element.startsingroup.clubName}}</td>
+                                                                <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                                <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>-->
+                                                    <tbody is="vue:draggable" v-model="seriesObj[index].SSRs" item-key="index" group="athleteSeriesAssignment" @change="changeOnSeries($event, series, index)"  v-bind:id="'s' + (index+1)" tag="tbody"  ghost-class="swappos" > <!-- TODO: set teh appropriate class stuff-->
+                                                        <template  #item="{element, index}">
+                                                            <tr class="dragelementH">
+                                                                <td>{{element?.position}}</td>
+                                                                <td>{{element?.startsingroup?.athleteName}}</td>
+                                                                <td>{{element?.startsingroup?.athleteForename}}</td>
+                                                                <td>{{element?.startsingroup?.clubName}}</td>
+                                                                <td>{{formatPerf(element?.startsingroup?.bestPerf)}}</td>
+                                                                <td>{{formatPerf(element?.startsingroup?.bestPerfLast)}}</td>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </template>
+                                    </draggable>
+                                </div>
+                                <div style="grid-area: athletes;">
+                                    <div><%= __("Athletes to assign") %></div> <!-- TODO remove the DIV around; was just for testing-->
+                                    
+                                    <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
+                                    <v-table :data="unassignedAthletesCreate" >
+                                        <template #head> 
+                                            <thead>
+                                                <tr>
+                                                    <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                                                    <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                                    <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                </tr>
+                                            </thead>
+                                        </template>
+                                        <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                                            <!-- NEW 2022-10-28: manually handle the draggable stuff based on th html api -->
+                                            <!--<template v-for="(element, index) in displayData">
+                                                <tr class="dragelementH" draggable="true" @dragstart="dragStart(unassignedAthletesCreate, element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
+                                                    <td>{{ element.athleteName }}</td>
+                                                    <td>{{ element.athleteForename }}</td>
+                                                    <td>{{ element.clubName }}</td>
+                                                    <td>{{ formatPerf(element.bestPerf)}}</td>
+                                                    <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                                </tr>
+                                            </template>-->
+                                            <draggable v-model="displayData" item-key="index" group="athleteSeriesAssignment"   tag="tbody"  ghost-class="swappos"  id="unassignedAthletesInit" @change="unassignedAthleteChanged" :sort="false">
+                                                <template #item="{element, index}">
+                                                    <tr class="dragelementH">
+                                                        <td>{{ element.athleteName }}</td>
+                                                        <td>{{ element.athleteForename }}</td>
+                                                        <td>{{ element.clubName }}</td>
+                                                        <td>{{ formatPerf(element.bestPerf)}}</td>
+                                                        <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                                    </tr>
+                                                </template>
+                                            </draggable>
+                                        </template>
+                                    </v-table>
+                                </div>
+                            </template>
+
                         </div>
                         <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Close") %></button>
                         <button type="button" class="btn btnGreen" ref="saveInitSeries" v-on:click="saveInitSeries"><%= __("Save") %></button>
