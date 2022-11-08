@@ -859,7 +859,7 @@ export class rContestTrackClient extends roomClient{
             // Remark about positions: positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane== lane-of-previous athlete, this-posInLane=posInLane-previous+1, else posInLane=1"
             let position = 1;
             for (let i=0;i< series.SSRs.length; i++){
-                if (series.SSRs.startsingroup){
+                if (series.SSRs[i].startsingroup){
                     // it is not an empty lane
                     seriesstartsresults.push({
                         //xSeriesStart: xSeries, // not defined yet

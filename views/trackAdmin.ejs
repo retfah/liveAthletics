@@ -830,29 +830,6 @@
                                                             <th><%= __("SB") %></th>
                                                         </tr>
                                                     </thead>
-                                                                                    
-                                                    <!--<tbody style="background-color: white;">
-                                                        <template v-for="(element, index) in series.SSRs">
-                                                            <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
-                                                                <td>{{element.lane}}</td>
-                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                                <td><%= __("empty") %></td>
-                                                                <td> </td>
-                                                                <td> </td>
-                                                                <td> </td>
-                                                                <td> </td>
-                                                            </tr>
-                                                            <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
-                                                                <td>{{element.lane}}</td>
-                                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                                <td>{{element.startsingroup.athleteName}}</td>
-                                                                <td>{{element.startsingroup.athleteForename}}</td>
-                                                                <td>{{element.startsingroup.clubName}}</td>
-                                                                <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                                <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
-                                                            </tr>
-                                                        </template>
-                                                    </tbody>-->
                                                     <tbody is="vue:draggable" v-model="seriesObj[index].SSRs" item-key="index" group="athleteSeriesAssignment" @change="changeOnSeries($event, series, index)"  v-bind:id="'s' + (index+1)" tag="tbody"  ghost-class="swappos" > <!-- TODO: set teh appropriate class stuff-->
                                                         <template  #item="{element, index}">
                                                             <tr class="dragelementH">
@@ -887,16 +864,6 @@
                                             </thead>
                                         </template>
                                         <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                                            <!-- NEW 2022-10-28: manually handle the draggable stuff based on th html api -->
-                                            <!--<template v-for="(element, index) in displayData">
-                                                <tr class="dragelementH" draggable="true" @dragstart="dragStart(unassignedAthletesCreate, element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletesCreate, $event)" @drop="drop(unassignedAthletesCreate, index, $event)">
-                                                    <td>{{ element.athleteName }}</td>
-                                                    <td>{{ element.athleteForename }}</td>
-                                                    <td>{{ element.clubName }}</td>
-                                                    <td>{{ formatPerf(element.bestPerf)}}</td>
-                                                    <td>{{ formatPerf(element.bestPerfLast)}}</td>
-                                                </tr>
-                                            </template>-->
                                             <draggable v-model="displayData" item-key="index" group="athleteSeriesAssignment"   tag="tbody"  ghost-class="swappos"  id="unassignedAthletesInit" @change="unassignedAthleteChanged" :sort="false">
                                                 <template #item="{element, index}">
                                                     <tr class="dragelementH">
