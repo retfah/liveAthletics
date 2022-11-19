@@ -79,6 +79,7 @@ class rMeeting extends roomServer{
             organizer: '',
             dateFrom: defaultDate.toJSON(),
             dateTo: defaultDate.toJSON(),
+            timezoneOffset: null, // in minutes, received by date.getTimezoneOffset(); will be set to the offset of the client at the specific date (including daylight saving times) when the user changes the startdate as soon as the client modifies this data for the first time
             isIndoor:false,
             feeModel: null,
             //importExportModel: null,
@@ -133,6 +134,7 @@ class rMeeting extends roomServer{
                 organizer: {type:"string"},
                 dateFrom: {type:["string"], format:"date-time"},
                 dateTo: {type:["string"], format:"date-time"},
+                timezoneOffset: {type:"integer"}, // in minutes
                 isIndoor: {type:"boolean"},
                 /*secondaryToken: {type:['string', 'null']}, // if null, then this is a primary server
                 secondaryPullServer: {

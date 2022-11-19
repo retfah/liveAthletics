@@ -223,9 +223,16 @@
 
                     rMeet.room.baseImportCompetitionInit(req, succFunc);
                 },
+                dateFromChanged: function(){
+                    // if the dateFrom changes, set the timezone for this date
+                    this.meetingWorkCopy.timezoneOffset = -new Date(this.meetingWorkCopy.dateFromFormatted).getTimezoneOffset(); // negatove since the timezoneOffset is considered as "what to add/subtract from the local time to get to UTC"
+                },
                 abortMeetingChange: function(){
                     // reset the data
-                    this.meetingWorkCopy = this.meeting;
+                    this.meetingWorkCopy = copyObject(this.meeting)
+                    
+                    this.meetingWorkCopy.dateFromFormatted = this.meetingWorkCopy.dateFrom.substr(0, 10);
+                        this.meetingWorkCopy.dateToFormatted = this.meetingWorkCopy.dateTo.substr(0, 10);
                     
                     this.mode = 0;
                 },
@@ -306,6 +313,10 @@
         <label>
             <%= __("Date to") %>:
             <input v-model="meetingWorkCopy.dateToFormatted" type="date" v-bind:disabled="mode!=1">
+        </label>
+        <label>
+            <%= __("Timezone offset (in min)") %>:
+            <input v-model.number="meetingWorkCopy.timezoneOffset" type="number" v-bind:disabled="mode!=1" min="-780" max="900"> <!-- time zones are not perfectly from -12 to +12, but go up to +14 and might include daylight saving time as well-->
         </label>
         <label>
             <%= __("Indoor") %>:
@@ -485,11 +496,15 @@
                 </label>
                 <label>
                     <%= __("Date from") %>:
-                    <input v-model="meetingWorkCopy.dateFromFormatted" type="date" v-bind:disabled="mode!=1">
+                    <input v-model="meetingWorkCopy.dateFromFormatted" type="date" v-bind:disabled="mode!=1" v-on:change="dateFromChanged">
                 </label>
                 <label>
                     <%= __("Date to") %>:
                     <input v-model="meetingWorkCopy.dateToFormatted" type="date" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Timezone offset (in min)") %>:
+                    <input v-model.number="meetingWorkCopy.timezoneOffset" type="number" v-bind:disabled="mode!=1" min="-780" max="900"> <!-- time zones are not perfectly from -12 to +12, but go up to +14 and might include daylight saving time as well-->
                 </label>
                 <label>
                     <%= __("Indoor") %>:
