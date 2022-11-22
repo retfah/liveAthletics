@@ -488,6 +488,8 @@ class rContestTrack extends roomServer{
                 status: {type:"integer"},
                 number: {type:"integer"},
                 name: {type:"string", maxLength:50},
+                datetime: {type: ["null", "string"], format:"date-time"}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
                 seriesstartsresults: {
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
@@ -1096,7 +1098,7 @@ class rContestTrack extends roomServer{
         // check that the seriesstatus and conteststatus are correct!
         // TODO
 
-        // destroy all at once (looping over teh array and do it one by one)
+        // destroy all at once (looping over the array and do it one by one)
         
         // first delete all seriesstartsresults
         for (let i=0; i<this.data.series.length; i++){
@@ -1106,6 +1108,9 @@ class rContestTrack extends roomServer{
             })
             this.data.series[i].seriesstartsresults = [];
         }
+
+        // keep a reference to the series for later events to rSite
+        let seriesDeleted = this.data.series;
 
         // then delete all series
         return this.models.series.destroy({where:{xContest: this.contest.xContest}}).then(async ()=>{
@@ -1120,6 +1125,13 @@ class rContestTrack extends roomServer{
                 // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
                 this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
             })
+
+            // notify the site(s) that about the deleted series
+            for (let s of seriesDeleted){
+                if (s.xSite){
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest})
+                }
+            }
 
             let ret = {
                 isAchange: true, 
@@ -1250,6 +1262,18 @@ class rContestTrack extends roomServer{
                 // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
                 this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
             })
+
+            // notify the sites (if chosen) about the added series
+            for (let s of this.data.series){
+                if (s.xSite){
+                    let addData = {
+                        contest: this.contest.dataValues, 
+                        series: s.dataValues,
+                        startgroups: this.data.startgroups,
+                    }
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData)
+                }
+            }
 
             // return the xSeries and xSeriesStart to the calling client; 
             // broadcast the full data to all other clients

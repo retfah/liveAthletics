@@ -58,8 +58,48 @@
         }
     }
 
+    class vuSiteTest extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            // TODO: this is only for testing; actually, rSItesClient is the wrong class, but since we do not do any changes, it actually should not matter.
+            super('sites/1@' + meetingShortname, false, true, '/static/rSiteTrackClient.js', 'rSiteTrackClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            //this.vue.sites = this.room.data.sites; // this will actually store a proxy of the data!
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            //this.vue.site = this.room.data.sites;
+    
+        }
+    }
+
     var rCTrack;
     var rSites;
+    var rSiteTest;
     var vueSeriesAdminTrack; 
 
     function startTrackAdminRead(){
@@ -543,8 +583,11 @@
                     return true;
                 },
                 seriesChanged(evt){
-                    // TODO: implement reordering of series here
-                    let test
+                    // make sure that again the number of the series as well as the default times are correct
+                    for (let h=1; h<= this.seriesObj.length; h++){
+                        this.seriesObj[h-1].number = h;
+                        this.seriesObj[h-1].datetime = this.getStarttime(h);
+                    }
                 },
                 seriesStateChanged(evt){
                     // not needed for series assignment
@@ -738,10 +781,24 @@
 
                     }
                 },
+                /**
+                 * n: the number of the series 
+                 **/
+                getStarttime: function(n){
+                    const d = new Date(this.contest.datetimeStart);
+                    // set a reasonable default value! Must change when the order of series changes
+                    let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + this.disciplineConfiguration.heatInterval*(n-1));
+                    return datetime;
+                },
                 addEmptySeriesInitial: function(){
                     // add an empty series to the seriesObj used in the inital series configuration tool
+                    let xSite = this.defaultSite?.xSite ?? null;
                     this.seriesObj.push({
-                        number:this.seriesObj.length+1, xSite: undefined, status: 10, name:'', 
+                        number: this.seriesObj.length+1, 
+                        xSite: xSite, 
+                        status: 10, 
+                        name: '', 
+                        datetime: this.getStarttime(this.seriesObj.length+1), 
                         SSRs:[], // will be filled by updateEmptyInitLanes
                     });
                     this.updateEmptyInitLanes(this.seriesObj);
@@ -775,9 +832,12 @@
                     
                     // The series structure should look like this
                     // series : all series objects
-                    // series[0].heights : the heights jumped in this series
                     // series[0].seriesstartsresults : all athletes in this series
-                    // series[0].seriesstartsresults[0].resultshigh : the results of the athletes
+
+                    // since the number of the series is not changed on moving the series, we must do it here
+                    for (let i=1; i<=this.seriesObj.length; i++){
+                        this.seriesObj[i-1].number = i;
+                    } 
 
                     // do all the data managament in the room and not within vue!
                     rCTrack.room.initialSeriesCreationInit(this.seriesObj);
@@ -1710,6 +1770,21 @@
                 getLastResults(numRes=2){
                     // get the specified number of results 
                 },
+                saveDateUtc(series, evt){
+                    series.datetime = new Date(evt.srcElement.value).toISOString();
+                },
+                formatInputDate(date){
+                    // date can be of type date or a datestring
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    let s = "";
+                    let d = new Date(date); // doesnt change anything is date is already a date
+                    s += d.getFullYear();
+                    s += "-" + (d.getMonth()+1).toString().padStart(2,0);
+                    s += "-" + d.getDate().toString().padStart(2,0);
+                    s += "T" + d.getHours().toString().padStart(2,0);
+                    s += ":" + d.getMinutes().toString().padStart(2,0);
+                    return s;
+                },
             },
             watch:{
                 mode: function(newMode,oldMode){ 
@@ -1737,7 +1812,6 @@
                                     this.selectedSeries = ind;
                                 }
                             }
-
 
                         }
 
@@ -1779,6 +1853,13 @@
                 
                 /* !!! properties for SERIES CREATION and COMPETITION !!! */
 
+                maxDateTime: function(){
+                    return `${this.meeting.dateTo.slice(0,10)}T23:59`;
+                },
+                minDateTime: function(){
+                    return `${this.meeting.dateFrom.slice(0,10)}T00:00`;
+                },
+
                 defaultSite: function(){
                     return this.sites.find(s=>s.type==0);
                 },
@@ -1792,7 +1873,9 @@
                         }
                     }
                 },
-
+                trackSites: function(){
+                    return this.sites.filter(s=>s.type==0);
+                },
                 
                 roomAuxDataSelected: function(){
                     return this.roomAuxData[this.selectedXSeries];
@@ -2057,7 +2140,6 @@
                     return order;
 
                 },
-                // TODO: is this used: 
                 disciplineConfiguration: function(){
                     // get the first discipline with matching baseDiscipline and parse its configuration
                     let d = this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
@@ -2071,6 +2153,7 @@
                         o.distance = o.distance ?? 0;
                         o.wind = o.wind ?? true;
                         o.straight = o.straight ?? true;
+                        o.heatInterval = o.heatInterval ?? 60; // 60 s
                         return o;
                     }
                 },
@@ -2128,6 +2211,7 @@
         }
 
         rSites = new vuSites(vueSeriesAdminTrack, ms);
+        rSiteTest = new vuSiteTest(vueSeriesAdminTrack, ms); // TODO: remove; only for testing
 
     }
 

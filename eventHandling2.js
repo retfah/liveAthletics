@@ -91,7 +91,7 @@ export default class eventHandling2{ // ES 2015 style syntax
            // this event does not exist, nothing to remove
            this.logger.log(10, 'Event ' + name + 'does not exist (anymore). nothing to remove the listener from.');
            return false;
-       } else{
+       } else {
            delete this._events[name][listenerName];
            return true; // the deleting will always work and return true, so we do not need to check whether the listenerName was evcven registered
        }

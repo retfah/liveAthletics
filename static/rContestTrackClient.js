@@ -111,7 +111,7 @@ export class rContestTrackClient extends roomClient{
             return {
                 xSeries: data.xSeries,
                 xContest: data.xContest,
-                xSite: data.xSite,
+                xSite: typeof(data.xSite)=='string' ? null : data.xSite,
                 status: data.status,
                 number: data.number,
                 name: data.name,
@@ -408,7 +408,6 @@ export class rContestTrackClient extends roomClient{
         let success = ()=>{};
         let rollback = null; // currently no single rollback planned; get the full data from the server again
         this.addToStack('moveSeries', change, success, rollback)
-
 
     }
 
@@ -741,7 +740,7 @@ export class rContestTrackClient extends roomClient{
         this.sortSeries();
     }
 
-    addSeriesInit(){
+    addSeriesInit(defaultxSite=null){
         // add an empty series
 
         // find the most negative xSeries:
@@ -750,7 +749,7 @@ export class rContestTrackClient extends roomClient{
         const newSeries = {
             xContest: this.data.contest.xContest,
             xSeries: --xSeriesMin, // not available yet
-            xSite: null, // not used yet
+            xSite: defaultxSite,
             status: 10,
             number: this.data.series.length+1,
             name: '',
@@ -760,7 +759,7 @@ export class rContestTrackClient extends roomClient{
         const newSeriesServer = { // same, but without xSeries
             xContest: this.data.contest.xContest,
             //xSeries: --xSeriesMin, // not available yet
-            xSite: null, // not used yet
+            xSite: defaultxSite,
             status: 10,
             number: this.data.series.length+1,
             name: '',
@@ -877,7 +876,7 @@ export class rContestTrackClient extends roomClient{
             this.data.series.push({
                 xContest: this.data.contest.xContest,
                 //xSeries: -1, // not available yet
-                xSite: null, // not used yet
+                xSite: typeof(series.xSite)=='string' ? null : series.xSite, 
                 status: series.status,
                 number: series.number,
                 name: series.name,

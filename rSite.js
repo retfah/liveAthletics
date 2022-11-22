@@ -20,14 +20,14 @@ class rSite extends roomServer{
     constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
-        // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
-        super(eventHandler, mongoDb, logger, `sites/${site.xSite}@${meetingShortname}`, true, -1, false, dynamicRoom);
+        // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom, reportToSideChannel, keepWritingTicket)
+        super(eventHandler, mongoDb, logger, `sites/${site.xSite}@${meetingShortname}`, true, -1, false, dynamicRoom, false, false);
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
         this.data = {
-            site: {}, // add here the data from the parentRoom, as an info
-
+            site: site, // add here the data from the parentRoom, as an info
+            contests: [],
         }; 
 
         this.site = site; // the site object from rSites
@@ -118,7 +118,7 @@ class rSite extends roomServer{
 export class rSiteTrack extends rSite{
     // implement here the track specific stuff for the rSite
 
-    // 2022-09: basically, this shall be a room that collects all series of all contests that take place on this site. it must keep a list of the
+    // TODO: required functions (mostly equivalent with event listeners: contestChange (e.g. status changed), seriesAdded, seriesChanged, seriesDeleted)
     
     /** Constructor for the site-room
      * @method constructor
@@ -139,7 +139,25 @@ export class rSiteTrack extends rSite{
         // register events to listen to changes of the series
         // TODO:
 
-        this.createData.then(()=>{this.ready = true});
+        this.createData().then(()=>{this.ready = true}).catch(ex=>this.logger.log(5, `Could not start rSite ${site.xSite}: ${ex}`));
+
+        // add the functions to the respective object of the parent
+        // the name of the funcitons must be unique over BOTH objects!
+        // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
+        // Note: I think the functions called through the event system are actually not needed as room functions; (they are always called this way and not through teh side channel)  
+        //this.functionsWrite.addSeries = this.addSeries.bind(this);
+
+        // sites/xSite@meetingShortname:...
+        this.eH.eventSubscribe(`${this.name}:seriesAdded`, (data)=>{
+            // do a quick check
+            if (data.series.xSite == this.site.xSite){
+                this.addSeries(data);
+            }
+        });
+
+        this.eH.eventSubscribe(`${this.name}:seriesDeleted`, (series)=>{
+            this.deleteSeries(series);
+        })
 
     }
 
@@ -147,10 +165,17 @@ export class rSiteTrack extends rSite{
 
         // initially get all series that use this site. Then, get all aux-information from the respective contests
         // when the site of a series is changed this shall be notified with an event, so that above process only needs to be started once
+        
+        /**  data structure:
+        * the data must contain the series as well as the contest (at least as a background information). Two options:
+        * 1) series = [{heat1 status:1, number: 1, datetime:..., contest:{contest-object}}, {heat2}]
+        * 2) contests = [{contest1, contestStatus, heats:[{heat1 status:1, number:1, datetime:...}]}] // include any contest which has at least one heat on this site 
+        * Option 2 is chosen, since it avoids that the contest information is transferred multiple times.
+        */
 
         // TODO: test everything
         // TODO: eventually move this to rSite instead of rSiteTrack
-        const series = this.models.series.findAll({where:{xSite:xSite}});
+        const series = await this.models.series.findAll({where:{xSite:this.site.xSite}});
 
         // create the data in a new array
         const data = [];
@@ -159,57 +184,159 @@ export class rSiteTrack extends rSite{
             let s = series[i];
 
             // try to get the contest
-            let contest = findSubroom(this.rContests, s.xContest.toString(), this.logger, true)
+            let rContest = await findSubroom(this.rContests, s.xContest.toString(), this.logger, true)
 
             // a series without contest can actually not exist
-            if (!contest){
+            if (!rContest){
                 throw({code: 1, message:`The contest ${s.xContest} for series ${s.xSeries} does not exist. This should never happen!`})
             }
 
             // get the same series from the contest (since this includes the ssr)
-            const sDetail = contest.series.find(s2=>s.xSeries==s2.xSeries);
+            const sDetail = rContest.data.series.find(s2=>s.xSeries==s2.xSeries);
             
-            // make sure that the discipline is of the right type
-            const d = this.rDisciplines.data.find(d2=>d2.xBaseDiscipline == contest.xBaseDiscipline); 
-
-            // TODO: adapt allowed values of type if there are mutiple types in the future (e.g. if we need separate types for wind yes/no, start in lanes yes/no, # persons per lane)
-            if (d.type!=3){
-                // remove the series from the series of this site, since we cannot process this data
-                this.logger.log(33, `rSite/${this.site.xSite}: The baseDiscipline (${contest.xBaseDiscipline}) of xSeries ${series.xSeries} in contest ${contest.xContest} has a type (${d.type}) which cannot be processed for this site. Ignoring this series.`);
-                series.splice(i,1);
+            // now only have to add ther series:
+            const addData = {
+                contest: rContest.contest,
+                startgroups: rContest.data.startgroups,
+                series: sDetail,
+                reportChange: false,
             }
-
-            // create an array with all athletes and their positions
-            const SSRs = [];
-            for (let ssr in sDetail.seriesstartsresults){
-                // get the auxilariy data for this person
-                const SG = contest.startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
-
-                // put all data for this person into one object and add it to the list of athletes
-                const ssrDetail = {};
-                this.propertyTransfer(ssr, ssrDetail, true);
-                this.propertyTransfer(SG, ssrDetail, true);
-
-                SSRs.push(ssrDetail);
-            }
-
-            // add the series to the main data object
-            data.push({
-                SSRs: SSRs,
-                xSeries: sDetail.xSeries,
-                status: sDetail.status,
-                number: sDetail.number,
-                name: sDetail.name,
-                datetime: sDetail.datetime,
-                id: sDetail.id,
-            })
+            this.addSeries(addData);
 
         }
-        // TODO: continue here, as soon as series creation with track events is done!
 
         // finally:
-        this.data = data
         this.ready = true;
+    }
+
+    /**
+     * called when a series was deleted
+     * @param {object} series the deleted series model (must still contain xContest and xSeries)
+     */
+    deleteSeries(series){
+        // search the contest first
+        const c = this.data.contests.find(c=>c.xContest==series.xContest);
+        if (c){
+            // search the series
+            const si = c.series.findIndex(s=>s.xSeries == series.xSeries);
+
+            // delete it
+            c.series.splice(si,1);
+
+            // delete the contest if it has no series anymore
+            if (c.series.length == 0){
+                let i = this.data.contests.findIndex(c=>c.xContest==series.xContest);
+                if (i>=0){
+                    // should always be the case
+                    this.data.contests.splice(i,1);
+                }
+            }
+        } else {
+            this.logger.log(20, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+        }
+
+        const doObj = {
+            funcName:'deleteSeries',
+            data:series,
+        } 
+        const undoObj = {
+            funcName:'TODO',
+            data: null,
+        }
+        this.processChange(doObj, undoObj)
+    }
+
+    /**
+     * add a series which is taking place on this site. Function called through the event system only; sends change to all connected clients
+     * @param {object} data.contest the contest (model) object
+     * @param {object} data.series the series (model) object
+     */
+    addSeries(data){
+
+        const contest = data.contest;
+        const series = data.series;
+        const startgroups = data.startgroups
+        const reportChange = data.reportChange ?? true;
+
+        // get (or create) the contest in the data of this room 
+        const c = this.getOrCreateContest(contest.xContest, contest);
+
+        // make sure that the discipline is of the right type
+        const d = this.rDisciplines.data.find(d2=>d2.xBaseDiscipline == contest.xBaseDiscipline); 
+        // TODO: adapt allowed values of type if there are mutiple types in the future (e.g. if we need separate types for wind yes/no, start in lanes yes/no, # persons per lane)
+        if (d.type!=3){
+            // remove the series from the series of this site, since we cannot process this data
+            this.logger.log(33, `rSite/${this.site.xSite}: The baseDiscipline (${contest.xBaseDiscipline}) of xSeries ${series.xSeries} in contest ${contest.xContest} has a type (${d.type}) which cannot be processed for this site. Ignoring this series.`);
+            series.splice(i,1);
+        }
+
+        // create an array with all athletes and their positions
+        const SSRs = [];
+        for (let ssr of series.seriesstartsresults){
+            // get the auxilariy data for this person
+            const SG = startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
+
+            // put all data for this person into one object and add it to the list of athletes
+            const ssrDetail = {};
+            this.propertyTransfer(ssr.dataValues, ssrDetail, true);
+            this.propertyTransfer(SG, ssrDetail, true);
+
+            SSRs.push(ssrDetail);
+        }
+
+        // add the series to the main data object
+        const s = {
+            SSRs: SSRs,
+            xSeries: series.xSeries,
+            status: series.status,
+            number: series.number,
+            name: series.name,
+            datetime: series.datetime,
+            id: series.id,
+        }
+        c.series.push(s)
+
+        if (reportChange){
+            // send the change to the client
+            const doObj = {
+                funcName:'addSeries',
+                data: {
+                    contest,
+                    series: s,
+                }
+            } 
+            const undoObj = {
+                funcName:'TODO',
+                data: null,
+            }
+            this.processChange(doObj, undoObj)
+        }
+    }
+
+    /**
+     * Try to get the object of the specified contest
+     * @param {integer} xContest 
+     * @param {object} contest the contest data object for 
+     */
+    getOrCreateContest(xContest, contest){
+        let c = this.data.contests.find(contest=>contest.xContest == xContest);
+        if (!c){
+            // add the contest
+            const c2 = contest;
+            c = {
+                conf: c2.conf,
+                datetimeAppeal: c2.datetimeAppeal,
+                datetimeCall: c2.datetimeCall,
+                datetimeStart: c2.datetimeStart,
+                name: c2.name,
+                status: c2.status,
+                xBaseDiscipline: c2.xBaseDiscipline,
+                xContest: c2.xContest,
+                series:[],
+            }
+            this.data.contests.push(c);
+        }
+        return c;
     }
 }
 
