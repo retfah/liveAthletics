@@ -1,7 +1,6 @@
 /**
  * MAJOR CHANGES
  * 2020-02: The rooms are stored in an array instead of an object, since vue.js cannot react on changes on objects appropriately
- * 2022-12: The rooms are not stored anymore in the data object, but separately to avoid conflicts of the two vue instances (vueRoomManager + the actual vue of the data)
  */
 
 
@@ -63,8 +62,6 @@ class roomManager{
 		}
 		
 		// the data object; shared with the vue-instance (this is the reason why we need this stupid data object in the roomManager and we cannot simply have all those properties directly in the roomManager-class)
-		// rooms are separately, so that the vue of the room Manager does not refer to the same data as the actual vue.
-		this.rooms = []; // all room instances
 		this.data = {
 			// general ws-connection stuff:
 			clientName: clientName, 
@@ -83,7 +80,7 @@ class roomManager{
 			messages: [],
 			highlightedMsg:-1, // show an overlay with ful details about the error.
 
-			// new 2022-12: room objects, storing copies of the room-data relevant for the vue instance
+			// room connections:
 			rooms:[],
 			// properties for the list of connected clients in the specified/selected room:
 			roomSelected:undefined,
@@ -111,10 +108,9 @@ class roomManager{
 			// the rooms should listen to TabIdSet themselves
 		});
 
-		// 
-		eH.eventSubscribe("roomInfoChange",(room)=>{
-			this.setRoomVueData(room);
-			logger.log(99, `roomManager: data changed for room ${room.name}`);
+		// some informational data (e.g. not the data itself) in a room changed. As vue cannot react to changes in an class-instance, we have to initiate the update thouth this workaround.
+		eH.eventSubscribe("roomInfoChange",()=>{
+			this.data.any += 1;
 		})
 		
 		// Vue.js stuff
@@ -122,8 +118,9 @@ class roomManager{
 		let vueRMconfig = {
 			data:()=> {return this.data},
 			computed :{
-				roomSelectedObject: function(){ 
-					return this.rooms.find(r=>r.name==this.roomSelected);
+				roomSelectedObject:()=>{ // must be arrow function to have access to findObjInArrayByProp (therefore, we also must reference this.data.rooms instead of this.rooms)
+					let [,obj] = this.findObjInArrayByProp(this.data.rooms, 'name', this.data.roomSelected);
+					return obj;
 				},
 				clients: function(){
 					return this.roomSelectedObject.infos.clients;
@@ -132,7 +129,7 @@ class roomManager{
 					// boolean, set to true if in any room a request is open; false if not; 
 					let requestPend = false;
 					for (let room of this.rooms){
-						if (room.stackLength>0){
+						if (room.stack.length>0){
 							requestPend = true;
 						}
 					}
@@ -229,18 +226,14 @@ class roomManager{
 					}
 					
 					// report to roomServers
-					for (let room of this.rooms){
+					for (let room of this.data.rooms){
 						room.setClientName(this.data.clientName);
 					}
 					
 				},
-				revokeWritingTicket: (sidHash)=>{ // must be an arrow function !!!
+				revokeWritingTicket: function(sidHash){
 					// revoke the writing ticket for the selected client (all the rest will be done in roomClient)
-					// first find teh room
-					let room;
-					if (room = this.rooms.find(r=>r.name == this.roomSelectedObject.name)){
-						room.revokeWritingTicket(sidHash);
-					}	
+					this.roomSelectedObject.revokeWritingTicket(sidHash);
 				},
 				revokeClientClick:(client)=>{
 					if (client.writing && !(client.connected) ){
@@ -384,56 +377,23 @@ class roomManager{
 		}
 	}*/
 
-	// create "copy" of room data for the vue and add/update it to/in room.data
-	// called by registerRoom as well as by the room itself, when any of the data is changed.
-	setRoomVueData(room){
-		// some of the properties are probably not needed
-		const roomInfo = {
-			name: room.name, // needed
-			ID: room.ID,
-			clientName: room.clientName, 
-			stackLength: room.stack.length, // new 2022-12 (before the stack length was accessed directly, now we provide this informaiton separately)
-			connected: room.connected, // needed
-			connecting: room.connecting,
-			dataPresent: room.dataPresent,
-			dataSent: room.dataSent,
-			infos: room.infos, // needed
-			storeInfos: room.storeInfos,
-			writingTicketID: room.writingTicketID, // needed
-			writingWanted: room.writingWanted,
-		};
-		// check if the room-info already exists
-		let i = this.data.rooms.findIndex(r=>r.name==room.name);
-		if (i<0){
-			// is a new room
-			this.data.rooms.push(roomInfo);
-		} else {
-			// use the propertyTransfer funciton availbale in each room.
-			room.propertyTransfer(roomInfo, this.data.rooms[i])
-		}
-	} 
-
-	// 2022-12: seems to be unused
 	/**
 	 * 
 	 * @param {roomClient-object} room 
 	 */
-	// registerRoom(room){
+	registerRoom(room){
 
-	// 	// TODO: when te same room was added twice (e.g. because two shown parts of the window wanted to open its own, identical rooms, then the latter would overwrite the first)
-	// 	// --> thus we need to rethink the starting of rooms and how they are linked to data!
-	// 	// --> a room should probably NOT handle the vue, but only process the data, such that multiple Vue's could be connected to the same data.
+		// TODO: when te same room was added twice (e.g. because two shown parts of the window wanted to open its own, identical rooms, then the latter would overwrite the first)
+		// --> thus we need to rethink the starting of rooms and how they are linked to data!
+		// --> a room should probably NOT handle the vue, but only process the data, such that multiple Vue's could be connected to the same data.
 		
-	// 	// put the room into the data structure
-	// 	this.rooms.push(room);
-	// 	// create data.rooms with all information for the vueRoomManager
-	// 	// some of the properties are probably not needed
-	// 	this.setRoomVueData(room)
+		// put the room into the data structure
+		this.data.rooms.push(room);
 
-	// 	// let the room know the name of the client and report it to the server
-	// 	// we cannot do that here yet when the sid was not reported yet TODO
-	// 	room.setClientName(this.data.clientName);
-	// }
+		// let the room know the name of the client and report it to the server
+		// we cannot do that here yet when the sid was not reported yet TODO
+		room.setClientName(this.data.clientName);
+	}
 
 	// TODO: shall vue-instances and other code blocks really request writing and storeInfos or should this always be defined by the room/vue itself?
 	// if the the vue-instances do decide, then we need to register them appropriately, such that if one instance requires writing and the other not, we can return the wirting ticket as soon as the writing-instance leaves the room. 
@@ -451,7 +411,7 @@ class roomManager{
 	async getRoom(v, roomName, writing=false, storeInfos=true, path='', className='', datasetName=''){
 		let room;
 		let index;
-		[index,room] = this.findObjInArrayByProp(this.rooms, 'name', roomName);
+		[index,room] = this.findObjInArrayByProp(this.data.rooms, 'name', roomName);
 		if (index>=0){
 			// register roomClientVue in the room
 			room.registerVue(v);
@@ -551,8 +511,7 @@ class roomManager{
 				// check if the new room has the same name as the given name; otherwise destroy the room again, do not add it to the rooms and return false
 				if (room.name==roomName){
 					
-					this.rooms.push(room);
-					this.setRoomVueData(room);
+					this.data.rooms.push(room);
 					return room;
 
 				} else {
@@ -571,15 +530,10 @@ class roomManager{
 	 * @param {string} name The name of the room. (is used as identifier; must be unique)
 	 */
 	deleteRoom(name){
-		let [index, room] = this.findObjInArrayByProp(this.rooms, 'name', name);
+		let [index, room] = this.findObjInArrayByProp(this.data.rooms, 'name', name);
 		if (index>=0){
 			// room existed
-			this.rooms.splice(index,1)
-			// room should also be present in the data object; delete it there as well
-			let i = this.data.rooms.findIndex(r.name ==name)
-			if (i>=0){
-				this.data.rooms.splice(i,1);
-			}
+			this.data.rooms.splice(index,1)
 		} else {
 			// error:
 			// TODO
@@ -603,7 +557,7 @@ class roomManager{
 			logger.log(5, "The received room-note (" + JSON.stringify(data) + ") has no 'arg' and/or 'roomName' property!")
 			return;
 		}
-		let [index, room] = this.findObjInArrayByProp(this.rooms, 'name', data.roomName);
+		let [index, room] = this.findObjInArrayByProp(this.data.rooms, 'name', data.roomName);
 		if (index == -1){
 			logger.log(5, "The room '" + data.roomName + "' does not exist.");
 			return;

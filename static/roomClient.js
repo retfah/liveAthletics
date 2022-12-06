@@ -40,6 +40,8 @@ class roomClient {
         } else {
             this.logger = logger; // global object, always present in the browser
         }
+        // --> react on lost ws-connection --> change to connected=false
+        this.eH = eventHandler;
 
         // here the data-model is stored.
         this.data = {}
@@ -125,8 +127,6 @@ class roomClient {
             this.connect(writing, success, failure);
         }
 
-        // --> react on lost ws-connection --> change to connected=false
-        this.eH = eventHandler;
         eH.eventSubscribe('TabIdSet', ()=>{
             if (!this.connected && !this.connecting){ //do not try to reconnect when we are connected (however, when tabIdset is correctly only reported once per running connection, this would not be necessary)
                 this.connect(writing, success, failure)
@@ -142,8 +142,8 @@ class roomClient {
             // if the connection is lost while a request was hanging, the response will never arrive, as the "reopened" connection is not reopened, but is a new one and the server will not be able to send the reponse through the new connection. The last sent (or probably sent) element will stay on the stack and it wil be tried to resend it. When no other change-requst was processed yet, then the server will reply the response directly without reprocessing it and otherwise will return an error and the client will reload everything. 
             this.dataSent = false;
 
-            // inform the roomManager 
-            this.eH.raise('roomInfoChange');
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
         });
         
     }
@@ -184,6 +184,9 @@ class roomClient {
 
         this.connecting = true;
 
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
+
         var request = ()=>{
 
             numAttempts += 1;
@@ -217,13 +220,20 @@ class roomClient {
                     }
                     if (data.infos){
                         this.infos = data.infos;
-                        // eventually we need to raise an event here that is listened by the room manager
-                        this.eH.raise('roomInfoChange');
                     }
 
                     this.logger.log(99, text + '. Full data update.');
 
-                    this.afterFullreload();
+                    // changed 2022-12: before, afterFullReload was always called here and the if function with dataArrived was set below
+                    if (!(this.dataPresent)){
+                        this.dataPresent = true;
+                        
+                        // raise dataArrived-events on all vues
+                        this.vues.forEach(el=>el.dataArrived()) 
+                    } else {
+                        this.afterFullreload();
+                    }
+                    
     
                     // call the success callback with no arguments; the success function will then make sure that the data is further processed
                     success(); 
@@ -258,8 +268,6 @@ class roomClient {
                         }
                         if (data.infos){
                             this.infos = data.infos;
-                            // eventually we need to raise an event here that is listened by the room manager
-                            this.eH.raise('roomInfoChange');
                         }
 
                         this.logger.log(99, text + '. Incremental data update done.')
@@ -274,15 +282,11 @@ class roomClient {
                         this.getFullData(success, failure);
                     }
                 }
-
-                if (!(this.dataPresent)){
-                    this.dataPresent = true;
-                    
-                    // raise dataArrived-events on all vues
-                    this.vues.forEach(el=>el.dataArrived()) 
-                }
                 
                 this.connected = true; 
+
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
     
             }, (code, msg)=>{
     
@@ -297,6 +301,9 @@ class roomClient {
                     } else {
                         failure('Could not connect to server within ' + maxAttemps + ' attempts, as the server was not ready yet.', 23);
                         this.connecting = false;
+                        
+                        // notify the room manager about the changed data
+                        this.eH.raise('roomInfoChange', this);
                     }
 
                 } /*OLD: else if (code==18){
@@ -350,7 +357,7 @@ class roomClient {
             this.deleteWritingTicketID();
             
             // already update what is shown here, without waiting for the info-broadcast change (as this might not come when the client did not request these infos)
-            this.eH.raise('roomInfoChange');
+            this.eH.raise('roomInfoChange', this);
 
             let message = {
                 roomName: this.name,
@@ -376,7 +383,7 @@ class roomClient {
             let succ = (data)=>{
                 if (data.writingTicketID){
                     this.setWritingTicketID(data.writingTicketID);
-                    this.eH.raise('roomInfoChange');
+                    this.eH.raise('roomInfoChange', this);
                 }
             }
 
@@ -486,7 +493,7 @@ class roomClient {
                 if (data.writingTicketID){
                     this.setWritingTicketID(data.writingTicketID);
                     // let Vue redraw everything
-                    this.eH.raise('roomInfoChange');
+                    this.eH.raise('roomInfoChange', this);
                 }
             }, (errCode, errMsg)=>{
                 // there was an error somewhere...
@@ -525,9 +532,9 @@ class roomClient {
             }
             if (data.infos){
                 this.infos = data.infos;
-                // eventually we need to raise an event here that is listened by the room manager
-                this.eH.raise('roomInfoChange');
             }
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
 
             this.logger.log(99, text)
 
@@ -563,6 +570,8 @@ class roomClient {
                 if (change.ID!=null){
                     this.ID = change.ID;
                 }
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
 
                 // notify vue's
                 this.onChange();
@@ -599,7 +608,8 @@ class roomClient {
             this.requestWritingTicket();
         }
 
-        this.eH.raise('roomInfoChange');
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
     }
 
     /**
@@ -673,6 +683,9 @@ class roomClient {
 
         // add an element to the stack
         this.stack.push({request: request, functionOverride: functionOverride, funcRollback: funcRollback, info:info, opt:opt})
+        
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
 
         // if the stack was empty, start now the syncing
         if (l==0){
@@ -706,6 +719,9 @@ class roomClient {
             // always use acknowledgement, but without timeout. 
             this.stack[0].opt.sendAck = true;
 
+            // notify the room manager about the sent data
+            this.eH.raise('roomInfoChange', this);
+
             this.wsHandler.emitRequest("room", sendData, (data)=>{
                 // currently no change is on the way anymore:
                 this.dataSent = false;
@@ -729,6 +745,9 @@ class roomClient {
 
                 // notify vue's
                 this.onChange();
+                
+                // notify the room manager about the changed stack length
+                this.eH.raise('roomInfoChange', this);
 
                 if (this.stack.length>0){
                     this.sync()
@@ -1037,8 +1056,8 @@ class roomClient {
         // if the connection is lost while a request was hanging, the response will never arrive, as the "reopened" connection is not reopened, but is a new one and the server will not be able to send the reponse through the new connection. The last sent (or probably sent) element will stay on the stack and it wil be tried to resend it. When no other change-requst was processed yet, then the server will reply the response directly without reprocessing it and otherwise will return an error and the client will reload everything. 
         this.dataSent = false;
 
-        // inform the roomManager 
-        this.eH.raise('roomInfoChange');
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
 
         // called when the server closes the room (not necessarily the connection); this room might shall try to reconnect
         // try to reconnect every second
@@ -1079,11 +1098,17 @@ class roomClient {
             // transfer the data element by element, such that "change-events" are raised on the properties and vue can react
             this.propertyTransfer(opt.data, this.data)
 
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
+
             this.afterFullreload();
 			
 		} else if (arg == 'IDchange'){
 			// only update the current ID, e.g. when a change occureds on the server, which has no effect on the dataset on the client
 			this.ID = opt;
+            
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
 		} else if (arg == 'close'){
             
             this.logger.log(30, `The room gets closed due to request by the server.`)
@@ -1093,6 +1118,8 @@ class roomClient {
             // called when the server revokes the writing ticket of an actually active client. This mainly (or even only) can happen when the server changes from main to secondary mode
 
             this.deleteWritingTicketID();
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
 
             this.logger.log(30, `The writing ticket was revoked by the server.`)
 
@@ -1329,7 +1356,8 @@ class roomClientVue{
      */
     dataArrived(){
         // raised as soon as the room has its data stored for the first time
-        
+        // by default, do the same as afterFullReload.
+        this.afterFullreload()
     }
 
     // unregister this vue at the room. The room then will eventually automatically close itself.
