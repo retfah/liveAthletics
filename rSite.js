@@ -118,7 +118,7 @@ class rSite extends roomServer{
 export class rSiteTrack extends rSite{
     // implement here the track specific stuff for the rSite
 
-    // TODO: required functions (mostly equivalent with event listeners: contestChange (e.g. status changed), seriesAdded, seriesChanged, seriesDeleted)
+    // required functions (mostly equivalent with event listeners: contestChange (e.g. status changed), seriesAdded, seriesChanged, seriesDeleted)
     
     /** Constructor for the site-room
      * @method constructor
@@ -139,7 +139,8 @@ export class rSiteTrack extends rSite{
         // register events to listen to changes of the series
         // TODO:
 
-        this.createData().then(()=>{this.ready = true}).catch(ex=>this.logger.log(5, `Could not start rSite ${site.xSite}: ${ex}`));
+        this.createData().then(()=>{this.ready = true}).catch(ex=>{
+            this.logger.log(5, `Could not start rSite ${site.xSite}: ${ex}`);});
 
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
@@ -158,7 +159,14 @@ export class rSiteTrack extends rSite{
         this.eH.eventSubscribe(`${this.name}:seriesDeleted`, (series)=>{
             this.deleteSeries(series);
         })
+        
+        this.eH.eventSubscribe(`${this.name}:seriesChanged`, (data)=>{
+            this.changeSeries(data);
+        })
 
+        this.eH.eventSubscribe(`${this.name}:contestChanged`, (contest)=>{
+            this.changeContest(contest);
+        })
     }
 
     async createData (){
@@ -246,10 +254,40 @@ export class rSiteTrack extends rSite{
         this.processChange(doObj, undoObj)
     }
 
+    // create the object for hte series as used in this room. Called by addSeries and changeSeries
+    createSeriesObj(series, startgroups){
+        // create an array with all athletes and their positions
+        const SSRs = [];
+        for (let ssr of series.seriesstartsresults){
+            // get the auxilariy data for this person
+            const SG = startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
+
+            // put all data for this person into one object and add it to the list of athletes
+            const ssrDetail = {};
+            this.propertyTransfer(ssr.dataValues, ssrDetail, true); // number, lane, etc
+            this.propertyTransfer(SG, ssrDetail, true); // name, club, birthdate, ...
+
+            SSRs.push(ssrDetail);
+        }
+
+        // add the series to the main data object
+        return {
+            SSRs: SSRs,
+            xSeries: series.xSeries,
+            status: series.status,
+            number: series.number,
+            name: series.name,
+            datetime: series.datetime,
+            id: series.id,
+            xContest: series.xContest,
+        }
+    }
+
     /**
      * add a series which is taking place on this site. Function called through the event system only; sends change to all connected clients
      * @param {object} data.contest the contest (model) object
      * @param {object} data.series the series (model) object
+     * @param {object} data.startgroup all startgroups of the contest. provided to allow this function to create the correct local data. 
      */
     addSeries(data){
 
@@ -271,29 +309,30 @@ export class rSiteTrack extends rSite{
         }
 
         // create an array with all athletes and their positions
-        const SSRs = [];
-        for (let ssr of series.seriesstartsresults){
-            // get the auxilariy data for this person
-            const SG = startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
+        // const SSRs = [];
+        // for (let ssr of series.seriesstartsresults){
+        //     // get the auxilariy data for this person
+        //     const SG = startgroups.find(sg=>sg.xStartgroup == ssr.xStartgroup);
 
-            // put all data for this person into one object and add it to the list of athletes
-            const ssrDetail = {};
-            this.propertyTransfer(ssr.dataValues, ssrDetail, true);
-            this.propertyTransfer(SG, ssrDetail, true);
+        //     // put all data for this person into one object and add it to the list of athletes
+        //     const ssrDetail = {};
+        //     this.propertyTransfer(ssr.dataValues, ssrDetail, true); // number, lane, etc
+        //     this.propertyTransfer(SG, ssrDetail, true); // name, club, birthdate, ...
 
-            SSRs.push(ssrDetail);
-        }
+        //     SSRs.push(ssrDetail);
+        // }
 
-        // add the series to the main data object
-        const s = {
-            SSRs: SSRs,
-            xSeries: series.xSeries,
-            status: series.status,
-            number: series.number,
-            name: series.name,
-            datetime: series.datetime,
-            id: series.id,
-        }
+        // // add the series to the main data object
+        // const s = {
+        //     SSRs: SSRs,
+        //     xSeries: series.xSeries,
+        //     status: series.status,
+        //     number: series.number,
+        //     name: series.name,
+        //     datetime: series.datetime,
+        //     id: series.id,
+        // }
+        const s = this.createSeriesObj(series, startgroups);
         c.series.push(s)
 
         if (reportChange){
@@ -314,6 +353,41 @@ export class rSiteTrack extends rSite{
     }
 
     /**
+     * Event called when a series is changed (e.g. new starttime, new number, added/removed athlete) This will be called for every series, when a change affects multiple series. 
+     * @param {object} data The data providede with the changeSeries-event
+     * @param {} data.series
+     * @param {} data.startgroups
+     */
+    changeSeries(data){
+        // we simple create the series from scratch as in addSeries, but simply do not add it, but replace it.
+
+        // first try to get the contest. If the contest does not exist, then something is wrong, e.g. contest is not meant to take place on the track.
+        const c = this.data.contests.find(c=>c.xContest == data.series.xContest);
+        if (!c){
+            this.logger.log(50, `Series ${data.series.xSeries} cannot be changed since the constest ${data.series.xContest} is not present on this site.`)
+            return;
+        }
+
+        // create the new seriesObj
+        const s = this.createSeriesObj(data.series, data.startgroups);
+        
+        // replace the series object
+        const si = c.series.findIndex(s2=>s2.xSeries == data.series.xSeries);
+        c.series[si] = s;
+        
+        // send the change to the client
+        const doObj = {
+            funcName:'changeSeries',
+            data: s, // send only the series; this is enough for the client
+        } 
+        const undoObj = {
+            funcName:'TODO',
+            data: null,
+        }
+        this.processChange(doObj, undoObj);
+    }
+
+    /**
      * Try to get the object of the specified contest
      * @param {integer} xContest 
      * @param {object} contest the contest data object for 
@@ -322,21 +396,52 @@ export class rSiteTrack extends rSite{
         let c = this.data.contests.find(contest=>contest.xContest == xContest);
         if (!c){
             // add the contest
-            const c2 = contest;
-            c = {
-                conf: c2.conf,
-                datetimeAppeal: c2.datetimeAppeal,
-                datetimeCall: c2.datetimeCall,
-                datetimeStart: c2.datetimeStart,
-                name: c2.name,
-                status: c2.status,
-                xBaseDiscipline: c2.xBaseDiscipline,
-                xContest: c2.xContest,
-                series:[],
-            }
+            c = this.createContestObj(contest);
             this.data.contests.push(c);
         }
         return c;
+    }
+
+    changeContest(contest){
+        // first try to find the contest
+        let ic = this.data.contests.findIndex(c=>c.xContest == contest.xContest);
+        if (ic<0){
+            this.logger.log(50, `The contest ${contest.xContest} is not part of rSite ${this.site.xSite}. Thus, changeContest cannot continue.`);
+            return;
+        }
+        const series = this.data.contests[ic].series;
+
+        // create a new contest object. Copy then the present series to the object and store the newly created object
+        let newContest = this.createContestObj(contest);
+
+        // send the changes to the client here (and not at the end) to avoid that the series are also sent again
+        const doObj = {
+            funcName:'changeContest',
+            data: newContest, 
+        } 
+        const undoObj = {
+            funcName:'TODO',
+            data: null,
+        }
+        this.processChange(doObj, undoObj);
+
+        // replace the present object
+        newContest.series = series;
+        this.data.contests[ic] = newContest
+    }
+
+    createContestObj(c2){
+        return {
+            conf: c2.conf,
+            datetimeAppeal: c2.datetimeAppeal,
+            datetimeCall: c2.datetimeCall,
+            datetimeStart: c2.datetimeStart,
+            name: c2.name,
+            status: c2.status,
+            xBaseDiscipline: c2.xBaseDiscipline,
+            xContest: c2.xContest,
+            series:[],
+        }
     }
 }
 

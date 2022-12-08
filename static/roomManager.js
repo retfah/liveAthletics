@@ -234,11 +234,11 @@ class roomManager{
 					}
 					
 				},
-				revokeWritingTicket: (sidHash)=>{ // must be an arrow function !!!
+				revokeWritingTicket: (sidHash, roomName)=>{ // must be an arrow function !!!
 					// revoke the writing ticket for the selected client (all the rest will be done in roomClient)
 					// first find teh room
 					let room;
-					if (room = this.rooms.find(r=>r.name == this.roomSelectedObject.name)){
+					if (room = this.rooms.find(r=>r.name == roomName)){
 						room.revokeWritingTicket(sidHash);
 					}	
 				},

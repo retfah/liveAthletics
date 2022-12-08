@@ -30,6 +30,31 @@ export class rSiteTrackClient extends roomClient{
         // set the available functions
         this._addFunction('addSeries', this.addSeriesExe);
         this._addFunction('deleteSeries', this.deleteSeriesExe);
+        this._addFunction('changeSeries', this.changeSeriesExe);
+        this._addFunction('changeContest', this.changeContestExe);
+    }
+
+    changeContestExe(contest){
+        // search the contest first
+        const ic = this.data.contests.findIndex(c=>c.xContest==contest.xContest);
+        // copy over the present series to the new contest object and save it
+        contest.series = this.data.contests[ic].series;
+        this.data.contests[ic] = contest;
+    }
+
+    changeSeriesExe(series){
+        // search the contest first
+        const c = this.data.contests.find(c=>c.xContest==series.xContest);
+        if (c){
+            // search the series
+            const si = c.series.findIndex(s=>s.xSeries == series.xSeries);
+
+            // update it
+            c.series[si] = series;
+
+        } else {
+            this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+        }
     }
 
     deleteSeriesExe(series){

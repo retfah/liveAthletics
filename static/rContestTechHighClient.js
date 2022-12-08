@@ -39,6 +39,7 @@ export class rContestTechHighClient extends roomClient{
 
 
         // set the available functions
+        this._addFunction('moveSeries', this.moveSeriesExe);
         this._addFunction('updateContest2', this.updateContest2Exe);
         this._addFunction('updatePresentState', this.updatePresentStateExe);
         this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
@@ -419,6 +420,38 @@ export class rContestTechHighClient extends roomClient{
         this.addToStack('moveSeries', change, success, rollback)
 
 
+    }
+
+    moveSeriesExe(change){
+        const xSeries = change.xSeries;
+        const toNumber = change.toNumber;
+
+        // make sure that the series are sorted already (should actually not be necessary)
+        this.data.series.sort((a,b)=>{return a.number - b.number});
+
+        // find the series
+        const series = this.data.series.find(s=>s.xSeries == xSeries); 
+        const fromNumber = series.number; 
+
+        // all positions after the previous position of the moved series must be reduced by 1
+        this.data.series.forEach(s =>{
+            if (s.number > fromNumber){
+                s.number--;
+            }
+        })
+
+        // all positions in the new series must be increased by one after the inserted person.
+        this.data.series.forEach(s=>{
+            if (s.number>=toNumber){ // s.number was already reduced before
+                s.number++;
+            }
+        })
+
+        // now change the actual series
+        series.number = toNumber;
+
+        // now sort the series (otherwise the chnage would not be visible)
+        this.data.series.sort((a,b)=>{return a.number - b.number});
     }
 
     addHeightInit(series, newHeight){

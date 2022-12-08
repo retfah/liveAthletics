@@ -679,10 +679,10 @@ option.catMismatch{
     width:auto; /* TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
 }
 .dragelementH:hover, .seriesDragH:hover {
-    background-color: #007BFF;
+    background-color: #007BFF !important;
 }
 .swappos {
-    background-color: #20c997;
+    background-color: #20c997 !important;
 }
 
 .dragelement.alert1, .dragelementH.alert1 {
