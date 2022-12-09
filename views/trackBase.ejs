@@ -53,7 +53,7 @@
         
         dataArrived(){
             // raised as soon as the room has its data stored for the first time
-            this.vue.site = this.room.data.sites;
+            this.vue.sites = this.room.data.sites;
     
         }
     }
@@ -130,6 +130,8 @@
 
                     sites:[],
 
+                    heatInterval: 60, // in s
+
                     developMode:false,
                     //showContestInfo: false,
                     show:'none', // TODO: automatically show most reasonable thing at startup
@@ -165,6 +167,12 @@
                     infoTitle: '',
                     infoContent:'',
                     infoVisible:false,
+
+                    // yesNo overlay
+                    yesNoVisible:false,
+                    yesNoText: '',
+                    yesNoTitle: '',
+                    yesNoFunction:()=>{},
 
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
@@ -424,9 +432,6 @@
                     this.infoContent = content;
                     this.infoVisible = true;
                 },
-                sortSeries(){
-                    //this.series.sort((s1, s2)=>s1.number-s2.number);
-                },
 
                 /* !!! methods for SERIES creation only !!! */
 
@@ -552,6 +557,62 @@
                     evt.currentTarget.classList.remove('swappos');
                     this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
                 },
+                // same as "drop", but for the series assignment after the initial assignment, where the changes are processed in the room
+                drop2(list, index, evt, element){
+                    // do not react on dragged series:
+                    if (!this.dragged){
+                        return;
+                    }
+                    console.log('drop');
+                    evt.preventDefault();
+
+                    // Note: we cannot store unassignedAthetes/series.SSRs as a list as we do in the init rooms, since unassignedAthletes/series.SSRs is a computed property (i.e. has no proxy) and Vue.js does not realize that and proxies the data when we store it to vue.data. Thus, the list is not stored as a list, but as a string ('unassignedAthletes') or as an integer (xSeries).
+
+                    // differentiate different cases
+                    if (this.dragged.list==list){
+                        // within the same series
+                        if (list == "unassignedAthletes"){
+                            // do not sort within the unassigned athletes
+                            this.dragged=null;
+                            return false;
+                        }
+                        // swap the startsingroup
+                        var sig1 = list[index].startsingroup;
+                        // TODO
+                        //rCTrack.room.swapPositionInit(TODO);
+                        //list[index].startsingroup = this.dragged.element.startsingroup;
+                        //this.dragged.element.startsingroup = sig1;
+                    } else {
+
+                        if (this.dragged.list == "unassignedAthletes"){
+                            // unassigned to series
+                            // remove in unassigned athletes not needed, since this is a computed property
+
+                            // get the series object
+                            let series = this.series.find(s=>s.xSeries == list);
+
+                            rCTrack.room.addSSRInit(series, this.dragged.element.xStartgroup, index, element.lane);
+
+
+                        } else if (list == "unassignedAthletes"){
+                            // series to unassigned
+
+                            // add athlete to unassigned athletes
+                            rCTrack.room.deleteSSRInit(this.dragged.element.seriesOriginal, this.dragged.element.ssrOriginal);
+
+                        } else{
+                            // series to series
+                            // swap the startsingroup
+                            // TODO
+                            //rCTrack.room.swapPositionInit(TODO);
+                        }
+
+
+                    }
+                    this.dragged = null;
+                    evt.currentTarget.classList.remove('swappos');
+                    this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
+                },
                 dragStart(list, element, index, evt, replace=false){
                     // set replace to true for 
                     // - drag elements in unassignedAthletes
@@ -644,7 +705,7 @@
                         return '';
                     }
                 },
-                getYearShort: function(dateString){
+                getYearShort(dateString){
                     let d = new Date(dateString);
                     return d.getFullYear().toString().slice(-2);
                 },
@@ -682,13 +743,13 @@
                     return s;
 
                 },
-                showInitialSeriesAssignment: function(){
+                showInitialSeriesAssignment(){
                     // create a list of all unassigned athletes for the initial series assignment. This is a separate list from the unassignedAthletes for the base configuration
                     this.resetInitialSeriesAssignment()
                     
                     this.overlay2 = 'createSeries';
                 },
-                updatePositions: function(seriesObj2){
+                updatePositions(seriesObj2){
                     // update the position (and lane) values if not startInLanes
                     if (this.conf.startInLanes){
                         return;
@@ -702,7 +763,7 @@
                         ssr.posInLane = 1;
                     }
                 },
-                updateEmptyInitLanes: function(seriesObj2){
+                updateEmptyInitLanes(seriesObj2){
                     // called e.g. after the number of lanes/groupSize/startInLanes have changed, when a new series is added, when an seriesStart is added or deleted,
 
                     // there is nothing to do when the contest is not started in lanes
@@ -784,13 +845,13 @@
                 /**
                  * n: the number of the series 
                  **/
-                getStarttime: function(n){
+                getStarttime(n){
                     const d = new Date(this.contest.datetimeStart);
                     // set a reasonable default value! Must change when the order of series changes
                     let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + this.disciplineConfiguration.heatInterval*(n-1));
                     return datetime;
                 },
-                addEmptySeriesInitial: function(){
+                addEmptySeriesInitial(){
                     // add an empty series to the seriesObj used in the inital series configuration tool
                     let xSite = this.defaultSite?.xSite ?? null;
                     this.seriesObj.push({
@@ -803,14 +864,14 @@
                     });
                     this.updateEmptyInitLanes(this.seriesObj);
                 },
-                resetInitialSeriesAssignment: function(){
+                resetInitialSeriesAssignment(){
                     // recreate the set of unassigned athletes (=all startingroup where present=true): 
                     this.unassignedAthletesCreate = this.startgroups.filter(el=>el.present);
 
                     // delete all current series:
                     this.seriesObj = [];
                 },
-                createSeriesAutomatically: function(){
+                createSeriesAutomatically(){
                     // first, reset current series
                     this.resetInitialSeriesAssignment();
 
@@ -821,9 +882,9 @@
                     this.overlay=undefined;
                     
                     // activate the ok button
-                    this.$refs["saveInitSeries"].focus();
+                    //this.$refs["saveInitSeries"].focus();
                 },
-                saveInitSeries: function(){
+                saveInitSeries(){
                     // save the initial series assignment
                     
                     // TODO: manually populate the actual series object; as soon as the change is processed on the server, the IDs will be replaced here with the actual IDs. 
@@ -847,31 +908,51 @@
                     return false; // avoid reload of the page
 
                 },
-                addSeries: function(){
+                addSeries(){
                     // add an empty series
                     rCTrack.room.addSeriesInit();
                 },
-                deleteAllSeries: function(){
-                    // TODO: implement a warning dialog!
-
+                deleteAllSeriesInit(){
+                    // show warning
+                    this.yesNoVisible = true,
+                    this.yesNoText = '<%= __("Delete all series") %>';
+                    this.yesNoTitle = `<%= __("Do you really want to delete all series? This can't be undone.") %>`;
+                    this.yesNoFunction = this.deleteAllSeries;
+                    
+                },
+                deleteAllSeries(){
+                    this.yesNoVisible=false;
                     // the room functiuon will also change the local data
                     rCTrack.room.deleteAllSeriesInit();
                 },
-                moveSeries: function(evt){
+                moveSeries(evt){
                     // called, when series are reordered
                     // no differentiation needed between moved/added/removed, since only move is possible; 
 
                     // Note: evt.moved.element is NOT the series-element in data.series, since we work on a copy seriesAsStartgroups
                     rCTrack.room.moveSeriesInit(evt.moved.oldIndex, evt.moved.newIndex)
 
+                    this.showTimeUpdate();
                 },
-                removeSSR: function(evt){
+                showTimeUpdate(){
+
+                    // show a window to update the starttimes
+                    this.heatInterval = this.disciplineConfiguration.heatInterval;
+                    this.overlay = 'timeUpdate';
+
+                },
+                updateHeatStarttimes(){
+                    rCTrack.room.updateHeatStarttimesInit(this.heatInterval);
+
+                    this.overlay = undefined;
+                },
+                removeSSR(evt){
                     if ("added" in evt){
                         rCTrack.room.deleteSSR(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
                     }
                     // nothing to do when removed or moved; removed is handled in the add event of the series and moving within the unassignedAthletes is useless, since it is done via the sortable table.
                 },
-                changePosition: function(series, evt){
+                changePosition(series, evt){
                     // this function is responsible for:
                     // - moving athletes within series
                     // - moving athletes beyond series
@@ -1849,7 +1930,6 @@
                 },
             },
             computed:{
-
                 
                 /* !!! properties for SERIES CREATION and COMPETITION !!! */
 
@@ -1916,9 +1996,15 @@
                     for (let i=0;i<this.series.length; i++){
 
                         let series = this.series[i];
+                        // access the datetime to make sure seriesAsStartgroups listens to its changes (Note: since copy the series below, it will actually not listen to all the properties, but probbaly only the series object itself!)
+                        //let x = this.series[i].datetime;
+                        //let x2 = this.series[i].number; // this is probably not needed, since when we change the number, we also sort the data, which anyway calls this function.
                         
                         // add the other data of the series, for informational purposes only! A change to those is useless.
-                        let seriesCopy = copyObject(series); // seriesstartsresults is actually already added here, but will be deleted again:
+                        // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
+                        let seriesCopy = {};
+                        propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
+                        
 
                         // get the startgroup for every seriesstartsresult
                         let SSRs = [];
@@ -1928,7 +2014,7 @@
                             // find the startgroup for the respective seriesstartsresult and add it to the list
                             let startgroup = this.startgroups.find(SG=>SG.xStartgroup == ssr.xStartgroup)
                             if (startgroup){
-                                ssrCopy.startgroup = startgroup;
+                                ssrCopy.startsingroup = startgroup;
                                 ssrCopy.ssrOriginal = ssr;
                             } else {
                                 console.log('Error: could not find xStartgroup of an assigned athlete. This data inconsistency should not occure. Try to fully reload the auxilary data.')
@@ -1941,7 +2027,7 @@
                             SSRs.push(ssrCopy)
                         })
                         
-                        seriesCopy.seriesstartsresults= SSRs;
+                        seriesCopy.SSRs= SSRs;
                         seriesCopy.seriesOriginal = series;
                         seriesAsStartgroups.push(seriesCopy);
                     }
@@ -1952,10 +2038,26 @@
                     })
                     // sort the seriesstartsresults
                     seriesAsStartgroups.forEach(series=>{
-                        series.seriesstartsresults.sort((a,b)=>{
+                        series.SSRs.sort((a,b)=>{
                             return a.position-b.position;
                         })
                     })
+                    // add posInLane and lane (to make updateEmptyLane to work)
+                    seriesAsStartgroups.forEach(series=>{
+                        let lastLane = 0;
+                        let lastPosInLane = 0;
+                        series.SSRs.forEach(SSR=>{
+                            SSR.lane = SSR.startConf;
+                            if (SSR.lane == lastLane){
+                                SSR.posInLane = ++lastPosInLane;
+                            } else {
+                                SSR.posInLane = 1
+                            }
+                            lastLane = SSR.lane;
+                        })
+                    })
+
+                    this.updateEmptyInitLanes(seriesAsStartgroups);
 
                     return seriesAsStartgroups;
                 },
@@ -2199,8 +2301,6 @@
 
         // get the GET-parameter xContest (null if not found)
         let xContest = findGetParameter('xContest')
-        
-        //xContest = 3; // TODO: delete
 
         if (xContest!=null && !isNaN(xContest)){
             xContest = Number(xContest)

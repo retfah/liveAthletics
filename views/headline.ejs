@@ -3,11 +3,14 @@
     <a class="ItemNav1" onclick="return goto(this); return false;" href="inscriptions"><%= __('Inscriptions') %></a>
     <a class="ItemNav1" onclick="return goto(this)" href="competition"><%= __('Competition') %></a>
     <a class="ItemNav1" onclick="return goto(this)" href="liveResultsLocal"><%= __('Live Results') %></a>
-    <a class="ItemNav1" onclick="return goto(this)" href="production"><%= __('Production') %></a>
+    <!--<a class="ItemNav1" onclick="return goto(this)" href="production"><%= __('Production') %></a>-->
     <a class="ItemNav1" onclick="return goto(this)" href="admin"><%= __('Administration') %></a>
     <a class="ItemNav1" href="/<%= _lang %>/meetingAdministration"><%= __('Server administration') %></a>
-    <a class="ItemNav1" onclick="return goto(this)" href="login"><%= __('Log in') %></a><!-- TODO: must also be able to handle logout!-->
-    <a class="ItemNav1" onclick="return goto(this)" href="logout"><%= __('Log out') %></a>
-    <a id="aConnection" class="Conn" onclick="rM.data.wsWindowShown=true;" ><%= __('Connection')%><span class="glyphicon glyphicon-transfer"></span></a><!-- replace by either settings symbol (gear) or wifi symbol finally-->
+    <!--<a class="ItemNav1" onclick="return goto(this)" href="login"><%= __('Log in') %></a><!-- TODO: must also be able to handle logout!-->
+    <!--<a class="ItemNav1" onclick="return goto(this)" href="logout"><%= __('Log out') %></a>-->
+    <a id="aConnection" class="Conn" onclick="rM.data.wsWindowShown=true;" >
+        <%= __('Connection')%>
+        <!--<span class="glyphicon glyphicon-transfer"></span>-->
+    </a><!-- replace by either settings symbol (gear) or wifi symbol finally-->
 </div>
 <div id="child1"><%- child1 %></div> <!-- id and ejs replacement must be the same-->

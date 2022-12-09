@@ -375,14 +375,16 @@ class rContestTrack extends roomServer{
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         // TODO: activate one function after the other, when needed
+        this.functionsWrite.updateHeatStarttimes = this.updateHeatStarttimes.bind(this);
         this.functionsWrite.updateContest2 = this.updateContest2.bind(this);
         this.functionsWrite.updatePresentState = this.updatePresentState.bind(this);
         this.functionsWrite.initialSeriesCreation = this.initialSeriesCreation.bind(this);
         this.functionsWrite.deleteAllSeries = this.deleteAllSeries.bind(this);
         this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
-        // this.functionsWrite.addSSR = this.addSSR.bind(this);
+        this.functionsWrite.addSSR = this.addSSR.bind(this);
         // this.functionsWrite.changePosition = this.changePosition.bind(this);
-        // this.functionsWrite.moveSeries = this.moveSeries.bind(this);
+        //this.functionsWrite.swapPosition = this.swapPosition.bind(this);
+        this.functionsWrite.moveSeries = this.moveSeries.bind(this);
         // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
         // this.functionsWrite.addResult = this.addResult.bind(this);
         // this.functionsWrite.updateResult = this.updateResult.bind(this);
@@ -450,7 +452,7 @@ class rContestTrack extends roomServer{
         }
 
         const schemaResultsTrack = {
-            type:'object',
+            type:['object', 'null'],
             properties:{
                 xResultTrack: {type:'integer'},
                 time: {type: "integer", minimum:0},
@@ -484,18 +486,18 @@ class rContestTrack extends roomServer{
             properties: {
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
-                xSite: {type: ["integer", "null"]},
+                xSite: {type: ["integer", "null"], default: null},
                 status: {type:"integer"},
                 number: {type:"integer"},
-                name: {type:"string", maxLength:50},
-                datetime: {type: ["null", "string"], format:"date-time"}, // format gets only evaluated when string,
+                name: {type:"string", maxLength:50, default:''},
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
                 seriesstartsresults: {
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
             },
-            required: ["xContest", "status", "number"],
+            required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
             // neither required nor additional propertzies are defined herein
         }
@@ -626,6 +628,55 @@ class rContestTrack extends roomServer{
         this.validateUpdateSeries = this.ajv.compile(schemaUpdateSeries);
         this.validateAuxData = this.ajv.compile(schemaAuxData);
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
+        this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
+
+    }
+
+    /**
+     * n: the number of the series 
+     **/
+    getStarttime(n, interval){
+        const d = new Date(this.data.contest.datetimeStart);
+        // set a reasonable default value! Must change when the order of series changes
+        let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + interval*(n-1));
+        return datetime;
+    }
+
+    // update all starttimes
+    async updateHeatStarttimes(interval){
+        if (!this.validateUpdateHeatStarttimes(interval)){
+            throw {code:21, message: this.ajv.errorsText(this.validateUpdateHeatStarttimes.errors)}
+        }
+
+        // make sure that the series are sorted!
+        // sort the series by number
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            let newTime = this.getStarttime(h, interval);
+            const s = this.data.series[h-1];
+            if (newTime != s.datetime){
+                s.datetime = newTime;
+                await s.save();
+
+                // notify rSite, if selected
+                if (s.xSite){
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+                }
+            }
+        }
+
+        // broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateHeatStarttimes', data: interval},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
 
     }
 
@@ -908,6 +959,14 @@ class rContestTrack extends roomServer{
 
         await Promise.all(proms);
 
+        // notify all rSite about the changes in the series
+        for (let si = Math.min(oldIndex, newIndex); si<=Math.max(oldIndex, newIndex); si++){
+            const s = this.data.series[si];
+            if (s.xSite){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+            }
+        }
+
         // return broadcast
         let ret = {
             isAchange: true, 
@@ -1063,6 +1122,11 @@ class rContestTrack extends roomServer{
                     ssr2.position--;
                     await ssr2.save();
                 }
+            }
+
+            // notify rSite
+            if (series.xSite){
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
             }
 
             // broadcast the change
@@ -1351,6 +1415,17 @@ class rContestTrack extends roomServer{
                     response: true, // no need for data to the calling client
                     preventBroadcastToCaller: true
                 };
+
+                // notify all involved sites about the changes in the contest
+                let xSites = [];
+                for (let s of this.data.series){
+                    if (s.xSite && xSites.indexOf(s.xSite)==-1){
+                        xSites.push(s.xSite);
+                    }
+                }
+                for (let xSite of xSites){
+                    this.eH.raise(`sites/${xSite}@${this.meetingShortname}:contestChanged`, this.data.contest);
+                }
 
                 return ret;
 

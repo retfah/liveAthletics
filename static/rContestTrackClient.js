@@ -30,6 +30,7 @@ export class rContestTrackClient extends roomClient{
 
 
         // set the available functions
+        this._addFunction('moveSeries', this.moveSeriesExe);
         this._addFunction('updateContest2', this.updateContest2Exe);
         this._addFunction('updatePresentState', this.updatePresentStateExe);
         this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
@@ -41,8 +42,6 @@ export class rContestTrackClient extends roomClient{
         this._addFunction("deleteSSR", this.deleteSSRExe);
         this._addFunction('addSSR', this.addSSRExe);
         this._addFunction('changePosition', this.changePositionExe);
-        this._addFunction('addHeight', this.addHeightExe);
-        this._addFunction('deleteHeight', this.deleteHeightExe);
         this._addFunction('updateSSR', this.updateSSRExe);
         this._addFunction('addResult', this.addResultExe);
         this._addFunction('updateResult', this.updateResultExe);
@@ -50,7 +49,8 @@ export class rContestTrackClient extends roomClient{
         this._addFunction('updateSeries', this.updateSeriesExe);
         this._addFunction('updateAuxData', this.updateAuxDataExe);
         this._addFunction('addSeries', this.addSeriesExe);
-
+        this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
+        // moveSeriesExe is missing!!! AND there seems to be a problem that it still works (since the data should be fully reloaded), but some reactivity is lost!
     }
 
     // Infos about aux data:
@@ -125,6 +125,49 @@ export class rContestTrackClient extends roomClient{
         this.addToStack('updateSeries', change, success, rollback)
 
         this.sortSeries();
+
+    }
+
+
+    /**
+     * n: the number of the series 
+     **/
+    getStarttime(n, interval){
+        const d = new Date(this.data.contest.datetimeStart);
+        // set a reasonable default value! Must change when the order of series changes
+        let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + interval*(n-1));
+        return datetime;
+    }    
+
+    updateHeatStarttimesInit(interval){
+        // interval is the interval in s
+
+        // sort the series by number (should already be the case)
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
+        }
+        
+        let change = interval;
+
+        let success = ()=>{
+            // actually there is nothing to do here, since the changes are already applied
+        };
+        let rollback = null; // currently no single rollback planned; get the full data from the server again
+        this.addToStack('updateHeatStarttimes', change, success, rollback)
+    }
+
+    updateHeatStarttimesExe(interval){
+        
+        // sort the series by number (should already be the case)
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
+        }
 
     }
 
@@ -293,6 +336,17 @@ export class rContestTrackClient extends roomClient{
 
     }
 
+    // only needed when started in lanes
+    swapPositionInit(data){
+
+    }
+
+    // only needed when started in lanes
+    swapPositionExe(data){
+
+    }
+
+    // only used when NOT started in lanes
     changePositionExe(data){
         let oldSeries = this.data.series.find(el=>el.xSeries == data.fromXSeries);
         let newSeries = this.data.series.find(el=>el.xSeries == data.toXSeries);
@@ -411,109 +465,38 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-    addHeightInit(series, newHeight){
+    moveSeriesExe(change){
+        const xSeries = change.xSeries;
+        const toNumber = change.toNumber;
 
-        // the height is added here and not in the vue
-        series.heights.push(newHeight);
+        // make sure that the series are sorted already (should actually not be necessary)
+        this.data.series.sort((a,b)=>{return a.number - b.number});
 
-        let change = () =>{
+        // find the series
+        const series = this.data.series.find(s=>s.xSeries == xSeries); 
+        const fromNumber = series.number; 
 
-            // the xSeries from newHeight might be outdated at the time of sending, e.g. when the series were created locally without processing the change yet on the server (due to lack of connection)
-
-            // the xSeries now should be known
-            newHeight.xSeries = series.xSeries;
-
-            return {
-                xSeries: series.xSeries, 
-                jumpoffOrder: newHeight.jumpoffOrder,
-                height: newHeight.height,
+        // all positions after the previous position of the moved series must be reduced by 1
+        this.data.series.forEach(s =>{
+            if (s.number > fromNumber){
+                s.number--;
             }
-        }
+        })
 
-        let success = (xHeight)=>{
-            // set xHeight in the actual height object but also in every result referencing the xHeight
-            let xHeightTemp = newHeight.xHeight;
-            newHeight.xHeight = xHeight;
-
-            series.seriesstartsresults.forEach(ssr=>{
-                let rh;
-                if (rh = ssr.resultshigh.find(rh=>rh.xHeight==xHeightTemp)){
-                    rh.xHeight = xHeight;
-                }
-            })
-
-        }
-
-        let rollback = null; // do full rollback; should not happen
-        this.addToStack('addHeight', change, success, rollback)
-    }
-
-    addHeightExe(newHeight){
-        let series = this.data.series.find(s=>s.xSeries == newHeight.xSeries);
-        if (series){
-            series.heights.push(newHeight)
-        } else {
-            // do full reload
-            this.logger.log(5, `Could not add height given by the server, sicne the series does not exist. Reoad all`);
-            this.getFullData();
-        }
-    }
-
-    deleteHeightInit(height){
-
-        // get the series
-        let series = this.data.series.find(s=>s.xSeries==height.xSeries)
-        if (!series){
-            this.logger.log(10, `Cannot delete the height, since the series cannot be found.`)
-            return;
-        }
-
-        // find the height within that series
-        let ind = series.heights.indexOf(height);
-        if (ind==-1){
-            this.logger.log(10, `Cannot delete the height, since the height is not part of the series.`)
-            return;
-        }
-
-        // delete the height locally
-        series.heights.splice(ind,1);
-
-        let success = ()=>{
-            // nothing to do, since it is already deleted here
-        }
-
-        // create the object at the moment of sending the change to ensure we also include the eventually later defined xHeight
-        let change = ()=>{
-            return {
-                xHeight: height.xHeight,
-                xSeries: height.xSeries
+        // all positions in the new series must be increased by one after the inserted person.
+        this.data.series.forEach(s=>{
+            if (s.number>=toNumber){ // s.number was already reduced before
+                s.number++;
             }
-        }
+        })
 
-        let rollback = null; // do full rollback; should not happen
-        this.addToStack('deleteHeight', change, success, rollback)
+        // now change the actual series
+        series.number = toNumber;
 
+        // now sort the series (otherwise the chnage would not be visible)
+        this.data.series.sort((a,b)=>{return a.number - b.number});
     }
 
-    deleteHeightExe(data){
-        // data contains xSeries and xHeight
-        // get the series
-        let series = this.data.series.find(s=>s.xSeries==data.xSeries)
-        if (!series){
-            this.logger.log(10, `Cannot delete the height, since the series cannot be found.`)
-            return;
-        }
-
-        // find the height within that series
-        let ind = series.heights.findIndex(h=>h.xHeight==data.xHeight);
-        if (ind==-1){
-            this.logger.log(10, `Cannot delete the height, since the height is not part of the series.`)
-            return;
-        }
-
-        // delete the height locally
-        series.heights.splice(ind,1);
-    }
 
     // this function has no direct exe equivalent
     // the inputted parameters must be those of the original objects and not local copies done within Vue.
@@ -576,7 +559,9 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-    deleteSSR(series, ssr){
+    deleteSSRInit(series, ssr){
+
+        // position is not linked to the lane. It always starts at 1 for the innermost athelte and increases by one to trhe next, even if there are empty lanes in between.
 
         // all positions after the previous position of the moved person must be reduced by 1 
         series.seriesstartsresults.forEach(ssr2 =>{
@@ -623,11 +608,11 @@ export class rContestTrackClient extends roomClient{
         
     }
 
-    addSSR(series, xStartgroup, newIndex){
+    addSSRInit(series, xStartgroup, newIndex, lane){
 
         // all position in the series must be increased by one after the inserted person.
         series.seriesstartsresults.forEach(ssr2=>{
-            if (ssr2.position>=newIndex+1){ // newIndex is zero-based, the position is one-based
+            if (ssr2.position >= newIndex+1){ // newIndex is zero-based, the position is one-based
                 ssr2.position++;
             }
         })
@@ -641,8 +626,8 @@ export class rContestTrackClient extends roomClient{
             resultOverrule: 0,
             resultRemark: '',
             qualification: 0, // not used yet
-            startConf: '', // here will be the startheight as JSON
-            resultshigh: [], // no results yet
+            startConf: lane.toString(), // here will be the startheight as JSON
+            resultstrack:null,
         }
         
         series.seriesstartsresults.push(SSR)
@@ -652,17 +637,17 @@ export class rContestTrackClient extends roomClient{
             // set the xSeriesStart
             SSR.xSeriesStart = xSeriesStart;
 
-            // if there are already results, set xResult=xSeriesStart
-            SSR.resultshigh.forEach(res=>{
-                res.xResult = xSeriesStart;
-            })
+            // if there is already a result, set xResult=xSeriesStart
+            if (SSR.resultsTrack){
+                SSR.resultsTrack.xResultTrack = xSeriesStart
+            }
 
         };
         let rollback = ()=>{
             // find the SSR and delete it
             let i = series.seriesstartsresults.indexOf(SSR);
             if (i>=0){
-                series.seriesstartsresults[i].splice(i,1);
+                series.seriesstartsresults.splice(i,1);
             }
         }
         this.addToStack('addSSR', SSR, success, rollback)
@@ -855,7 +840,8 @@ export class rContestTrackClient extends roomClient{
 
             // prepare seriesStartsResults:
             let seriesstartsresults = [];
-            // Remark about positions: positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane== lane-of-previous athlete, this-posInLane=posInLane-previous+1, else posInLane=1"
+            // Remark about positions and lanes: The lane is stored as string in startConf. Positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other and increases by one to the next athlete, whether there is an empty lane in between or not! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane== lane-of-previous athlete, this-posInLane=posInLane-previous+1, else posInLane=1". 
+
             let position = 1;
             for (let i=0;i< series.SSRs.length; i++){
                 if (series.SSRs[i].startsingroup){
@@ -868,7 +854,7 @@ export class rContestTrackClient extends roomClient{
                         resultOverrule: 0,
                         resultRemark: '',
                         qualification: 0, // not used yet
-                        startConf: series.SSRs[i].lane, // lane
+                        startConf: series.SSRs[i].lane.toString(), // lane
                     })
                 }
             }
@@ -880,6 +866,8 @@ export class rContestTrackClient extends roomClient{
                 status: series.status,
                 number: series.number,
                 name: series.name,
+                datetime: series.datetime,
+                id: this.uuidv4(),
                 seriesstartsresults: seriesstartsresults,
             })
 
