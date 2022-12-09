@@ -58,7 +58,7 @@
 
     <!-- and now the div for the clients list:-->
     <div v-if="clientWindowShown" class="clientWindow shadow" id="clientWindow" v-bind:class="{clientWindowShown: clientWindowShown, clientWindowHidden: !clientWindowShown}">
-        <div v-if="clientWindowShown" class="room" v-bind:class="{connected: roomSelectedObject.connected, disconnected: !roomSelectedObject.connected}" v-if="roomSelectedObject.writing">
+        <div v-if="clientWindowShown" class="room" v-bind:class="{connected: roomSelectedObject.connected, disconnected: !roomSelectedObject.connected}" v-if="roomSelectedObject.writingTicketID">
             <div class="roomNameW">{{roomSelectedObject.name}}</div>
             <div class="roomWriting">{{roomSelectedObject.infos.numClientsWriting}}/{{roomSelectedObject.infos.maxWritingTickets==-1?"<%= __("inf") %>":roomSelectedObject.infos.maxWritingTickets}}</div>
             <div class="roomClients">{{roomSelectedObject.infos.numClients}}</div>
@@ -80,7 +80,7 @@
     <div class="revokeWindow" id="revokeWindow" v-bind:class="{shown: revokeWindowShown, hidden: !revokeWindowShown} " v-if="revokeWindowShown">
         <div class="message"><%= __("Do you really want to revoke the writing rights of client {{roomSelectedObject.infos.clients[revokeClient].name}}?") %></div> <!-- important: the {{...}} MUST NOT be translated or changed!-->
         <div class="no" v-on:click="revokeWindowShown=false"><%= __("No") %></div>
-        <div class="yes" v-on:click="revokeWritingTicket(revokeClient) ; revokeWindowShown=false"><%= __("Yes") %></div>
+        <div class="yes" v-on:click="revokeWritingTicket(revokeClient, roomSelectedObject.name) ; revokeWindowShown=false"><%= __("Yes") %></div>
     </div>
 
     <div hidden id="roomManagerTranslations"> <!--style="display:none"-->
