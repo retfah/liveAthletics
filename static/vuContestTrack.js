@@ -72,10 +72,14 @@ class vuContestTrack extends roomClientVue{
     
     dataArrived(){
 
-        this.setProps();
+        // 2022-12: same as afterFullReload
+        this.afterFullreload()
+
+        // OLD: 
+        // this.setProps();
         
-        // also update the writing status
-        this.onWritingTicketChange();
+        // // also update the writing status
+        // this.onWritingTicketChange();
 
     }
 
