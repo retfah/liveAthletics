@@ -264,11 +264,11 @@
                                                 <div style="flex-grow:1"></div>
                                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 <input class="formCtrl" type="datetime-local" v-bind:value="formatInputDate(series.datetime)" 
-                                                v-on:change="TODO(series, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
-                                                <select class="formCtrl" v-model.number="series.xSite">
+                                                v-on:blur="dateChanged(series, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
+                                                <select class="formCtrl" @change="siteChanged(series, $event)">
                                                     <option value="null"><%= __("Not defined") %></option>
                                                     <template v-for="(site, i) in trackSites">
-                                                        <option v-bind:value="site.xSite">{{site.name}}</option>
+                                                        <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
                                                     </template>
                                                 </select>
                                             </div>
@@ -829,7 +829,7 @@
                                 <div style="grid-area: series;">
                                     <%= __("Series") %>
     
-                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
+                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="initSeriesChanged">
                                         <template #item="{element:series, index}">
                                             <div class="dragelement">
                                                 <div class="seriesDragH"  style="display:flex">
@@ -921,7 +921,7 @@
                                 <div style="grid-area: series;">
                                     <%= __("Series") %>
     
-                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="seriesChanged">
+                                    <draggable v-model="seriesObj" item-key="number" group="series" @end="initSeriesChanged">
                                         <template #item="{element:series, index}">
                                             <div class="dragelement">
                                                 <div class="seriesDragH">

@@ -643,7 +643,18 @@
                     this.updatePositions(series);
                     return true;
                 },
-                seriesChanged(evt){
+                siteChanged(series, evt){
+                    // called e.g. when the time or the site was changed
+                    if (evt.target.value===null || evt.target.value=='null'){
+                        rCTrack.room.updateSeriesInit(series, 'xSite', null);
+                    } else {
+                        rCTrack.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+                    }
+                },
+                dateChanged(series, evt){
+                    rCTrack.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+                },
+                initSeriesChanged(evt){
                     // make sure that again the number of the series as well as the default times are correct
                     for (let h=1; h<= this.seriesObj.length; h++){
                         this.seriesObj[h-1].number = h;
@@ -1780,7 +1791,8 @@
                 seriesStatusChanged(){
 
                     // send the change to the server
-                    rCTrack.room.updateSeriesInit(this.series[this.selectedSeries]);
+                    // TODO: changed call now!!!
+                    //rCTrack.room.updateSeriesInit(this.series[this.selectedSeries]);
                 },
                 
 

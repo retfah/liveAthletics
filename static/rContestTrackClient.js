@@ -103,20 +103,25 @@ export class rContestTrackClient extends roomClient{
         this.data.series.sort((s1, s2)=>s1.number-s2.number);
     }
 
-    updateSeriesInit(data){
-        // the data is actually already changed... (not ideal)
+    updateSeriesInit(series, prop, val){
 
         let change = ()=>{
             // do not send the heights and ssr array; therefore, copy the data
-            return {
-                xSeries: data.xSeries,
-                xContest: data.xContest,
-                xSite: typeof(data.xSite)=='string' ? null : data.xSite,
-                status: data.status,
-                number: data.number,
-                name: data.name,
-            }
+            let o = {
+                xSeries: series.xSeries,
+                xContest: series.xContest,
+                xSite: typeof(series.xSite)=='string' ? null : series.xSite,
+                status: series.status,
+                number: series.number,
+                name: series.name,
+                datetime: series.datetime,
+                id: series.id,
+            };
+            o[prop] = val;
+            return o;
         }
+
+        series[prop] = val;
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)

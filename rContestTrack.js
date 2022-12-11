@@ -389,7 +389,7 @@ class rContestTrack extends roomServer{
         // this.functionsWrite.addResult = this.addResult.bind(this);
         // this.functionsWrite.updateResult = this.updateResult.bind(this);
         // this.functionsWrite.deleteResult = this.deleteResult.bind(this);
-        // this.functionsWrite.updateSeries = this.updateSeries.bind(this);
+        this.functionsWrite.updateSeries = this.updateSeries.bind(this);
         // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
         // this.functionsWrite.addSeries = this.addSeries.bind(this);
 
@@ -452,7 +452,7 @@ class rContestTrack extends roomServer{
         }
 
         const schemaResultsTrack = {
-            type:['object', 'null'],
+            type:['object', 'null'], // null to allow that there is no result yet; mainly when included in 
             properties:{
                 xResultTrack: {type:'integer'},
                 time: {type: "integer", minimum:0},
@@ -510,7 +510,9 @@ class rContestTrack extends roomServer{
                 xSite: {type: ["integer", "null"]},
                 status: {type:"integer"},
                 number: {type:"integer"},
-                name: {type:"string", maxLength:50}
+                name: {type:"string", maxLength:50},
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
@@ -737,12 +739,22 @@ class rContestTrack extends roomServer{
             throw {code:22, message:`Could not find series ${data.xSeries}.`};
         }
 
+        let oldSite = series.xSite;
+
         // make sure the xContest is not changed!
         if (data.xContest != this.contest.xContest){
             throw {message:`xContest should be ${this.contest.xContest}, but was ${series[i].xContest}`, code:24}
         }
 
-        series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; })
+        series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
+
+        // notify site about changes
+        if (oldSite){
+            this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+        }
+        if (oldSite != data.xSite && data.xSite){
+            this.eH.raise(`sites/${data.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+        }
 
         let ret = {
             isAchange: true, 
@@ -1074,6 +1086,11 @@ class rContestTrack extends roomServer{
                 }
                 // add to the list of seriesstartsresults
                 series.seriesstartsresults.push(newSSR);
+
+                // notify rSite
+                if (series.xSite){
+                    this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+                }
                 
                 // return broadcast
                 let ret = {

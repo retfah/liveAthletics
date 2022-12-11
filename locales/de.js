@@ -523,5 +523,10 @@
 	"Performances of other events in this meeting": "Leistungen aus anderen Wettkämpfen an diesem Meeting",
 	"The athletes are sorted randomly within the heat.": "The athletes are sorted randomly within the heat.",
 	"Not defined": "Not defined",
-	"Timezone offset (in min)": "Timezone offset (in min)"
+	"Timezone offset (in min)": "Timezone offset (in min)",
+	"Update heat time interval": "Update heat time interval",
+	"Update heat start time": "Update heat start time",
+	"Heat interval (in s)": "Heat interval (in s)",
+	"Update": "Update",
+	"Do you really want to delete all series? This can't be undone.": "Do you really want to delete all series? This can't be undone."
 }
