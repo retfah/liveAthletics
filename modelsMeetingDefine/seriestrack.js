@@ -1,9 +1,9 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class series_track extends Model {
+export default class seriestrack extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('series_track', {
+  return sequelize.define('seriestrack', {
     xSeries: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -31,7 +31,7 @@ export default class series_track extends Model {
       comment: "manual timing?"
     }
   }, {
-    tableName: 'series_track',
+    tableName: 'seriestrack',
     timestamps: false,
     indexes: [
       {

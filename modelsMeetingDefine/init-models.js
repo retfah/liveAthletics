@@ -35,8 +35,8 @@ import _resultstechwind from  "./resultstechwind.js";
 import _resultstrack from  "./resultstrack.js";
 import _rounds from  "./rounds.js";
 import _series from  "./series.js";
-import _series_track from  "./series_track.js";
 import _seriesstartsresults from  "./seriesstartsresults.js";
+import _seriestrack from  "./seriestrack.js";
 import _sites from  "./sites.js";
 import _sites_track from  "./sites_track.js";
 import _starts from  "./starts.js";
@@ -79,14 +79,15 @@ export default function initModels(sequelize) {
   const resultstrack = _resultstrack.init(sequelize, DataTypes);
   const rounds = _rounds.init(sequelize, DataTypes);
   const series = _series.init(sequelize, DataTypes);
-  const series_track = _series_track.init(sequelize, DataTypes);
   const seriesstartsresults = _seriesstartsresults.init(sequelize, DataTypes);
+  const seriestrack = _seriestrack.init(sequelize, DataTypes);
   const sites = _sites.init(sequelize, DataTypes);
   const sites_track = _sites_track.init(sequelize, DataTypes);
   const starts = _starts.init(sequelize, DataTypes);
   const startsingroup = _startsingroup.init(sequelize, DataTypes);
   const teaminscriptions = _teaminscriptions.init(sequelize, DataTypes);
   const teams = _teams.init(sequelize, DataTypes);
+
   basedisciplines.belongsToMany(sites, { as: 'xSite_sites', through: disciplinesonsite, foreignKey: "xBaseDiscipline", otherKey: "xSite" });
   categories.belongsToMany(clubs, { through: relays, foreignKey: "xCategory", otherKey: "xClub" });
   clubs.belongsToMany(categories, { through: relays, foreignKey: "xClub", otherKey: "xCategory" });
@@ -187,10 +188,10 @@ export default function initModels(sequelize) {
   rounds.hasMany(groups, { as: "groups", foreignKey: "xRound"});
   heights.belongsTo(series, { as: "series", foreignKey: "xSeries"});
   series.hasMany(heights, { as: "heights", foreignKey: "xSeries"});
-  series_track.belongsTo(series, { as: "xSeries_sery", foreignKey: "xSeries"});
-  series.hasOne(series_track, { as: "series_track", foreignKey: "xSeries"});
   seriesstartsresults.belongsTo(series, { as: "series", foreignKey: "xSeries"});
   series.hasMany(seriesstartsresults, { as: "seriesstartsresults", foreignKey: "xSeries"});
+  seriestrack.belongsTo(series, { as: "series", foreignKey: "xSeries"});
+  series.hasOne(seriestrack, { as: "seriestrack", foreignKey: "xSeries"});
   resultshigh.belongsTo(seriesstartsresults, { as: "seriesstartsresult", foreignKey: "xResult"});
   seriesstartsresults.hasMany(resultshigh, { as: "resultshigh", foreignKey: "xResult"});
   resultstech.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
@@ -249,8 +250,8 @@ export default function initModels(sequelize) {
     resultstrack,
     rounds,
     series,
-    series_track,
     seriesstartsresults,
+    seriestrack,
     sites,
     sites_track,
     starts,

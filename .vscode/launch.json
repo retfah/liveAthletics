@@ -1,5 +1,14 @@
 {
     "configurations": [
+        {
+            "name": "test.js",
+            "program": "${workspaceFolder}/test.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "node"
+        },
     {
         "name": "backupRestoreTest",
         "program": "${workspaceFolder}/backupRestoreTest.js",
