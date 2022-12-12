@@ -60,7 +60,8 @@ export class rContestTechHighClient extends roomClient{
         this._addFunction('updateSeries', this.updateSeriesExe);
         this._addFunction('updateAuxData', this.updateAuxDataExe);
         this._addFunction('addSeries', this.addSeriesExe);
-
+        this._addFunction('deleteSeries', this.deleteSeriesExe);
+        this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
     }
 
     // Infos about aux data:
@@ -135,6 +136,49 @@ export class rContestTechHighClient extends roomClient{
         this.addToStack('updateSeries', change, success, rollback)
 
         this.sortSeries();
+
+    }
+
+    
+    /**
+     * n: the number of the series 
+     **/
+    getStarttime(n, interval){
+        const d = new Date(this.data.contest.datetimeStart);
+        // set a reasonable default value! Must change when the order of series changes
+        let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + interval*(n-1));
+        return datetime;
+    }    
+
+    updateHeatStarttimesInit(interval){
+        // interval is the interval in s
+
+        // sort the series by number (should already be the case)
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
+        }
+        
+        let change = interval;
+
+        let success = ()=>{
+            // actually there is nothing to do here, since the changes are already applied
+        };
+        let rollback = null; // currently no single rollback planned; get the full data from the server again
+        this.addToStack('updateHeatStarttimes', change, success, rollback)
+    }
+
+    updateHeatStarttimesExe(interval){
+        
+        // sort the series by number (should already be the case)
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
+        }
 
     }
 
@@ -781,6 +825,67 @@ export class rContestTechHighClient extends roomClient{
         }
 
         this.sortSeries();
+    }
+
+    deleteSeriesInit(xSeries){
+        // first find the respective number
+        const iSeries = this.data.series.findIndex(s=>s.xSeries == xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        // check that there are no results yet
+        let hasResults = false;
+        series.seriesstartsresults.forEach(ssr=>{
+            if (ssr.resultstrack){
+                hasResults = true;
+            }
+        }) 
+        if (hasResults){
+            return;
+        }
+
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+
+        // decrease the number of every series after the deleted series
+        seriesToMove.forEach(s=>s.number--);
+
+        // delete the series
+        this.data.series.splice(iSeries,1);
+
+        // actually there should be no need to handle anything with seriesstartsresults
+
+        // success
+        const success = ()=>{
+            // nothing to do.
+        }
+
+        // on error
+        const revert = ()=>{
+
+            // increase the number of all subsequent series
+            seriesToMove.forEach(s=>s.number ++);
+
+            // add the series again
+            this.data.series.push(series);
+
+        }
+
+        this.addToStack('deleteSeries', xSeries, success, revert);
+
+    }
+
+    deleteSeriesExe(xSeries){
+        const iSeries = this.data.series.findIndex(s=>s.xSeries = xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+
+        // decrease the number of every series after the deleted series
+        seriesToMove.forEach(s=>s.number--);
+
+        // delete the series
+        this.data.series.splice(iSeries,1);
     }
 
     addSeriesInit(){

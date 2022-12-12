@@ -387,6 +387,7 @@ class rContestTechHigh extends roomServer{
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         
+        this.functionsWrite.updateHeatStarttimes = this.updateHeatStarttimes.bind(this);
         this.functionsWrite.updateContest2 = this.updateContest2.bind(this);
         this.functionsWrite.updatePresentState = this.updatePresentState.bind(this);
         this.functionsWrite.initialSeriesCreation = this.initialSeriesCreation.bind(this);
@@ -404,6 +405,7 @@ class rContestTechHigh extends roomServer{
         this.functionsWrite.updateSeries = this.updateSeries.bind(this);
         this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
         this.functionsWrite.addSeries = this.addSeries.bind(this);
+        this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
 
         // define, compile and store the schemas:
         const schemaAuxDataPerSeries = {
@@ -526,7 +528,7 @@ class rContestTechHigh extends roomServer{
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
                 xSite: {type: ["integer", "null"]},
-                status: {type:"integer"},
+                status: {type:"integer", default:10},
                 number: {type:"integer"},
                 name: {type:"string", maxLength:50},
                 seriesstartsresults: {
@@ -536,7 +538,9 @@ class rContestTechHigh extends roomServer{
                 heights: {
                     type:"array",
                     items: schemaHeights // reference to the heights
-                } 
+                },
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -551,7 +555,9 @@ class rContestTechHigh extends roomServer{
                 xSite: {type: ["integer", "null"]},
                 status: {type:"integer"},
                 number: {type:"integer"},
-                name: {type:"string", maxLength:50}
+                name: {type:"string", maxLength:50},
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
@@ -586,7 +592,7 @@ class rContestTechHigh extends roomServer{
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
                 xSite: {type: ["integer", "null"]},
-                status: {type:"integer"},
+                status: {type:"integer", default:10},
                 number: {type:"integer"},
                 name: {type:"string", maxLength:50},
                 seriesstartsresults: {
@@ -597,6 +603,8 @@ class rContestTechHigh extends roomServer{
                     type:"array",
                     items: schemaHeights // reference to the heights
                 },
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -662,6 +670,8 @@ class rContestTechHigh extends roomServer{
                 xSeries: {type:"integer"}
             }
         }
+        
+        const schemaDeleteSeries = {type:"integer"};
 
         const schemaUpdateResult = schemaAddResult;
 
@@ -683,6 +693,56 @@ class rContestTechHigh extends roomServer{
         this.validateUpdateSeries = this.ajv.compile(schemaUpdateSeries);
         this.validateAuxData = this.ajv.compile(schemaAuxData);
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
+        this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
+        this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
+
+    }
+
+    /**
+     * n: the number of the series 
+     **/
+    getStarttime(n, interval){
+        const d = new Date(this.data.contest.datetimeStart);
+        // set a reasonable default value! Must change when the order of series changes
+        let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + interval*(n-1));
+        return datetime;
+    }
+
+    // update all starttimes
+    async updateHeatStarttimes(interval){
+        if (!this.validateUpdateHeatStarttimes(interval)){
+            throw {code:21, message: this.ajv.errorsText(this.validateUpdateHeatStarttimes.errors)}
+        }
+
+        // make sure that the series are sorted!
+        // sort the series by number
+        this.data.series.sort((a,b)=>a.number-b.number);
+
+        // recreate all heat starttimes, starting from the starttime of the contest
+        for (let h=1; h<= this.data.series.length; h++){
+            let newTime = this.getStarttime(h, interval);
+            const s = this.data.series[h-1];
+            if (newTime != s.datetime){
+                s.datetime = newTime;
+                await s.save();
+
+                // notify rSite, if selected
+                if (s.xSite != null){
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+                }
+            }
+        }
+
+        // broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateHeatStarttimes', data: interval},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
 
     }
 
@@ -1337,6 +1397,61 @@ class rContestTechHigh extends roomServer{
         }).catch(err=>{
             throw {message:`Could not delete all series: ${err}`, code:23};
         })
+
+    }
+    
+    async deleteSeries(xSeries){
+        if (!this.validateDeleteSeries(xSeries)){
+            throw {code: 21, message: this.ajv.errorsText(this.validateDeleteSeries.errors)}
+        }
+
+        // first find the respective number
+        const iSeries = this.data.series.findIndex(s=>s.xSeries == xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        // check that there are no results yet
+        let hasResults = false;
+        series.seriesstartsresults.forEach(ssr=>{
+            if (ssr.resultstrack){
+                hasResults = true;
+            }
+        }) 
+        if (hasResults){
+            throw {code: 22, message: `The series ${xSeries} has already results and can not be deleted.`}
+        }
+
+        // first, try to delete the seriesstartsresults. (This should not fail since we tested before that there are no results yet.)
+        for (let ssr of series.seriesstartsresults){
+            await ssr.destroy().catch(err=>{
+                throw {code: 23, message: `Could not delete the seriesstartresult (xSeriesStart=${ssr.xSeriesStart}). ${err}`};
+            });
+        }
+
+        // second try to delete the series (since this has a small potential to fail)
+        await series.destroy().catch(err=>{
+            throw {code: 24, message: `Could not delete the series (xSeries=${xSeries}). ${err}`};
+        });
+        this.data.series.splice(iSeries,1);
+
+        // then update all other series, which should never fail
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+        for (let s of seriesToMove){
+            s.number--;
+            await s.save().catch(err=>{
+                throw {code: 25, message: `Could not save the changed series (xSeries=${s.xSeries}). This should never happen. ${err}`};
+            });
+        };
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'deleteSeries', data: xSeries},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret
 
     }
 

@@ -132,7 +132,6 @@ class rContestTrack extends roomServer{
         //let startsInGroups = []; // list of all starts in group of this contest
         // TODO: there might be the following problem: since we do not use the data from rInscriptions but get our own models, a change of e.g. the name of an athlete (done in rInscriptions) would not show up here in the auxilary data!
         let promiseStartsInGroup = this.models.startsingroup.findAll({
-            //where: {"xStartgroup":{[Op.in]:startsInGroups}}, // TODO: include
             attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
             include: [{model:this.models.groups, as:"group", // the association does not only check "xRound", but also "number" (thank to a special association-scope)
             where:{"xContest": {[Op.eq]:contest.xContest}}
@@ -332,7 +331,7 @@ class rContestTrack extends roomServer{
         // series[0].seriesstartsresults : all athletes in this series
         // series[0].seriesstartsresults[0].resultstrack : the track specific result and position
         // 
-        let promiseSeries = this.models.series.findAll({where:{xContest:contest.xContest}, include:[{model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}]}).then(series=>{
+        let promiseSeries = this.models.series.findAll({where:{xContest:contest.xContest}, include:[{model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}]}).then(series=>{
             this.data.series = series;
         })
 
@@ -391,7 +390,8 @@ class rContestTrack extends roomServer{
         // this.functionsWrite.deleteResult = this.deleteResult.bind(this);
         this.functionsWrite.updateSeries = this.updateSeries.bind(this);
         // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
-        // this.functionsWrite.addSeries = this.addSeries.bind(this);
+        this.functionsWrite.addSeries = this.addSeries.bind(this);
+        this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
 
         // define, compile and store the schemas:
         const schemaAuxDataPerSeries = {
@@ -415,7 +415,6 @@ class rContestTrack extends roomServer{
             }, 
             required:["positionNext", "attemptPeriod", "periodStartTime", "showAttemptPeriod", "position"],
             additionalProperties: false,
-
         }
 
         // the aux data must be separate for each series. The aux data object shall store an object for each series, referenced by xSeries.
@@ -481,15 +480,28 @@ class rContestTrack extends roomServer{
             additionalProperties: false, 
         }
 
+        const schemaSeriestrack = {
+            type:["object", "null"], 
+            properties:{
+                xSeries:{type:"integer"},
+                wind:{type: "integer"},
+                film: {type: "integer"},
+                manual: {type: "boolean"},
+            },
+            required: ["xSeries", "wind", "film", "manual"],
+            additionalProperties: false,
+        }
+
         const schemaSeries = {
             type:"object",
             properties: {
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
                 xSite: {type: ["integer", "null"], default: null},
-                status: {type:"integer"},
+                status: {type:"integer", default: 10},
                 number: {type:"integer"},
                 name: {type:"string", maxLength:50, default:''},
+                seriestrack: schemaSeriestrack,
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
                 seriesstartsresults: {
@@ -510,6 +522,7 @@ class rContestTrack extends roomServer{
                 xSite: {type: ["integer", "null"]},
                 status: {type:"integer"},
                 number: {type:"integer"},
+                seriestrack: schemaSeriestrack,
                 name: {type:"string", maxLength:50},
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
@@ -547,13 +560,16 @@ class rContestTrack extends roomServer{
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
                 xSite: {type: ["integer", "null"]},
-                status: {type:"integer"},
+                status: {type:"integer", default:10},
                 number: {type:"integer"},
                 name: {type:"string", maxLength:50},
                 seriesstartsresults: {
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
+                seriestrack: schemaSeriestrack,
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -612,6 +628,8 @@ class rContestTrack extends roomServer{
             }
         }
 
+        const schemaDeleteSeries = {type:"integer"};
+
         const schemaUpdateResult = schemaAddResult;
 
         const schemaAddSSR = schemaSeriesStartsResults;
@@ -630,6 +648,7 @@ class rContestTrack extends roomServer{
         this.validateUpdateSeries = this.ajv.compile(schemaUpdateSeries);
         this.validateAuxData = this.ajv.compile(schemaAuxData);
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
+        this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
 
     }
@@ -663,7 +682,7 @@ class rContestTrack extends roomServer{
                 await s.save();
 
                 // notify rSite, if selected
-                if (s.xSite){
+                if (s.xSite != null){
                     this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
                 }
             }
@@ -752,7 +771,7 @@ class rContestTrack extends roomServer{
         if (oldSite){
             this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
         }
-        if (oldSite != data.xSite && data.xSite){
+        if (oldSite != data.xSite && data.xSite != null){
             this.eH.raise(`sites/${data.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
         }
 
@@ -974,7 +993,7 @@ class rContestTrack extends roomServer{
         // notify all rSite about the changes in the series
         for (let si = Math.min(oldIndex, newIndex); si<=Math.max(oldIndex, newIndex); si++){
             const s = this.data.series[si];
-            if (s.xSite){
+            if (s.xSite != null){
                 this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
             }
         }
@@ -1088,7 +1107,7 @@ class rContestTrack extends roomServer{
                 series.seriesstartsresults.push(newSSR);
 
                 // notify rSite
-                if (series.xSite){
+                if (series.xSite != null){
                     this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
                 }
                 
@@ -1142,7 +1161,7 @@ class rContestTrack extends roomServer{
             }
 
             // notify rSite
-            if (series.xSite){
+            if (series.xSite != null){
                 this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
             }
 
@@ -1209,7 +1228,7 @@ class rContestTrack extends roomServer{
 
             // notify the site(s) that about the deleted series
             for (let s of seriesDeleted){
-                if (s.xSite){
+                if (s.xSite != null){
                     this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest})
                 }
             }
@@ -1233,6 +1252,61 @@ class rContestTrack extends roomServer{
 
     }
 
+    async deleteSeries(xSeries){
+        if (!this.validateDeleteSeries(xSeries)){
+            throw {code: 21, message: this.ajv.errorsText(this.validateDeleteSeries.errors)}
+        }
+
+        // first find the respective number
+        const iSeries = this.data.series.findIndex(s=>s.xSeries == xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        // check that there are no results yet
+        let hasResults = false;
+        series.seriesstartsresults.forEach(ssr=>{
+            if (ssr.resultstrack){
+                hasResults = true;
+            }
+        }) 
+        if (hasResults){
+            throw {code: 22, message: `The series ${xSeries} has already results and can not be deleted.`}
+        }
+
+        // first, try to delete the seriesstartsresults. (This should not fail since we tested before that there are no results yet.)
+        for (let ssr of series.seriesstartsresults){
+            await ssr.destroy().catch(err=>{
+                throw {code: 23, message: `Could not delete the seriesstartresult (xSeriesStart=${ssr.xSeriesStart}). ${err}`};
+            });
+        }
+
+        // second try to delete the series (since this has a small potential to fail)
+        await series.destroy().catch(err=>{
+            throw {code: 24, message: `Could not delete the series (xSeries=${xSeries}). ${err}`};
+        });
+        this.data.series.splice(iSeries,1);
+
+        // then update all other series, which should never fail
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+        for (let s of seriesToMove){
+            s.number--;
+            await s.save().catch(err=>{
+                throw {code: 25, message: `Could not save the changed series (xSeries=${s.xSeries}). This should never happen. ${err}`};
+            });
+        };
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'deleteSeries', data: xSeries},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret
+
+    }
+
     async addSeries(series){
         //
         if (this.validateAddSeries(series)){
@@ -1251,11 +1325,21 @@ class rContestTrack extends roomServer{
 
             let dataReturn, dataBroadcast;
             await this.models.series.create(series, {include:[
-                {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}
+                {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
                 ]}).then(async (s)=>{
 
                 // broadcast the new series object
                 dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+
+                // notify the site, if given
+                if (s.xSite != null){
+                    let addData = {
+                        contest: this.contest.dataValues, 
+                        series: s.dataValues,
+                        startgroups: this.data.startgroups,
+                    };
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+                }
 
                 // return the xSeries
                 dataReturn = s.xSeries;
@@ -1313,7 +1397,7 @@ class rContestTrack extends roomServer{
                 // IMPORTANT: there MUST be no sorting at all! The order of seriesstartsresults must stay the same to ensure the requesting client gets the correct order of the indices!
 
                 await this.models.series.create(series[i], {include:[
-                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}
+                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
                     ]}).then((s)=>{
 
                     // add the series to the broadcast array 
@@ -1346,7 +1430,7 @@ class rContestTrack extends roomServer{
 
             // notify the sites (if chosen) about the added series
             for (let s of this.data.series){
-                if (s.xSite){
+                if (s.xSite !=null){
                     let addData = {
                         contest: this.contest.dataValues, 
                         series: s.dataValues,

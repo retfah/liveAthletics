@@ -528,5 +528,7 @@
 	"Update heat start time": "Update heat start time",
 	"Heat interval (in s)": "Heat interval (in s)",
 	"Update": "Update",
-	"Do you really want to delete all series? This can't be undone.": "Do you really want to delete all series? This can't be undone."
+	"Do you really want to delete all series? This can't be undone.": "Do you really want to delete all series? This can't be undone.",
+	"Do you want to delete heat ${series.number}?": "Wollen Sie Lauf ${series.number} löschen?",
+	"Delete heat": "Lauf löschen"
 }

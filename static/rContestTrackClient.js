@@ -49,6 +49,7 @@ export class rContestTrackClient extends roomClient{
         this._addFunction('updateSeries', this.updateSeriesExe);
         this._addFunction('updateAuxData', this.updateAuxDataExe);
         this._addFunction('addSeries', this.addSeriesExe);
+        this._addFunction('deleteSeries', this.deleteSeriesExe);
         this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
         // moveSeriesExe is missing!!! AND there seems to be a problem that it still works (since the data should be fully reloaded), but some reactivity is lost!
     }
@@ -676,6 +677,23 @@ export class rContestTrackClient extends roomClient{
 
     deleteAllSeriesInit(){
 
+        // check that no series has a result
+        let hasResults = false;
+        for (let series of this.data.series){
+            // check that there are no results yet
+            series.seriesstartsresults.forEach(ssr=>{
+                if (ssr.resultstrack){
+                    hasResults = true;
+                }
+            }) 
+            if (hasResults){
+                break;
+            }
+        }
+        if (hasResults){
+            return;
+        }
+
         // object for reverting the changes on failure:
         let oldData = this.data.series.slice();
         const oldAuxData = JSON.stringify(this.data.auxData);
@@ -730,11 +748,73 @@ export class rContestTrackClient extends roomClient{
         this.sortSeries();
     }
 
-    addSeriesInit(defaultxSite=null){
+    deleteSeriesInit(xSeries){
+        // first find the respective number
+        const iSeries = this.data.series.findIndex(s=>s.xSeries == xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        // check that there are no results yet
+        let hasResults = false;
+        series.seriesstartsresults.forEach(ssr=>{
+            if (ssr.resultstrack){
+                hasResults = true;
+            }
+        }) 
+        if (hasResults){
+            return;
+        }
+
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+
+        // decrease the number of every series after the deleted series
+        seriesToMove.forEach(s=>s.number--);
+
+        // delete the series
+        this.data.series.splice(iSeries,1);
+
+        // actually there should be no need to handle anything with seriesstartsresults
+
+        // success
+        const success = ()=>{
+            // nothing to do.
+        }
+
+        // on error
+        const revert = ()=>{
+
+            // increase the number of all subsequent series
+            seriesToMove.forEach(s=>s.number ++);
+
+            // add the series again
+            this.data.series.push(series);
+
+        }
+
+        this.addToStack('deleteSeries', xSeries, success, revert);
+
+    }
+
+    deleteSeriesExe(xSeries){
+        const iSeries = this.data.series.findIndex(s=>s.xSeries = xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+
+        // decrease the number of every series after the deleted series
+        seriesToMove.forEach(s=>s.number--);
+
+        // delete the series
+        this.data.series.splice(iSeries,1);
+    }
+
+    addSeriesInit(defaultxSite=null, datetime){
         // add an empty series
 
         // find the most negative xSeries:
         let xSeriesMin = this.data.series.reduce((a,b)=>Math.min(a,b),0);
+        const uuid = this.uuidv4();
 
         const newSeries = {
             xContest: this.data.contest.xContest,
@@ -743,8 +823,10 @@ export class rContestTrackClient extends roomClient{
             status: 10,
             number: this.data.series.length+1,
             name: '',
+            seriestrack:null,
             seriesstartsresults: [],
-            //heights: [], // no heights defined yet
+            datetime: datetime.toISOString(),
+            id: uuid,
         };
         const newSeriesServer = { // same, but without xSeries
             xContest: this.data.contest.xContest,
@@ -753,8 +835,10 @@ export class rContestTrackClient extends roomClient{
             status: 10,
             number: this.data.series.length+1,
             name: '',
+            seriestrack:null,
             seriesstartsresults: [],
-            //heights: [], // no heights defined yet
+            datetime: datetime.toISOString(),
+            id: uuid,
         };
         this.data.series.push(newSeries);
 
@@ -776,7 +860,6 @@ export class rContestTrackClient extends roomClient{
             // data is the xSeries assigned on the server
             newSeries.xSeries = data; 
             newAuxData.xSeries = data;
-
         }
         
         this.addToStack('addSeries', newSeriesServer, executeSuccess, revert);
@@ -871,6 +954,7 @@ export class rContestTrackClient extends roomClient{
                 status: series.status,
                 number: series.number,
                 name: series.name,
+                seriestrack: null,
                 datetime: series.datetime,
                 id: this.uuidv4(),
                 seriesstartsresults: seriesstartsresults,

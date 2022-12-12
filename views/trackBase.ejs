@@ -919,9 +919,26 @@
                     return false; // avoid reload of the page
 
                 },
+                deleteSeries(xSeries){
+                    rCTrack.room.deleteSeriesInit(xSeries);
+                    this.yesNoVisible = false;
+                    //this.showTimeUpdate();
+                },
+                initDeleteSeries(series){
+                    this.yesNoTitle = '<%= __("Delete heat") %>';
+                    this.yesNoText = `<%= __("Do you want to delete heat ${series.number}?") %>`;
+                    this.yesNoFunction = ()=>{
+                        this.deleteSeries(series.xSeries);
+                    }
+                    this.yesNoVisible = true;
+                },
                 addSeries(){
                     // add an empty series
-                    rCTrack.room.addSeriesInit();
+                    let xSite = null
+                    if (this.defaultSite){
+                        xSite = this.defaultSite.xSite;
+                    }
+                    rCTrack.room.addSeriesInit(xSite, this.getStarttime(this.series.length+1));
                 },
                 deleteAllSeriesInit(){
                     // show warning

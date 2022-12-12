@@ -271,6 +271,7 @@
                                                         <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
                                                     </template>
                                                 </select>
+                                                <button class="formCtrl" type="button" @click="initDeleteSeries(series)">X</button>
                                             </div>
                                             <table>
                                                 <thead>
