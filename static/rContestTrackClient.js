@@ -107,7 +107,7 @@ export class rContestTrackClient extends roomClient{
     updateSeriesInit(series, prop, val){
 
         let change = ()=>{
-            // do not send the heights and ssr array; therefore, copy the data
+            // do not send the ssr array; therefore, copy the data
             let o = {
                 xSeries: series.xSeries,
                 xContest: series.xContest,
@@ -813,10 +813,10 @@ export class rContestTrackClient extends roomClient{
         // add an empty series
 
         // find the most negative xSeries:
-        let xSeriesMin = this.data.series.reduce((a,b)=>Math.min(a,b),0);
+        let xSeriesMin = this.data.series.reduce((a,b)=>Math.min(a,b.xSeries),0);
         const uuid = this.uuidv4();
 
-        const newSeries = {
+        let newSeries = {
             xContest: this.data.contest.xContest,
             xSeries: --xSeriesMin, // not available yet
             xSite: defaultxSite,
@@ -828,7 +828,7 @@ export class rContestTrackClient extends roomClient{
             datetime: datetime.toISOString(),
             id: uuid,
         };
-        const newSeriesServer = { // same, but without xSeries
+        let newSeriesServer = { // same, but without xSeries
             xContest: this.data.contest.xContest,
             //xSeries: --xSeriesMin, // not available yet
             xSite: defaultxSite,
@@ -840,11 +840,13 @@ export class rContestTrackClient extends roomClient{
             datetime: datetime.toISOString(),
             id: uuid,
         };
-        this.data.series.push(newSeries);
+        let i = this.data.series.push(newSeries);
+        newSeries = this.data.series[i-1]; // transfer back the proxied data
 
         // add the auxData
-        const newAuxData = JSON.parse(JSON.stringify(this.defaultAuxData));
+        let newAuxData = JSON.parse(JSON.stringify(this.defaultAuxData));
         this.data.auxData[xSeriesMin] = newAuxData;
+        newAuxData = this.data.auxData[xSeriesMin]; // transfer back the proxied data
 
         const revert = ()=>{
             // remove the series 
@@ -860,6 +862,8 @@ export class rContestTrackClient extends roomClient{
             // data is the xSeries assigned on the server
             newSeries.xSeries = data; 
             newAuxData.xSeries = data;
+            this.data.auxData[data] = this.data.auxData[xSeriesMin];
+            delete this.data.auxData[xSeriesMin];
         }
         
         this.addToStack('addSeries', newSeriesServer, executeSuccess, revert);

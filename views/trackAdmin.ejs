@@ -247,7 +247,7 @@
                 <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
                 <button class="btn" v-if="series.length>0" v-on:click="showTimeUpdate" :disabled="readOnly"><%= __("Update heat time interval") %></button>
                 <button type="button" onclick="printContest()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
-                <button type="button" v-on:click="deleteAllSeriesInit()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %> (without warning!)</button>
+                <button type="button" v-on:click="deleteAllSeriesInit()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %></button>
                 <div v-if="series.length>0">
                     <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
                         <!-- differentiate startInLanes-->
@@ -265,7 +265,7 @@
                                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 <input class="formCtrl" type="datetime-local" v-bind:value="formatInputDate(series.datetime)" 
                                                 v-on:blur="dateChanged(series, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
-                                                <select class="formCtrl" @change="siteChanged(series, $event)">
+                                                <select v-if="defaultSite" class="formCtrl" @change="siteChanged(series, $event)">
                                                     <option value="null"><%= __("Not defined") %></option>
                                                     <template v-for="(site, i) in trackSites">
                                                         <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>

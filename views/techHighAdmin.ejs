@@ -30,7 +30,7 @@
                     </select>
                 </div>
                 <%= __("Series Status") %>
-                <select class="content dropdown" v-model="series[selectedSeries].status" v-on:change="seriesStatusChanged" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
+                <select class="content dropdown" :value="series[selectedSeries].status" v-on:blur="seriesStatusChanged(series[selectedSeries], $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
                     <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
                         {{option.text}}
                     </option>
@@ -225,7 +225,7 @@
                 <button class="btn" v-if="series.length==0" v-on:click="showInitialSeriesAssignment()" :disabled="readOnly"><%= __("Create Series") %></button>
                 <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
                 <button type="button" onclick="printSeriesTechHigh()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
-                <button type="button" v-on:click="deleteAllSeries()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %> (without warning!)</button>
+                <button type="button" v-on:click="deleteAllSeriesInit()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %></button>
                 <div v-if="series.length>0">
                     <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
                         <div style="grid-area: series; padding: 5px;">
@@ -233,12 +233,25 @@
                             <draggable v-model="seriesAsStartgroups" item-key="number", group="seriesMain" @change="moveSeries">
                                 <template #item="{element, index}">
                                     <div class="dragelement">
-                                        <b><%= __("SeriesSingular") %> {{index+1}}</b>
+                                        <div class="seriesDragH" style="display: flex;">
+                                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}}</div>
+                                            <div style="flex-grow:1"></div>
+                                            <input class="formCtrl" type="datetime-local" v-bind:value="formatInputDate(element.datetime)" 
+                                                    v-on:blur="dateChanged(element, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
+                                            <select v-if="defaultSite" class="formCtrl" @change="siteChanged(series, $event)">
+                                                <option value="null"><%= __("Not defined") %></option>
+                                                <template v-for="(site, i) in trackSites">
+                                                    <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
+                                                </template>
+                                            </select>
+                                            <button class="formCtrl" type="button" @click="initDeleteSeries(element)">X</button>
+                                            {{JSON.stringify(element.xSeries)}}
+                                        </div>
                                         <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
-                                        <table>
-                                            <draggable v-model="seriesAsStartgroups[index].seriesstartsresults" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody">
+                                        <table style="width:100%; min-height:5px;">
+                                            <tbody is="vue:draggable" v-model="seriesAsStartgroups[index].seriesstartsresults" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody" > <!-- :empty-insert-threshold="10" -->
                                                 <template #item="{element, index}">
-                                                    <tr class="dragelement">
+                                                    <tr class="dragelementH">
                                                         <td>{{element.startgroup.athleteName}}</td>
                                                         <td>{{element.startgroup.athleteForename}}</td>
                                                         <td>{{element.startgroup.clubName}}</td>
@@ -271,7 +284,7 @@
                                 <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
                                         <draggable v-model="displayData" item-key="index" group="athleteSeriesAssignment2"  @change="removeSSR"  tag="tbody">
                                             <template #item="{element, index}">
-                                                <tr class="dragelement">
+                                                <tr class="dragelementH">
                                                     <td>{{ element.present }}</td>
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
@@ -902,6 +915,17 @@
                 <div id="overlayContainer">
                     <div id="overlayTitle"><b>{{infoTitle}}</b></div>
                     <div id="overlayContent">{{infoContent}}</div>
+                </div>
+            </div>
+            <div id="overlay" v-bind:class="{shown: yesNoVisible}">
+                <!-- overlay used for displaying general information -->
+                <div id="overlayContainer">
+                    <div id="overlayTitle"><b>{{yesNoTitle}}</b></div>
+                    <div id="overlayContent">{{yesNoText}}</div>
+                    <button type="button" class="btn btnRed" v-on:click="yesNoVisible=false"><%= __("No") %></button>
+                    <button type="submit" class="btn btnGreen" v-on:click="yesNoFunction" :disabled="readOnly">
+                        <%= __("Yes") %>
+                    </button>
                 </div>
             </div>
             

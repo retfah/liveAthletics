@@ -114,20 +114,25 @@ export class rContestTechHighClient extends roomClient{
         this.data.series.sort((s1, s2)=>s1.number-s2.number);
     }
 
-    updateSeriesInit(data){
-        // the data is actually already changed... (not ideal)
+    updateSeriesInit(series, prop, val){
 
         let change = ()=>{
             // do not send the heights and ssr array; therefore, copy the data
-            return {
-                xSeries: data.xSeries,
-                xContest: data.xContest,
-                xSite: data.xSite,
-                status: data.status,
-                number: data.number,
-                name: data.name,
-            }
+            let o = {
+                xSeries: series.xSeries,
+                xContest: series.xContest,
+                xSite: typeof(series.xSite)=='string' ? null : series.xSite,
+                status: series.status,
+                number: series.number,
+                name: series.name,
+                datetime: series.datetime,
+                id: series.id,
+            };
+            o[prop] = val;
+            return o;
         }
+
+        series[prop] = val;
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)
@@ -888,37 +893,43 @@ export class rContestTechHighClient extends roomClient{
         this.data.series.splice(iSeries,1);
     }
 
-    addSeriesInit(){
+    addSeriesInit(defaultxSite=null, datetime){
         // add an empty series
 
         // find the most negative xSeries:
-        let xSeriesMin = this.data.series.reduce((a,b)=>Math.min(a,b),0);
+        let xSeriesMin = this.data.series.reduce((a,b)=>Math.min(a,b.xSeries),0);
 
-        const newSeries = {
+        let newSeries = {
             xContest: this.data.contest.xContest,
             xSeries: --xSeriesMin, // not available yet
-            xSite: null, // not used yet
+            xSite: defaultxSite, 
             status: 10,
             number: this.data.series.length+1,
             name: '',
             seriesstartsresults: [],
             //heights: [], // no heights defined yet
+            datetime: datetime,
+            id: null,
         };
-        const newSeriesServer = { // same, but without xSeries
+        let newSeriesServer = { // same, but without xSeries
             xContest: this.data.contest.xContest,
             //xSeries: --xSeriesMin, // not available yet
-            xSite: null, // not used yet
+            xSite: defaultxSite, 
             status: 10,
             number: this.data.series.length+1,
             name: '',
             seriesstartsresults: [],
             //heights: [], // no heights defined yet
+            datetime: datetime,
+            id: null,
         };
-        this.data.series.push(newSeries);
+        let i = this.data.series.push(newSeries);
+        newSeries = this.data.series[i-1]; // transfer back the proxied data
 
         // add the auxData
-        const newAuxData = JSON.parse(JSON.stringify(this.defaultAuxData));
+        let newAuxData = JSON.parse(JSON.stringify(this.defaultAuxData));
         this.data.auxData[xSeriesMin] = newAuxData;
+        newAuxData = this.data.auxData[xSeriesMin]; // transfer back the proxied data
 
         const revert = ()=>{
             // remove the series 
@@ -934,7 +945,8 @@ export class rContestTechHighClient extends roomClient{
             // data is the xSeries assigned on the server
             newSeries.xSeries = data; 
             newAuxData.xSeries = data;
-
+            this.data.auxData[data] = this.data.auxData[xSeriesMin];
+            delete this.data.auxData[xSeriesMin];
         }
         
         this.addToStack('addSeries', newSeriesServer, executeSuccess, revert);
@@ -1025,12 +1037,14 @@ export class rContestTechHighClient extends roomClient{
             this.data.series.push({
                 xContest: this.data.contest.xContest,
                 //xSeries: -1, // not available yet
-                xSite: null, // not used yet
+                xSite: typeof(series.xSite)=='string' ? null : series.xSite, // not used yet
                 status: series.status,
                 number: series.number,
                 name: series.name,
                 seriesstartsresults: seriesstartsresults,
                 heights: [], // no heights defined yet
+                id:null,
+                datetime: series.datetime,
             })
 
             // create the local auxData for each series; the server will create the same there

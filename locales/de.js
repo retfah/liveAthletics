@@ -530,5 +530,7 @@
 	"Update": "Update",
 	"Do you really want to delete all series? This can't be undone.": "Do you really want to delete all series? This can't be undone.",
 	"Do you want to delete heat ${series.number}?": "Wollen Sie Lauf ${series.number} löschen?",
-	"Delete heat": "Lauf löschen"
+	"Delete heat": "Lauf löschen",
+	"Delete series": "Delete series",
+	"Do you want to delete series ${series.number}?": "Do you want to delete series ${series.number}?"
 }

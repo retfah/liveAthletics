@@ -41,7 +41,7 @@
         
         dataArrived(){
             // raised as soon as the room has its data stored for the first time
-            this.vue.site = this.room.data.sites;
+            this.vue.sites = this.room.data.sites;
         
             // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
             this.room.data.sites = this.vue.sites;
@@ -222,10 +222,11 @@
         let ms = getMeetingShortname();
         var rSites = new vuSites(vueSites, ms);
         
+        window.rSites = rSites;
     }
-    
     window.vueSites = vueSites;
     window.startupSites = startupSites;
+    
 </script>
     
     <div id="vueDiv">

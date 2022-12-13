@@ -2025,9 +2025,6 @@
                     for (let i=0;i<this.series.length; i++){
 
                         let series = this.series[i];
-                        // access the datetime to make sure seriesAsStartgroups listens to its changes (Note: since copy the series below, it will actually not listen to all the properties, but probbaly only the series object itself!)
-                        //let x = this.series[i].datetime;
-                        //let x2 = this.series[i].number; // this is probably not needed, since when we change the number, we also sort the data, which anyway calls this function.
                         
                         // add the other data of the series, for informational purposes only! A change to those is useless.
                         // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.

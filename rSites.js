@@ -1,4 +1,7 @@
 
+/** CHANGES: 
+ * 2022-12-13: include disciplines on site. Not fully tested yet.
+ */
 
 import roomServer from './roomServer.js';
 import { rSiteTrack } from './rSite.js';
@@ -44,7 +47,7 @@ class rSites extends roomServer{
         this.ready = false; // as we have async stuff here, we need to know whether we are ready to do something or not (e.g. the sequelize data is loaded.)
 
         // get all sites
-        this.models.sites.findAll().then(sites=>{
+        this.models.sites.findAll({include:[{model:this.models.disciplinesonsite, as: "disciplinesonsite"}]}).then(sites=>{
             this.data.sites = sites;
             // aux data:
             //TODO
@@ -98,6 +101,21 @@ class rSites extends roomServer{
             ],
         }
 
+        const schemaDisciplineOnSite = {
+            type: ['object'],
+            properties: {
+                xSite: {type:"integer"},
+                xBaseDiscipline: {type:"integer"},
+            },
+            required: ["xSite", "xBaseDiscipline"],
+            additionalProperties: false,
+        }
+
+        const schemaDisciplinesOnSite = {
+            type: ["null", "array"],
+            items: schemaDisciplineOnSite,
+        }
+
         // define, compile and store the schemas:
         const schemaAddSite = {
             type: "object",
@@ -107,6 +125,7 @@ class rSites extends roomServer{
                 homologated: {type:"boolean"},
                 type: {type: "integer", minimum:0},
                 conf: {type: "string"},
+                disciplinesonsite: schemaDisciplinesOnSite,
             },
             required: ['name', 'homologated', "type"],
             additionalProperties: false,
@@ -119,6 +138,7 @@ class rSites extends roomServer{
                 homologated: {type:"boolean"},
                 type: {type: "integer", minimum:0},
                 conf: {type: "string"},
+                disciplinesonsite: schemaDisciplinesOnSite,
             },
             required: ["xSite", 'name', 'homologated', "type"],
             additionalProperties: false,
@@ -178,7 +198,7 @@ class rSites extends roomServer{
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
 
-            var site = await this.models.sites.create(dataTranslated).catch((err)=>{throw {message: `Sequelize-problem: Site could not be created: ${err}`, code:22}})
+            var site = await this.models.sites.create(dataTranslated, {include:[{model:this.models.disciplinesonsite, as: "disciplinesonsite"}]}).catch((err)=>{throw {message: `Sequelize-problem: Site could not be created: ${err}`, code:22}})
 
             this.data.sites.push(site); 
 

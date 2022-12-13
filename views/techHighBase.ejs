@@ -12,7 +12,46 @@
     // class vuContestTest is imported above
 
     var rCTech;
+    var rSites;
     var vueSeriesAdminTech; 
+
+    class vuSites extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('sites@' + meetingShortname, false, true, '/static/rSitesClient.js', 'rSitesClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.sites = this.room.data.sites; // this will actually store a proxy of the data!
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.sites = this.room.data.sites;
+    
+        }
+    }
 
     function startSeriesAdminTechRead(){
         // no writing right
@@ -70,6 +109,12 @@
                     infoContent:'',
                     infoVisible:false,
 
+                    // yesNo overlay
+                    yesNoVisible:false,
+                    yesNoText: '',
+                    yesNoTitle: '',
+                    yesNoFunction:()=>{},
+
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
                     },
@@ -88,7 +133,7 @@
 
                     series:[],
                     seriesObj:[], //{1:[15,16], 2:[17,18]},
-
+                    sites : [],
 
                     /* !!! data for SERIES CREATION ONLY !!! */
 
@@ -481,7 +526,12 @@
                 addEmptySeriesInitial: function(){
                     // add an empty series to the seriesObj used in the inital series configuration tool
                     this.seriesObj.push({
-                        number:this.seriesObj.length+1, xSite: undefined, status: 10, name:'', startsingroup:[]
+                        number:this.seriesObj.length+1, 
+                        xSite: null, 
+                        status: 10, 
+                        name:'', 
+                        startsingroup:[],
+                        datetime: this.contest.datetimeStart,
                     });
                 },
                 resetInitialSeriesAssignment: function(){
@@ -525,13 +575,38 @@
                     return false; // avoid reload of the page
 
                 },
+                deleteSeries(xSeries){
+                    rCTech.room.deleteSeriesInit(xSeries);
+                    this.yesNoVisible = false;
+                    //this.showTimeUpdate();
+                },
+                initDeleteSeries(series){
+                    this.yesNoTitle = '<%= __("Delete series") %>';
+                    this.yesNoText = `<%= __("Do you want to delete series ${series.number}?") %>`;
+                    this.yesNoFunction = ()=>{
+                        this.deleteSeries(series.xSeries);
+                    }
+                    this.yesNoVisible = true;
+                },
                 addSeries: function(){
                     // add an empty series
-                    rCTech.room.addSeriesInit();
+                    let xSite = null
+                    if (this.defaultSite){
+                        xSite = this.defaultSite.xSite;
+                    }
+                    // add an empty series
+                    rCTech.room.addSeriesInit(xSite, this.contest.datetimeStart);
                 },
-                deleteAllSeries: function(){
-                    // TODO: implement a warning dialog!
-
+                deleteAllSeriesInit(){
+                    // show warning
+                    this.yesNoVisible = true,
+                    this.yesNoText = '<%= __("Delete all series") %>';
+                    this.yesNoTitle = `<%= __("Do you really want to delete all series? This can't be undone.") %>`;
+                    this.yesNoFunction = this.deleteAllSeries;
+                    
+                },
+                deleteAllSeries(){
+                    this.yesNoVisible=false;
                     // the room functiuon will also change the local data
                     rCTech.room.deleteAllSeriesInit();
                 },
@@ -2242,10 +2317,11 @@
                         return resCopy;
                     }
                 },
-                seriesStatusChanged(){
+                seriesStatusChanged(series, evt){
 
                     // send the change to the server
-                    rCTech.room.updateSeriesInit(this.series[this.selectedSeries]);
+                    rCTech.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
+                
                 },
                 startPeriod(){
                     // current time:
@@ -2451,6 +2527,32 @@
                 getLastResults(numRes=2){
                     // get the specified number of results 
                 },
+                saveDateUtc(series, evt){
+                    series.datetime = new Date(evt.srcElement.value).toISOString();
+                },
+                formatInputDate(date){
+                    // date can be of type date or a datestring
+                    // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+                    let s = "";
+                    let d = new Date(date); // doesnt change anything is date is already a date
+                    s += d.getFullYear();
+                    s += "-" + (d.getMonth()+1).toString().padStart(2,0);
+                    s += "-" + d.getDate().toString().padStart(2,0);
+                    s += "T" + d.getHours().toString().padStart(2,0);
+                    s += ":" + d.getMinutes().toString().padStart(2,0);
+                    return s;
+                },
+                siteChanged(series, evt){
+                    // called e.g. when the time or the site was changed
+                    if (evt.target.value===null || evt.target.value=='null'){
+                        rCTech.room.updateSeriesInit(series, 'xSite', null);
+                    } else {
+                        rCTech.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+                    }
+                },
+                dateChanged(series, evt){
+                    rCTech.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+                },
             },
             watch:{
                 mode: function(newMode,oldMode){ 
@@ -2575,7 +2677,33 @@
 
                 
                 /* !!! properties for SERIES CREATION and COMPETITION !!! */
-
+                maxDateTime: function(){
+                    return `${this.meeting.dateTo.slice(0,10)}T23:59`;
+                },
+                minDateTime: function(){
+                    return `${this.meeting.dateFrom.slice(0,10)}T00:00`;
+                },
+                defaultSite: function(){
+                    return this.sites.find(s=>{
+                        if (s.type != 1) return false
+                        if (s.seriesonsite){
+                            if (s.seriesonsite.find(sos=>sos.xBaseDiscipline == this.contest.xBaseDiscipline)){
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                },
+                defaultSiteConf: function(){
+                    if (this.defaultSite){
+                        try{
+                            const conf = JSON.parse(this.defaultSite.conf);
+                            return conf;
+                        }catch(ex){
+                            logger.log(10, 'The site configuration object is not a valid JSON.')
+                        }
+                    }
+                },
 
                 // transfer some of the aux properties form the writing room, if this room is a readOnly room (position and positionNext are transferred in calculateNextAthlete)
                     // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
@@ -2760,7 +2888,9 @@
                         let series = this.series[i];
                         
                         // add the other data of the series, for informational purposes only! A change to those is useless.
-                        let seriesCopy = copyObject(series); // seriesstartsresults is actually already added here, but will be deleted again:
+                        // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
+                        let seriesCopy = {};
+                        propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
 
                         // get the startgroup for every seriesstartsresult
                         let SSRs = [];
@@ -2807,7 +2937,7 @@
 
                 seriesAssignments: function(){
                     // filter all series assignments to show only track (ytype==3) assignements
-                    return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(3)>=0);
+                    return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(1)>=0);
                 },
 
                 defaultPosition: function(){
@@ -3183,6 +3313,9 @@
             xContest = Number(xContest)
             // start the roomClientView
             rCTech = new vuContestTechHigh(vueSeriesAdminTech, ms, xContest, writing);
+
+            rSites = new vuSites(vueSeriesAdminTech, ms);
+
         } else {
             // eventually show a message that there is no  
         }
