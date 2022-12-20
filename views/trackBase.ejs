@@ -566,7 +566,7 @@
                     console.log('drop');
                     evt.preventDefault();
 
-                    // Note: we cannot store unassignedAthetes/series.SSRs as a list as we do in the init rooms, since unassignedAthletes/series.SSRs is a computed property (i.e. has no proxy) and Vue.js does not realize that and proxies the data when we store it to vue.data. Thus, the list is not stored as a list, but as a string ('unassignedAthletes') or as an integer (xSeries).
+                    // Note: we cannot store unassignedAthetes/series.SSRs as a list as we do in the init rooms, since unassignedAthletes/series.SSRs is a computed property (i.e. has no proxy) and Vue.js does not realize that and proxies the data when we store it to vue.data (in dragStart). Thus, the list is not stored as a list, but as a string ('unassignedAthletes') or as an integer (xSeries).
 
                     // differentiate different cases
                     if (this.dragged.list==list){
@@ -576,12 +576,26 @@
                             this.dragged=null;
                             return false;
                         }
+
+                        let data = {
+                            series1: this.dragged.element.seriesOriginal, 
+                            series2: this.dragged.element.seriesOriginal,
+                            SSR1: this.dragged.element.ssrOriginal,
+                        }
+
                         // swap the startsingroup
-                        var sig1 = list[index].startsingroup;
-                        // TODO
-                        //rCTrack.room.swapPositionInit(TODO);
-                        //list[index].startsingroup = this.dragged.element.startsingroup;
-                        //this.dragged.element.startsingroup = sig1;
+                        // differentiate whether it is swapped with an empty lane or not!
+                        if (element.startsingroup == null){
+                            // with empty lane
+                            data.position = element.position;
+                            data.lane = element.lane;
+                        } else {
+                            // with another athlete
+                            data.SSR2 = element.ssrOriginal;
+                        }
+
+                        rCTrack.room.swapPositionInit(data);
+                        
                     } else {
 
                         if (this.dragged.list == "unassignedAthletes"){
@@ -602,9 +616,27 @@
 
                         } else{
                             // series to series
+                            // nearly the same code as for swap within a series
                             // swap the startsingroup
-                            // TODO
-                            //rCTrack.room.swapPositionInit(TODO);
+                            
+                            let data = {
+                                series1: this.dragged.element.seriesOriginal, 
+                                series2: this.series.find(s=>s.xSeries == list),
+                                SSR1: this.dragged.element.ssrOriginal,
+                            }
+
+                            // swap the startsingroup
+                            // differentiate whether it is swapped with an empty lane or not!
+                            if (element.startsingroup == null){
+                                // with empty lane
+                                data.position = element.position;
+                                data.lane = element.lane;
+                            } else {
+                                // with another athlete
+                                data.SSR2 = element.ssrOriginal;
+                            }
+
+                            rCTrack.room.swapPositionInit(data);
                         }
 
 
@@ -824,7 +856,7 @@
                             return 0
                         })
 
-                        // finally update the positions (Note: this cannot be done earlier, since the positions must also consider invalidated lanes and added lanes)
+                        // finally update the positions (Note: this cannot be done earlier, since the positions must also consider invalidated lanes and added lanes). Empty lanes get the position value of the next occupied lane, since this is what is needed to add a person between another.
                         // at the same time: check whether there are empty lanes between occupied lanes
                         // add alert=2 to those SSRs
                         let position = 1;
@@ -833,8 +865,9 @@
                         let empty = []
                         for (let iLane=0;iLane< heat.SSRs.length; iLane++){
                             const lane = heat.SSRs[iLane];
-                            lane.position = position++;
+                            lane.position = position; // before 2022-12-19 position was always incresed here; now we only increase the position of the lane is occupied.
                             if (lane.startsingroup){
+                                position++;
                                 lastOccupied = iLane;
                                 if (firstOccupied<0){
                                     firstOccupied = iLane;

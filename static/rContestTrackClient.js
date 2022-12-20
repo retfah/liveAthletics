@@ -345,10 +345,173 @@ export class rContestTrackClient extends roomClient{
     // only needed when started in lanes
     swapPositionInit(data){
 
+        // data ={series1, series2, SSR1, 
+        // either: SSR2,
+        // or: position, lane }
+
+        // data should contain xSeries1, xSeries2, xSeriesStart1 and either lane, position (when "swapped with an empty lane") OR xSeriesStart2 (when really swapped)
+
+        // TODO: eventually make sure that the change is only done when the contest and series state are accordingly
+
+        const series1 = data.series1;
+        const series2 = data.series2;
+
+        // first, find the affected SSR 1
+        const SSR1 = data.SSR1;
+
+        // first, find the affected SSR 2 (if any)
+        let SSR2;
+        if ('SSR2' in data){
+            SSR2 = data.SSR2;
+        }
+
+        // TODO: eventually make sure that there are no results yet
+
+        if ("SSR2" in data){
+            // swap two persons; otherwise, one person is changed to an empty lane/pos
+            let startConf1 = SSR1.startConf;
+            let position1 = SSR1.position;
+            let startConf2 = SSR2.startConf;
+            let position2 = SSR2.position;
+
+            SSR1.startConf = startConf2;
+            SSR1.position = position2;
+            SSR2.startConf = startConf1;
+            SSR2.position = position1;
+
+            if (series1 != series2){
+                // also the series has changed
+                let i1 = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == SSR1.xSeriesStart);
+                series1.seriesstartsresults.splice(i1,1);
+                series2.seriesstartsresults.push(SSR1);
+
+                let i2 = series2.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == SSR2.xSeriesStart);
+                series2.seriesstartsresults.splice(i2,1);
+                series1.seriesstartsresults.push(SSR2);
+            }
+
+            // in this case the positions do NOT change.
+
+        } else {
+
+            // ATTENTION: if the swap with an empty lane is within the same heat, we have to decrease the position by one if the moved athlete was before the targeted position
+            let targetPosition = data.position;
+            if (series1 == series2 && SSR1.position<data.position){
+                targetPosition--;
+            } 
+
+            // just change that one person (and the positions of all the others after)
+            series1.seriesstartsresults.forEach(ssr=>{
+                if (ssr.position>SSR1.position){
+                    ssr.position--;
+                }
+            })
+            // already increase the positions if of the other athletes if the person was moved within the same series
+            if (series1==series2){
+                series1.seriesstartsresults.forEach(ssr=>{
+                    if (ssr.position >= targetPosition){
+                        ssr.position++;
+                    }
+                })
+            }
+
+            SSR1.startConf = data.lane.toString();
+            SSR1.position = targetPosition;
+
+            if (series2 != series1){
+                // also the series has changed
+
+                // first increase the position of all athletes after the changed person +1
+                series2.seriesstartsresults.forEach(ssr=>{
+                    if (ssr.position >= SSR1.position){
+                        ssr.position++;
+                    }
+                })
+
+                let i = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == SSR1.xSeriesStart);
+                series1.seriesstartsresults.splice(i,1);
+                series2.seriesstartsresults.push(SSR1);
+            }
+        }
+
+        const success = ()=>{
+            // nothing to do on success.
+        };
+
+        const change = ()=>{
+            if ("SSR2" in data){
+                return {
+                    xSeries1: series1.xSeries,
+                    xSeries2: series2.xSeries,
+                    xSeriesStart1: SSR1.xSeriesStart,
+                    xSeriesStart2: SSR2.xSeriesStart,
+                }
+            } else {
+                return {
+                    xSeries1: series1.xSeries,
+                    xSeries2: series2.xSeries,
+                    xSeriesStart1: SSR1.xSeriesStart,
+                    position: data.position,
+                    lane: data.lane
+                }
+            }
+        }
+        let rollback = null; // currently no single rollback planned; get the full data from the server again
+        this.addToStack('swapPosition', change, success, rollback)
+
+
     }
 
     // only needed when started in lanes
     swapPositionExe(data){
+        
+
+        const series1 = this.data.series.find(s=>s.xSeries == data.xSeries1);
+        const series2 = this.data.series.find(s=>s.xSeries == data.xSeries2);
+
+        // first, find the affected SSR 1
+        const SSR1 = series1.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+
+        // first, find the affected SSR 2 (if any)
+        if ('xSeriesStart2' in data){
+            const SSR2 = series2.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart2);
+        }
+
+        if ("xSeriesStart2" in data){
+            // swap two persons; otherwise, one person is changed to an empty lane/pos
+            let startConf1 = SSR1.startConf;
+            let position1 = SSR1.position;
+            let startConf2 = SSR2.startConf;
+            let position2 = SSR2.position;
+
+            SSR1.startConf = startConf2;
+            SSR1.position = position2;
+            SSR2.startConf = startConf1;
+            SSR2.position = position1;
+
+            if (data.xSeries2 != data.xSeries1){
+                // also the series has changed
+                let i1 = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+                series1.seriesstartsresults.splice(i1,1);
+                series2.seriesstartsresults.push(SSR1);
+
+                let i2 = series2.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart2);
+                series2.seriesstartsresults.splice(i2,1);
+                series1.seriesstartsresults.push(SSR2);
+            }
+
+        } else {
+            // just change that one person
+            SSR1.startConf = data.lane.toString();
+            SSR1.position = data.position;
+
+            if (data.xSeries2 != data.xSeries1){
+                // also the series has changed
+                let i = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+                series1.seriesstartsresults.splice(i,1);
+                series2.seriesstartsresults.push(SSR1);
+            }
+        }
 
     }
 
@@ -567,7 +730,7 @@ export class rContestTrackClient extends roomClient{
 
     deleteSSRInit(series, ssr){
 
-        // position is not linked to the lane. It always starts at 1 for the innermost athelte and increases by one to trhe next, even if there are empty lanes in between.
+        // position is not linked to the lane. It always starts at 1 for the innermost athlete and increases by one to trhe next, even if there are empty lanes in between.
 
         // all positions after the previous position of the moved person must be reduced by 1 
         series.seriesstartsresults.forEach(ssr2 =>{
@@ -932,7 +1095,7 @@ export class rContestTrackClient extends roomClient{
 
             // prepare seriesStartsResults:
             let seriesstartsresults = [];
-            // Remark about positions and lanes: The lane is stored as string in startConf. Positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other and increases by one to the next athlete, whether there is an empty lane in between or not! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane== lane-of-previous athlete, this-posInLane=posInLane-previous+1, else posInLane=1". 
+            // Remark about positions and lanes: The lane is stored as string in startConf. Positions simply start at 1 for the first athlete, independent of whether this athlete is on lane 1 or any other and increases by one to the next athlete, whether there is an empty lane in between or not! The posInLane, present in seriesInit are not stored. It can be calculated by "if this-lane == lane-of-previous-athlete, this.posInLane=posInLane-previous+1, else posInLane=1". 
 
             let position = 1;
             for (let i=0;i< series.SSRs.length; i++){
@@ -959,7 +1122,7 @@ export class rContestTrackClient extends roomClient{
                 number: series.number,
                 name: series.name,
                 seriestrack: null,
-                datetime: series.datetime,
+                datetime: series.datetime.toISOString(),
                 id: this.uuidv4(),
                 seriesstartsresults: seriesstartsresults,
             })

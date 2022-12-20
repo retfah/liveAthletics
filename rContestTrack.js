@@ -3,6 +3,9 @@
 // TODO: also the relatedGroups array must be updated when the association between groups and the contest change.
 // TODO: changes within events and eventGroups (e.g. changed names and infos) are not updated yet (only on server restart). This must be done either automatically (by events) or at least when the client requests it 
 
+// TODO 2022-12-17: check all functions that they handle positions correctly!!!
+// checked: initseriescreation, deleteSSR, addSSR
+
 import roomServer from './roomServer.js';
 
 import Sequelize  from 'sequelize';
@@ -382,7 +385,7 @@ class rContestTrack extends roomServer{
         this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
         this.functionsWrite.addSSR = this.addSSR.bind(this);
         // this.functionsWrite.changePosition = this.changePosition.bind(this);
-        //this.functionsWrite.swapPosition = this.swapPosition.bind(this);
+        this.functionsWrite.swapPosition = this.swapPosition.bind(this);
         this.functionsWrite.moveSeries = this.moveSeries.bind(this);
         // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
         // this.functionsWrite.addResult = this.addResult.bind(this);
@@ -595,6 +598,24 @@ class rContestTrack extends roomServer{
             },
             required:["xSeriesStart", "fromXSeries", "toXSeries", "toPosition"],
             additionalProperties: false,
+        };
+
+        const schemaSwapPosition = {
+            type:"object",
+            properties:{
+                xSeriesStart1: {type:"integer"},
+                xSeries1: {type:"integer"}, // for simplification
+                xSeriesStart2: {type:"integer"},
+                xSeries2: {type:"integer"}, // for simplification (when not lane+pos)
+                lane: {type: "integer"},
+                position: {type: "integer"},
+            },
+            oneOf:[{
+                required:["xSeriesStart1", "xSeries1", "xSeriesStart2", "xSeries2"]
+            },{
+                required:["xSeriesStart1", "xSeries1", "xSeries2", "lane", "position"],
+            }],
+            additionalProperties: false,
         }
 
         const schemaMoveSeries = {
@@ -635,6 +656,7 @@ class rContestTrack extends roomServer{
         const schemaAddSSR = schemaSeriesStartsResults;
 
         this.validateChangePosition = this.ajv.compile(schemaChangePosition);
+        this.validateSwapPosition = this.ajv.compile(schemaSwapPosition);
         this.validateDeleteSSR = this.ajv.compile(schemaDeleteSSR);
         this.validateAddSSR = this.ajv.compile(schemaAddSSR);
         this.validateUpdateContest2 = this.ajv.compile(schemaUpdateContest2);
@@ -1011,6 +1033,134 @@ class rContestTrack extends roomServer{
 
     }
 
+    // needed for contests that are started in lanes, where we always swap two athletes
+    // TODO / Note: we currently allow that the person(s) moved already have results.
+    async swapPosition(data){
+        if (!this.validateSwapPosition(data)){
+            throw {code: 21, message: this.ajv.errorsText(this.validateSwapPosition.errors)}
+        }
+
+        // TODO: eventually make sure that the change is only done when the contest and series state are accordingly
+
+        const series1 = this.data.series.find(s=>s.xSeries == data.xSeries1);
+        const series2 = this.data.series.find(s=>s.xSeries == data.xSeries2);
+        if (!series1 || !series2){
+            throw {code: 22, message: `Cannot find series1 (${data.xSeries1}) or series2 (${data.xSeries2}).`};
+        }
+
+        // first, find the affected SSR 1
+        const SSR1 = series1.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+        if (!SSR1){
+            throw {code: 23, message: `Cannot find ssr1 (${data.xSeriesStart1}).`};
+        }
+
+        // first, find the affected SSR 2 (if any)
+        let SSR2;
+        if ('xSeriesStart2' in data){
+            SSR2 = series2.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart2);
+            if (!SSR2){
+                throw {code: 24, message: `Cannot find ssr2 (${data.xSeriesStart2}).`};
+            }
+        }
+
+        // TODO: eventually make sure that there are no results yet
+
+        if ("xSeriesStart2" in data){
+            // swap two persons; otherwise, one person is changed to an empty lane/pos
+            let startConf1 = SSR1.startConf;
+            let position1 = SSR1.position;
+            let startConf2 = SSR2.startConf;
+            let position2 = SSR2.position;
+
+            SSR1.startConf = startConf2;
+            SSR1.position = position2;
+            await SSR1.save();
+            SSR2.startConf = startConf1;
+            SSR2.position = position1;
+            await SSR2.save();
+
+            if (data.xSeries2 != data.xSeries1){
+                // also the series has changed
+                let i1 = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+                series1.seriesstartsresults.splice(i1,1);
+                series2.seriesstartsresults.push(SSR1);
+
+                let i2 = series2.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart2);
+                series2.seriesstartsresults.splice(i2,1);
+                series1.seriesstartsresults.push(SSR2);
+            }
+
+            // not need to change positions of aother athltes
+
+        } else {
+
+            // ATTENTION: if the swap with an empty lane is within the same heat, we have to decrease the position by one if the moved athlete was before the targeted position
+            let targetPosition = data.position;
+            if (series1 == series2 && SSR1.position<data.position){
+                targetPosition--;
+            } 
+
+            // just change the positions of all the others
+            for (let ssr of series1.seriesstartsresults){
+                if (ssr.position>SSR1.position){
+                    ssr.position--;
+                    await ssr.save();
+                }
+            }
+            // already increase the positions if of the other athletes if the person was moved within the same series
+            if (series1==series2){
+                for (let ssr of series1.seriesstartsresults){
+                    if (ssr.position >= targetPosition){
+                        ssr.position++;
+                        await ssr.save();
+                    }
+                } 
+            }
+
+            // just change that one person plus the positions of all other 
+            SSR1.startConf = data.lane.toString();
+            SSR1.position = targetPosition;
+            await SSR1.save();
+
+            if (data.xSeries2 != data.xSeries1){
+                // also the series has changed
+
+                // first increase the position of all athletes after the changed person +1
+                for (let ssr of series2.seriesstartsresults){
+                    if (ssr.position >= SSR1.position){
+                        ssr.position++;
+                        await ssr.save();
+                    }
+                }
+
+                let i = series1.seriesstartsresults.findIndex(ssr=>ssr.xSeriesStart == data.xSeriesStart1);
+                series1.seriesstartsresults.splice(i,1);
+                series2.seriesstartsresults.push(SSR1);
+            }
+        }
+
+        // notify the sites about the changes
+        if (series1.xSite != null){
+            this.eH.raise(`sites/${series1.xSite}@${this.meetingShortname}:seriesChanged`, {series: series1, startgroups:this.data.startgroups});
+        }
+        if (data.xSeries2 != data.xSeries1 && series2.xSite != null){
+            this.eH.raise(`sites/${series2.xSite}@${this.meetingShortname}:seriesChanged`, {series: series2, startgroups:this.data.startgroups});
+        }
+
+        // return broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'swapPosition', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret
+
+    }
+
+    // TODO: must be modified!
     async changePosition(data){
         if (this.validateChangePosition(data)){
             // get the old and new series:
@@ -1084,6 +1234,8 @@ class rContestTrack extends roomServer{
     async addSSR(ssr){
         if (this.validateAddSSR(ssr)){
 
+            // the athlete is inserted before the athlete with the (currently) same position. (Its position will be increased by one)
+
             // check that xSeries and xStartgroup are valid (can be found in the available data)
             let series = this.data.series.find(el=>el.xSeries == ssr.xSeries);
             if (!series){
@@ -1091,6 +1243,16 @@ class rContestTrack extends roomServer{
             }
             if (!this.data.startgroups.find(el=>el.xStartgroup == ssr.xStartgroup)){
                 throw {code: 23, message: `xStartgroup ${ssr.xStartgroup} is not available in this contest.` };
+            }
+
+            // check that the position is realistic: all other SSRs with lower position must have a lower or equal lane; all SSRs with higher or equal position must have a high or equal lane.
+            if (ssr.position>series.seriesstartsresults.length+1){
+                throw {code: 25, message: `Position and lane are not compatible with the present seriesstartsresults.`};
+            }
+            for (let ssr2 of series.seriesstartsresults){
+                if ((ssr2.position<ssr.position && parseInt(ssr2.startConf)>parseInt(ssr.startConf)) || (ssr2.position>=ssr.position && parseInt(ssr2.startConf)<parseInt(ssr.startConf))){
+                    throw {code: 25, message: `Position and lane are not compatible with the present seriesstartsresults.`};
+                }
             }
 
             // create SSR
@@ -1391,6 +1553,15 @@ class rContestTrack extends roomServer{
             // create datasets to be returned
             let dataBroadcast = [];
             let dataReturn = [];
+
+            // check that the positions are correct
+            for (let s of series){
+                for (let i=1; i<=s.seriesstartsresults.length; i++){
+                    if (!s.seriesstartsresults.find(ssr=>ssr.position==i)){
+                        throw {message:'Every position must occur exactly once.', code:25}
+                    }
+                }
+            }
 
             // eager-insert the data, series by series (since it seems like sequelize has no "multi-create" method)
             for (let i=0; i<series.length; i++){

@@ -297,7 +297,7 @@
                                                             <td> </td>
                                                             <td> </td>
                                                         </tr>
-                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, index, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, index, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
                                                             <td>{{element.lane}}</td>
                                                             <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
                                                             <td>{{element.startsingroup.athleteName}}</td>
@@ -870,7 +870,7 @@
                                                                 <td> </td>
                                                                 <td> </td>
                                                             </tr>
-                                                            <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                            <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
                                                                 <td>{{element.lane}}</td>
                                                                 <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
                                                                 <td>{{element.startsingroup.athleteName}}</td>
