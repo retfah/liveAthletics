@@ -996,7 +996,9 @@ class roomClient {
                 if (this.onlineOnly){
                     this.stack = [];
                 }
-                
+
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
 
             }, this.stack[0].opt) 
         }
