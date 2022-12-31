@@ -1,10 +1,25 @@
 **important: always add the date of the error/todo (when it is added)**
+** see also MantisBT in xampp; UN: administrator, PW: "as usual" **
 
 TODO shortterm:
-- 2022-07-14: aus irgend einem Grund funktioniert der austausch von roomAuxData problemlos, aber es kommt zu einem "secondary server outdated" fehler.
-- 2022-02-15: no writing tickets on secondary servers (except in rBackup and one ticket in rSideChannel for the main server)! Also revert all previously allowed writing tickets! --> eventually do this as follows: generlly, every room must know that it cannot accept any writing ticket (except rSideChannel and rBackup). It could be considered meaningful to tell the rooms at startup not to provide any writing ticket. However, then it would be necessary that rBackup was loaded first, including its asynchonously loaded data. Three things are aginst that approach: (1) It would need a new parameter in the constructor of each room, (2) changing the mode of the server (main/secondary) would then also need a restart of the rooms (which is technically not needed), (3) the priority-startup of rBackup might be hard to implement. Therefore, it is probably beneficial to change the rooms to secondary mode later, by calling a function present in roomServer (and therefore in all rooms) and then loop over all rooms in rBackup and set each room to main/secondary mode. 
+- 2022-12-31: when the server is restarted, a different client might get the writign rights! Eventually, the writing ticket is not stored..?
+for (let s of vueSeriesAdminTrack.series){
+    console.log(`Series ${s.number}`)
+    for (let ssr of s.seriesstartsresults){
+        console.log(`xSeriesStart: ${ssr.xStartgroup}, pos: ${ssr.position}, lane:${ssr.startConf}`)
+    }
+}
+for (let s of rSiteTest.room.data.contests[0].series){
+    console.log(`Series ${s.number}`)
+    for (let ssr of s.SSRs){
+        console.log(`xSeriesStart: ${ssr.xStartgroup}, pos: ${ssr.position}, lane:${ssr.startConf}`)
+    }
+}
+- 2022-08-12: when the client tries to reconnect after the connection was lost, the following error occurs, probably, when the roomCLient tries to connect again, but the roomManager could not yet create the connection: "Connecting to room failed with the following code and message: 3: Connection was closed before the reqeust could be sent." It seems like after this error, the client does nto try again to connect to the roomServer, which is problematic and eventually is the cause for one error in Frauenkappelen with loss of local data. This problem can be stipulated by killing the server and not reloading on the client. 
+- 2022-08-01: when the mongo DB tools od not exist (on PATH), the whole server crashes --> make sure only backup/restore fails
+- 2022-08-01: for some reason, a meeting (!) that was created previously was gone after a restart! WHY CAN THIS HAPPEN?
+- 2022-07-31: create eventGroup (or eventually after some other changes to it; tried to reduce the number of groups, which failed and eventually let the server in a wrong state) --> eventGroup has no round property on the server! (--> and then eventMgr.ejs crashed on first reload of data; but locally it has worked at first.) (restarting the server temporarily solves the problem)
 - 2022-02-15: add status-stuff to rBackup (probably the status are currecntly not (always) broadcasted to the client)
-- 2022-02-15: behavior when the connection between servers fails. Currently, a failure will probably not be handled coorectly, e.g. the main server yould keep the writing ticket, because it did not leave properly. Make it leave properly and delete the this.connectionToMain
 - 2021-05-29: creating new meeting with "-" in the shortname results in a DB failure. 
 
 - Meeting-administration: correct unloading (unconnect from the room and so on.)

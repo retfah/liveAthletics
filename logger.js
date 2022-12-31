@@ -2,7 +2,6 @@
 import {open} from 'fs/promises';
 
 // localLogger
-// would it be faster to open the file once and then write severa times to the same file (as it is done in python) or is it not important?
 
 
 /**
@@ -37,7 +36,7 @@ class localLogger{
     // maxLevel: optional, highest logged level (if not given, the setting given in the logger constructor is used)
     // minLevel: optional, lowest logged level (default=0=no min)
     // path: required if type='file'; must not contain any strings that cannot be part of filenames, e.g. ':'; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
-    
+
     /**
      * Constructor of the logger
      * @constructor

@@ -4,5 +4,7 @@
 - install Mongo Database Tools (for dump and restore) --> the folder must be added to path!
 - install nodejs
 - currently: extend the file mariadb/lib/const/collations.js with the following line: defaultCharsets['utf8mb3'] = charsets[33]; // this is needed to make sure that DB restore is working, which otherwise fials because utf8mb3 is not known.
+- install the moduleSUI database manually! (--> TODO: make this automatic; when the DB is not available, install it automatically on loading the module)
 
-- important: always install/update all MongoDb applications at the same time, otherwise problems might occure (and have occured int he past)
+
+- important: always install/update all MongoDb applications at the same time, otherwise problems might occure (and have occured in the past)
