@@ -288,7 +288,7 @@
                                                                             
                                                 <tbody style="background-color: white;">
                                                     <template v-for="(element, index) in series.SSRs">
-                                                        <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, index, $event, element)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
+                                                        <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, $event, element)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
                                                             <td>{{element.lane}}</td>
                                                             <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
                                                             <td><%= __("empty") %></td>
@@ -297,7 +297,7 @@
                                                             <td> </td>
                                                             <td> </td>
                                                         </tr>
-                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, index, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                        <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
                                                             <td>{{element.lane}}</td>
                                                             <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
                                                             <td>{{element.startsingroup.athleteName}}</td>
@@ -319,7 +319,7 @@
                                 <v-table :data="unassignedAthletes" >
                                     <template #head> 
                                         <thead>
-                                            <tr @dragover="dragOver(element, unassignedAthletes, $event)" @drop="drop2('unassignedAthletes', index, $event, element)">
+                                            <tr @dragover="dragOver(element, unassignedAthletes, $event)" @drop="drop2('unassignedAthletes', $event, element)">
                                                 <th is="vue:v-th" sortkey="present"><%= __('Present') %></th>
                                                 <th is="vue:v-th" sortkey="athleteName" defaultSort="asc"><%= __('Name') %></th>
                                                 <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
@@ -332,7 +332,7 @@
                                     <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
                                         <tbody is="vue:draggable" v-model="displayData" item-key="index" group="athleteSeriesAssignment2"  @change="removeSSR"  tag="tbody">
                                             <template #item="{element, index}" >
-                                                <tr class="dragelementH" draggable="true" @dragstart="dragStart('unassignedAthletes', element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletes, $event)" @drop="drop2('unassignedAthletes', index, $event, element)">
+                                                <tr class="dragelementH" draggable="true" @dragstart="dragStart('unassignedAthletes', element, index, $event, true)" @dragend="dragEnd" @dragover="dragOver(element, unassignedAthletes, $event)" @drop="drop2('unassignedAthletes', $event, element)">
                                                     <td>{{ element.present }}</td>
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
@@ -346,19 +346,30 @@
                                 </v-table>
                             </div>
                         </template>
-                        <template v-else>
+                        <template v-else> <!-- not started in lanes -->
                             <div style="grid-area: series; padding: 5px;">
                                 <%= __("Series") %>: 
                                 <draggable v-model="seriesAsStartgroups" item-key="number" group="seriesMain" @change="moveSeries">
-                                    <template #item="{element, index}">
+                                    <template #item="{element:series, index}">
                                         <div class="dragelement">
-                                            <b><%= __("SeriesSingular") %> {{index+1}}</b>
+                                            <div class="seriesDragH"  style="display:flex">
+                                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}}</div>
+                                                <div style="flex-grow:1"></div>
+                                                <input class="formCtrl" type="datetime-local" v-bind:value="formatInputDate(series.datetime)" 
+                                                v-on:blur="dateChanged(series, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
+                                                <select v-if="defaultSite" class="formCtrl" @change="siteChanged(series, $event)">
+                                                    <option value="null"><%= __("Not defined") %></option>
+                                                    <template v-for="(site, i) in trackSites">
+                                                        <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
+                                                    </template>
+                                                </select>
+                                                <button class="formCtrl" type="button" @click="initDeleteSeries(series)">X</button>
+                                            </div>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                             <table>
                                                 <thead>
                                                     <tr>
                                                         <th><%= __("Position") %></th>
-                                                        <th><%= __("Lane") %></th>
                                                         <th><%= __("Name") %></th>
                                                         <th><%= __("Firstname") %></th>
                                                         <th><%= __("Club") %></th>
@@ -367,16 +378,15 @@
                                                     </tr>
                                                 </thead>
                                                 <!-- the following draggable must be named as tbody to make it work, however, we then need to specify that it actually is a vue component by using the is="vue:draggable" label. Finally, draggable would usually result in a div, but we want it to be a tbody element, so we set tag="tbody".-->
-                                                <tbody is="vue:draggable" v-model="seriesAsStartgroups[index].seriesstartsresults" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody">
+                                                <tbody is="vue:draggable" v-model="seriesAsStartgroups[index].SSRs" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody">
                                                     <template #item="{element, index}">
-                                                        <tr class="dragelement">
+                                                        <tr class="dragelementH">
                                                             <td>{{element.position}}</td>
-                                                            <td>{{parseJSON(element.startConf)?.lane}}</td>
-                                                            <td>{{element.startgroup.athleteName}}</td>
-                                                            <td>{{element.startgroup.athleteForename}}</td>
-                                                            <td>{{element.startgroup.clubName}}</td>
-                                                            <td>{{formatPerf(element.startgroup.bestPerf)}}</td>
-                                                            <td>{{formatPerf(element.startgroup.bestPerfLast)}}</td>
+                                                            <td>{{element.startsingroup.athleteName}}</td>
+                                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                                            <td>{{element.startsingroup.clubName}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
                                                         </tr>
                                                     </template>
                                                 </tbody>
@@ -404,7 +414,7 @@
                                     <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
                                         <tbody is="vue:draggable" v-model="displayData" item-key="index" group="athleteSeriesAssignment2"  @change="removeSSR"  tag="tbody">
                                             <template #item="{element, index}" >
-                                                <tr class="dragelement">
+                                                <tr class="dragelementH">
                                                     <td>{{ element.present }}</td>
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
@@ -968,8 +978,7 @@
                                     </draggable>
                                 </div>
                                 <div style="grid-area: athletes;">
-                                    <div><%= __("Athletes to assign") %></div> <!-- TODO remove the DIV around; was just for testing-->
-                                    
+                                    <%= __("Athletes to assign") %>                                    
                                     <!--Use of v-table makes the things a little bit more complicated: Since v-table (dynamically) creates its copy of the actual data to sort this copied array, we cannot directly insert into this array, but we have to manually override to make the item being dropped in the outer array, i.e. not the array of v-table.-->
                                     <v-table :data="unassignedAthletesCreate" >
                                         <template #head> 

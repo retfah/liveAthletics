@@ -3,9 +3,6 @@
 // TODO: also the relatedGroups array must be updated when the association between groups and the contest change.
 // TODO: changes within events and eventGroups (e.g. changed names and infos) are not updated yet (only on server restart). This must be done either automatically (by events) or at least when the client requests it 
 
-// TODO 2022-12-17: check all functions that they handle positions correctly!!!
-// checked: initseriescreation, deleteSSR, addSSR
-
 import roomServer from './roomServer.js';
 
 import Sequelize  from 'sequelize';
@@ -384,7 +381,7 @@ class rContestTrack extends roomServer{
         this.functionsWrite.deleteAllSeries = this.deleteAllSeries.bind(this);
         this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
         this.functionsWrite.addSSR = this.addSSR.bind(this);
-        // this.functionsWrite.changePosition = this.changePosition.bind(this);
+        this.functionsWrite.changePosition = this.changePosition.bind(this);
         this.functionsWrite.swapPosition = this.swapPosition.bind(this);
         this.functionsWrite.moveSeries = this.moveSeries.bind(this);
         // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
@@ -592,7 +589,7 @@ class rContestTrack extends roomServer{
             type:"object",
             properties:{
                 xSeriesStart: {type:"integer"},
-                fromXSeries: {type:"integer"}, // actually for information only
+                fromXSeries: {type:"integer"}, // actually for simplicity only
                 toXSeries: {type:"integer"},
                 toPosition: {type:"integer"}
             },
@@ -790,10 +787,19 @@ class rContestTrack extends roomServer{
         series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
 
         // notify site about changes
-        if (oldSite){
-            this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
-        }
-        if (oldSite != data.xSite && data.xSite != null){
+        if (oldSite != series.xSite){
+            if (oldSite != null){
+                this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: series.xSeries, xContest:series.xContest});
+            }
+            if (series.xSite != null){
+                let addData = {
+                    contest: this.contest.dataValues, 
+                    series: series.dataValues,
+                    startgroups: this.data.startgroups,
+                };
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+            }
+        } else if (series.xSite != null){
             this.eH.raise(`sites/${data.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
         }
 
@@ -1069,14 +1075,18 @@ class rContestTrack extends roomServer{
             // swap two persons; otherwise, one person is changed to an empty lane/pos
             let startConf1 = SSR1.startConf;
             let position1 = SSR1.position;
+            let xSeries1 = SSR1.xSeries;
             let startConf2 = SSR2.startConf;
             let position2 = SSR2.position;
+            let xSeries2 = SSR2.xSeries;
 
             SSR1.startConf = startConf2;
             SSR1.position = position2;
+            SSR1.xSeries = xSeries2;
             await SSR1.save();
             SSR2.startConf = startConf1;
             SSR2.position = position1;
+            SSR2.xSeries = xSeries1;
             await SSR2.save();
 
             if (data.xSeries2 != data.xSeries1){
@@ -1120,6 +1130,7 @@ class rContestTrack extends roomServer{
             // just change that one person plus the positions of all other 
             SSR1.startConf = data.lane.toString();
             SSR1.position = targetPosition;
+            SSR1.xSeries = series2.xSeries;
             await SSR1.save();
 
             if (data.xSeries2 != data.xSeries1){
@@ -1160,9 +1171,16 @@ class rContestTrack extends roomServer{
 
     }
 
-    // TODO: must be modified!
+    // Note that this funciton shall not be used when not run in lanes. 
     async changePosition(data){
         if (this.validateChangePosition(data)){
+
+            // change position is only to be used when not started in lanes!
+            const conf = JSON.parse(this.data.contest.conf)
+            if (conf.startInLanes){
+                throw {code: 27, message:'Cannot use "change position" when started in lanes! Use swap position instead.'};
+            }
+
             // get the old and new series:
             let oldSeries = this.data.series.find(el=>el.xSeries == data.fromXSeries);
             let newSeries = this.data.series.find(el=>el.xSeries == data.toXSeries);
@@ -1177,8 +1195,7 @@ class rContestTrack extends roomServer{
             }
 
             // you cannot change the position when there are already results
-            // TODO!!!
-            if (ssr.resultshigh.length>0){
+            if (ssr.resultstrack !== null){
                 throw {code: 24, message: `Cannot change the position of an athlete with results.`};
             }
 
@@ -1189,6 +1206,7 @@ class rContestTrack extends roomServer{
                 let ssr2 = oldSeries.seriesstartsresults[i];
                 if (ssr2.position > oldPosition){
                     ssr2.position--;
+                    ssr2.startConf = ssr2.position.toString();
                     await ssr2.save();
                 }
             }
@@ -1198,11 +1216,13 @@ class rContestTrack extends roomServer{
                 let ssr2 = newSeries.seriesstartsresults[i];
                 if (ssr2.position>=data.toPosition && ssr2.xSeriesStart != data.xSeriesStart){ 
                     ssr2.position++;
+                    ssr2.startConf = ssr2.position.toString();
                     await ssr2.save();
                 }
             }
 
             ssr.position = data.toPosition;
+            ssr.startConf = ssr.position.toString();
             
             // if the series changes as well:
             if (oldSeries != newSeries){
@@ -1214,6 +1234,14 @@ class rContestTrack extends roomServer{
 
             // save change
             await ssr.save();
+
+            // notify rSite
+            if (newSeries.xSite != null){
+                this.eH.raise(`sites/${newSeries.xSite}@${this.meetingShortname}:seriesChanged`, {series:newSeries, startgroups:this.data.startgroups});
+            }
+            if (newSeries != oldSeries && oldSeries.xSite !== null){
+                this.eH.raise(`sites/${oldSeries.xSite}@${this.meetingShortname}:seriesChanged`, {series:oldSeries, startgroups:this.data.startgroups});
+            }
 
             // return broadcast
             let ret = {
@@ -1233,6 +1261,9 @@ class rContestTrack extends roomServer{
 
     async addSSR(ssr){
         if (this.validateAddSSR(ssr)){
+
+            // we need to differentiate whether the contest is run in lanes or not; if run in lanes, we do not only change position, but also the lane (i..e startConf)
+            const conf = JSON.parse(this.data.contest.conf)
 
             // the athlete is inserted before the athlete with the (currently) same position. (Its position will be increased by one)
 
@@ -1262,6 +1293,9 @@ class rContestTrack extends roomServer{
                     let currentSSR = series.seriesstartsresults[i];
                     if (currentSSR.position>=ssr.position){
                         currentSSR.position++;
+                        if (!conf.startInLanes){
+                            currentSSR.startConf = currentSSR.position.toString();
+                        }
                         await currentSSR.save();
                     }
                 }
@@ -1455,7 +1489,13 @@ class rContestTrack extends roomServer{
             await s.save().catch(err=>{
                 throw {code: 25, message: `Could not save the changed series (xSeries=${s.xSeries}). This should never happen. ${err}`};
             });
+            if (s.rSite != null){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {s, startgroups:this.data.startgroups});
+            }
         };
+        if (series.xSite != null){
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest});
+        }
 
         let ret = {
             isAchange: true, 
@@ -1678,8 +1718,12 @@ class rContestTrack extends roomServer{
             // - need at least one series to allow series defined
             // - must not have results to go back from the competition part to series definition
 
+            const confBeforeRaw = this.data.contest.conf;
+            let confBefore = JSON.parse(this.data.contest.conf);
+            let confAfter = JSON.parse(data.conf);
+
             // if everything is fine, call the update function on the contests room
-            return this.rContests.serverFuncWrite('updateContest', data).then(result=>{
+            return this.rContests.serverFuncWrite('updateContest', data).then(async result=>{
                 let ret = {
                     isAchange: true, 
                     doObj: {funcName: 'updateContest2', data: data}, 
@@ -1690,6 +1734,26 @@ class rContestTrack extends roomServer{
 
                 // notify all involved sites about the changes in the contest
                 let xSites = [];
+
+                // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
+                if (confBeforeRaw != data.conf && 'startInLanes' in confBefore && 'startInLanes' in confAfter && confBefore.startInLanes == true && confAfter.startInLanes == false){
+                    for (let s of this.data.series){
+                        // change occured
+                        let change = false;
+                        for (let ssr of s.seriesstartsresults){
+                            if (ssr.position.toString() != ssr.startConf){
+                                change = true;
+                                ssr.startConf = ssr.position.toString()
+                                await ssr.save();
+                            }
+                        }
+                        if (change && s.xSite !== null){
+                            // notify rSite
+                            this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+                        }
+                    }
+                }
+
                 for (let s of this.data.series){
                     if (s.xSite && xSites.indexOf(s.xSite)==-1){
                         xSites.push(s.xSite);

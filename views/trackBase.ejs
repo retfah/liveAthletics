@@ -558,7 +558,7 @@
                     this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
                 },
                 // same as "drop", but for the series assignment after the initial assignment, where the changes are processed in the room
-                drop2(list, index, evt, element){
+                drop2(list, evt, element){
                     // do not react on dragged series:
                     if (!this.dragged){
                         return;
@@ -605,7 +605,7 @@
                             // get the series object
                             let series = this.series.find(s=>s.xSeries == list);
 
-                            rCTrack.room.addSSRInit(series, this.dragged.element.xStartgroup, index, element.lane);
+                            rCTrack.room.addSSRInit(series, this.dragged.element.xStartgroup, element.position, element.lane);
 
 
                         } else if (list == "unassignedAthletes"){
@@ -1009,7 +1009,7 @@
                 },
                 removeSSR(evt){
                     if ("added" in evt){
-                        rCTrack.room.deleteSSR(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
+                        rCTrack.room.deleteSSRInit(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
                     }
                     // nothing to do when removed or moved; removed is handled in the add event of the series and moving within the unassignedAthletes is useless, since it is done via the sortable table.
                 },
@@ -1018,7 +1018,7 @@
                     // - moving athletes within series
                     // - moving athletes beyond series
                     // - newly assign athletes to a series
-                    // --> unassign athgletes is handled in "removeSSR"! 
+                    // --> unassign athletes is handled in "removeSSR"! 
 
                     // if an athlete is moved from one series to another, the function is called in both series, once with "removed" and once with "added" as the argument; if it is within the same series, then with "moved"
                     // evt .element .newIndex .oldIndex
@@ -1032,19 +1032,18 @@
                         if ("athleteName" in evt.added.element){
                             // previously was an unassigned athlete
                             // create seriesstartsresults
-                            rCTrack.room.addSSR(series.seriesOriginal, evt.added.element.xStartgroup, evt.added.newIndex);
+                            rCTrack.room.addSSRInit(series.seriesOriginal, evt.added.element.xStartgroup, evt.added.newIndex+1, evt.added.newIndex+1);
                         } else {
                             // athlete moved from one series to another; data is a seriesstartsresults entry
                             // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
                             // let the room do the rest
-                            rCTrack.room.changePositionInit(evt.added.element.ssrOriginal, evt.added.element.seriesOriginal, series.seriesOriginal, evt.added.newIndex);
+                            rCTrack.room.changePositionInit(evt.added.element.ssrOriginal, evt.added.element.seriesOriginal, series.seriesOriginal, evt.added.newIndex+1);
                         }
-
 
                     } else if ("moved" in evt){
                         // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
                         // let the room do the rest
-                        rCTrack.room.changePositionInit(evt.moved.element.ssrOriginal, evt.moved.element.seriesOriginal, series.seriesOriginal, evt.moved.newIndex);
+                        rCTrack.room.changePositionInit(evt.moved.element.ssrOriginal, evt.moved.element.seriesOriginal, series.seriesOriginal, evt.moved.newIndex+1);
                     }
                     
                 },

@@ -371,13 +371,17 @@ export class rContestTrackClient extends roomClient{
             // swap two persons; otherwise, one person is changed to an empty lane/pos
             let startConf1 = SSR1.startConf;
             let position1 = SSR1.position;
+            let xSeries1 = SSR1.xSeries;
             let startConf2 = SSR2.startConf;
             let position2 = SSR2.position;
+            let xSeries2 = SSR2.xSeries;
 
             SSR1.startConf = startConf2;
             SSR1.position = position2;
+            SSR1.xSeries = xSeries2;
             SSR2.startConf = startConf1;
             SSR2.position = position1;
+            SSR2.xSeries = xSeries1;
 
             if (series1 != series2){
                 // also the series has changed
@@ -417,6 +421,7 @@ export class rContestTrackClient extends roomClient{
 
             SSR1.startConf = data.lane.toString();
             SSR1.position = targetPosition;
+            SSR1.xSeries = series2.xSeries;
 
             if (series2 != series1){
                 // also the series has changed
@@ -536,6 +541,7 @@ export class rContestTrackClient extends roomClient{
         oldSeries.seriesstartsresults.forEach(ssr2 =>{
             if (ssr2.position > oldPosition){
                 ssr2.position--;
+                ssr2.startConf = ssr2.position.toString();
             }
         })
 
@@ -543,10 +549,12 @@ export class rContestTrackClient extends roomClient{
         newSeries.seriesstartsresults.forEach(ssr2=>{
             if (ssr2.position>=data.toPosition){ // newIndex is zero-based, the position is one-based
                 ssr2.position++;
+                ssr2.startConf = ssr2.position.toString();
             }
         })
 
         ssr.position = data.toPosition;
+        ssr.startConf = ssr.position.toString();
         
         // if the series changes as well:
         if (oldSeries != newSeries){
@@ -669,7 +677,14 @@ export class rContestTrackClient extends roomClient{
 
     // this function has no direct exe equivalent
     // the inputted parameters must be those of the original objects and not local copies done within Vue.
-    changePositionInit(ssr, oldSeries, newSeries, newIndex){
+    changePositionInit(ssr, oldSeries, newSeries, position){
+
+        // change position is only to be used when not started in lanes!
+        const conf = JSON.parse(this.data.contest.conf)
+        if (conf.startInLanes){
+            this.logger.log(10, 'Cannot use "change position" when started in lanes! Use swap position instead.');
+            return
+        }
 
         // instantly apply the changes locally
 
@@ -681,18 +696,21 @@ export class rContestTrackClient extends roomClient{
         oldSeries.seriesstartsresults.forEach(ssr2 =>{
             if (ssr2.position > oldPosition){
                 ssr2.position--;
+                ssr2.startConf = ssr2.position.toString();
             }
         })
         
         // all position in the new series must be increased by one after the inserted person.
         newSeries.seriesstartsresults.forEach(ssr2=>{
-            if (ssr2.position>=newIndex+1){ // newIndex is zero-based, the position is one-based
+            if (ssr2.position>=position){ 
                 ssr2.position++;
+                ssr2.startConf = ssr2.position.toString();
             }
         })
 
         // now change the actual ssr
-        ssr.position = newIndex+1;
+        ssr.position = position;
+        ssr.startConf = position.toString();
 
         if (oldSeries != newSeries){
             ssr.xSeries = newSeries.xSeries; 
@@ -719,7 +737,7 @@ export class rContestTrackClient extends roomClient{
                 xSeriesStart: ssr.xSeriesStart,
                 fromXSeries: oldSeries.xSeries, // helps the server to find SSR
                 toXSeries: newSeries.xSeries,
-                toPosition: newIndex+1
+                toPosition: position,
             }
         }
         let success = ()=>{};
@@ -760,6 +778,10 @@ export class rContestTrackClient extends roomClient{
     }
 
     addSSRExe(ssr){
+
+        // we must differentiate whether this contest is run in lanes or not
+        const conf = JSON.parse(this.data.contest.conf)
+
         // check that xSeries and xStartgroup are valid (can be found in the available data)
         let series = this.data.series.find(el=>el.xSeries == ssr.xSeries);
         if (!series){
@@ -770,6 +792,9 @@ export class rContestTrackClient extends roomClient{
         series.seriesstartsresults.forEach(currentSSR=>{
             if (currentSSR.position>=ssr.position){
                 currentSSR.position++;
+                if (!conf.startInLanes){
+                    currentSSR.startConf = currentSSR.position.toString();
+                }
             }
         })
         // add to the list of seriesstartsresults
@@ -777,12 +802,18 @@ export class rContestTrackClient extends roomClient{
         
     }
 
-    addSSRInit(series, xStartgroup, newIndex, lane){
+    addSSRInit(series, xStartgroup, position, lane){
+
+        // we must differentiate whether this contest is run in lanes or not
+        const conf = JSON.parse(this.data.contest.conf)
 
         // all position in the series must be increased by one after the inserted person.
         series.seriesstartsresults.forEach(ssr2=>{
-            if (ssr2.position >= newIndex+1){ // newIndex is zero-based, the position is one-based
+            if (ssr2.position >= position){ 
                 ssr2.position++;
+                if (!conf.startInLanes){
+                    ssr2.startConf = ssr2.position.toString();
+                }
             }
         })
 
@@ -791,7 +822,7 @@ export class rContestTrackClient extends roomClient{
             //xSeriesStart: -1, // to be defined later!
             xStartgroup,
             xSeries: series.xSeries,
-            position: newIndex+1,
+            position: position,
             resultOverrule: 0,
             resultRemark: '',
             qualification: 0, // not used yet
@@ -1032,7 +1063,6 @@ export class rContestTrackClient extends roomClient{
         this.addToStack('addSeries', newSeriesServer, executeSuccess, revert);
 
         this.sortSeries();
-
     }
 
     addSeriesExe(newSeries){
@@ -1235,17 +1265,61 @@ export class rContestTrackClient extends roomClient{
     }
 
     updateContest2Init(newContest, oldContest){
+
+        // if startInLanes does not change, we have a defined revert.
+        let confOld = JSON.parse(oldContest.conf);
+        let confNew = JSON.parse(newContest.conf);
+
+        let revert;
+        if (confOld.startInLanes == confNew.startInLanes){
+            // revert:
+            revert = ()=>{
+                // revert all changes on failure!
+                this.propertyTransfer(oldContest, this.data.contest, true);
+            }
+        } else {
+            revert =  null;
+
+            // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
+            if (confOld.startInLanes === true && confNew.startInLanes === false){
+                for (let s of this.data.series){
+                    // change occured
+                    for (let ssr of s.seriesstartsresults){
+                        if (ssr.position.toString() != ssr.startConf){
+                            ssr.startConf = ssr.position.toString()
+                        }
+                    }
+                }
+            }
+
+            // Do the same in updateContestExe as well.
+        }
+
         this.addToStack('updateContest2', newContest, ()=>{
             // nothing to do on success
-        }, ()=>{
-            // revert all changes on failure!
-            this.propertyTransfer(oldContest, this.data.contest, true);
-        })
+        }, revert)
     }
 
     updateContest2Exe(data){
         // applies only when the change was done on another client
+
+        let confOld = JSON.parse(this.data.contest.conf);
         this.propertyTransfer(data, this.data.contest, true);
+
+        let confNew = JSON.parse(data.conf);
+
+        // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
+        if (confOld.startInLanes === true && confNew.startInLanes === false){
+            for (let s of this.data.series){
+                // change occured
+                for (let ssr of s.seriesstartsresults){
+                    if (ssr.position.toString() != ssr.startConf){
+                        ssr.startConf = ssr.position.toString()
+                    }
+                }
+            }
+        }
+        
     }
 
 }
