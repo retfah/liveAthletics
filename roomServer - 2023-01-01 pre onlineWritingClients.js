@@ -72,7 +72,6 @@
  * 2021-09: raise events on successfull changes (i.e. when the ID changes)
  * 2022-07: spelling error maxWritingTicktes --> maxWritingTicktets corrected
  * 2022-07: implement a secondary mode, which is activated by a function call from rBackup. If it is changed to secondaryMode, all present writingTickets are revoked and deleted and no further writingTickets are possible. 
- * 2021-01: before, when the server was restarted, the (former) writing clients lost their writing tickets because they are not stored in offlineWritingClients (since this would be stored only when the clients do not propertly leave, but they do not leave at all when the server is shutdown/crashes). This is now avoided by also storing the onlineWritingCLients to mongo and then create offlineWritingClients from this on startup 
  */
 
 /** basic important stuff:
@@ -121,6 +120,7 @@
  */
 
 /* TODO: 
+- currently, when the server gets restarted, the (former) writing clients lose their writing tickets because they are not stored in offlineWritingClients (since this would be stored only when the clients do not propertly leave, but they do not leave at all, but get kicked out by the server). This could be avoided by (1) also storing the onlineWritingCLients to mongo and then create offlineWritingClients from this on startup or (2) by intercepting SIGINT/SIGTERM to gracefully shutdown by moving writing clients to offlineWritingClients before they are kicked out. (Note: this approach will not solve the problem on crashes!)  
 - the changes must be broadcasted in roomViews as well
 - add the possibility to change between writing and non-writing without having to reconnect to the room. 
 - it should be possible to listen to multiple views: add the possibility to provide an array of views to listen to. This also means that the returned data is an array storing the info for the different rooms. 
@@ -368,10 +368,9 @@ class roomServer{
         // processor: wsProcessor, writing, writingTicketID, name:clientName, storeInfos, tabIdHash, sidHash, datasetName, session, enterOptions, views:['', 'roomViewXY', 'roomViewAB', ...]}; // DISCONTINUED views is not used anymore
         this.clients = {}; // all clients connected to the room, independent whether to a roomView or multiple and/or the room itself
         //this.roomClients = []; // DISCONTINUED list of clients listening to the room data
-        this.offlineWritingClients = {}; // without the processor, as the client is disconnected; hashed sid as property!
+        this.offlineWritingClients = {}; // without the processor, as the client is disconnected; hashed sid!
         // both objects are source to create the client Infos object.
         //this.tabIdHashed = {}; // property=tabIdhashed, value=tabId
-        this.onlineWritingClients = {}; // same data as offlineWritingClients. Only read (from Mongo) on a (re-)start of the server, to check if some writingTickets that do not exist in offlineWritingClients exist in "online"WritingClients. Then, those clients are moved to offlineWritingClients (to make offlineWritingClients and writingTickets consistent) and finally the onlineWritingClients are reset to {}. Uses the hashed sid as property as offlineWritingClients
 
         // initialize everything for the writing tickets and conflict checking:
         this.secondaryMode = false;
@@ -588,28 +587,7 @@ class roomServer{
                 this.writingTickets = doc.writingTickets;
             }
 
-            // get the list of writing clients that were online before the restart
-            len = await this.collection.countDocuments({type:'onlineWritingClients'}) // returns a cursor to the data
-            if (len>1){
-                let errMsg = "Too many documents with type:'onlineWritingClients' for room named '" + this.name + "'.";
-                this.logger.log(3, errMsg);
-                throw new Error(errMsg);
-
-            } else if(len==0) {
-                // create new document of type  with the newly created ID:
-                this.writingTickets = [];
-                await this.collection.insertOne({type:'onlineWritingClients', onlineWritingClients:{} })
-
-            } else {
-                // everything normal:
-                let cursor = await this.collection.find({type:'onlineWritingClients'}) // returns a cursor to the data
-                let doc = await cursor.next();
-                // we store the data to offlineWritingClients, since at the restart, the former online clients are surely offline! With this apporach we make sure that after a restart/crash of the server the writing tickets of formerly online clients are not deleted below!
-                // the actual onlineWritingCLients object will stay empty, which is correct at init and will be filled as soon as clients enter the room.
-                this.offlineWritingClients = doc.onlineWritingClients;
-            }
-
-            // get the list of disconnected writing clients
+            // get the list of disconnected writring clients
             len = await this.collection.countDocuments({type:'offlineWritingClients'}) // returns a cursor to the data
             if (len>1){
                 let errMsg = "Too many documents with type:'offlineWritingClients' for room named '" + this.name + "'.";
@@ -625,15 +603,12 @@ class roomServer{
                 // everything normal:
                 let cursor = await this.collection.find({type:'offlineWritingClients'}) // returns a cursor to the data
                 let doc = await cursor.next();
-                // since there might already be some former onlineWritingClients in the list, we have to transfer the offlineWritingClients
-                for (let sidHash of Object.keys(doc.offlineWritingClients)){
-                    this.offlineWritingClients[sidHash] = doc.offlineWritingClients[sidHash];
-                }
+                this.offlineWritingClients = doc.offlineWritingClients;
             }
 
             if (this.keepWritingTicket){
                 // check if every writingTicketID is available in offlineWritingClients and vice versa; delete if not available in both
-                // this gets necessary when the server is restarted (regularly or after a crash), because the writing ticket is stored, but the client was online before and thus is not stored in offlineWritingClients. 2021-01-02: with the new approach, the offlineWritignCLients at this poit of the code also includes the former onlineWritingClients
+                // this gets necessary when the server is restarted (regularly or after a crash), because the writing ticket is stored, but the client was online before and thus is not stored in offlineWritingClients. 
                 let writingTicketsNew = []; //this.writingTickets.slice(0);
                 for (let offlineSidHash in this.offlineWritingClients){
                     let wti = this.offlineWritingClients[offlineSidHash].writingTicketID;
@@ -656,10 +631,6 @@ class roomServer{
                 if (Object.keys(this.offlineWritingClients).length>0){
                     this.offlineWritingClients = {};
                     this.storeOfflineWritingClients();
-                }
-                if (Object.keys(this.onlineWritingClients).length>0){
-                    this.onlineWritingClients = {};
-                    this.storeOnlineWritingClients();
                 }
             }
 
@@ -957,21 +928,15 @@ class roomServer{
             let writing = this.clients[tabId].writing;
             if (writing){
                 if (this.keepWritingTicket){
-                    //let client = this.clients[tabId];
-                    //delete client.processor;
-                    // client should now be identical to onlineWritingClients
-                    this.offlineWritingClients[sidHash] = this.onlineWritingClients[sidHash];
-                    //this.offlineWritingClients[sidHash] = client; // 2021-01: use the sid to store the offline writing client (since the tabId would change e.g. on reload (it does not change when the same tab reconnects witout reload))
+                    let client = this.clients[tabId];
+                    delete client.processor;
+                    //this.offlineWritingClients[tabIdHash] = client;
+                    this.offlineWritingClients[this.createHash(client.session.id)] = client; // 2021-01: use the sid to store the offline writing client (since the tabId would change e.g. on reload (it does not change when the same tab reconnects witout reload))
                     this.storeOfflineWritingClients();
                 } else {
                     // return the writing ticket
                     this.returnWritingTicketByID(this.clients[tabId].writingTicketID);
                 }
-                
-                // remove from onlineWritingClient
-                delete this.onlineWritingClients[sidHash];
-                this.storeOnlineWritingClients();
-
             }
 
             // always delete the client from the clients list:
@@ -1016,11 +981,6 @@ class roomServer{
 
         // add to the room (if the client was already registered, it will not be duplicate)
         this.clients[tabId] = {processor: wsProcessor, writing:writing, writingTicketID:writingTicketID, name:name, storeInfos:storeInfos, tabIdHash:tabIdHash, sidHash:sidHash, datasetName:datasetName, session:session, enterOptions: opt.enterOptions};
-        // the same for onlineWriting
-        if (writing){
-            this.onlineWritingClients[sidHash] = {writing:writing, writingTicketID:writingTicketID, name:name, storeInfos:storeInfos, tabIdHash:tabIdHash, sidHash:sidHash, datasetName:datasetName, session:session, enterOptions: opt.enterOptions}; // the same as in clients, but without processor
-            this.storeOnlineWritingClients();
-        }
         /*this.clients[tabId] = {processor: wsProcessor, writing:writing, writingTicketID:writingTicketID, name:name, storeInfos:storeInfos, tabIdHash:tabIdHash, views:views, listeningRoom: listeningRoom};*/ // DISCONTINUED
         //this.tabIdHashed[tabIdHash] = tabId; // be able to retranslate the tabId
         if (storeInfos) {
@@ -1116,7 +1076,6 @@ class roomServer{
 
         //let tabIdHash = this.clients[tabId].tabIdHash;
         let writing = this.clients[tabId].writing;
-        let sidHash = this.clients[tabId].sidHash;
 
         this.returnWritingTicket(tabId);
 
@@ -1156,10 +1115,6 @@ class roomServer{
 
         delete this.clients[tabId];
         //delete this.tabIdHashed[tabIdHash];
-        if (writing){
-            delete this.onlineWritingClients[sidHash];
-            this.storeOnlineWritingClients();
-        }
 
         // always returns true, as nothing can go wrong (except when the connection would get lost)
         respFunc(true);
@@ -1192,7 +1147,6 @@ class roomServer{
 
         //let tabIdHash = this.clients[tabId].tabIdHash;
         let writing = this.clients[tabId].writing;
-        let sidHash = this.clients[tabId].sidHash;
 
         this.returnWritingTicket(tabId);
 
@@ -1210,10 +1164,6 @@ class roomServer{
 
         delete this.clients[tabId];
         //delete this.tabIdHashed[tabIdHash];
-        if (writing){
-            delete this.onlineWritingClients[sidHash];
-            this.storeOnlineWritingClients();
-        }
 
         // update the clientInformation and sent them to the clients
         if (this.storeReadingClientInfos || writing){
@@ -1371,12 +1321,7 @@ class roomServer{
 
         let nameOld = this.clients[tabId].name;
         let writing = this.clients[tabId].writing;
-        let sidHash = this.clients[tabId].sidHash;
         this.clients[tabId].name = name;
-        if (writing){
-            this.onlineWritingClients[sidHash].name = name;
-            this.storeOnlineWritingClients();
-        }
         // report to all clients except the just mentioned one.
         let data = {
             // the roomName is added in broadcast
@@ -1422,9 +1367,6 @@ class roomServer{
             let id = this.clients[tabId].writingTicketID;
 
             this.returnWritingTicketByID(id);
-
-            delete this.onlineWritingClients[this.clients[tabId].sidHash];
-            this.storeOnlineWritingClients();
         } else {
             this.logger.log(75, 'Client with tabId "'+tabId+'" is not member of the room '+this.name);
         }
@@ -1478,13 +1420,8 @@ class roomServer{
             this.storeWritingTickets();
 
             // store the ticket to the client infos
-            let client = this.clients[tabId];
-            client.writing = true;
-            client.writingTicketID = writingTicketID;
-
-            // store the client to online writing clients
-            this.onlineWritingClients[client.sidHash] = {writing:true, writingTicketID: writingTicketID, name: client.name, storeInfos: client.storeInfos, tabIdHash: client.tabIdHash, sidHash: client.sidHash, datasetName: client.datasetName, session: client.session, enterOptions: client.enterOptions}; 
-            this.storeOnlineWritingClients();
+            this.clients[tabId].writing = true;
+            this.clients[tabId].writingTicketID = writingTicketID;
             
             let resp = {writingTicketID: writingTicketID};
 
@@ -1499,9 +1436,9 @@ class roomServer{
      * @param {function} responseFunc The responseFunction from the request, i.e. has two two arguments: (data, errorCode=0). On success, data=ID. 
      * @param {object} opt Not used yet. Could be used e.g. for kicking specifically one client. 
      */
-    // TODO: is this used? I think not (2023-01-02)
     writingTicketsReset(responseFunc, opt){
-        this.resetWritingTickets();
+        this.writingTickets = [];
+        this.storeWritingTickets();
         responseFunc(true,0);
     }
 
@@ -1548,13 +1485,8 @@ class roomServer{
                 let writingTicketID = this.uuidv4()
                 this.writingTickets.push(writingTicketID);
                 this.storeWritingTickets();
-                let client = this.clients[tabId];
-                client.writingTicketID = writingTicketID;
-                client.writing = true;
-
-                // store the client to online writing clients
-                this.onlineWritingClients[client.sidHash] = {writing:true, writingTicketID: writingTicketID, name: client.name, storeInfos: client.storeInfos, tabIdHash: client.tabIdHash, sidHash: client.sidHash, datasetName: client.datasetName, session: client.session, enterOptions: client.enterOptions}; 
-                this.storeOnlineWritingClients();
+                this.clients[tabId].writingTicketID = writingTicketID;
+                this.clients[tabId].writing = true;
 
                 resp.writingTicketID = writingTicketID;
             }
@@ -2279,8 +2211,6 @@ class roomServer{
         this.writingTickets = [];
         await this.storeWritingTickets();
 
-        await this.resetOnlineClients();
-
         // do the same for subrooms!
     }
 
@@ -2291,17 +2221,6 @@ class roomServer{
     async resetOfflineClients(){
         this.offlineWritingClients = {};
         await this.storeOfflineWritingClients();
-        
-        // do the same for subrooms!
-    }
-
-    /**
-     * delete all currently stored offline clients. 
-     * This is requried e.g. when backup data is imported, from another server, where unfortunately (?) the offlineClients are also stored in the data. 
-     */
-    async resetOnlineClients(){
-        this.onlineWritingClients = {};
-        await this.storeOnlineWritingClients();
         
         // do the same for subrooms!
     }
@@ -2341,14 +2260,6 @@ class roomServer{
     async storeOfflineWritingClients(){
         try {
             await this.collection.updateOne({type:'offlineWritingClients'}, {$set:{offlineWritingClients: this.offlineWritingClients}})
-        } catch (e){
-            this.logger.log(3, e)
-            throw e;
-        }
-    }
-    async storeOnlineWritingClients(){
-        try {
-            await this.collection.updateOne({type:'onlineWritingClients'}, {$set:{onlineWritingClients: this.onlineWritingClients}})
         } catch (e){
             this.logger.log(3, e)
             throw e;
