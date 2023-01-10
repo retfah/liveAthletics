@@ -16,7 +16,7 @@ class roomClient {
 
     /**
      * 
-     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked room.
+     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked vue.
      * @param {string} name The name of the room to connect to. 
      * @param {wsHandler} wsHandler The wshandler to use for sending data to the server
      * @param {eventHandler} eventHandler The used eventHandler instance, allowing different 'modules'/'rooms' to communicate through named signals 
