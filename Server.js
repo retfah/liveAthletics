@@ -113,7 +113,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
-import moduleLinkSUI from './moduleLinkSUI.js'
+import moduleLinkSUI from './moduleLinkSUI.js';
 
 // ----------------
 // DEVELOP-MODE
@@ -1322,6 +1322,7 @@ setInterval(translateConfPrint, conf.confPrintRecreationInterval*1000);
 // create the list of rooms
 const rooms = {};
 var roomsReady = false;
+const timings = {};
 
 // this function is async because it has to wait for some Promises, e.g. the MongoDB-Promise (connection to mongoDb to resolve)
 async function roomStartup(){
@@ -1357,6 +1358,15 @@ async function roomStartup(){
 	// wait for the meetingsReady event to 
 	eH.eventSubscribe('meetingsReady', ()=>{roomsReady = true})
 	//roomsReady = true;
+
+	// Timing rooms:
+	// The mongoDB stuff uses the DB of the admin, which I think is fine.
+	
+	for (let t of conf.timings){
+		let rt = new t.class(wsManager, t.name, eH, mongoDbAdmin, logger);
+		timings[encodeURI(t.name)] = rt;
+		rooms[`timing${encodeURI(t.name)}`] = rt; 
+	}
 
 }
 roomStartup().catch((err)=>{throw err;});
@@ -1512,6 +1522,28 @@ app.get('/:lang/meetingSelection', (req, res)=>{
 	res.render('meetingSelection.ejs');
 })
 
+// timings: 
+app.get('/:lang/timing/', (req, res, next)=>{
+	logger.log(99, 'GET: /:timing/')
+	req.i18n.setLocale(req.params.lang);
+
+	if (conf.timings.length==1){
+		// automatic redirect to this timing
+		res.redirect(`/${req.params.lang}/timing/`+ encodeURI(conf.timings[0].name));
+		
+	} else {
+		// get an overview over all timings for selection
+		res.render('timings.ejs', {timings:conf.timings});
+	}
+	
+})
+app.get('/:lang/timing/:timingName', (req, res, next)=>{
+	logger.log(99, 'GET: /:timing/:timingName')
+
+	req.i18n.setLocale(req.params.lang);
+	res.render('timing.ejs', {timingName: req.params.timingName});
+
+})
 
 // do everything with the login/logout stuff
 app.get('/:lang/login', (req, res, next)=>{

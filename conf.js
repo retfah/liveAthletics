@@ -1,5 +1,7 @@
 // configuration file
 
+import { rTimingAlge } from './rTiming.js';
+
 export default {
     // the name of this server (only used for information in some places)
     name: 'RFahrni',
@@ -72,5 +74,6 @@ export default {
     // interval for recreating the printing configuration
     confPrintRecreationInterval: 3600, // s
 
-    
+    // define the available timings. In the future we might implement this setting in a GUI and store the configurations in MongoDB. However, we would then need to define some "types" and which class they refer to, e.g. "ALGE" --> rTimingAlge, since we cannot store the class itself to Mongo. 
+    timings: [{name: 'ALGE1', class: rTimingAlge}, {name: 'ALGE2', class: rTimingAlge}],
 }

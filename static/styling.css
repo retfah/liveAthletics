@@ -831,6 +831,7 @@ option.catMismatch{
     top:0px;
     left:0px;
     overflow: scroll;
+    z-index:100;
 }
 
 #overlay.shown{

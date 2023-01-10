@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width,initial-scale=1"> <!-- make sure mobile browsers do nto lie about their width and then do some ugly scaling -->
+        <title><%= __("Timing selection") %></title> 
+        <link rel="shortcut icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="stylesheet" type="text/css" href="/static/styling.css">
+        <!--<script src="/static/main.js" type="text/javascript"></script> -->
+        <script type="text/javascript">
+            function gotoTiming(name){
+
+                window.location = window.location.origin + window.location.pathname.split('/').slice(0,3).join('/') + "/" + encodeURI(name);
+            }
+        </script>
+    </head>
+    <body>
+        <h2><%= __("Timings") %></h2>
+        <% for (var t of timings) { %>
+            <a href="javascript: gotoTiming('<%= t.name %>');"><%= t.name %></a>
+        <% } %>
+    </body>
+</html>
