@@ -25,9 +25,10 @@ export class rTimingClient extends roomClient{
         this._addFunction('updateInfo', this.updateInfoExe);
         this._addFunction('updateSiteConf', this.updateSiteConfExe);
         this._addFunction('updateTimingOptions', this.updateTimingOptionsExe);
+        this._addFunction('updateSiteData', this.updateSiteDataExe);
     }
 
-    // TODO: implement here all needed functions
+    // TODO: eventually include all rSiteClient functions here as well
 
     updateInfoExe(infos){
         this.propertyTransfer(infos, this.data.infos);
@@ -47,5 +48,8 @@ export class rTimingClient extends roomClient{
 
     updateTimingOptionsExe(timingOptions){
         this.propertyTransfer(timingOptions, this.data.timingOptions);
+    }
+    updateSiteDataExe(contests){
+        this.propertyTransfer(contests, this.data.contests, false);
     }
 }

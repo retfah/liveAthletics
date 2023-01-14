@@ -231,7 +231,7 @@ class websocketServer2Server{
                     if (data){
                         this.tabIdReported=true;
                         this.eH.raise(`TabIdSet/${this.tabId}`, this.tabId); // event is needed e.g. for connecting rooms
-                        this.logger.log(99,`tabId reported for ${fullPath}`);
+                        this.logger.log(90,`tabId reported for ${fullPath}`);
                     }
                 }, (errCode, errMsg)=>{
                     //TODO: error-handling
@@ -278,7 +278,7 @@ class websocketServer2Server{
         });
         
         this.wsconn.addEventListener('error', (error)=>{
-            // did not find exactly when this is raised...
+            // raised e.g. when the connection is lost
             // simply always officially close the old connection and start a new one (if autoReconnect=true)
 
             // first already set the connection as closing in the wsProcessor. Then it wont try to send more data over this connection and calls failure on every connection. 
@@ -287,8 +287,9 @@ class websocketServer2Server{
             }
             
             this.wsconn.close();
-            // TODO
-            // eventually call all failure callbacks of the current stacks in wsProcessor..?
+
+            // raise the failure event
+            this.eH.raise(`wsError/${this.tabId}`, error);
 
         });
 

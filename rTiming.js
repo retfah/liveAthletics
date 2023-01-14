@@ -1,8 +1,6 @@
 import roomServer from "./roomServer.js";
-import Net from 'net';
-import {promises as fs} from 'fs';
-import roomClient from "./roomClientForServer.js";
-//import { rSiteTrackClientForTiming } from "./static/rSiteTrackClient.js";
+import rSiteTrackClientForTiming from "./rSiteTrackClientForTiming.js";
+import tcpClientAutoReconnect from "./tcpClient.js";
 
 /**
  * IDEAS: 
@@ -43,7 +41,10 @@ export default class rTiming extends roomServer{
                 lastHeatPushFailed: false, // set to true when the last heatPush failed to notify the user 
                 
                 siteServerConnected: false,
+                lastSiteServerConnectionError: '',
                 siteRoomConnected: false,
+                lastSiteRoomConnectionError: '',
+                timing:{}, // to be filled by the inheriting timing-specific class
             },
 
             // options which events in rSite result in direct transfer to/from rTiming
@@ -240,27 +241,40 @@ export default class rTiming extends roomServer{
 
     // NOTE: we presume that, once the room is connected, it will stay connected until the ws-connection is lost (or we leave it on purpose)
     connectSite(){
-        // prepare a function to strat the rSIteClient that shall be called whenever the connection is (re-)established
+        // prepare a function to start the rSIteClient that shall be called whenever the connection is (re-)established
         let connectRoom = ()=>{
 
-            this.infos.siteServerConnected = true;
-            this.broadcastSiteInfos();
+            this.data.infos.siteServerConnected = true;
+            this.data.infos.lastSiteServerConnectionError = '';
+            this.broadcastInf();
 
             // start rSiteClient
-            let createSiteClient = ()=>{
-                let failureCB = ()=>{
-                    this.rSiteClient = null;
-                    // on failure try again after a timeout:
-                    setTimeout(createSiteClient, 2000); // retry every 2 seconds
-                }
-                let succCB = ()=>{
-                    this.infos.siteRoomConnected = true;
-                    this.broadcastInfos();
-                }
+            let failureCB = (err)=>{
+                
+                this.data.infos.siteRoomConnected = false;
+                this.data.infos.lastSiteRoomConnectionError = `Error: ${JSON.stringify(err)}`;
+                this.broadcastInf();
 
-                // create the rSiteClient
-                //this.rSiteClient = new rSiteTrackClientForTiming(this.conn, this.eH, `sites/${this.siteConf.siteNumber}@${this.siteConf.shortname}`)
+                this.rSiteClient = null;
+                // on failure try again after a timeout:
+                setTimeout(createSiteClient, 2000); // retry every 2 seconds
             }
+            let successCB = ()=>{
+                this.data.infos.siteRoomConnected = true;
+                this.data.infos.lastSiteRoomConnectionError = '';
+                this.broadcastInf();
+
+                // reference the rSite data in this room.
+                this.data.contests = this.rSiteClient.data.contests;
+                // broadcast data
+                this.broadcastSiteData();
+
+                // now start the initial comparison
+            }
+
+            // create the rSiteClient
+            //wsHandler, eventHandler, roomName, successCB, failureCB, logger
+            this.rSiteClient = new rSiteTrackClientForTiming(this.conn, this.eH, `sites/${this.data.siteConf.siteNumber}@${this.data.siteConf.shortname}`, successCB, failureCB, this.logger);
             
             // then, start the comparison between this.data.data and rSiteClient.data.contests
             // based on the this.data.auto-settings, transfer some stuff automatically or not.
@@ -281,14 +295,19 @@ export default class rTiming extends roomServer{
         // if the connection is lost, the wsManager and wsServer2Sever, respectively, will try to reconnect; listen to those events to instantly reconnect the sideChannel-rooms
         this.eH.eventSubscribe(`TabIdSet/${this.conn.tabId}`, connectRoom, this.name); // we use the shortname of the meeting as an identifier for the eventHandler 
 
+        this.eH.eventSubscribe(`wsError/${this.conn.tabId}`, (err)=>{
+
+        }, this.name); 
+
         // not needed, since the TabIdSet-event is enough.
         //this.eH.eventSubscribe(`wsConnected/${conn.tabId}`, ()=>{this.data.status.connectionToMain.connectedToMain = true;}, `sideChannel:${this.meetingShortname}`);
 
         this.eH.eventSubscribe(`wsClosed/${this.conn.tabId}`, ()=>{
 
-            this.infos.siteServerConnected = false;
-            this.infos.siteRoomConnected = false;
-            this.broadcastInfos();
+            this.data.infos.siteServerConnected = false;
+            this.data.infos.siteRoomConnected = false;
+            // do not change the lastErrors here
+            this.broadcastInf();
             
             this.rSiteClient = null;
             this.conn = null;
@@ -299,9 +318,11 @@ export default class rTiming extends roomServer{
     // exemplary:
     closeSiteConnection(){
         if (this.conn?.connected){
-            this.info.siteRoomConnected = false;
-            this.info.siteServerConnected = false;
-            this.broadcastInfos();
+            this.data.infos.siteRoomConnected = false;
+            this.data.infos.siteServerConnected = false;
+            this.data.infos.lastSiteRoomConnectionError = '';
+            this.data.infos.lastSiteServerConnectionError = '';
+            this.broadcastInf();
     
             // send leave signal
             if (this.rSiteClient){
@@ -322,10 +343,17 @@ export default class rTiming extends roomServer{
         }
     }
 
-    broadcastSiteInfos(){
+    broadcastInf(){
         let doObj = {
             funcName: 'updateInfo', 
             data: this.data.infos,
+        }
+        this.processChange(doObj, {})
+    }
+    broadcastSiteData(){
+        let doObj = {
+            funcName: 'updateSiteData', 
+            data: this.data.contests,
         }
         this.processChange(doObj, {})
     }
@@ -466,6 +494,10 @@ export class rTimingAlge extends rTiming {
 
         super(wsManager, timingName, eventHandler, mongoDb, logger, true, true, true)
         
+        // own properties:
+        this.tcpConn = null;
+
+
         this.defaultTimingOptions = {
             xmlHeatsFolder: '', // path
             xmlResultsFolder: '', // path
@@ -477,6 +509,13 @@ export class rTimingAlge extends rTiming {
             port: 4446, // same default as Seltec
 
         }
+
+        this.data.infos.timing = {
+            tcpConnected: false,
+            tcpErrorLast: '', // the last tcp error. Include the time in the string!
+            xmlHeatErrorLast: '', // the last error during xml-heat writing
+            xmlResultErrorLast: '', // the last error during xml-results read
+        };
 
         let schemaTimingOptions = {
             type:"object",
@@ -515,6 +554,49 @@ export class rTimingAlge extends rTiming {
             await this._storeTimingOptions();
         }
 
+        this.startTcpVersatileExchange();
+
+    }
+
+    // also works for restart
+    startTcpVersatileExchange(){
+        if (this.tcpConn !=null){
+            // stop the previous connection
+            this.tcpConn.tcpConn()
+            this.tcpConn = null;
+        }
+
+        // connection options (see nodejs Net.Client for documentation): 
+        const optVersatileExchange = {
+            port: this.data.timingOptions.port,
+            host: this.data.timingOptions.host,
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+
+        const onError = (err)=>{
+            let d = new Date().toLocaleTimeString();
+            this.data.infos.timing.tcpErrorLast = `${d}: ${err}`;
+            this.broadcastInf();
+        }
+
+        const onClose = () =>{
+            this.data.infos.timing.tcpConnected = false;
+            this.broadcastInf();
+        }
+
+        const onConnect = ()=> {
+            this.data.infos.timing.tcpConnected = true;
+            this.broadcastInf();
+        }
+
+        const onData = (data)=>{
+
+            // TODO: provess the data according to the options !!!
+
+        }
+
+        this.tcpConn = new tcpClientAutoReconnect(optVersatileExchange, onError, onClose, onConnect, onData)
     }
 
     // often, this function will have to be implemented with extensions by the inheriting class 
@@ -523,17 +605,22 @@ export class rTimingAlge extends rTiming {
             throw {code:21, message: this.ajv.errorsText(this.validateTimingOptions.errors)}
         }
 
-        let oldTimingOptions = this.timingOptions;
+        let oldTimingOptions = this.data.timingOptions;
 
         this.data.timingOptions = timingOptions;
         await this._storeTimingOptions();
 
         
         // if host or port have changed, change the tcp connection
-        // TODO
+        if (oldTimingOptions.port != timingOptions.port || oldTimingOptions.host != timingOptions.host){
+            // restart tcp connection
+            this.startTcpVersatileExchange();
+        }
 
         // if any path has changed, rewrite the xml.
-        // TODO
+        if (oldTimingOptions.xmlHeatsFolder != timingOptions.timingOptions){
+            this.writeInput();
+        }
 
         // broadcast
         let ret = {
@@ -554,7 +641,7 @@ export class rTimingAlge extends rTiming {
 
 
     writeInput(){
-        // TODO: write the input file
+        // TODO: write the input file from this.data.data
     }
 
     /**
@@ -572,7 +659,7 @@ export class rTimingAlge extends rTiming {
     sendHeats(){
         // implement here the serializer, creating the input file from the local rTiming data and write this file
 
-        this.infos.lastHeatPushFailed = false; // TODO: set accordingly
+        this.data.infos.lastHeatPushFailed = false; // TODO: set accordingly
     }
 
     pullResults(){
@@ -594,193 +681,3 @@ export class rTimingAlge extends rTiming {
 
 }
 
-/**
- * create a tcp client connection and automatically try to reopen it as soon as the connection has failed.
- * Data is merge together until the end sign has arrived (by default carriage retrun / ASCII 13)
- */
-export class tcpClientAutoReconnect {
-
-
-    /**
-     * 
-     * @param {object} connectionOptions The connection options for the socketClient. See node.js Net.client documentation
-     * @param {function} onError callback(Error) called on error (right before the close event will be fired; )
-     * @param {function} onClose callback(hadErrors) called after closing 
-     * @param {function} onConnect callback() called when tcp connection is established 
-     * @param {function} onData callback(data) called for every datapackage, separated by the endCharacter. I.e. data is not equivalent the chunks that arrive. This class will put together all chunks until the endCharacter is found and will send all text up to the endCharacter as data to the callback.   
-     * @param {string} endCharacter The endCharacter(s) separating one message form the next. Default: CR carriage return (ASCII 13)
-     * @param {integer} retryInterval After which timeout (in ms) it should be tried again to establish a connection. Default: 5000 ms.
-     */
-    constructor(connectionOptions, onError, onClose, onConnect, onData, endCharacter='\r', retryInterval=5000){
-
-        this.connectionOptions = connectionOptions;
-        this.onError = onError;
-        this.onClose = onClose;
-        this.onConnect = onConnect;
-        this.onData = onData;
-        this.endCharacter = endCharacter; // default carriage return /ASCII 13
-        this.retryInterval = retryInterval; // in ms
-
-        // arrived data:; temporary storage, if data arirves in multiple chunks
-        this.tempData = '';
-
-        // at the end, do nto restart the connection 
-        this.ending = false;
-
-        this.startConnection();
-    }
-
-    startConnection(){
-        // create a new connection and set the connect event handler (NOTE: the "ready" event is useless since it is anyway called right after the "connect" event)
-        this.connection = Net.createConnection(this.connectionOptions, ()=>{this.onConnect()});
-        this.connection.setEncoding('utf8'); // make sure strings are returned and not buffers (this should be fine for the small portions of text that are arriving)
-
-        this.connection.on('close', (hadError)=>{
-            this.onClose(hadError);
-
-            // try to recreate the connection (the timeout was already started, if there was an error previously)
-            if (!hadError && !this.ending){
-                setTimeout(this.startConnection.bind(this), this.retryInterval);
-            }
-        })
-
-        this.connection.on('data', (chunk)=>{ // chunk should be a string in UTF8
-            // first, just add the chunk to the temp data
-            this.tempData += chunk;
-
-            // then check if the endCharacter can be found and call the callback for every piece of data
-            // recursive function to handle also multiple statements in one chunk
-            const processTempData = ()=>{
-                let endCharPos = this.tempData.search(this.endCharacter);
-                if (endCharPos>=0){
-                    this.onData(this.tempData.slice(0,endCharPos));
-                    this.tempData = this.tempData.slice(endCharPos + this.endCharacter.length);
-                    if (this.tempData.length>0){
-                        // recursively check if there is more data in the tempData
-                        processTempData();
-                    }
-                } 
-            }
-            processTempData();
-
-        })
-
-        this.connection.on('end', ()=>{
-            // when the server closes the connection
-            // not used currently
-        })
-
-        this.connection.on('error', (err)=>{
-            // called right before close is called
-            this.onError(err);
-
-            // try to recreate the connection
-            setTimeout(this.startConnection.bind(this), this.retryInterval);
-            
-        })
-
-    }
-
-    /**
-     * Stop this connection
-     */
-    close(){
-        this.ending = true; // make sure the close event does not result in retrying to start the connection
-        this.connection.end();
-    }
-
-}
-
-/**
- * open a tcp connection and write everything (connect, error, close, data) to the fileHandles specified
- */
-class tcpToFile extends tcpClientAutoReconnect{
-    constructor(connectionOptions, name, fileHandles){
-
-        const writer = (data)=>{
-            for (let file of fileHandles){
-                file.write(data);
-            }
-        }
-
-        const onError = (err)=>{
-            const d = new Date();
-            writer(`${d.toISOString()} ${name}, error: ${err}.\n`);
-        }
-        const onClose = (hadError)=>{
-            const d = new Date();
-            writer(`${d.toISOString()} ${name}, closed; after error: ${hadError}.\n`);
-        }
-        const onConnect = ()=>{
-            const d = new Date();
-            writer(`${d.toISOString()} ${name}, connected.\n`);
-        }
-        const onData = (data)=>{
-            const d = new Date();
-            writer(`${d.toISOString()} ${name}, data: ${data}.\n`);
-        }
-
-        super(connectionOptions, onError, onClose, onConnect, onData)
-    }
-} 
-
-/**
- * Log the different 
- */
-class ALGElogger {
-
-    static async create(folder, nameAll='all.txt', nameDisplayGaz='displayGaz.txt', nameDisplayDline='displayDline.txt', nameAlgeOutput='algeOutput.txt', nameVersatileExchange='versatileExchange.txt'){
-        // since we want to open files async (instead of sync (very bad idea) or with callbacks (old school), we prepare the file handles first and then call the constructor)
-
-        const fileAll = await fs.open(folder + "\\" + nameAll, 'a+');
-        const fileDisplayGaz = await fs.open(folder + "\\" + nameDisplayGaz, 'a+');
-        const fileDisplayDline = await fs.open(folder + "\\" + nameDisplayDline, 'a+');
-        const fileAlgeOutput = await fs.open(folder + "\\" + nameAlgeOutput, 'a+');
-        const fileVersatileExchange = await fs.open(folder + "\\" + nameVersatileExchange, 'a+');
-
-        return new ALGElogger(fileAll, fileDisplayGaz, fileDisplayDline, fileAlgeOutput, fileVersatileExchange);
-    }
-
-    constructor(fileAll, fileDisplayGaz, fileDisplayDline, fileAlgeOutput, fileVersatileExchange){
-
-        // NOTE: in the test, I activated every possible output in the four configurations !!!
-
-        // ALGE DisplayBoard connection options (see Net.socket.connect)
-        let optDisplayGaz = {
-            port: 4445,
-            host: '192.168.3.101',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-        let optDisplayDline = {
-            port: 4446,
-            host: '192.168.3.101',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-
-        // ALGE Output Port
-        let optAlgeOutput = {
-            port: 4447,
-            host: '192.168.3.101',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-
-        // ALGE Versatile Exchange connection options (see Net.socket.connect)
-        let optVersatileExchange = {
-            port: 4448,
-            host: '192.168.3.101',
-            keepAlive: true,
-            keepAliveInitialDelay: 2000,
-        }
-
-        // create tcpToFile class for every output
-        const oDisplayGaz = new tcpToFile(optDisplayGaz, 'displayGaz__', [fileAll, fileDisplayGaz]); // the underlines are intended to make the string as long as Dline for easier comparison
-        const oDisplayDline = new tcpToFile(optDisplayDline, 'displayDline', [fileAll, fileDisplayDline]);
-        const oAlgeOutput = new tcpToFile(optAlgeOutput, 'algeOutput', [fileAll, fileAlgeOutput]);
-        const oVersatileExchange = new tcpToFile(optVersatileExchange, 'versatileExchange', [fileAll, fileVersatileExchange]);
-
-    }
-}
-ALGElogger.create('C:\\Users\\Reto\\Documents\\Reto\\Programmieren\\liveAthletics\\Zeitmessung\\Alge Schnittstelle')
