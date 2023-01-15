@@ -124,17 +124,25 @@
                             siteData: {},
                             contests: {}, // the data of rSiteTrack
 
-                            overlay: null, // null, siteConf, ...
+                            overlay: null, // null, siteConf, timingOptions, conf (auto + timers), 
 
                             // copy for mod:
                             siteConfCopy: {}, 
                             timingOptionsCopy: {},
+                            autoCopy: {},
+                            timersCopy: {},
 
                             // info overlay
                             infoTitle: '',
                             infoContent:'',
                             infoVisible:false,
 
+                            // the names and id's of series and contest states:
+                            // Note: the comment before the ejs-include only affects the first row of the included file; (thats why it still works)
+                            // also gets seriesStates and participationStates
+                            //<%- include('contestStates.ejs') %>
+
+                            readOnly:false, // not really used yet
                         }
                     },
                     methods:{
@@ -166,6 +174,71 @@
 
                             rTiming.room.updateTimingOptionsInit(this.timingOptionsCopy);
                             this.overlay = null;
+                        },
+                        showConf(){
+                            // create a copy to be modified in order to allow easy reset
+                            this.timersCopy = JSON.parse(JSON.stringify(this.timers));
+                            this.autoCopy = JSON.parse(JSON.stringify(this.auto));
+
+                            this.overlay = "conf";
+                        },
+                        saveConf(){
+                            // only apply the changes if really something has changed
+                            // since we cannot have two requests at the same time, we must defer on until the answer of the other has arrived
+                            if (JSON.stringify(this.auto) != JSON.stringify(this.autoCopy)){
+                                let onResponse = null;
+                                if (JSON.stringify(this.timers) != JSON.stringify(this.timersCopy)){
+                                    onResponse = ()=>{rTiming.room.updateTimersInit(this.timersCopy)};
+                                }
+                                rTiming.room.updateAutoInit(this.autoCopy, onResponse);
+                            }
+                            else if (JSON.stringify(this.timers) != JSON.stringify(this.timersCopy)){
+                                rTiming.room.updateTimersInit(this.timersCopy);
+                            }
+                            
+                            this.overlay = null;
+                        },
+
+                        statusBackgroundColor(status, states=this.contestStates){
+                            let s = states.find(s=>s.value==status);
+                            if (s){
+                                return s.backgroundColor;
+                            }
+                            return '#ffffff';
+                        },
+                        colorHexMultiplier(color, f){
+                            // split the hex code into the three parts and multiply it with f
+                            let R = Math.min(255,Math.round(f*parseInt(color.slice(1,3),16)));
+                            let G = Math.min(255,Math.round(f*parseInt(color.slice(3,5),16)));
+                            let B = Math.min(255,Math.round(f*parseInt(color.slice(5,7),16)));
+                            return '#' + R.toString(16).padStart(2,0) + G.toString(16).padStart(2,0) + B.toString(16).padStart(2,0);
+                        },
+                        statusBackgroundColorHover(status, states=this.contestStates){
+                            let s = states.find(s=>s.value==status);
+                            if (s){
+                                return this.colorHexMultiplier(s.backgroundColor)
+                                // split the hex code into the three parts and multiply it with 0.8
+                                /*let f = 0.8;
+                                let R = Math.round(f*parseInt(s.backgroundColor.slice(1,3),16));
+                                let G = Math.round(f*parseInt(s.backgroundColor.slice(3,5),16));
+                                let B = Math.round(f*parseInt(s.backgroundColor.slice(5,7),16));
+                                return '#' + R.toString(16).padStart(2,0) + G.toString(16).padStart(2,0) + B.toString(16).padStart(2,0);*/
+                            }
+                            return '#eeeeee';
+                        },
+                        statusTextColor(status, states=this.contestStates){
+                            let s = states.find(s=>s.value==status);
+                            if (s){
+                                return s.textColor;
+                            }
+                            return '#000000';
+                        },
+                        statusText(status, states=this.contestStates){
+                            let s = states.find(s=>s.value==status);
+                            if (s){
+                                return s.text;
+                            }
+                            return status;
                         },
                     },
                     computed:{
@@ -200,6 +273,7 @@
                 Contests: {{contests}} <br>
                 <button class="btn" @click="showSiteConf"><%= __("Site connection setup") %></button>   
                 <button class="btn" @click="showTimingOptions"><%= __("Timing setup") %></button>
+                <button class="btn" @click="showConf"><%= __("Automatic transfer setup") %></button>
 
                 <div class="overlay" v-bind:class="{shown: overlay=='siteConf'}">
                     <div class="overlayContainer">
@@ -236,6 +310,115 @@
                         </form>
                         <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
                         <button type="button" class="btn btnGreen" v-on:click="saveSiteConf"><%= __("Save") %></button>
+                    </div>
+                </div>
+
+                <div class="overlay" v-bind:class="{shown: overlay=='conf'}">
+                    <div class="overlayContainer">
+                        <h3><%= __("Automatic transfer") %></h3>
+                        <h5>Automatically transfer the following changes in live athletics to the timing:</h5>
+                        <form class="verticalForm">
+                            <label>
+                                <%= __("Contest changed") %>
+                                <select class="formCtrl" v-model.number="autoCopy.changeContestAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeContestAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeContestAuto), color: statusTextColor(autoCopy.changeContestAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in contestStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &ge; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label>
+                                <%= __("Series added") %>
+                                <select class="formCtrl" v-model.number="autoCopy.addSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addSeriesAuto), color: statusTextColor(autoCopy.addSeriesAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &ge; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label>
+                                <%= __("Series changed") %>
+                                <select class="formCtrl" v-model.number="autoCopy.changeSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeSeriesAuto), color: statusTextColor(autoCopy.changeSeriesAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &ge; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label>
+                                <%= __("Series deleted") %>
+                                <select class="formCtrl" v-model.number="autoCopy.deleteSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.deleteSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.deleteSeriesAuto), color: statusTextColor(autoCopy.deleteSeriesAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &ge; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+
+                            <h5>Automatically transfer the following new data in the timing to live athletics:</h5>
+                            <!-- data that can be pushed by the timing software: -->
+                            <label>
+                                <%= __("Evaluated time of a person") %>
+                                <select class="formCtrl" v-model.number="autoCopy.addResultAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addResultAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addResultAuto), color: statusTextColor(autoCopy.addResultAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &le; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label>
+                                <%= __("Evaluated times of a full heat") %>
+                                <select class="formCtrl" v-model.number="autoCopy.addResultHeatAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addResultHeatAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addResultHeatAuto), color: statusTextColor(autoCopy.addResultHeatAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &le; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+                            <label>
+                                <%= __("Reaction times") %>
+                                <select class="formCtrl" v-model.number="autoCopy.addReactionTimeAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addReactionTimeAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addReactionTimeAuto), color: statusTextColor(autoCopy.addReactionTimeAuto) }">
+                                    <option value="-1"><%= __("Never") %></option>
+                                    <option value="-2"><%= __("Always") %></option>
+                                    <template v-for="status in seriesStates">
+                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
+                                            <%= __("Status") %> &le; {{status.text}}
+                                        </option>
+                                    </template>
+                                </select>
+                            </label>
+
+                            <h5>Check for new data in the timing software in the following interval (set to 0 for never):</h5>
+                            <!-- data that must/can be pulled from the timing software -->
+                            <label>
+                                <%= __("Results") %>
+                                <input class="formCtrl" type="number"  v-model.number="timersCopy.pullResults" min="0">
+                            </label>
+                            <label>
+                                <%= __("Reaction times") %>
+                                <input class="formCtrl" type="number"  v-model.number="timersCopy.pullReactionTimes" min="0">
+                            </label>
+                        </form>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
+                        <button type="button" class="btn btnGreen" v-on:click="saveConf"><%= __("Save") %></button>
                     </div>
                 </div>
 

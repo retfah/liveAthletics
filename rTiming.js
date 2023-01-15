@@ -14,15 +14,19 @@ export default class rTiming extends roomServer{
     constructor(wsManager, timingName, eventHandler, mongoDb, logger, heatsPushable=false, reactionPullable=false, resultsPullable=false){
         
         // initialize the room
-        // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
+        // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTickets=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true, keepWritingTicket=true)
+        // there is no sidechannel for rTiming
         let roomName = `timing${timingName}`;
-        super(eventHandler, mongoDb, logger, roomName, true, -1, false);
+        super(eventHandler, mongoDb, logger, roomName, true, -1, false, undefined, false, true);
 
         this.wsManager = wsManager;
 
         // store the ws connection and the rSiteClient
         this.conn = null;
         this.rSiteClient = null;
+
+        // if we do the initial comparison between the rSite data and the actual data of this room, we might add/delete many contests and heats. Every of this change will be handled in the respective functions. Typically, these function will directly send the change to teh timing, since it is the idea that rTiming-data always represnts the data in the timing software. However, if the exchange is file based, it does not make sense to write the file at every small change, when we know that many more small changes will/might follow during the initial comparison. Thus, we have the variable deferWrite, which is set to true at the beginning of the initial comparison and set to false at the end together with calling this.deferredWrite(). This allows file-type heat exchanges to not (re-)write the file when derferWrite=true and to create the file at the end. If this deferredWritign does not make sense for a certain timing client, then it can simply be negelected.
+        this.deferWrite = false; // prevent writing of single changes (depends on timing client)
 
         this.data = {
             name: timingName,
@@ -54,9 +58,9 @@ export default class rTiming extends roomServer{
 
             timers: {}, // the timeouts for pulling resukts and reactionTimes
 
-            data: {}, // here we put the actual data with contests and heats!
+            data: [], // here we put the actual data with contests and heats!
 
-            contests: {}, // will be filled with the data of the rSiteTrackClient.contests
+            contests: [], // will be filled with the data of the rSiteTrackClient.contests
         }
 
         this.defaultSiteConf = {
@@ -74,7 +78,7 @@ export default class rTiming extends roomServer{
             changeSeriesAuto: -1,
             addSeriesAuto: -1,
             deleteSeriesAuto: -1,
-            // key: -1: never, -2: always auto, >=0: maximum state of series to do so.
+            // key: -1: never, -2: always auto, >=0: maximum state of series/contest to do so.
             // from rTiming: 
             addResultAuto: -1, // single result, eventually inofficial
             addResultHeatAuto: -1, // full heat, eventually including some info about the heat itself, eventually inofficial
@@ -123,8 +127,33 @@ export default class rTiming extends roomServer{
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateSiteConf = this.updateSiteConf.bind(this);
+        this.functionsWrite.updateAuto = this.updateAuto.bind(this);
+        this.functionsWrite.updateTimers = this.updateTimers.bind(this);
         this.functionsWrite.updateTimingOptions = this.updateTimingOptions.bind(this);
 
+        const schemaTimers = {
+            type:'object',
+            properties: {
+                pullReactionTimes: {type: 'integer', minimum:0}, 
+                pullResults: {type: 'integer', minimum: 0}, 
+            },
+            required:['pullReactionTimes', 'pullResults'],
+            additionalProperties: false,
+        };
+        const schemaAuto = {
+            type:'object',
+            properties: {
+                changeContestAuto: {type: 'integer', minimum:-2}, 
+                changeSeriesAuto: {type: 'integer', minimum:-2}, 
+                addSeriesAuto: {type: 'integer', minimum:-2}, 
+                deleteSeriesAuto: {type: 'integer', minimum:-2}, 
+                addResultAuto: {type: 'integer', minimum:-2}, 
+                addResultHeatAuto: {type: 'integer', minimum:-2}, 
+                addReactionTimeAuto: {type: 'integer', minimum:-2}, 
+            },
+            required:['changeContestAuto', 'changeSeriesAuto', 'addSeriesAuto', 'deleteSeriesAuto', 'addResultAuto', 'addResultHeatAuto', 'addReactionTimeAuto'],
+            additionalProperties: false,
+        };
         const schemaSiteConf = {
             type:'object',
             properties: {
@@ -138,8 +167,10 @@ export default class rTiming extends roomServer{
             },
             required:['host', 'port', 'secure', 'path', 'shortname', 'token', 'siteNumber'],
             additionalProperties: false,
-        }
+        };
         this.validateSiteConf = this.ajv.compile(schemaSiteConf);
+        this.validateAuto = this.ajv.compile(schemaAuto);
+        this.validateTimers = this.ajv.compile(schemaTimers);
         this.validateTimingOptions = this.ajv.compile({}); // to be implemented by the inheriting class
 
     }
@@ -222,8 +253,8 @@ export default class rTiming extends roomServer{
         if (len==0){
 
             // create a default document
-            await this.collection.updateOne({type:'data'},{$set:{data: {}}},{upsert:true}) //update with upsert=insert when not exists
-            this.data.data = {};
+            await this.collection.updateOne({type:'data'},{$set:{data: []}},{upsert:true}) //update with upsert=insert when not exists
+            this.data.data = [];
 
         } else if (len>1){
             this.logger.log(10, `Cannot initialize mongoData in ${this.name} since there is more than one mongo document.`)
@@ -269,19 +300,13 @@ export default class rTiming extends roomServer{
                 // broadcast data
                 this.broadcastSiteData();
 
-                // now start the initial comparison
+                // now start the initial comparison between the timing data and the rSite data
+                this.fullUpdate();
             }
 
             // create the rSiteClient
-            //wsHandler, eventHandler, roomName, successCB, failureCB, logger
-            this.rSiteClient = new rSiteTrackClientForTiming(this.conn, this.eH, `sites/${this.data.siteConf.siteNumber}@${this.data.siteConf.shortname}`, successCB, failureCB, this.logger);
-            
-            // then, start the comparison between this.data.data and rSiteClient.data.contests
-            // based on the this.data.auto-settings, transfer some stuff automatically or not.
-            // if there is at least one change, we must send the change to the timing. 
-            // TODO: how to deduplicate this? (i.e. only write the file once at the end of the comparison (if needed) and not after avery added series?)
-            // --> I think we must create a deduplication on our own. Idea: provide a "delay(Write)" bool in rTiming, which is set to true at the beginning and set back to false at the end, while at the end at the same time a function is called that starts the writing. If the timing would anyway not write a file, it will not care about the delayWrite bool and the write function called at the end does nothing. In contrast, timings that write to file will not do anything when delayWrite is true, but they will handle the write-call.
-            // --> use "delay" for the boolean and "delayedWrite" for the function.
+            //wsHandler, eventHandler, roomName, successCB, failureCB, logger, rTiming
+            this.rSiteClient = new rSiteTrackClientForTiming(this.conn, this.eH, `sites/${this.data.siteConf.siteNumber}@${this.data.siteConf.shortname}`, successCB, failureCB, this.logger, this);
             
         }
 
@@ -343,6 +368,156 @@ export default class rTiming extends roomServer{
         }
     }
 
+    /**
+     * compare all data from rSite (this.data.contests) with the local data (this.data.data) and see what information shall be transferred or not on the basis of the settings in this.data.auto
+     */
+    fullUpdate(){
+        // make sure that the changes are not actually processed one by one, but only at the end
+        this.deferWrite = true;
+
+        // compare local data with the data in the room
+        for (let contestS of this.data.contests){
+            // check if the contest also exists in rTiming
+            let contestT = this.data.data.find(c=>c.xContest==contestS.xContest);
+            if (contestT){
+                // compare every heat
+                // TODO
+            } else {
+                // call addSeries in this room for every heat. (auto take-over will be checked there!)
+                for (let s of contestS.series){
+                    this.addSeriesTiming({contest: contestS, series: s});
+                }
+            }
+
+        }
+
+        this.deferWrite = false;
+        this.deferredWrite();
+    }
+
+    /**
+     * If rSiteTrackClientForTiming receives a change, the data in rTiming on the server (this.data.contests) is automatically changed, since it is a reference to rSiteTrackClientForTiming.data.contests . However, on the client, the rSiteTrack functions are incorporated in the regular rTmingCLient room. Thus, we need tp relay the changes here. This must also issue a new roomId.
+     * @param {string} funcName The function to be called in rTiming on the client. (Currently, it is planned that this is the same name as in rSiteTrack)
+     * @param {any} data The data to be sent, typically an object
+     */
+    relaySiteChange(funcName, data){
+        // rTiming does not have a sideChannel. (If it had, it would get here a little complicated, since the same change would be processed trwice probably.)
+        let doObj = {
+            funcName: funcName, 
+            data: data,
+        }
+        this.processChange(doObj, {})
+    }
+
+    // do the same as rSiteTrack (given the auto is set accordingly)
+    changeContestTiming(contest){
+        // check the auto setting whether to transfer the data or not:
+        if (this.data.auto.changeContestAuto==-2 || (this.data.auto.changeContestAuto>=0 && this.data.auto.changeContestAuto<=contest.status)){
+            // search the contest first
+            const ic = this.data.data.findIndex(c=>c.xContest==contest.xContest);
+            // copy over the present series to the new contest object and save it
+            // create the new contest object (do NOT use contest given as the parameter, since this references the rSiteTrack-object! It must be independent!)
+            const cNew = {};
+            this.propertyTransfer(contest, cNew);
+            cNew.series = this.data.data[ic].series;
+            this.data.data[ic] = cNew; 
+            
+            this._storeData(); // async
+            
+            // broadcast the change:
+            let doObj = {
+                funcName: 'changeContestTiming', 
+                data: contest,
+            }
+            this.processChange(doObj, {}) 
+
+        }
+    }
+    changeSeriesTiming(series){
+        if (this.data.auto.changeSeriesAuto == -2 || (this.data.auto.changeSeriesAuto>=0 && this.data.auto.changeSeriesAuto <=series.status)){
+            // search the contest first
+            const c = this.data.data.find(c=>c.xContest==series.xContest);
+            if (c){
+                // search the series
+                const s = c.series.find(s=>s.xSeries == series.xSeries);
+
+                // update it
+                this.propertyTransfer(series, s)
+
+            } else {
+                this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+            }
+            this._storeData(); // async
+
+            // broadcast the change:
+            let doObj = {
+                funcName: 'changeSeriesTiming', 
+                data: series,
+            }
+            this.processChange(doObj, {})
+        }
+    }
+    deleteSeriesTiming(series){
+
+        // check the auto setting whether to transfer the data or not:
+        if (this.data.auto.deleteSeriesAuto==-2 || ( this.data.auto.deleteSeriesAuto>=0 && this.data.auto.deleteSeriesAuto<=series.status)){
+            // search the contest first
+            const c = this.data.data.find(c=>c.xContest==series.xContest);
+            if (c){
+                // search the series
+                const si = c.series.findIndex(s=>s.xSeries == series.xSeries);
+
+                // delete it
+                c.series.splice(si,1);
+
+                // delete the contest if it has no series anymore
+                if (c.series.length == 0){
+                    let i = this.data.data.findIndex(c=>c.xContest==series.xContest);
+                    if (i>=0){
+                        // should always be the case
+                        this.data.data.splice(i,1);
+                    }
+                }
+            } else {
+                this.logger.log(20, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+            }
+            this._storeData(); // async
+
+            // broadcast the change:
+            let doObj = {
+                funcName: 'deleteSeriesTiming', 
+                data: series,
+            }
+            this.processChange(doObj, {})
+        }
+    }
+    addSeriesTiming(data){
+
+        const contestS = data.contest;
+        const seriesS = data.series;
+
+        // check the auto setting whether to transfer the data or not:
+        if (this.data.auto.addSeriesAuto==-2 || (this.data.auto.addSeriesAuto>=0 && this.data.auto.addSeriesAuto<=seriesS.status)){
+    
+            // get (or create) the contest in the data of this room 
+            const c = this.getOrCreateContestTiming(contestS.xContest, contestS);
+            
+            // create a new series object. (since the property references the series of the rSiteTrack data!)
+            // add the series to the main data object
+            const newSeriesT = {}
+            this.propertyTransfer(seriesS, newSeriesT)
+            c.series.push(newSeriesT);
+            this._storeData(); // async
+
+            // broadcast the change:
+            let doObj = {
+                funcName: 'addSeriesTiming', 
+                data: data,
+            }
+            this.processChange(doObj, {})
+        }
+    }
+
     broadcastInf(){
         let doObj = {
             funcName: 'updateInfo', 
@@ -358,8 +533,8 @@ export default class rTiming extends roomServer{
         this.processChange(doObj, {})
     }
 
-    // called after many changes to this.data.data were made, while "delay" was true
-    delayedWrite(){
+    // called after many changes to this.data.data were made, while "deferWrite" was true
+    deferredWrite(){
 
     }
     
@@ -445,6 +620,72 @@ export default class rTiming extends roomServer{
         };
 
         return ret;
+    }
+
+    async updateTimers(timers){
+        if (!this.validateTimers(timers)){
+            throw {code:21, message: this.ajv.errorsText(this.validateTimers.errors)}
+        }
+
+        this.data.timers = timers;
+        await this._storeTimers();
+
+        // broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateTimers', data: timers},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: timers, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
+    }
+
+    async updateAuto(auto){
+        if (!this.validateAuto(auto)){
+            throw {code:21, message: this.ajv.errorsText(this.validateAuto.errors)}
+        }
+
+        this.data.auto = auto;
+        await this._storeAuto();
+
+        // broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateAuto', data: auto},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: auto, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
+    }
+
+    /**
+     * Try to get the object of the specified contest
+     * @param {integer} xContest 
+     * @param {object} contest the contest data object for 
+     */
+    getOrCreateContestTiming(xContest, contest){
+        let c = this.data.data.find(contest=>contest.xContest == xContest);
+        if (!c){
+            // add the contest
+            const c2 = contest;
+            c = {
+                conf: c2.conf,
+                datetimeAppeal: c2.datetimeAppeal,
+                datetimeCall: c2.datetimeCall,
+                datetimeStart: c2.datetimeStart,
+                name: c2.name,
+                status: c2.status,
+                xBaseDiscipline: c2.xBaseDiscipline,
+                xContest: c2.xContest,
+                series:[],
+            }
+            this.data.data.push(c);
+        }
+        return c;
     }
 
     // for start, falseStart, finish signals the timing-implementation shall call the respective functions on rSiteTrack directly.
@@ -634,8 +875,8 @@ export class rTimingAlge extends rTiming {
         return ret;
     }
 
-    // called after many changes to this.data.data were made, while "delay" was true
-    delayedWrite(){
+    // called after many changes to this.data.data were made, while "deferWrite" was true
+    deferredWrite(){
         this.writeInput();
     }
 

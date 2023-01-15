@@ -2,7 +2,8 @@
 import mixin from "./static/rSiteTrackMixin.js";
 import roomClient from "./roomClientForServer.js";
 
-// TODO: copy (Object.assign) all methods from rSiteTrackClient to rSiteTrackClientForTiming
+// NOTES:
+// - the actual exe-functions also used in rSiteTrackClient (i.e. in the browser) are mixed in with "name2", i.e. updateSeriesExe in browser is updateSeriesExe2 here. The function with the original name handles the incoming change, but passes it directly to the mixed in function. After this, the function calls the respective function in rTiming so that also the clients (that are only connected to rTiming) get the changed data.  
 
 // this class is actually mainly made for the timing (i.e. on a server, and not in the browser.). However, eventually we might merge those function with the regular rSiteTrackClient.
 class rSiteTrackClientForTiming extends roomClient{
@@ -12,7 +13,7 @@ class rSiteTrackClientForTiming extends roomClient{
      * @param {eventHandler} eventHandler The event handler
      * @param {string} roomName The name of the room; within a meeting, the room name is not automatically given by the class, but contains the meeting-shortname and therefore must be given
      */
-    constructor(wsHandler, eventHandler, roomName, successCB, failureCB, logger){
+    constructor(wsHandler, eventHandler, roomName, successCB, failureCB, logger, rTiming){
 
         // TODO: the roomManager-variable could be used to get error messages (this is actually its sole function in roomClient)
 
@@ -20,6 +21,8 @@ class rSiteTrackClientForTiming extends roomClient{
         //super(undefined, wsHandler, eventHandler, undefined, true, storeInfos='', datasetName='', roomName)
         //(v, name, wsHandler, eventHandler, onlineOnly, writing, success, failure, storeInfos=false, rM, datasetName='', writingChangedCB, extraLogger, ID=0, roomEnterOptions=undefined)
         super(undefined, roomName, wsHandler, eventHandler, true, true, successCB, failureCB, false, undefined, '', null, logger)
+
+        this.rTiming = rTiming;
 
         // set the available functions
         this._addFunction('addSeries', this.addSeriesExe);
@@ -63,37 +66,49 @@ class rSiteTrackClientForTiming extends roomClient{
         // TODO
     }
 
-    // TODO: override all exe-functions in rSiteTrackClient in order to be able to react to those events
+    // override all exe-functions in rSiteTrackClient in order to be able to react to those events:
     changeContestExe(contest){
         // first, process the change regularly
-        super.changeContestExe2(contest);
+        this.changeContestExe2(contest);
 
-        // then, notify the timing about the change
-        // TODO
+        // then, notify the clients of the timing about the change
+        this.rTiming.relaySiteChange('changeContest', contest);
+
+        // then let rTiming handle automatic take-over, if needed.
+        this.rTiming.changeContestTiming(contest);
     }
 
-    changeSeriesExe(contest){
+    changeSeriesExe(series){
         // first, process the change regularly
-        super.changeSeriesExe2(contest);
+        this.changeSeriesExe2(series);
 
         // then, notify the timing about the change
-        // TODO
+        this.rTiming.relaySiteChange('changeSeries', series);
+
+        // then let rTiming handle automatic take-over, if needed.
+        this.rTiming.changeSeriesTiming(series);
     }
 
-    addSeriesExe(contest){
+    addSeriesExe(data){
         // first, process the change regularly
-        super.addSeriesExe2(contest);
+        this.addSeriesExe2(data);
 
         // then, notify the timing about the change
-        // TODO
+        this.rTiming.relaySiteChange('addSeries', data);
+
+        // then let rTiming handle automatic take-over, if needed.
+        this.rTiming.addSeriesTiming(data);
     }
 
-    deleteSeriesExe(contest){
+    deleteSeriesExe(series){
         // first, process the change regularly
-        super.deleteSeriesExe2(contest);
+        this.deleteSeriesExe2(series);
 
         // then, notify the timing about the change
-        // TODO
+        this.rTiming.relaySiteChange('deleteSeries', series);
+
+        // then let rTiming handle automatic take-over, if needed.
+        this.rTiming.deletSeriesTiming(series);
     }
 
     // We do nto have any roomClientVues connected here, so we override those "event-functions"

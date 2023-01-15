@@ -1,4 +1,5 @@
 
+import mixin from "./rSiteTrackMixin.js";
 
 export class rTimingClient extends roomClient{
 
@@ -26,18 +27,51 @@ export class rTimingClient extends roomClient{
         this._addFunction('updateSiteConf', this.updateSiteConfExe);
         this._addFunction('updateTimingOptions', this.updateTimingOptionsExe);
         this._addFunction('updateSiteData', this.updateSiteDataExe);
-    }
+        this._addFunction('updateTimers', this.updateTimersExe);
+        this._addFunction('updateAuto', this.updateAutoExe);
+        
+        // functions from rSiteTrackClient: (mixed in below)
+        this._addFunction('addSeries', this.addSeriesExe);
+        this._addFunction('deleteSeries', this.deleteSeriesExe);
+        this._addFunction('changeSeries', this.changeSeriesExe);
+        this._addFunction('changeContest', this.changeContestExe);
 
-    // TODO: eventually include all rSiteClient functions here as well
+        // the "same" functions also exist for the rTiming data
+        this._addFunction('addSeriesTiming', this.addSeriesTExe);
+        this._addFunction('deleteSeriesTiming', this.deleteSeriesTExe);
+        this._addFunction('changeSeriesTiming', this.changeSeriesTExe);
+        this._addFunction('changeContestTiming', this.changeContestTExe);
+    }
 
     updateInfoExe(infos){
         this.propertyTransfer(infos, this.data.infos);
     }
 
+    // provide the possibility to call onResponse-function when the response has arrived. Used if timers and auto are changed at the same time
+    updateAutoInit(auto, onResponse=null){
+        let override = undefined;
+        if (onResponse){
+            override = (newAuto) => {
+                this.updateAutoExe(newAuto);
+                onResponse();
+            }
+        }
+        this.addToStack('updateAuto', auto, override);
+    }
+    updateAutoExe(auto){
+        this.propertyTransfer(auto, this.data.auto);
+    }
+
+    updateTimersInit(timers){
+        this.addToStack('updateTimers', timers);
+    }
+    updateTimersExe(timers){
+        this.propertyTransfer(timers, this.data.timers);
+    }
+
     updateSiteConfInit(siteConf){
         this.addToStack('updateSiteConf', siteConf);
     }
-
     updateSiteConfExe(siteConf){
         this.propertyTransfer(siteConf, this.data.siteConf);
     }
@@ -45,11 +79,99 @@ export class rTimingClient extends roomClient{
     updateTimingOptionsInit(timingOptions){
         this.addToStack('updateTimingOptions', timingOptions);
     }
-
     updateTimingOptionsExe(timingOptions){
         this.propertyTransfer(timingOptions, this.data.timingOptions);
     }
+
     updateSiteDataExe(contests){
         this.propertyTransfer(contests, this.data.contests, false);
     }
+
+    changeContestTExe(contest){
+        // search the contest first
+        const ic = this.data.data.findIndex(c=>c.xContest==contest.xContest);
+        // copy over the present series to the new contest object and save it
+        contest.series = this.data.data[ic].series;
+        this.data.data[ic] = contest;
+    }
+
+    changeSeriesTExe(series){
+        // search the contest first
+        const c = this.data.data.find(c=>c.xContest==series.xContest);
+        if (c){
+            // search the series
+            const s = c.series.find(s=>s.xSeries == series.xSeries);
+
+            // update it
+            this.propertyTransfer(series, s)
+
+        } else {
+            this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+        }
+    }
+
+    deleteSeriesTExe(series){
+        // search the contest first
+        const c = this.data.data.find(c=>c.xContest==series.xContest);
+        if (c){
+            // search the series
+            const si = c.series.findIndex(s=>s.xSeries == series.xSeries);
+
+            // delete it
+            c.series.splice(si,1);
+
+            // delete the contest if it has no series anymore
+            if (c.series.length == 0){
+                let i = this.data.data.findIndex(c=>c.xContest==series.xContest);
+                if (i>=0){
+                    // should always be the case
+                    this.data.data.splice(i,1);
+                }
+            }
+        } else {
+            this.logger.log(20, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+        }
+    }
+
+    addSeriesTExe(data){
+        // it should be possible to use here the same code as on the server
+        const contest = data.contest;
+        const series = data.series;
+
+        // get (or create) the contest in the data of this room 
+        const c = this.getOrCreateContestTiming(contest.xContest, contest);
+
+        // add the series to the main data object
+        c.series.push(series)
+    }
+
+    /**
+     * Try to get the object of the specified contest
+     * @param {integer} xContest 
+     * @param {object} contest the contest data object for 
+     */
+    getOrCreateContestTiming(xContest, contest){
+        let c = this.data.contests.find(contest=>contest.xContest == xContest);
+        if (!c){
+            // add the contest
+            const c2 = contest;
+            c = {
+                conf: c2.conf,
+                datetimeAppeal: c2.datetimeAppeal,
+                datetimeCall: c2.datetimeCall,
+                datetimeStart: c2.datetimeStart,
+                name: c2.name,
+                status: c2.status,
+                xBaseDiscipline: c2.xBaseDiscipline,
+                xContest: c2.xContest,
+                series:[],
+            }
+            this.data.contests.push(c);
+        }
+        return c;
+    }
 }
+
+// provide all functions of rSiteTrackClient also in rTimingClient.
+// ATTENTION: the functions still must be referenced in the constructor
+Object.assign(rTimingClient.prototype, mixin);

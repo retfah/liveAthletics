@@ -562,5 +562,17 @@
 	"Also get the inofficial rank": "Also get the inofficial rank",
 	"Inofficial rank": "Inofficial rank",
 	"Only set this to true when the timing crew always evaluates the times in the order of the placing, and e.g. not in the order of the lanes. Otherwise, the temporary ranks are wrong.": "Only set this to true when the timing crew always evaluates the times in the order of the placing, and e.g. not in the order of the lanes. Otherwise, the temporary ranks are wrong.",
-	"Settings are only required when any of the checkboxes is selected": "Settings are only required when any of the checkboxes is selected"
+	"Settings are only required when any of the checkboxes is selected": "Settings are only required when any of the checkboxes is selected",
+	"Change behavior": "Change behavior",
+	"Contest changed": "Contest changed",
+	"Series added": "Series added",
+	"Series changed": "Series changed",
+	"Series deleted": "Series deleted",
+	"Automatic transfer setup": "Automatic transfer setup",
+	"Automatic transfer": "Automatic transfer",
+	"Never": "Never",
+	"Always": "Always",
+	"Evaluated time of a person": "Evaluated time of a person",
+	"Evaluated times of a full heat": "Evaluated times of a full heat",
+	"Reaction times": "Reaction times"
 }
