@@ -1,7 +1,8 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default function(sequelize, DataTypes) {
+export default class basedisciplines extends Model {
+  static init(sequelize, DataTypes) {
   return sequelize.define('basedisciplines', {
     xBaseDiscipline: {
       autoIncrement: true,
@@ -43,7 +44,6 @@ export default function(sequelize, DataTypes) {
       comment: "offset from the start time"
     }
   }, {
-    sequelize,
     tableName: 'basedisciplines',
     timestamps: false,
     indexes: [
@@ -57,4 +57,5 @@ export default function(sequelize, DataTypes) {
       },
     ]
   });
-};
+  }
+}

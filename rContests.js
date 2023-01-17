@@ -128,8 +128,8 @@ class rContests extends roomServer{
                     // track
                     // try to get default values for number of persons per heat first from a track site and second from the discipline
 
-                    // try to get the default from the discipline; simply use the values given in the first discipline
-                    const dConf = JSON.parse(bd.disciplines[0].configuration);
+                    // try to get the default from the discipline; 
+                    const dConf = JSON.parse(bd.baseConfiguration);
                     
                     // try to get a site for track (type==0)
                     const site = this.rSites.data.sites.find(s=>s.type==0);

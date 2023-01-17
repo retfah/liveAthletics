@@ -49,12 +49,8 @@
         
         dataArrived(){
             // raised as soon as the room has its data stored for the first time
-            // TODO: what about views? They probably also need something like this
+            this.afterFullreload()
             
-            this.vue.events = this.room.data.events;
-        
-            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
-            this.room.data.events = this.vue.events;
         }
     }
 

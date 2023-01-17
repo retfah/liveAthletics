@@ -2306,7 +2306,7 @@
                     if (!d){
                         return {startInLanes:true, groupSize:1, distance: 0, wind:true, straight:true};
                     } else {
-                        let o = JSON.parse(d.configuration);
+                        let o = JSON.parse(d.baseConfiguration);
                         // avoid problems when the definition was not right in the DB
                         o.startInLanes = o.startInLanes ?? true;
                         o.groupSize = o.groupSize ?? 1;

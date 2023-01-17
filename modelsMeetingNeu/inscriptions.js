@@ -1,37 +1,31 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class resultstech extends Model {
+export default class inscriptions extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('resultstech', {
-    xResultTech: {
+  return sequelize.define('inscriptions', {
+    xInscription: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true
     },
-    xResult: {
+    xCategory: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true,
       references: {
-        model: 'seriesstartsresults',
-        key: 'xSeriesStart'
+        model: 'categories',
+        key: 'xCategory'
       }
     },
-    result: {
-      type: DataTypes.SMALLINT,
+    number: {
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       defaultValue: 0,
-      comment: "in cm\n-1 for failed trial"
-    },
-    attempt: {
-      type: DataTypes.TINYINT.UNSIGNED,
-      allowNull: false,
-      comment: "which attempt (start from 1)"
+      comment: "bib"
     }
   }, {
-    tableName: 'resultstech',
+    tableName: 'inscriptions',
     timestamps: false,
     indexes: [
       {
@@ -39,15 +33,14 @@ export default class resultstech extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xResultTech" },
-          { name: "xResult" },
+          { name: "xInscription" },
         ]
       },
       {
-        name: "fk_resultsTech_seriesStartsResults1_idx",
+        name: "fk_inscription_category1_idx",
         using: "BTREE",
         fields: [
-          { name: "xResult" },
+          { name: "xCategory" },
         ]
       },
     ]

@@ -1,7 +1,8 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default function(sequelize, DataTypes) {
+export default class disciplines extends Model {
+  static init(sequelize, DataTypes) {
   return sequelize.define('disciplines', {
     xDiscipline: {
       autoIncrement: true,
@@ -42,7 +43,6 @@ export default function(sequelize, DataTypes) {
       comment: "This should contain e.g. a JSON string with discipline specific settings, e.g. distance, wind, whatever, which is then interpreted by the type of the discipline. "
     }
   }, {
-    sequelize,
     tableName: 'disciplines',
     timestamps: false,
     indexes: [
@@ -71,4 +71,5 @@ export default function(sequelize, DataTypes) {
       },
     ]
   });
-};
+  }
+}

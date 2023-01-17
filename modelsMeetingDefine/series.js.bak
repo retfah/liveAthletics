@@ -42,6 +42,16 @@ export default class series extends Model {
       allowNull: false,
       defaultValue: "",
       comment: "the name of the series: can be empty, but also e.g. \"A\" (for Final A; Final should be written in the round)"
+    },
+    datetime: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "the start time of this series"
+    },
+    id: {
+      type: DataTypes.STRING(36),
+      allowNull: true,
+      comment: "Eventually we need a unique id for series, especiall for the interaction with the timing. The id should change whenever a new series is created, i.e. also when the old series is deleted before. However, eventually this is also not needed. Therefore, the column can be null for the moment. "
     }
   }, {
     tableName: 'series',

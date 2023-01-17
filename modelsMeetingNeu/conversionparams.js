@@ -1,29 +1,34 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class disciplinesonsite extends Model {
+export default class conversionparams extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('disciplinesonsite', {
-    xSite: {
+  return sequelize.define('conversionparams', {
+    xConversion: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true,
       references: {
-        model: 'sites',
-        key: 'xSite'
+        model: 'conversions',
+        key: 'xConversion'
       }
     },
-    xBaseDiscipline: {
+    xDiscipline: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true,
       references: {
-        model: 'basedisciplines',
-        key: 'xBaseDiscipline'
+        model: 'disciplines',
+        key: 'xDiscipline'
       }
+    },
+    params: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: ""
     }
   }, {
-    tableName: 'disciplinesonsite',
+    tableName: 'conversionparams',
     timestamps: false,
     indexes: [
       {
@@ -31,22 +36,22 @@ export default class disciplinesonsite extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
-          { name: "xBaseDiscipline" },
+          { name: "xConversion" },
+          { name: "xDiscipline" },
         ]
       },
       {
-        name: "fk_disciplines_on_site_sites1_idx",
+        name: "fk_conversionParams_conversion_idx",
         using: "BTREE",
         fields: [
-          { name: "xSite" },
+          { name: "xConversion" },
         ]
       },
       {
-        name: "fk_disciplinesOnSite_baseDisciplines1",
+        name: "fk_conversionParams_disciplineType_idx",
         using: "BTREE",
         fields: [
-          { name: "xBaseDiscipline" },
+          { name: "xDiscipline" },
         ]
       },
     ]

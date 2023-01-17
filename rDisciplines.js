@@ -60,11 +60,13 @@ class rDisciplines extends roomServer{
         let baseDiscipline={
             xBaseDiscipline: {type:"integer"},
             type: {type:"integer", minimum:0, maximum:255},
-            relay: {type:"boolean"},
+            //relay: {type:"boolean"},
             nameStd: {type:"string", maxLength:50}, // used if there is no translation
             shortnameStd: {type:"string", maxLength:20}, // used if there is no translation
             timeAppeal: {type:"string", format:"time"},
             timeCall: {type:"string", format:"time"},
+            baseConfiguration: {type:"string"},
+            indoor: {type:'boolean'},
         }
         let schemaAddBaseDiscipline = {
             type: "object",
@@ -132,19 +134,20 @@ class rDisciplines extends roomServer{
                         shortname = shortname + "";
                     }
 
-                    // xDiscipline, xBaseDiscipline, sortorder, timeAppeal, timeCall, type, relay, name, shortname 
+                    // xDiscipline, xBaseDiscipline, sortorder, timeAppeal, timeCall, type, name, shortname 
                     disciplines.push({
                         xDiscipline: d.xDiscipline,
                         xBaseDiscipline: bd.xBaseDiscipline,
                         sortorder: d.sortorder,
-                        indoor: d.indoor,
+                        indoor: bd.indoor,
                         /*timeAppeal: d.timeAppeal,
                         timeCall: d.timeCall,*/
                         type: bd.type,
-                        relay: bd.relay,
+                        //relay: bd.relay,
                         name: name,
                         shortname: shortname,
                         configuration:d.configuration,
+                        baseConfiguration: bd.baseConfiguration,
                     })
                 }
             }

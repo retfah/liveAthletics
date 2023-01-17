@@ -1,10 +1,10 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class disciplines extends Model {
+export default class basedisciplinelocalizations extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('disciplines', {
-    xDiscipline: {
+  return sequelize.define('basedisciplinelocalizations', {
+    xDisciplinesLocalization: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -14,31 +14,26 @@ export default class disciplines extends Model {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true,
-      comment: "Use the same number for disciplines which shall be joinable.",
       references: {
         model: 'basedisciplines',
         key: 'xBaseDiscipline'
       }
     },
-    sortorder: {
-      type: DataTypes.INTEGER.UNSIGNED,
+    language: {
+      type: DataTypes.CHAR(2),
       allowNull: false,
-      defaultValue: 1,
-      comment: "Sortierwert?"
+      comment: "language shortcut according to ISO639-1: http:\/\/www.loc.gov\/standards\/iso639-2\/php\/code_list.php\n"
     },
-    active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true
+    name: {
+      type: DataTypes.STRING(50),
+      allowNull: false
     },
-    configuration: {
-      type: DataTypes.TEXT,
-      allowNull: false,
-      defaultValue: "''",
-      comment: "This should contain e.g. a JSON string with discipline specific settings, e.g. distance, wind, whatever, which is then interpreted by the type of the discipline. "
+    shortname: {
+      type: DataTypes.STRING(20),
+      allowNull: false
     }
   }, {
-    tableName: 'disciplines',
+    tableName: 'basedisciplinelocalizations',
     timestamps: false,
     indexes: [
       {
@@ -46,19 +41,21 @@ export default class disciplines extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xDiscipline" },
+          { name: "xDisciplinesLocalization" },
           { name: "xBaseDiscipline" },
         ]
       },
       {
-        name: "Anzeige",
+        name: "onlyOne",
+        unique: true,
         using: "BTREE",
         fields: [
-          { name: "sortorder" },
+          { name: "xBaseDiscipline" },
+          { name: "language" },
         ]
       },
       {
-        name: "baseDiscipline",
+        name: "fk_baseDisciplineLocalizations_baseDisciplines1_idx",
         using: "BTREE",
         fields: [
           { name: "xBaseDiscipline" },

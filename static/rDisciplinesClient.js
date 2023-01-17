@@ -79,19 +79,20 @@ export class rDisciplinesClient extends roomClient{
                         shortname = shortname + "";
                     }
 
-                    // xDiscipline, xBaseDiscipline, sortorder, timeAppeal, timeCall, type, relay, name, shortname 
+                    // xDiscipline, xBaseDiscipline, sortorder, timeAppeal, timeCall, type, name, shortname 
                     disciplines.push({
                         xDiscipline: d.xDiscipline,
                         xBaseDiscipline: bd.xBaseDiscipline,
                         sortorder: d.sortorder,
-                        indoor: d.indoor,
+                        indoor: bd.indoor,
                         /*timeAppeal: d.timeAppeal,
                         timeCall: d.timeCall,*/
                         type: bd.type,
-                        relay: bd.relay,
+                        /*relay: bd.relay,*/
                         name: name,
                         shortname: shortname,
-                        configuration:d.configuration,
+                        configuration: d.configuration,
+                        baseConfiguration: bd.baseConfiguration,
                     })
                 }
             }

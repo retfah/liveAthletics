@@ -1,37 +1,35 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class resultstech extends Model {
+export default class heights extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('resultstech', {
-    xResultTech: {
+  return sequelize.define('heights', {
+    xHeight: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true
     },
-    xResult: {
+    xSeries: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true,
       references: {
-        model: 'seriesstartsresults',
-        key: 'xSeriesStart'
+        model: 'series',
+        key: 'xSeries'
       }
     },
-    result: {
-      type: DataTypes.SMALLINT,
+    jumpoffOrder: {
+      type: DataTypes.SMALLINT.UNSIGNED,
       allowNull: false,
       defaultValue: 0,
-      comment: "in cm\n-1 for failed trial"
+      comment: "defines the order if it is a jumpoff height. For all other heights, this property has to be 0. The height is then automatically given through the height, as it can only increase."
     },
-    attempt: {
-      type: DataTypes.TINYINT.UNSIGNED,
-      allowNull: false,
-      comment: "which attempt (start from 1)"
+    height: {
+      type: DataTypes.SMALLINT.UNSIGNED,
+      allowNull: false
     }
   }, {
-    tableName: 'resultstech',
+    tableName: 'heights',
     timestamps: false,
     indexes: [
       {
@@ -39,15 +37,14 @@ export default class resultstech extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xResultTech" },
-          { name: "xResult" },
+          { name: "xHeight" },
         ]
       },
       {
-        name: "fk_resultsTech_seriesStartsResults1_idx",
+        name: "fk_height_series1_idx",
         using: "BTREE",
         fields: [
-          { name: "xResult" },
+          { name: "xSeries" },
         ]
       },
     ]

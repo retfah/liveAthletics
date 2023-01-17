@@ -1,0 +1,87 @@
+import _sequelize from 'sequelize';
+const { Model, Sequelize } = _sequelize;
+
+export default class meetings extends Model {
+  static init(sequelize, DataTypes) {
+  return sequelize.define('meetings', {
+    xMeeting: {
+      autoIncrement: true,
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      primaryKey: true
+    },
+    meetingName: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: ""
+    },
+    location: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: ""
+    },
+    dateFrom: {
+      type: DataTypes.DATEONLY,
+      allowNull: false
+    },
+    dateTo: {
+      type: DataTypes.DATEONLY,
+      allowNull: false
+    },
+    meetingOnlineId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true
+    },
+    isOnline: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    organizor: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: ""
+    },
+    entryFee: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0
+    },
+    entryFeeReduction: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0
+    },
+    bailFee: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 0
+    },
+    meetingIsIndoor: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    }
+  }, {
+    tableName: 'meetings',
+    timestamps: false,
+    indexes: [
+      {
+        name: "PRIMARY",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "xMeeting" },
+        ]
+      },
+      {
+        name: "Name",
+        using: "BTREE",
+        fields: [
+          { name: "meetingName" },
+        ]
+      },
+    ]
+  });
+  }
+}

@@ -26,7 +26,12 @@ export default class resultstrack extends Model {
     rank: {
       type: DataTypes.TINYINT.UNSIGNED,
       allowNull: false,
-      comment: "the ranking made by the finish-judge must be used and not the ranking given by the time!"
+      comment: "the ranking made by the finish-judge; the rank may be more specific than the reported time (i.e. the same time up to 1\/1000 available accuracy)"
+    },
+    official: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   }, {
     tableName: 'resultstrack',

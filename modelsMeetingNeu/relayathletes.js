@@ -1,29 +1,33 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class disciplinesonsite extends Model {
+export default class relayathletes extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('disciplinesonsite', {
-    xSite: {
+  return sequelize.define('relayathletes', {
+    xRelayAthlete: {
+      autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true,
+      primaryKey: true
+    },
+    xAthlete: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
       references: {
-        model: 'sites',
-        key: 'xSite'
+        model: 'athletes',
+        key: 'xAthlete'
       }
     },
-    xBaseDiscipline: {
+    xRelay: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true,
       references: {
-        model: 'basedisciplines',
-        key: 'xBaseDiscipline'
+        model: 'relays',
+        key: 'xRelay'
       }
     }
   }, {
-    tableName: 'disciplinesonsite',
+    tableName: 'relayathletes',
     timestamps: false,
     indexes: [
       {
@@ -31,22 +35,23 @@ export default class disciplinesonsite extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
-          { name: "xBaseDiscipline" },
+          { name: "xRelayAthlete" },
         ]
       },
       {
-        name: "fk_disciplines_on_site_sites1_idx",
+        name: "Secondary",
+        unique: true,
         using: "BTREE",
         fields: [
-          { name: "xSite" },
+          { name: "xAthlete" },
+          { name: "xRelay" },
         ]
       },
       {
-        name: "fk_disciplinesOnSite_baseDisciplines1",
+        name: "fk_relaysAthletes_relays1_idx",
         using: "BTREE",
         fields: [
-          { name: "xBaseDiscipline" },
+          { name: "xRelay" },
         ]
       },
     ]

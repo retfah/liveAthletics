@@ -2686,7 +2686,7 @@
                     if (!d){
                         return {heightMax:800, jumpoffHeightVariation:2};
                     } else {
-                        let o = JSON.parse(d.configuration);
+                        let o = JSON.parse(d.baseConfiguration);
                         o.heightMax = o.heightMax ?? 800;
                         o.jumpoffHeightVariation = o.jumpoffHeightVariation ?? 2;
                         return o;
