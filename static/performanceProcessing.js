@@ -27,7 +27,7 @@ export const disciplineFormatters = {
         // NOTE: never show units as soon as there is a doble dot in the time-string, e.g. when at least minutes are shown.
 
         // get the configuration:
-        const conf = JSON.parse(discipline.configuration);
+        const conf = JSON.parse(discipline.baseConfiguration);
         
         if (!conf?.distance){
             throw {code: 101, message: `Discipline ${discipline?.xDiscipline} is lacking a distance in the configuration.`}
