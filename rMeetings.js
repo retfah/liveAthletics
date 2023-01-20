@@ -110,7 +110,7 @@ class rMeetings extends roomServer{
 
         }
         ).catch((err)=>{
-            this.logger.log(2,"loading/starting meeting failed: "+ err)
+            this.logger.log(2,"loading/starting meeting failed: "+ JSON.stringify(err))
         }) 
         
         // add (sub)-datasets:
@@ -870,7 +870,7 @@ class rMeetings extends roomServer{
         this.activeMeetings[shortname].rooms.contests = contests;
         this.activeMeetings[shortname].rooms.contestsOverview = new rContestsOverview(shortname, meetingMongoDb, this.eH, this.logger, contests, events, eventGroups, disciplines, categories);
         eventGroups.rContests = contests;
-        const sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, contests, disciplines);
+        const sites = new rSites(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, contests, disciplines, meetingAdmin);
         this.activeMeetings[shortname].rooms.sites = sites;
         contests.rSites = sites;
     }

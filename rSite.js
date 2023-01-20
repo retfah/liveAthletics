@@ -17,7 +17,7 @@ class rSite extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests, rDisciplines, rMeeting){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom, reportToSideChannel, keepWritingTicket)
@@ -28,12 +28,15 @@ class rSite extends roomServer{
         this.data = {
             site: site, // add here the data from the parentRoom, as an info
             contests: [],
+            meeting: rMeeting.data,
         }; 
 
         this.site = site; // the site object from rSites
         this.rSites = rSites;
         this.rContests = rContests;
+        this.rDisciplines = rDisciplines;
         this.meetingShortname = meetingShortname;
+        this.rMeeting = rMeeting;
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
@@ -129,10 +132,10 @@ export class rSiteTrack extends rSite{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests, rDisciplines){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests, rDisciplines, rMeeting){
 
         // call parent constructor
-        super(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests);
+        super(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, rSites, site, rContests, rDisciplines, rMeeting);
 
         this.rDisciplines = rDisciplines;
 
@@ -202,7 +205,7 @@ export class rSiteTrack extends rSite{
             // get the same series from the contest (since this includes the ssr)
             const sDetail = rContest.data.series.find(s2=>s.xSeries==s2.xSeries);
             
-            // now only have to add ther series:
+            // now only have to add other series:
             const addData = {
                 contest: rContest.contest,
                 startgroups: rContest.data.startgroups,
@@ -267,8 +270,14 @@ export class rSiteTrack extends rSite{
             this.propertyTransfer(ssr.dataValues, ssrDetail, true); // number, lane, etc
             this.propertyTransfer(SG, ssrDetail, true); // name, club, birthdate, ...
 
+            // add the category
+            ssrDetail.category = this.rContests.rCategories.data.find(c=>c.xCategory == ssrDetail.xCategory)?.shortname // contests references the categories
+
             SSRs.push(ssrDetail);
         }
+
+        // add information about the discipline
+        // part of the info is in discipline (e.g. distance, runInLanes etc) and a part is in baseDisciplines; however, we only know the baseDiscipline... --> we must change the place of some data!!!
 
         // add the series to the main data object
         return {
@@ -431,6 +440,8 @@ export class rSiteTrack extends rSite{
     }
 
     createContestObj(c2){
+        const baseConfStr = this.rDisciplines.data.find(d=>d.xBaseDiscipline == c2.xBaseDiscipline)?.baseConfiguration;
+        const baseConfiguration = baseConfStr ? JSON.parse(baseConfStr) : '';
         return {
             conf: c2.conf,
             datetimeAppeal: c2.datetimeAppeal,
@@ -441,6 +452,7 @@ export class rSiteTrack extends rSite{
             xBaseDiscipline: c2.xBaseDiscipline,
             xContest: c2.xContest,
             series:[],
+            baseConfiguration,
         }
     }
 }

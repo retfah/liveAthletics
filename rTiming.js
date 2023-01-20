@@ -1,7 +1,8 @@
 import roomServer from "./roomServer.js";
 import rSiteTrackClientForTiming from "./rSiteTrackClientForTiming.js";
 import tcpClientAutoReconnect from "./tcpClient.js";
-
+import {promises as fs} from 'fs';
+import wsManagerClass from './wsServer2Server.js';
 /**
  * IDEAS: 
  * - rTiming has two datasets: the rSite it is connected to (stored in rSiteClient) and its own. 
@@ -11,7 +12,7 @@ import tcpClientAutoReconnect from "./tcpClient.js";
  */
 export default class rTiming extends roomServer{
     
-    constructor(wsManager, timingName, eventHandler, mongoDb, logger, heatsPushable=false, reactionPullable=false, resultsPullable=false){
+    constructor(wsManagerOld, timingName, eventHandler, mongoDb, logger, heatsPushable=false, reactionPullable=false, resultsPullable=false){
         
         // initialize the room
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTickets=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true, keepWritingTicket=true)
@@ -19,6 +20,54 @@ export default class rTiming extends roomServer{
         let roomName = `timing${timingName}`;
         super(eventHandler, mongoDb, logger, roomName, true, -1, false, undefined, false, true);
 
+        // we cannot use the ws connection provided by wsManager, since we need to use a separate client (or server) for every timing software. Otherwise, the note/request handlers will deliver the incoming messages to rSite-Server instead of rSite. (Note: it is impossible to have client and server on the same connection, since the room name is the same and there is no other concept to differentiate between server and client). How can we adopt the wsManager for this?
+        // TODO: note+request handlers! They must be able to handle the rSiteClient!
+        // actually, I think we only need note handler for the moment, since clients only receive notes, but no requests
+        let requestHandlerCreator = (wsProcessorInstance, ws)=>{
+            return (request, responseFunc)=>{
+                // handle requests
+            }
+        }
+        /**
+         * noteHandling: handling the incoming notes. Must have one argument, so it can be used in the wsProcessor directly. Currently this is unused yet, as so far everything is a request...
+         * IMPORTANT TODO: make sure that notes of the wrong data type do not crash the server!
+         * @param {any} note The data that was sent. could be any datatype, as defined on client and server as soon it is used. 
+         */
+        const noteHandlerCreator = (wsProcessor, ws={})=>{
+
+            return (note)=>{
+
+                if (!('name' in note) || !('data' in note)){
+                    logger.log(75, 'The note "'+note.toString()+'" must have properties data and name');
+                    return;
+                } 
+
+                let name = note.name;
+                let data = note.data;
+
+                if(name=='room'){
+                    
+                    // tabId must have been reported before; the rooms expect to get this information
+                    if ('arg' in data && 'roomName' in data && ws.tabID){ // as of 2021-01
+
+                        // the room name must be the name of the rSiteClient (not server!) This procedure is unusual for the Server. 
+                        if (data.roomName == this.rSiteClient.name){
+                            this.rSiteClient.wsNoteIncoming(data.arg, data.opt)
+                        } else {
+                            logger.log(75, `The only allowed room in this ws connection is ${this.rSiteClient.name}, but room name was ${data.roomName}. Neglecting note with arg=${data.arg} and opt=${data.opt}`);
+                        }
+
+                    } else {
+                        logger.log(75, 'Missing arguments (a request to "room" must contain the properties "arg" and "roomName")');
+                    }
+
+                }else{
+                    let errMsg = '"'+ name +'" does not exist as keyword for Websocket notes.';
+                    logger.log(5, errMsg);
+                }
+            }
+        }
+        const wsManager = new wsManagerClass(logger, eventHandler, requestHandlerCreator, noteHandlerCreator);
         this.wsManager = wsManager;
 
         // store the ws connection and the rSiteClient
@@ -61,6 +110,8 @@ export default class rTiming extends roomServer{
             data: [], // here we put the actual data with contests and heats!
 
             contests: [], // will be filled with the data of the rSiteTrackClient.contests
+
+            meeting:{}, // will be filled with the meeting data rSiteTrackClient.meeting
         }
 
         this.defaultSiteConf = {
@@ -288,7 +339,7 @@ export default class rTiming extends roomServer{
 
                 this.rSiteClient = null;
                 // on failure try again after a timeout:
-                setTimeout(createSiteClient, 2000); // retry every 2 seconds
+                setTimeout(connectRoom, 2000); // retry every 2 seconds
             }
             let successCB = ()=>{
                 this.data.infos.siteRoomConnected = true;
@@ -297,6 +348,7 @@ export default class rTiming extends roomServer{
 
                 // reference the rSite data in this room.
                 this.data.contests = this.rSiteClient.data.contests;
+                this.data.meeting = this.rSiteClient.data.meeting;
                 // broadcast data
                 this.broadcastSiteData();
 
@@ -340,7 +392,8 @@ export default class rTiming extends roomServer{
 
     }
 
-    // exemplary:
+    // TODO: provide a function to actively reload the data in rSIteTrackClient in order to get the updated rMeeting data. (Since this data typically does not change during a meeting, it is not so important.)
+
     closeSiteConnection(){
         if (this.conn?.connected){
             this.data.infos.siteRoomConnected = false;
@@ -368,6 +421,29 @@ export default class rTiming extends roomServer{
         }
     }
 
+    // sort the local data by the starttime, heat number and position
+    sortData(){
+        // first sort the contests
+        this.data.data.sort((c1, c2)=>{
+            return c1.datetimeStart-c2.datetimeStart;
+        })
+
+        // then sort each series
+        for (let c of this.data.data){
+            c.series.sort((s1, s2)=>{
+                // use the number for sorting.
+                return s1.number-s2.number;
+            })
+
+            // sort the athletes in the heat
+            for (let s of c.series){
+                s.SSRs.sort((ssr1, ssr2)=>{
+                    return ssr1.position-ssr2.position;
+                })
+            }
+        }
+    }
+
     /**
      * compare all data from rSite (this.data.contests) with the local data (this.data.data) and see what information shall be transferred or not on the basis of the settings in this.data.auto
      */
@@ -375,21 +451,81 @@ export default class rTiming extends roomServer{
         // make sure that the changes are not actually processed one by one, but only at the end
         this.deferWrite = true;
 
-        // compare local data with the data in the room
+        /**  compare local data with the data in the room
+         * 
+         * IMPORTANT: How to know which way to transfer data: 
+         * - series only in site --> transfer to timing
+         * - series only in timing (happens when series are deleted in site or when the timing creats series)
+         *   - if a flag ("timingCreated") is set that the heat was created by the timing software, keep it as it is.
+         *   - if not:
+         *     - if there are results: keep as it is (Note: this should not happen!)
+         *     - otherwise: delete the series in timing
+         * - series exists in site and timing: 
+         *   - timing has results --> copy from timing to site (note that this might overwrite manual results, if addResultAuto does not restrict the overwrite, e.g. because the series-status is finished, but addResultAuto only occurs when in progress.)
+         *   - timing has no results --> copy
+         */
         for (let contestS of this.data.contests){
             // check if the contest also exists in rTiming
             let contestT = this.data.data.find(c=>c.xContest==contestS.xContest);
             if (contestT){
                 // compare every heat
-                // TODO
+                // add and update
+                for (let seriesS of contestS.series){
+                    let seriesT = contestT.series.find(s=>s.xSeries == seriesS.xSeries);
+                    if (!seriesT){
+                        // create series
+                        this.addSeriesTiming({contest: contestT, series: seriesS});
+                    } else {
+                        if (!this.objectsEqual( seriesS, seriesT, false, false )){
+                            // if there are no results yet, copy the series to timing, otherwise vice versa
+                            let hasResults = false;
+                            for (let SSR of seriesT.SSRs){
+                                if (SSR.resultstrack){
+                                    hasResults = true;
+                                    break;
+                                }
+                            }
+                            if (hasResults){
+                                // has results --> copy to rSite
+                                // TODO !!! 
+                            } else{
+                                this.changeSeriesTiming(seriesS);
+                            }
+                        }
+                    }
+                }
+                // handle cases where a series is only availble in the timing.
+                for (let seriesT of contestT.series){
+                    let seriesS = contestS.series.find(s=>s.xSeries == seriesT.xSeries);
+                    if (!seriesS){
+                        // the series is only available in timing
+                        // check if the flag is set, then simply keep everything as it is.
+                        if (seriesT.timingCreated) continue;
+                        // if there are no results in this series, delete it
+                        let hasResults = false;
+                        for (let SSR of seriesT.SSRs){
+                            if (SSR.resultstrack){
+                                hasResults = true;
+                                break;
+                            }
+                        }
+                        if (!hasResults){
+                            this.deleteSeriesTiming(seriesT);
+                        }
+
+                    } // the other cases were already handled above.
+                }
+                
             } else {
                 // call addSeries in this room for every heat. (auto take-over will be checked there!)
+                // Note: addSeries also adds the contest
                 for (let s of contestS.series){
                     this.addSeriesTiming({contest: contestS, series: s});
                 }
             }
-
         }
+        // sort all data
+        this.sortData();
 
         this.deferWrite = false;
         this.deferredWrite();
@@ -421,6 +557,9 @@ export default class rTiming extends roomServer{
             this.propertyTransfer(contest, cNew);
             cNew.series = this.data.data[ic].series;
             this.data.data[ic] = cNew; 
+
+            // sort all data
+            this.sortData();
             
             this._storeData(); // async
             
@@ -431,15 +570,18 @@ export default class rTiming extends roomServer{
             }
             this.processChange(doObj, {}) 
 
+            this.changedContest(cNew);
+
         }
     }
     changeSeriesTiming(series){
         if (this.data.auto.changeSeriesAuto == -2 || (this.data.auto.changeSeriesAuto>=0 && this.data.auto.changeSeriesAuto <=series.status)){
             // search the contest first
             const c = this.data.data.find(c=>c.xContest==series.xContest);
+            let s;
             if (c){
                 // search the series
-                const s = c.series.find(s=>s.xSeries == series.xSeries);
+                s = c.series.find(s=>s.xSeries == series.xSeries);
 
                 // update it
                 this.propertyTransfer(series, s)
@@ -447,6 +589,8 @@ export default class rTiming extends roomServer{
             } else {
                 this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
             }
+            // sort all data
+            this.sortData();
             this._storeData(); // async
 
             // broadcast the change:
@@ -455,6 +599,8 @@ export default class rTiming extends roomServer{
                 data: series,
             }
             this.processChange(doObj, {})
+
+            this.changedSeries(s, c);
         }
     }
     deleteSeriesTiming(series){
@@ -481,6 +627,8 @@ export default class rTiming extends roomServer{
             } else {
                 this.logger.log(20, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
             }
+            // sort all data
+            this.sortData();
             this._storeData(); // async
 
             // broadcast the change:
@@ -489,6 +637,8 @@ export default class rTiming extends roomServer{
                 data: series,
             }
             this.processChange(doObj, {})
+
+            this.deletedSeries(series, c);
         }
     }
     addSeriesTiming(data){
@@ -507,6 +657,8 @@ export default class rTiming extends roomServer{
             const newSeriesT = {}
             this.propertyTransfer(seriesS, newSeriesT)
             c.series.push(newSeriesT);
+            // sort all data
+            this.sortData();
             this._storeData(); // async
 
             // broadcast the change:
@@ -515,7 +667,34 @@ export default class rTiming extends roomServer{
                 data: data,
             }
             this.processChange(doObj, {})
+
+            this.seriesAdded(newSeriesT, c);
         }
+    }
+
+    /**
+     * Called whenever a series was added to rTiming. To be implemented by the timing.
+     */
+    seriesAdded(series, contest){
+
+    }
+    /**
+     * Called whenever a series was deleted in rTiming. To be implemented by the timing.
+     */
+    deletedSeries(series, contest){
+
+    }
+    /**
+     * Called whenever a series was changed in rTiming. To be implemented by the timing.
+     */
+    changedSeries(series, contest){
+
+    }
+    /**
+     * Called whenever a contest was changed in rTiming. To be implemented by the timing.
+     */
+    changedContest(contest){
+
     }
 
     broadcastInf(){
@@ -536,18 +715,6 @@ export default class rTiming extends roomServer{
     // called after many changes to this.data.data were made, while "deferWrite" was true
     deferredWrite(){
 
-    }
-    
-    // TODO: which functions do we need in rTiming?
-    // --> every event that might be raised either from the rSiteTrackClient or from the timing (e.g. when results have arrived.)
-    // implement here how it should be reacted, e.g. automatically write results to rSite or not / automatically write changed series to timing (or just wait); also known as push/pull/manual modes !!! (see Prozesse.md)
-
-    /**
-     * Called by rSiteTrack when a series is changed
-     * @param {TODO} heat 
-     */
-    heatChanged(heat){
-        // do nothing here; to be implemented by the timing specific part, where we also 
     }
 
 
@@ -682,6 +849,7 @@ export default class rTiming extends roomServer{
                 xBaseDiscipline: c2.xBaseDiscipline,
                 xContest: c2.xContest,
                 series:[],
+                baseConfiguration: c2.baseConfiguration,
             }
             this.data.data.push(c);
         }
@@ -712,6 +880,192 @@ export default class rTiming extends roomServer{
         // store the data to DB
         return this.collection.updateOne({type:'data'}, {$set:{data: this.data.data}})
     }
+
+    // copied from https://github.com/ReactiveSets/toubkal/blob/master/lib/util/value_equals.js
+    /* --------------------------------------------------------------------------
+        @function value_equals( a, b, enforce_properties_order, cyclic )
+        
+        @short Returns true if a and b are deeply equal, false otherwise.
+        
+        @parameters
+        - **a** (Any type): value to compare to ```b```
+        - **b** (Any type): value compared to ```a```
+        - **enforce_properties_order** (Boolean): true to check if Object
+        properties are provided in the same order between ```a``` and
+        ```b```
+        - **cyclic** (Boolean): true to check for cycles in cyclic objects
+        
+        @description
+        Implementation:
+        ```a``` is considered equal to ```b``` if all scalar values in
+        a and b are strictly equal as compared with operator '===' except
+        for these two special cases:
+        - ```0 === -0``` but are not considered equal by value_equals().
+        - ```NaN``` is not equal to itself but is considered equal by
+        value_equals().
+        
+        ```RegExp``` objects must have the same ```lastIndex``` to be
+        considered equal. i.e. both regular expressions have matched
+        the same number of times.
+        
+        Functions must be identical, so that they have the same closure
+        context.
+        
+        ```undefined``` is a valid value, including in Objects
+        
+        This function is checked by 106 CI tests.
+        
+        Provide options for slower, less-common use cases:
+        
+        - Unless enforce_properties_order is true, if ```a``` and ```b```
+        are non-Array Objects, the order of occurence of their attributes
+        is considered irrelevant: ```{ a: 1, b: 2 }``` is considered equal
+        to ```{ b: 2, a: 1 }```.
+        
+        - Unless cyclic is true, Cyclic objects will throw a
+        ```RangeError``` exception: ```"Maximum call stack size exceeded"```
+    */
+    objectsEqual( a, b, enforce_properties_order, cyclic ) {
+        return a === b       // strick equality should be enough unless zero
+            && a !== 0         // because 0 === -0, requires test by _equals()
+            || _equals( a, b ) // handles not strictly equal or zero values
+        ;
+        
+        function _equals( a, b ) {
+            // a and b have already failed test for strict equality or are zero
+            
+            var toString = Object.prototype.toString;
+            var s, l, p, x, y;
+            
+            // They should have the same toString() signature
+            if ( ( s = toString.call( a ) ) !== toString.call( b ) ) return false;
+            
+            switch( s ) {
+            default: // Boolean, Date, String
+                return a.valueOf() === b.valueOf();
+            
+            case '[object Number]':
+                // Converts Number instances into primitive values
+                // This is required also for NaN test bellow
+                a = +a;
+                b = +b;
+                
+                return a ?         // a is Non-zero and Non-NaN
+                    a === b
+                :                // a is 0, -0 or NaN
+                    a === a ?      // a is 0 or -O
+                    1/a === 1/b    // 1/0 !== 1/-0 because Infinity !== -Infinity
+                : b !== b        // NaN, the only Number not equal to itself!
+                ;
+            // [object Number]
+            
+            case '[object RegExp]':
+                return a.source   == b.source
+                && a.global     == b.global
+                && a.ignoreCase == b.ignoreCase
+                && a.multiline  == b.multiline
+                && a.lastIndex  == b.lastIndex
+                ;
+            // [object RegExp]
+            
+            case '[object Function]':
+                return false; // functions should be strictly equal because of closure context
+            // [object Function]
+            
+            case '[object Array]':
+                if ( cyclic && ( x = reference_equals( a, b ) ) !== null ) return x; // intentionally duplicated bellow for [object Object]
+                
+                if ( ( l = a.length ) != b.length ) return false;
+                // Both have as many elements
+                
+                while ( l-- ) {
+                if ( ( x = a[ l ] ) === ( y = b[ l ] ) && x !== 0 || _equals( x, y ) ) continue;
+                
+                return false;
+                }
+                
+                return true;
+            // [object Array]
+            
+            case '[object Object]':
+                if ( cyclic && ( x = reference_equals( a, b ) ) !== null ) return x; // intentionally duplicated from above for [object Array]
+                
+                l = 0; // counter of own properties
+                
+                if ( enforce_properties_order ) {
+                var properties = [];
+                
+                for ( p in a ) {
+                    if ( a.hasOwnProperty( p ) ) {
+                    properties.push( p );
+                    
+                    if ( ( x = a[ p ] ) === ( y = b[ p ] ) && x !== 0 || _equals( x, y ) ) continue;
+                    
+                    return false;
+                    }
+                }
+                
+                // Check if 'b' has as the same properties as 'a' in the same order
+                for ( p in b )
+                    if ( b.hasOwnProperty( p ) && properties[ l++ ] != p )
+                    return false;
+                } else {
+                for ( p in a ) {
+                    if ( a.hasOwnProperty( p ) ) {
+                    ++l;
+                    
+                    if ( ( x = a[ p ] ) === ( y = b[ p ] ) && x !== 0 || _equals( x, y ) ) continue;
+                    
+                    return false;
+                    }
+                }
+                
+                // Check if 'b' has as not more own properties than 'a'
+                for ( p in b )
+                    if ( b.hasOwnProperty( p ) && --l < 0 )
+                    return false;
+                }
+                
+                return true;
+            // [object Object]
+            } // switch toString.call( a )
+        } // _equals()
+        
+        /* -----------------------------------------------------------------------------------------
+            reference_equals( a, b )
+            
+            Helper function to compare object references on cyclic objects or arrays.
+            
+            Returns:
+            - null if a or b is not part of a cycle, adding them to object_references array
+            - true: same cycle found for a and b
+            - false: different cycle found for a and b
+            
+            On the first call of a specific invocation of equal(), replaces self with inner function
+            holding object_references array object in closure context.
+            
+            This allows to create a context only if and when an invocation of equal() compares
+            objects or arrays.
+        */
+        function reference_equals( a, b ) {
+            var object_references = [];
+            
+            return ( reference_equals = _reference_equals )( a, b );
+            
+            function _reference_equals( a, b ) {
+            var l = object_references.length;
+            
+            while ( l-- )
+                if ( object_references[ l-- ] === b )
+                return object_references[ l ] === a;
+            
+            object_references.push( a, b );
+            
+            return null;
+            } // _reference_equals()
+        } // reference_equals()
+    } // equals()
+      
 
 }
 
@@ -832,8 +1186,11 @@ export class rTimingAlge extends rTiming {
         }
 
         const onData = (data)=>{
-
+            console.log(`timing data: ${data}`)
             // TODO: provess the data according to the options !!!
+            // HeatResult: the reserved field is not available!
+            // if "SendResultlistWhenHeatDataChanged" is set to true in the ALGE-Versatile settings, a heatresult is sent whenever a time is entered; 
+            // the competitorEvaluated is not used when a time is entered. Probably this only works when the time was set defined through the image.  
 
         }
 
@@ -881,16 +1238,118 @@ export class rTimingAlge extends rTiming {
     }
 
 
-    writeInput(){
+    async writeInput(){
+        
+        // first, sort the contests and series by date/time!
+
         // TODO: write the input file from this.data.data
+        // try to open the file to write. (This command will already truncate the file)
+        // NOTE: do not use the meeting name as the file name on purpose to avoid that the file name changes when the meeting name is changed!
+        const file = await fs.open(this.data.timingOptions.xmlHeatsFolder + '\\liveAthletics.meetxml', 'w');
+
+        // write header
+        await file.write(`<?xml version="1.0" encoding="utf-8"?>\r\n<Meet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="${this.data.meeting.name}" Id="${this.data.meeting.shortname}">\r\n`); 
+        
+        if (this.data.data.length>0){
+            // add the new content
+
+            // add the first session
+            let d = new Date(this.data.data[0].datetimeStart);
+            let currentSession = d.toISOString().split('T')[0];
+            let sessionNumber = 1;
+            await file.write(`\t<Session Name="${currentSession}" Id="${currentSession}" Nr="${sessionNumber}" Type="Run" Date="${currentSession}">\r\n`);
+
+            // loop over all contests
+            for (let c of this.data.data){
+                let d2 = new Date(c.datetimeStart);
+                let s2 = d2.toISOString().split('T')[0];
+                if (s2 != currentSession){
+                    // end the session and start the new one
+                    sessionNumber++;
+                    currentSession = s2;
+                    await file.write(`\t</Session>\r\n\t<Session Name="${currentSession}" Id="${currentSession}" Nr="${sessionNumber}" Type="Run" Date="${currentSession}">\r\n`);
+                }
+
+                // begin event
+                let cName = c.name.length==0 ? `${c.baseConfiguration.distance}m ${c.xContest}` : c.name; 
+                let cTime = (new Date(c.datetimeStart)).toISOString().split('T')[1].slice(0,8);
+                
+                await file.write(`\t\t<Event Name="${cName}" Id="${c.xContest}" Distance="${c.baseConfiguration.distance}" DistanceType="${c.baseConfiguration.type}" ScheduledStarttime="${cTime}">\r\n`) //distanceType (regular, hurdles, relay, steeplechase), windmeasurement "None", "5Seconds", "10Seconds", "13Seconds", "10SecondsWith10SecondsDelay"
+                // additionally available: Nr
+                
+                // insert heats
+                for (let s of c.series){
+                    // begin heat
+                    let sName = s.name.length==0 ? `${cName} - ${s.number}` : s.name;
+                    let sTime = (new Date(s.datetime)).toISOString().split('T')[1].slice(0,8);
+                    await file.write(`\t\t\t<Heat Name="${sName}" ScheduledStarttime="${sTime}" Id="${s.id}" Nr="${s.number}" Distance="${c.baseConfiguration.distance}" DistanceType="${c.baseConfiguration.type}">\r\n`) 
+                    // actually we could also use the xSeries as id
+
+                    // add athletes
+                    for (let SSR of s.SSRs){
+
+                        // process lane and position: if the race ends in a lane, provide the startConf, the position otherwise
+                        let lane;
+                        if (c.baseConfiguration.finishInLanes){
+                            lane = Number(SSR.startConf);
+                        } else {
+                            lane = SSR.position;
+                        }
+
+                        await file.write(`\t\t\t\t<Competitor Bib="${SSR.bib}" Lane="${lane}" Lastname="${SSR.athleteName}" Firstname="${SSR.athleteForename}" Nation="${SSR.country}" Club="${SSR.clubName}" Gender="${SSR.sex.toUpperCase()}" Class="${SSR.category}" Reserved1="${SSR.xSeriesStart}" Id="${SSR.xSeriesStart}" />\r\n`)
+                    }
+
+                    // end heat
+                    await file.write(`\t\t\t</Heat>\r\n`);
+                }
+
+                // end event
+                await file.write(`\t\t</Event>\r\n`);
+            }
+
+            // end the last session
+            await file.write(`\t</Session>\r\n`)
+        }
+
+        // write footer
+        await file.write(`</Meet>`);
+
+        await file.close();
+
+        this.logger.log(98, `${this.name}: Heats file written.`)
     }
 
     /**
-     * Called by rSiteTrack when a series is changed
-     * @param {TODO} heat 
+     * Called whenever a series was added to rTiming. To be implemented by the timing.
      */
-    heatChanged(heat){
-
+    seriesAdded(series, contest){
+        if (!this.deferWrite){
+            this.writeInput();
+        }
+    }
+    /**
+     * Called whenever a series was deleted in rTiming. To be implemented by the timing.
+     */
+    deletedSeries(series, contest){
+        if (!this.deferWrite){
+            this.writeInput();
+        }
+    }
+    /**
+     * Called whenever a series was changed in rTiming. To be implemented by the timing.
+     */
+    changedSeries(series, contest){
+        if (!this.deferWrite){
+            this.writeInput();
+        }
+    }
+    /**
+     * Called whenever a contest was changed in rTiming. To be implemented by the timing.
+     */
+    changedContest(contest){
+        if (!this.deferWrite){
+            this.writeInput();
+        }
     }
 
     // implement here all ALGE specific stuff (connection to timing) while the general stuff (connection to rSite via rSiteClient, etc) shall be handled in the parent class

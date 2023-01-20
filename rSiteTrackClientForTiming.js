@@ -128,9 +128,11 @@ class rSiteTrackClientForTiming extends roomClient{
 
 // extend the class rSiteTrackCLient with all methods except the constructor
 // need to rename the functions, since we overwrite them here!
+const mixin2 = {}
 for (let f in mixin){
-    rSiteTrackClientForTiming[`${f}2`] = mixin[f];
+    //rSiteTrackClientForTiming[`${f}2`] = mixin[f];
+    mixin2[`${f}2`] = mixin[f];
 }
-//Object.assign(rSiteTrackClientForTiming.prototype, mixin);
+Object.assign(rSiteTrackClientForTiming.prototype, mixin2);
 
 export default rSiteTrackClientForTiming;

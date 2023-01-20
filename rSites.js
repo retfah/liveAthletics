@@ -21,7 +21,7 @@ class rSites extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rContests, rDisciplines){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rContests, rDisciplines, rMeeting){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -39,6 +39,7 @@ class rSites extends roomServer{
 
         this.rContests = rContests;
         this.rDisciplines = rDisciplines;
+        this.rMeeting = rMeeting; // needed for specific site room to tell the timing some background info about the meeting.
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
@@ -371,7 +372,7 @@ class rSites extends roomServer{
         try{
             if (type==0){
 
-                let subroom = new rSiteTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, this, site, this.rContests, this.rDisciplines)
+                let subroom = new rSiteTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, this, site, this.rContests, this.rDisciplines, this.rMeeting)
 
                 // save the room: 
                 this.subrooms[subroomName] = subroom;
