@@ -21,7 +21,7 @@ export default class roomClient {
 
     /**
      * 
-     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked room.
+     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked vue.
      * @param {string} name The name of the room to connect to. 
      * @param {wsHandler} wsHandler The wshandler to use for sending data to the server
      * @param {eventHandler} eventHandler The used eventHandler instance, allowing different 'modules'/'rooms' to communicate through named signals 
@@ -45,6 +45,8 @@ export default class roomClient {
         } else {
             this.logger = logger; // global object, always present in the browser
         }
+        // --> react on lost ws-connection --> change to connected=false
+        this.eH = eventHandler;
 
         // here the data-model is stored.
         this.data = {}
@@ -79,6 +81,8 @@ export default class roomClient {
         }*/
         // save the CB function for wrting-ticket-ID changes. This allows the inheriting class to either 1) try reconecting without 
 
+        // if the last vue does not use this room anymore, leave the room and notify the room manager
+        this.leaveWhenNoVue = true;
 
         // store the roomManager; only needed to present various error messages to the client by calling the respective functions on the roomManager. If undefined, the functions will simply not be called. 
         this.rM = rM;
@@ -143,12 +147,13 @@ export default class roomClient {
         });
         eH.eventSubscribe('wsClosed', ()=>{
             this.connected = false;
+            this.tabIdReported = false;
 
             // if the connection is lost while a request was hanging, the response will never arrive, as the "reopened" connection is not reopened, but is a new one and the server will not be able to send the reponse through the new connection. The last sent (or probably sent) element will stay on the stack and it wil be tried to resend it. When no other change-requst was processed yet, then the server will reply the response directly without reprocessing it and otherwise will return an error and the client will reload everything. 
             this.dataSent = false;
 
             // inform the roomManager 
-            this.eH.raise('roomInfoChange');
+            this.eH.raise('roomInfoChange', this);
         });*/
         
     }
@@ -189,6 +194,9 @@ export default class roomClient {
 
         this.connecting = true;
 
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
+
         var request = ()=>{
 
             numAttempts += 1;
@@ -222,13 +230,20 @@ export default class roomClient {
                     }
                     if (data.infos){
                         this.infos = data.infos;
-                        // eventually we need to raise an event here that is listened by the room manager
-                        this.eH.raise('roomInfoChange');
                     }
 
                     this.logger.log(99, text + '. Full data update.');
 
-                    this.afterFullreload();
+                    // changed 2022-12: before, afterFullReload was always called here and the if function with dataArrived was set below
+                    if (!(this.dataPresent)){
+                        this.dataPresent = true;
+                        
+                        // raise dataArrived-events on all vues
+                        this.vues.forEach(el=>el.dataArrived()) 
+                    } else {
+                        this.afterFullreload();
+                    }
+                    
     
                     // call the success callback with no arguments; the success function will then make sure that the data is further processed
                     success(); 
@@ -264,8 +279,6 @@ export default class roomClient {
                         }
                         if (data.infos){
                             this.infos = data.infos;
-                            // eventually we need to raise an event here that is listened by the room manager
-                            this.eH.raise('roomInfoChange');
                         }
 
                         this.logger.log(99, text + '. Incremental data update done.')
@@ -280,15 +293,11 @@ export default class roomClient {
                         this.getFullData(success, failure);
                     }
                 }
-
-                if (!(this.dataPresent)){
-                    this.dataPresent = true;
-                    
-                    // raise dataArrived-events on all vues
-                    this.vues.forEach(el=>el.dataArrived()) 
-                }
                 
                 this.connected = true; 
+
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
     
             }, (code, msg)=>{
     
@@ -303,6 +312,9 @@ export default class roomClient {
                     } else {
                         failure('Could not connect to server within ' + maxAttemps + ' attempts, as the server was not ready yet.', 23);
                         this.connecting = false;
+                        
+                        // notify the room manager about the changed data
+                        this.eH.raise('roomInfoChange', this);
                     }
 
                 } /*OLD: else if (code==18){
@@ -326,7 +338,6 @@ export default class roomClient {
 
     }
 
-
     /**
      * Leave the room. This MUST be called on leaving the site in order to make sure that the writing ticket is 'given back'
      * TODO: there should be some function that closes the room/view (in room manager) when there is no connected vue instance (this.vues) anymore
@@ -340,6 +351,10 @@ export default class roomClient {
             opt: {}
         });
         this.deleteWritingTicketID();
+
+        
+        // notify the room manager about it 
+        this.rM.deleteRoom(this.name);
     }
 
     /**
@@ -354,7 +369,7 @@ export default class roomClient {
             this.deleteWritingTicketID();
             
             // already update what is shown here, without waiting for the info-broadcast change (as this might not come when the client did not request these infos)
-            this.eH.raise('roomInfoChange');
+            this.eH.raise('roomInfoChange', this);
 
             let message = {
                 roomName: this.name,
@@ -380,7 +395,7 @@ export default class roomClient {
             let succ = (data)=>{
                 if (data.writingTicketID){
                     this.setWritingTicketID(data.writingTicketID);
-                    this.eH.raise('roomInfoChange');
+                    this.eH.raise('roomInfoChange', this);
                 }
             }
 
@@ -490,7 +505,7 @@ export default class roomClient {
                 if (data.writingTicketID){
                     this.setWritingTicketID(data.writingTicketID);
                     // let Vue redraw everything
-                    this.eH.raise('roomInfoChange');
+                    this.eH.raise('roomInfoChange', this);
                 }
             }, (errCode, errMsg)=>{
                 // there was an error somewhere...
@@ -529,9 +544,9 @@ export default class roomClient {
             }
             if (data.infos){
                 this.infos = data.infos;
-                // eventually we need to raise an event here that is listened by the room manager
-                this.eH.raise('roomInfoChange');
             }
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
 
             this.logger.log(99, text)
 
@@ -567,6 +582,8 @@ export default class roomClient {
                 if (change.ID!=null){
                     this.ID = change.ID;
                 }
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
 
                 // notify vue's
                 this.onChange();
@@ -603,7 +620,8 @@ export default class roomClient {
             this.requestWritingTicket();
         }
 
-        this.eH.raise('roomInfoChange');
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
     }
 
     /**
@@ -660,6 +678,9 @@ export default class roomClient {
 
         // add an element to the stack
         this.stack.push({request: request, functionOverride: functionOverride, funcRollback: funcRollback, info:info, opt:opt})
+        
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
 
         // if the stack was empty, start now the syncing
         if (l==0){
@@ -693,6 +714,9 @@ export default class roomClient {
             // always use acknowledgement, but without timeout. 
             this.stack[0].opt.sendAck = true;
 
+            // notify the room manager about the sent data
+            this.eH.raise('roomInfoChange', this);
+
             this.wsHandler.emitRequest("room", sendData, (data)=>{
                 // currently no change is on the way anymore:
                 this.dataSent = false;
@@ -716,6 +740,9 @@ export default class roomClient {
 
                 // notify vue's
                 this.onChange();
+                
+                // notify the room manager about the changed stack length
+                this.eH.raise('roomInfoChange', this);
 
                 if (this.stack.length>0){
                     this.sync()
@@ -783,7 +810,7 @@ export default class roomClient {
                 var deleteContinue = (ruleObj)=>{
                     // ruleObj is the applied rule-object, containing among others the options for showing the errors.
 
-                    this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete request and continue. (Room: ${this.name}, request content: ${request})`);
+                    this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete request and continue. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                     if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
                         let popupErrMsg = "popupErrMsg" in ruleObj ? ruleObj.popupErrMsg : false;
@@ -807,7 +834,7 @@ export default class roomClient {
                 // ruleObj is the applied rule-object, containing among others the options for showing the errors.
                 var deleteRollback = (ruleObj)=>{
 
-                    this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete and rollback the request. (Room: ${this.name}, request content: ${request})`);
+                    this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Delete and rollback the request. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                     if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
                         let popupErrMsg = "popupErrMsg" in ruleObj ? ruleObj.popupErrMsg : true;
@@ -890,7 +917,7 @@ export default class roomClient {
                         // the data is still on the stack and will stay there.
                         // if this rule is applied when the connection was lost, sync will not be executed until the connection is back (inlc TabID reported) anyway:
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send teh request again. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send teh request again. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // notify user
                         if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
@@ -920,7 +947,7 @@ export default class roomClient {
 
                         },1000*timeout)
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to resend the request after a timeout. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to resend the request after a timeout. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // notify user
                         if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
@@ -942,7 +969,7 @@ export default class roomClient {
                     } else if (ruleObj.rule=="user"){
                         // simply call the provided function. Attention: the function must be appropriately implemented!
 
-                        this.logger.log(8, `Error while sending request "${this.stack[0].info}" to server. Code: ${errCode}, Msg: ${errMsg}. A user-function is executed for error handling. (Room: ${this.name}, request content: ${request})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. A user-function is executed for error handling. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // do not add anything to the message system of the room manager; the called function could do this on its own  when needed. However, using the function is probably anyway better, since this will also allow to translate the respective errCode to the language of the user
                         ruleObj.userFunc(errCode, errMsg)
@@ -964,7 +991,9 @@ export default class roomClient {
                 if (this.onlineOnly){
                     this.stack = [];
                 }
-                
+
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
 
             }, this.stack[0].opt) 
         }
@@ -1006,6 +1035,11 @@ export default class roomClient {
         if (i>=0){
             this.vues.splice(i,1);
         }
+
+        // optional autoclose when no vues are left
+        if (this.leaveWhenNoVue){
+            this.leave();
+        }
     }
 
     /**
@@ -1019,8 +1053,8 @@ export default class roomClient {
         // if the connection is lost while a request was hanging, the response will never arrive, as the "reopened" connection is not reopened, but is a new one and the server will not be able to send the reponse through the new connection. The last sent (or probably sent) element will stay on the stack and it wil be tried to resend it. When no other change-requst was processed yet, then the server will reply the response directly without reprocessing it and otherwise will return an error and the client will reload everything. 
         this.dataSent = false;
 
-        // inform the roomManager 
-        this.eH.raise('roomInfoChange');
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
 
         // called when the server closes the room (not necessarily the connection); this room might shall try to reconnect
         // try to reconnect every second
@@ -1061,16 +1095,30 @@ export default class roomClient {
             // transfer the data element by element, such that "change-events" are raised on the properties and vue can react
             this.propertyTransfer(opt.data, this.data)
 
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
+
             this.afterFullreload();
 			
 		} else if (arg == 'IDchange'){
 			// only update the current ID, e.g. when a change occureds on the server, which has no effect on the dataset on the client
 			this.ID = opt;
+            
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
 		} else if (arg == 'close'){
             
             this.logger.log(30, `The room gets closed due to request by the server.`)
 
             this.close();
+        } else if (arg == 'writingTicketRevoked'){
+            // called when the server revokes the writing ticket of an actually active client. This mainly (or even only) can happen when the server changes from main to secondary mode
+
+            this.deleteWritingTicketID();
+            // notify the room manager about the changed data
+            this.eH.raise('roomInfoChange', this);
+
+            this.logger.log(30, `The writing ticket was revoked by the server.`)
 
         } else {
 			this.logger.log(5, "unknown arg-value ('" + arg + "') in room-note.");
@@ -1125,7 +1173,10 @@ export default class roomClient {
             for (let i=0;i<objFrom.length;i++){
                 // pay attention to objects and arrays --> recursive calls needed
                 if (typeof(objFrom[i])=='object'){
-                    if (typeof(objTo[i])!='object'){
+                    // since typeof(null)=object, we have to handle this separately here
+                    if (objTo[i]===null){
+                        objTo[i] = objFrom[i];
+                    } else if (typeof(objTo[i])!='object'){
                         // if this is not done here and if objTo[i] is just a property, the recursive call on propertyTransfer will not occur byReference, as it must be to work.
                         if (Array.isArray(objFrom[i])){
                             objTo[i] = [];
@@ -1133,6 +1184,7 @@ export default class roomClient {
                             objTo[i] = {};
                         }
                     } else {
+                        // typeof(null)=object; therefore
                         // is it of the same type? otherwise reset the element in objTo
                         if (Array.isArray(objTo[i]) && !Array.isArray(objFrom[i])){
                             objTo[i] = {};
@@ -1272,7 +1324,8 @@ class roomClientVue{
             this.onRoomLinked();
 
         }).catch((err)=>{
-            this.logger.log(2, `The vue could not get the requested room (${roomName}): ${err}`);
+            // logger does nto exist here
+            console.log(`The vue could not get the requested room (${roomName}): ${err}`);
         })
     }
 
@@ -1300,6 +1353,12 @@ class roomClientVue{
      */
     dataArrived(){
         // raised as soon as the room has its data stored for the first time
-        
+        // by default, do the same as afterFullReload.
+        this.afterFullreload()
+    }
+
+    // unregister this vue at the room. The room then will eventually automatically close itself.
+    unregister(){
+        this.room.unregisterVue(this); 
     }
 }

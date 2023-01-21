@@ -21,7 +21,7 @@ export default class roomClient {
 
     /**
      * 
-     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked room.
+     * @param {roomClientVue} v The first vue that will be linked to that room. If v=undefined, then the room will still be opened, but without linked vue.
      * @param {string} name The name of the room to connect to. 
      * @param {wsHandler} wsHandler The wshandler to use for sending data to the server
      * @param {eventHandler} eventHandler The used eventHandler instance, allowing different 'modules'/'rooms' to communicate through named signals 
@@ -45,6 +45,8 @@ export default class roomClient {
         } else {
             this.logger = logger; // global object, always present in the browser
         }
+        // --> react on lost ws-connection --> change to connected=false
+        this.eH = eventHandler;
 
         // here the data-model is stored.
         this.data = {}
@@ -79,6 +81,8 @@ export default class roomClient {
         }*/
         // save the CB function for wrting-ticket-ID changes. This allows the inheriting class to either 1) try reconecting without 
 
+        // if the last vue does not use this room anymore, leave the room and notify the room manager
+        this.leaveWhenNoVue = true;
 
         // store the roomManager; only needed to present various error messages to the client by calling the respective functions on the roomManager. If undefined, the functions will simply not be called. 
         this.rM = rM;
@@ -143,12 +147,13 @@ export default class roomClient {
         });
         eH.eventSubscribe('wsClosed', ()=>{
             this.connected = false;
+            this.tabIdReported = false;
 
             // if the connection is lost while a request was hanging, the response will never arrive, as the "reopened" connection is not reopened, but is a new one and the server will not be able to send the reponse through the new connection. The last sent (or probably sent) element will stay on the stack and it wil be tried to resend it. When no other change-requst was processed yet, then the server will reply the response directly without reprocessing it and otherwise will return an error and the client will reload everything. 
             this.dataSent = false;
 
             // inform the roomManager 
-            this.eH.raise('roomInfoChange');
+            this.eH.raise('roomInfoChange', this);
         });*/
         
     }
@@ -182,13 +187,15 @@ export default class roomClient {
         opt.datasetName = this.datasetName;
         if (this.roomEnterOptions){
             opt.enterOptions = this.roomEnterOptions;
-
         }
 
         var numAttempts = 0;
         var maxAttemps = 10; // how many times it will be tested to (re)-connect to the server (if it formerly was not ready yet.) -1 for infinity
 
         this.connecting = true;
+
+        // notify the room manager about the changed data
+        this.eH.raise('roomInfoChange', this);
 
         var request = ()=>{
 
@@ -223,13 +230,20 @@ export default class roomClient {
                     }
                     if (data.infos){
                         this.infos = data.infos;
-                        // eventually we need to raise an event here that is listened by the room manager
-                        this.eH.raise('roomInfoChange');
                     }
 
                     this.logger.log(99, text + '. Full data update.');
 
-                    this.afterFullreload();
+                    // changed 2022-12: before, afterFullReload was always called here and the if function with dataArrived was set below
+                    if (!(this.dataPresent)){
+                        this.dataPresent = true;
+                        
+                        // raise dataArrived-events on all vues
+                        this.vues.forEach(el=>el.dataArrived()) 
+                    } else {
+                        this.afterFullreload();
+                    }
+                    
     
                     // call the success callback with no arguments; the success function will then make sure that the data is further processed
                     success(); 
@@ -265,8 +279,6 @@ export default class roomClient {
                         }
                         if (data.infos){
                             this.infos = data.infos;
-                            // eventually we need to raise an event here that is listened by the room manager
-                            this.eH.raise('roomInfoChange');
                         }
 
                         this.logger.log(99, text + '. Incremental data update done.')
@@ -281,15 +293,11 @@ export default class roomClient {
                         this.getFullData(success, failure);
                     }
                 }
-
-                if (!(this.dataPresent)){
-                    this.dataPresent = true;
-                    
-                    // raise dataArrived-events on all vues
-                    this.vues.forEach(el=>el.dataArrived()) 
-                }
                 
-                this.connected = true;
+                this.connected = true; 
+
+                // notify the room manager about the changed data
+                this.eH.raise('roomInfoChange', this);
     
             }, (code, msg)=>{
     
@@ -304,6 +312,9 @@ export default class roomClient {
                     } else {
                         failure('Could not connect to server within ' + maxAttemps + ' attempts, as the server was not ready yet.', 23);
                         this.connecting = false;
+                        
+                        // notify the room manager about the changed data
+                        this.eH.raise('roomInfoChange', this);
                     }
 
                 } /*OLD: else if (code==18){
@@ -312,8 +323,9 @@ export default class roomClient {
                     // TODO: maybe let the inheriting class define a callback, that would be called now.
                     failure(msg, code);
                 }*/ else {
-                    this.logger.log(3, 'Connecting to room failed with the following code and message: ' + code + ": " + msg);
-                    failure('Connecting to room failed with the following code and message: ' + code + ": " + msg, code)
+                    let msg2 = `Connecting to room ${this.name} failed with the following code and message: ${code}: ${msg}`;
+                    this.logger.log(3, msg2);
+                    failure(msg2, code)
                 }
             });
         }
@@ -325,7 +337,6 @@ export default class roomClient {
 
 
     }
-
 
     /**
      * Leave the room. This MUST be called on leaving the site in order to make sure that the writing ticket is 'given back'
@@ -340,6 +351,10 @@ export default class roomClient {
             opt: {}
         });
         this.deleteWritingTicketID();
+
+        
+        // notify the room manager about it 
+        this.rM.deleteRoom(this.name);
     }
 
     /**
@@ -354,7 +369,7 @@ export default class roomClient {
             this.deleteWritingTicketID();
             
             // already update what is shown here, without waiting for the info-broadcast change (as this might not come when the client did not request these infos)
-            this.eH.raise('roomInfoChange');
+            this.eH.raise('roomInfoChange', this);
 
             let message = {
                 roomName: this.name,
