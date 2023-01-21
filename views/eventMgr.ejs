@@ -836,6 +836,9 @@
                     return this.disciplines.filter(d=>d.indoor==this.meeting.isIndoor);
 
                 },
+                baseDisciplinesSeasonFiltered: function(){
+                    return this.baseDisciplines.filter(bd=>bd.indoor == this.meeting.isIndoor);
+                },
                 maxDateTime: function(){
                     return `${this.meeting.dateTo.slice(0,10)}T23:59`;
                 },
@@ -1467,7 +1470,7 @@
                         <label style="display: inline-block;">
                             <%= __("Base discipline") %>
                             <select v-model.number="newXBaseDiscipline" v-bind:disabled="createContestFixedDisc">
-                                <option v-for="bd in baseDisciplines" v-bind:value="bd.xBaseDiscipline">{{getBaseDisciplineName(bd.xBaseDiscipline)}}</option>
+                                <option v-for="bd in baseDisciplinesSeasonFiltered" v-bind:value="bd.xBaseDiscipline">{{getBaseDisciplineName(bd.xBaseDiscipline)}}</option>
                             </select>
                         </label>
                         <label style="display:inline-block">
