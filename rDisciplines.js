@@ -148,6 +148,7 @@ class rDisciplines extends roomServer{
                         shortname: shortname,
                         configuration:d.configuration,
                         baseConfiguration: bd.baseConfiguration,
+                        info: d.info,
                     })
                 }
             }

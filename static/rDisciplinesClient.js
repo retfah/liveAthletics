@@ -93,6 +93,7 @@ export class rDisciplinesClient extends roomClient{
                         shortname: shortname,
                         configuration: d.configuration,
                         baseConfiguration: bd.baseConfiguration,
+                        info: d.info,
                     })
                 }
             }
