@@ -116,6 +116,8 @@ export default class rTiming extends roomServer{
             contests: [], // will be filled with the data of the rSiteTrackClient.contests
 
             meeting:{}, // will be filled with the meeting data rSiteTrackClient.meeting
+
+            disciplines: [], // raw data of rDiscipline; received via rSiteTrackClient
         }
 
         this.defaultSiteConf = {
@@ -361,6 +363,7 @@ export default class rTiming extends roomServer{
                 // reference the rSite data in this room.
                 this.data.contests = this.rSiteClient.data.contests;
                 this.data.meeting = this.rSiteClient.data.meeting;
+                this.data.disciplines = this.rSiteClient.data.disciplines;
                 // broadcast data
                 this.broadcastSiteData();
 

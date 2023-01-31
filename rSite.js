@@ -29,6 +29,7 @@ class rSite extends roomServer{
             site: site, // add here the data from the parentRoom, as an info
             contests: [],
             meeting: rMeeting.data,
+            disciplines: rDisciplines.data,// not translated, since the langauge used is not known 
         }; 
 
         this.site = site; // the site object from rSites
@@ -440,7 +441,8 @@ export class rSiteTrack extends rSite{
     }
 
     createContestObj(c2){
-        const baseConfStr = this.rDisciplines.data.find(d=>d.xBaseDiscipline == c2.xBaseDiscipline)?.baseConfiguration;
+        const baseDiscipline = this.rDisciplines.data.find(d=>d.xBaseDiscipline == c2.xBaseDiscipline);
+        const baseConfStr = baseDiscipline?.baseConfiguration;
         const baseConfiguration = baseConfStr ? JSON.parse(baseConfStr) : '';
         return {
             conf: c2.conf,

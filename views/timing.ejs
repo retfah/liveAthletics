@@ -81,6 +81,8 @@
                     this.vue.timingOptions = this.room.data.timingOptions;
                     this.vue.siteConf = this.room.data.siteConf;
                     this.vue.capabilities = this.room.data.capabilities; // stays constant
+                    this.vue.disciplines = this.room.data.disciplines; // stays constant
+                    this.vue.meeting = this.room.data.meeting; // stays constant
                     this.vue.infos = this.room.data.infos;
                     this.vue.auto = this.room.data.auto
                     this.vue.timers = this.room.data.timers
@@ -123,6 +125,8 @@
                             data: [], // the actual data of rTiming, i.e. the data as is/was written to the timing. 
                             siteData: {},
                             contests: [], // the data of rSiteTrack
+                            disciplines: [], // stays constant
+                            meeting: {}, // stays constant
 
                             overlay: null, // null, siteConf, timingOptions, conf (auto + timers), 
 
@@ -150,6 +154,72 @@
                             this.infoTitle = title;
                             this.infoContent = content;
                             this.infoVisible = true;
+                        },
+                        formatDate(dateString){
+                            // first, get the first and last date of the competition (consider start, call and appealtime) 
+                            const firstDate = new Date(this.meeting.dateFrom); 
+                            const lastDate = new Date(this.meeting.dateTo);
+                            let showMonth = lastDate.getMonth() != firstDate.getMonth();
+                            let showDay = lastDate.getDay() != firstDate.getDay();
+
+                            // exclude month if the competition does not span 2 month
+                            // exclude day if the competition is on one day only
+                            if (dateString==null){
+                                return "";
+                            }
+                            var d = new Date(dateString);
+                            var str = "";
+                            if (showDay){
+                                str += `${d.getDate()}`.padStart(2,'0') + ".";
+                            }
+                            if (showMonth){
+                                str += `${d.getMonth()+1}`.padStart(2, '0') + ", "; // Month is zero based
+                            }
+                            if (showDay && !showMonth){
+                                str += ' ';
+                            }
+                            str += `${d.getHours()}`.padStart(2, '0');
+                            str += ":" + `${d.getMinutes()}`.padStart(2,'0');
+                            return str;
+                        },
+                        getContestTitle(contest){
+                            // contest is the contest as available in main
+                            // if available, use the data in site; otherwise teh data from timing
+                            
+                            // title string shall be "time disciplineName contestName"
+                            let time = null;
+                            let contestName = null;
+                            let disciplineName = null;
+                            let xBaseDiscipline = null;
+                            if (contest.site){
+                                time = new Date(contest.site.datetimeStart);
+                                contestName = contest.site.name;
+                                xBaseDiscipline = contest.site.xBaseDiscipline;
+                            } else {
+                                time = new Date(contest.timing.datetimeStart);
+                                contestName = contest.timing.name ?? ''; // do we have the name here?
+                                xBaseDiscipline = contest.timing.xBaseDiscipline;
+                            }
+                            return `${this.formatDate(time)} - ${this.translateDiscipline(xBaseDiscipline).name} ${contestName}`;
+                        },
+                        translateDiscipline(xBaseDiscipline){
+
+                            let lang = getLanguage(); // gets it from the URL
+                            
+                            // get the baseDisciplne
+                            const bd = this.disciplines.find(bd=>bd.xBaseDiscipline == xBaseDiscipline);
+                            let name, shortname;
+                            // try to get a translation: 
+                            let local = bd.basedisciplinelocalizations.find(bdl=>bdl.language==lang);
+                            if (local){
+                                name = local.name;
+                                shortname = local.shortname;
+                            }else {
+                                // use the default value
+                                name = bd.nameStd;
+                                shortname = bd.shortnameStd;
+                            };
+                            return {name, shortname};
                         },
                         showSiteConf(){
                             // create a copy to be modified in order to allow easy reset
@@ -408,8 +478,12 @@
                 <div style="">
                     <!-- development note: subgrids are not yet available in Chrome based browsers, but it is in development (2023-01);-->
                     <!-- create the following container for every contest -->
-                    <div v-for="(contest, iContest) in main" style="border: 1px solid black; margin: 0;" >
+                    <details v-for="(contest, iContest) in main" style="border: 1px solid black; margin: 0;" >
                         <!-- this is the container per contest -->
+                        <summary style="margin-left:3px">
+                            <!-- header to expand the details; -->
+                            {{getContestTitle(contest)}} {{contest.site.xContest}} <!-- TODO: remove the xContest in production -->
+                        </summary>
                         <div style="top:0px; position: sticky; display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; background-color: white;"><!-- display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; -->
                             <!-- this is the sticky contest header -->
                             <div style="border:1px solid black; grid-column: site / span 1;">
@@ -473,7 +547,7 @@
                                 <div v-else style="border:1px solid black; grid-column: timing / span 1; "></div>
                             </template>
                         </div>
-                    </div>
+                    </details>
 
 
                     <!--<div style="border:1px solid black; grid-column: site / span 1; height: 20px;"></div>
