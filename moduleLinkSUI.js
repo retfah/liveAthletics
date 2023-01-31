@@ -31,18 +31,41 @@ export default class moduleLinkSUI extends nationalBodyLink {
         pathCompetitionData: "/rest/Event/Athletica/MeetingData",
         pathResultsUpload: "/rest/Event/Athletica/ImportResultData",
         //method: 'GET', // not necessary when https.get is used
-        headers: {
-            authorization: "Basic " + Buffer.from("121832:struppi1").toString('base64'),// base64(username:pw)}
+        /*headers: {
+            authorization: "Basic " + Buffer.from("TODOusername:password").toString('base64'),// base64(username:pw)}
             connection: 'close'
-        },
+        },*/
         debug: true, // stores the baseData locally as a file (DOES NOT WORK YET)
         fileNameBaseData: "StammdatenNode.gz", // only used when debug=true
 
         // TODO: create a list matching the alabus discipline numbers and the local dicipline numbers; including indoor/outdoor
+        // TODO: the current system cannot differentiate between indoor and outdoor !!!
+        // TODO: create here two lists, one indoor and outdoor and take the correct list during the import.
         disciplineTranslationTable: {
             // liveAthletics:Alabus
-            207:310, // high jump
-            206:320, // PV
+            // outdoor: 
+            //207:310, // high jump
+            //206:320, // PV
+
+            // indoor: 
+            1: 30, // 60m
+            2: 50, // 200m
+            3: 70, // 400m
+            4: 80, // 600m
+            5: 90, // 800m
+            6: 100, // 1000m
+            7: 110, // 1500m
+            8: 140, // 3000m
+            9: 252, // 60mH 106.7
+            10: 253, // 60mH 99
+            11: 254, // 60mH 91
+            12: 255, // 60mH 84
+            13: 256, // 60mH 76 8.5
+            14: 258, // 60mH 76 8.0
+            15: -1, // 60mH 76 7.5
+            16: -1, // 60mH 68
+            208: 320, // PV
+            209: 310, // HJ
 
         },
         disciplineTranslationTableInv: {

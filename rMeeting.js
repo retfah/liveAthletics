@@ -307,7 +307,8 @@ class rMeeting extends roomServer{
         }
 
         // if all was ok, store the new validator and the data
-        this.data = data;
+        // IMPORTANT: transfer the data and do not simply replace the data; otherwise, all rooms referring to the rMeeting data will not deliver the updated data!
+        this.propertyTransfer(data, this.data, false);
         this.validateMeeting = tempValidator;
 
         // return broadcast
