@@ -93,6 +93,8 @@ export class rTimingClient extends roomClient{
         // copy over the present series to the new contest object and save it
         contest.series = this.data.data[ic].series;
         this.data.data[ic] = contest;
+
+        this.sortData();
     }
 
     changeSeriesTExe(series){
@@ -108,6 +110,8 @@ export class rTimingClient extends roomClient{
         } else {
             this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
         }
+
+        this.sortData();
     }
 
     deleteSeriesTExe(series){
@@ -143,6 +147,8 @@ export class rTimingClient extends roomClient{
 
         // add the series to the main data object
         c.series.push(series)
+
+        this.sortData();
     }
 
     /**
@@ -151,7 +157,7 @@ export class rTimingClient extends roomClient{
      * @param {object} contest the contest data object for 
      */
     getOrCreateContestTiming(xContest, contest){
-        let c = this.data.contests.find(contest=>contest.xContest == xContest);
+        let c = this.data.data.find(contest=>contest.xContest == xContest);
         if (!c){
             // add the contest
             const c2 = contest;
@@ -166,9 +172,32 @@ export class rTimingClient extends roomClient{
                 xContest: c2.xContest,
                 series:[],
             }
-            this.data.contests.push(c);
+            this.data.data.push(c);
         }
         return c;
+    }
+
+    // sort the local data by the starttime, heat number and position
+    sortData(){
+        // first sort the contests
+        this.data.data.sort((c1, c2)=>{
+            return c1.datetimeStart-c2.datetimeStart;
+        })
+
+        // then sort each series
+        for (let c of this.data.data){
+            c.series.sort((s1, s2)=>{
+                // use the number for sorting.
+                return s1.number-s2.number;
+            })
+
+            // sort the athletes in the heat
+            for (let s of c.series){
+                s.SSRs.sort((ssr1, ssr2)=>{
+                    return ssr1.position-ssr2.position;
+                })
+            }
+        }
     }
 }
 

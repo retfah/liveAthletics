@@ -1295,7 +1295,8 @@
             <div id="addEvent" v-if="overlay=='addEvent'">
                 <form>
                     <div class="verticalForm">
-                        <h3><%= __("Add event") %>: </h3>
+                        <h3 v-if="eventModID==-1"><%= __("Add event") %>: </h3>
+                        <h3 v-else><%= __("Modify event") %>: </h3>
                         <label>
                             <%= __("Discipline") %>: 
                             <select v-model.number="newXDiscipline" v-on:change="newXEventGroup=undefined">

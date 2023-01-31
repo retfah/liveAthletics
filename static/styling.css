@@ -692,6 +692,14 @@ option.catMismatch{
     background-color: lightyellow;
 }
 
+/* element to show the status of connections etc. */
+.statusEl {
+    margin-right: 3px;
+    padding: 3px;
+    border-radius: var(--border-radius, 4px);
+    display: inline-block;
+}
+
 .noDrag {
     cursor:auto;
 }

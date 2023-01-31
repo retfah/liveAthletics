@@ -74,6 +74,10 @@ export default class rTiming extends roomServer{
         this.conn = null;
         this.rSiteClient = null;
 
+        // store a reference to the interval of reading reaction times and results
+        this.pullResultsInterval = null;
+        this.pullReactionInterval = null;
+
         // if we do the initial comparison between the rSite data and the actual data of this room, we might add/delete many contests and heats. Every of this change will be handled in the respective functions. Typically, these function will directly send the change to teh timing, since it is the idea that rTiming-data always represnts the data in the timing software. However, if the exchange is file based, it does not make sense to write the file at every small change, when we know that many more small changes will/might follow during the initial comparison. Thus, we have the variable deferWrite, which is set to true at the beginning of the initial comparison and set to false at the end together with calling this.deferredWrite(). This allows file-type heat exchanges to not (re-)write the file when derferWrite=true and to create the file at the end. If this deferredWritign does not make sense for a certain timing client, then it can simply be negelected.
         this.deferWrite = false; // prevent writing of single changes (depends on timing client)
 
@@ -105,7 +109,7 @@ export default class rTiming extends roomServer{
             // to rTiming: 
             auto:{}, // what changes should be done automatically; will be loaded from Mongo
 
-            timers: {}, // the timeouts for pulling resukts and reactionTimes
+            timers: {}, // the timeouts for pulling results and reactionTimes
 
             data: [], // here we put the actual data with contests and heats!
 
@@ -299,6 +303,14 @@ export default class rTiming extends roomServer{
             this.data.timers = raw.timers;
         }
 
+        // start the timers
+        if (this.data.timers.pullReactionTimes>0){
+            this.pullReactionInterval = setInterval(()=>{this.pullReaction();},1000*this.data.timers.pullReactionTimes);
+        }
+        if (this.data.timers.pullResults>0){
+            this.pullResultsInterval = setInterval(()=>{this.pullResults();},1000*this.data.timers.pullResults);
+        }
+
         // data:
         len = await this.collection.countDocuments({type:'data'});
         if (len==0){
@@ -416,7 +428,7 @@ export default class rTiming extends roomServer{
             this.eH.eventUnsubscribe(`wsClosed/${this.conn.tabId}`, this.name);
             
             // close the connection
-            this.wsManager.returnConnection(this.siteConf.shortname, this.siteConf.host, this.siteConf.port, this.siteConf.path, this.siteConf.secure);
+            this.wsManager.returnConnection(this.data.siteConf.shortname, this.data.siteConf.host, this.data.siteConf.port, this.data.siteConf.path, this.data.siteConf.secure);
             this.conn = null;
         }
     }
@@ -537,7 +549,7 @@ export default class rTiming extends roomServer{
      * @param {any} data The data to be sent, typically an object
      */
     relaySiteChange(funcName, data){
-        // rTiming does not have a sideChannel. (If it had, it would get here a little complicated, since the same change would be processed trwice probably.)
+        // rTiming does not have a sideChannel. (If it had, it would get here a little complicated, since the same change would be processed twice probably.)
         let doObj = {
             funcName: funcName, 
             data: data,
@@ -742,6 +754,23 @@ export default class rTiming extends roomServer{
         // TODO
     }
 
+    async _resetTiming(){
+        // the timing specific implementation might need the data to do the reset; thus, delete the data afterwards.
+        await this.resetTiming();
+        
+        this.data.data = [];
+        await this._storeData();
+    }
+
+    /** to be implemented by the timing-specific class. 
+     * Will be called when the timing data shall be resetted, e.g. when the meeting that it gets connected to is changed. 
+     * The function is called before the timing daa is deleted.
+     * Use this to e.g. delete the old exchange files.
+     */
+    async resetTiming(){
+
+    }
+
     async updateSiteConf(siteConf){
         if (!this.validateSiteConf(siteConf)){
             throw {code:21, message: this.ajv.errorsText(this.validateSiteConf.errors)}
@@ -749,6 +778,11 @@ export default class rTiming extends roomServer{
 
         // stop the old connection
         this.closeSiteConnection();
+        
+        // if something changes, we need to reset the timing data; additionally, we call the timing specific reset function (which e.g. might delete all old result-files for the previous meeting.)
+        if (JSON.stringify(this.data.siteConf) != JSON.stringify(siteConf)){
+            await this._resetTiming();
+        }
 
         this.data.siteConf = siteConf;
         await this._storeSiteConf();
@@ -794,6 +828,31 @@ export default class rTiming extends roomServer{
             throw {code:21, message: this.ajv.errorsText(this.validateTimers.errors)}
         }
 
+        // start/stop the timers if changed
+        if (timers.pullReactionTimes != this.data.timers.pullReactionTimes){
+            if (this.data.timers.pullReactionTimes>0){
+                // there was a timer before:
+                clearInterval(this.pullReactionInterval);
+                this.pullReactionInterval = null;
+            }
+            if (timers.pullReactionTimes>0){
+                // there shall be a timer afterwards
+                this.pullReactionInterval = setInterval(()=>{this.pullReaction();},1000*timers.pullReactionTimes);
+            }
+        }
+        if (timers.pullResults != this.data.timers.pullResults){
+            if (this.data.timers.pullResults>0){
+                // there was a timer before:
+                clearInterval(this.pullResultsInterval);
+                this.pullResultsInterval = null;
+            }
+            
+            if (timers.pullResults>0){
+                // there shall be a timer after
+                this.pullResultsInterval = setInterval(()=>{this.pullResults();},1000*timers.pullResults);
+            }
+        }
+
         this.data.timers = timers;
         await this._storeTimers();
 
@@ -807,6 +866,16 @@ export default class rTiming extends roomServer{
         };
 
         return ret;
+    }
+
+    // to be implemented by the timing specific class; will be called in the given timer interval
+    async pullResults(){
+
+    }
+
+    // to be implemented by the timing specific class; will be called in the given timer interval
+    async pullReaction(){
+    
     }
 
     async updateAuto(auto){
@@ -1153,6 +1222,16 @@ export class rTimingAlge extends rTiming {
 
     }
 
+    
+    /** to be implemented by the timing-specific class. 
+     * Will be called when the timing data shall be resetted, e.g. when the meeting that it gets connected to is changed. 
+     * The function is called before the timing daa is deleted.
+     * Use this to e.g. delete the old exchange files.
+     */
+    async resetTiming(){
+        // TODO: delete all files from the exchange, e.g. heats and results
+    }
+
     // also works for restart
     startTcpVersatileExchange(){
         if (this.tcpConn !=null){
@@ -1364,16 +1443,17 @@ export class rTimingAlge extends rTiming {
 
     pullResults(){
         // get the results
+        //console.log(`${(new Date()).toISOString()}: pull results`);
 
         // send all changes to resultsIncoming
-        this.resultsIncoming(results);
+        //this.resultsIncoming(results);
     }
 
     pullReaction(){
         // get the reaction times
 
         // send all changes to resultsIncoming
-        this.resultsIncoming(results);
+        //this.resultsIncoming(results);
     }
 
     // How to implement pushResults and pushReaction: 

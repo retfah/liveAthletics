@@ -257,7 +257,7 @@ export class rSiteTrack extends rSite{
         this.processChange(doObj, undoObj)
     }
 
-    // create the object for hte series as used in this room. Called by addSeries and changeSeries
+    // create the object for the series as used in this room. Called by addSeries and changeSeries
     createSeriesObj(series, startgroups){
         // create an array with all athletes and their positions
         const SSRs = [];

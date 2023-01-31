@@ -53,7 +53,7 @@ class rEventGroups extends roomServer{
             this.ready = true;
 
             // TODO: for testing only
-            let eG = eventGroups[0];
+            /*let eG = eventGroups[0];
             let dynamicRoom = {
                 parentRoom: this,
                 timeout: 1000 // keep the room open forever; to be changed in the future, when we have a timeout function (without the timeout, I think it's better to keep the room open)
@@ -62,7 +62,7 @@ class rEventGroups extends roomServer{
                 let subroom = new rEventGroup(dynamicRoom, eG, this.meetingShortname, this.mongoDB, this.eH, this.logger, this, this.rContests, this.startsInGroup, this.rInscriptions, this.rStarts, this.rEvents);
 
             }, 1000) // make sure that the other rooms are defined
-            
+            */
         })
 
         // add the functions to the respective object of the parent

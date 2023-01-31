@@ -574,5 +574,22 @@
 	"Always": "Always",
 	"Evaluated time of a person": "Evaluated time of a person",
 	"Evaluated times of a full heat": "Evaluated times of a full heat",
-	"Reaction times": "Reaction times"
+	"Reaction times": "Reaction times",
+	"Result": "Result",
+	"Modify event": "Modify event",
+	"Site server": "Site server",
+	"Site server connection": "Site server connection",
+	"Site room connection": "Site room connection",
+	"Site server connected": "Site server connected",
+	"Site server disconnected": "Site server disconnected",
+	"Site room connected": "Site room connected",
+	"Site room disconnected": "Site room disconnected",
+	"Last heats push failed": "Last heats push failed",
+	"Last heats push successful": "Last heats push successful",
+	"General status information": "General status information",
+	"Timing specific status information": "Timing specific status information",
+	"ALGE Versatile Exchange connected": "ALGE Versatile Exchange connected",
+	"ALGE Versatile Exchange disconnected": "ALGE Versatile Exchange disconnected",
+	"Last heat writing error": "Last heat writing error",
+	"Last results reading error": "Last results reading error"
 }

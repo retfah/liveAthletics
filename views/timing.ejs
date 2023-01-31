@@ -120,9 +120,9 @@
                             infos:{},
                             auto: {},
                             timers: {},
-                            data: {}, // the actual data of rTiming, i.e. the data as is/was written to the timing. 
+                            data: [], // the actual data of rTiming, i.e. the data as is/was written to the timing. 
                             siteData: {},
-                            contests: {}, // the data of rSiteTrack
+                            contests: [], // the data of rSiteTrack
 
                             overlay: null, // null, siteConf, timingOptions, conf (auto + timers), 
 
@@ -242,12 +242,106 @@
                         },
                     },
                     computed:{
-                        basePath: ()=>{
+                        basePath(){
                             // derive the base path from the current path
                             // origin = 'https://www.xy.com:1234', pathname = /hello/world.php, href: 'https://www.xy.com:1234/hello/world.php'
 
                             return window.location.origin + window.location.pathname.split('/').slice(0,2).join('/') + "/";
 
+                        },
+                        main(){
+                            // create the main data object, which is an array of contests on the top level
+                            // create a data structure with contest/heats/athletes, where on all the level both, the rTiming data as well as the rSiteTrack data are together
+                            let cs = [];
+                            // this.data is the rTiming data
+                            for (let c of this.data){
+                                const c2 = {
+                                    xContest: c.xContest, 
+                                    timing: c,
+                                    site: null,
+                                    heats:[],
+                                };
+                                cs.push(c2);
+                                for (let h of c.series){
+                                    let h2 = {
+                                        xSeries: h.xSeries,
+                                        timing: h,
+                                        site: null,
+                                    };
+
+                                    c2.heats.push(h2);
+                                }
+                                // check if the contest already exists
+                                /*let c2 = cs.find(c2=>c2.xContest == c.xContest);
+                                if (c2){
+
+                                }else {
+
+                                } */
+                            }
+                            for (let c of this.contests){
+                                // check if the contest already exists
+                                let c2 = cs.find(c3=>c3.xContest == c.xContest);
+                                if (!c2){
+                                    c2 = {
+                                        xContest: c.xContest, 
+                                        timing: null,
+                                        site: c,
+                                        heats:[],
+                                    };
+                                    cs.push(c2);
+                                } else {
+                                    c2.site = c;
+                                }
+
+                                for (let h of c.series){
+                                    let h2 = c2.heats.find(h3=>h3.xSeries == h.xSeries);
+                                    if (!h2){
+                                        h2 = {
+                                            xSeries: h.xSeries,
+                                            number: h.number,
+                                            timing: null,
+                                            site: h,
+                                        };
+                                        c2.heats.push(h2);
+                                    } else {
+                                        h2.site = h;
+                                    }
+                                }
+                            }
+                            
+                            // now compare all objectes and define which options (copy heats to timing, copy results to site, ...) are applicable to the contest/heat
+                            // TODO: reaction times
+
+
+
+                            // finally, sort the object by starttime, heat number and position; use the data of rSIte if available
+                            cs.sort((c1, c2)=>{
+                                return c1.datetimeStart-c2.datetimeStart;
+                            })
+
+                            // then sort each series
+                            for (let c of cs){
+                                c.heats.sort((s1, s2)=>{
+                                    // use the number for sorting.
+                                    return s1.number-s2.number;
+                                })
+
+                                // sort the athletes in the heat
+                                for (let s of c.heats){
+                                    if (s.timing){
+                                        s.timing.SSRs.sort((ssr1, ssr2)=>{
+                                            return ssr1.position-ssr2.position;
+                                        })
+                                    }
+                                    if (s.site){
+                                        s.site.SSRs.sort((ssr1, ssr2)=>{
+                                            return ssr1.position-ssr2.position;
+                                        })
+                                    }
+                                }
+                            }
+                            return cs;
                         }
                     }
                 };
@@ -262,6 +356,137 @@
         </head>
         <body onload="startupTiming()" onbeforeunload="unloadMe()">
             <div id="vueDiv"> <!-- inside here all the vue.js stuff -->
+                   
+                <!-- provide some information about the status etc 
+                 "lastHeatPushFailed": false, "siteServerConnected": true, "lastSiteServerConnectionError": "", "siteRoomConnected": true, "lastSiteRoomConnectionError": "", "timing": { "tcpConnected": true, "tcpErrorLast": "16:18:48: Error: connect ECONNREFUSED 127.0.0.1:4446", "xmlHeatErrorLast": "", "xmlResultErrorLast": "" } }-->
+                <div style="margin:3px 0;">
+                    <%= __("General status information") %>:
+                    <div class="statusEl" v-bind:title="`Last site server connection error: ${infos.lastSiteServerConnectionError}`" v-bind:class="{connected: infos.siteServerConnected, disconnected: !infos.siteServerConnected}">
+                        <div v-if="infos.siteServerConnected">
+                            <%= __("Site server connected") %>
+                        </div>
+                        <div v-else>
+                            <%= __("Site server disconnected") %>
+                        </div>
+                    </div>
+                    <div class="statusEl" v-bind:title="`Last site room connection error: ${infos.lastSiteRoomConnectionError}`" v-bind:class="{connected: infos.siteRoomConnected, disconnected: !infos.siteRoomConnected}">
+                        <div v-if="infos.siteRoomConnected">
+                            <%= __("Site room connected") %>
+                        </div>
+                        <div v-else>
+                            <%= __("Site room disconnected") %>
+                        </div>
+                    </div>
+                    <div class="statusEl" v-bind:class="{connected: !infos.lastHeatPushFailed, disconnected: infos.lastHeatPushFailed}">
+                        <div v-if="infos.lastHeatPushFailed">
+                            <%= __("Last heats push failed") %>
+                        </div>
+                        <div v-else>
+                            <%= __("Last heats push successful") %>
+                        </div>
+                    </div>
+                </div>
+                <!--  further add all timing specific variables; TODO: include this from a timing-specific file! The following is for ALGE-->
+                <div style="margin:3px 0;" v-if="infos.timing && Object.keys(infos.timing).length>0"> <!-- not before the data is initially loaded -->
+                    <%= __("Timing specific status information") %>:
+                    <div class="statusEl" v-bind:title="`Last tcp connection error: ${infos.timing.tcpErrorLast}`" v-bind:class="{connected: infos.timing.tcpConnected, disconnected:!infos.timing.tcpConnected}">
+                        <div v-if="infos.timing.tcpConnected">
+                            <%= __("ALGE Versatile Exchange connected") %>
+                        </div>
+                        <div v-else>
+                            <%= __("ALGE Versatile Exchange disconnected") %>
+                        </div>
+                    </div>
+                    <div class="statusEl">
+                        <%= __("Last heat writing error") %>: {{infos.timing.xmlHeatErrorLast}}
+                    </div>
+                    <div class="statusEl">
+                        <%= __("Last results reading error") %>: {{infos.timing.xmlResultErrorLast}}
+                    </div>
+                </div>
+
+                <div style="">
+                    <!-- development note: subgrids are not yet available in Chrome based browsers, but it is in development (2023-01);-->
+                    <!-- create the following container for every contest -->
+                    <div v-for="(contest, iContest) in main" style="border: 1px solid black; margin: 0;" >
+                        <!-- this is the container per contest -->
+                        <div style="top:0px; position: sticky; display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; background-color: white;"><!-- display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; -->
+                            <!-- this is the sticky contest header -->
+                            <div style="border:1px solid black; grid-column: site / span 1;">
+                                xContest (site): {{contest.site.xContest}}
+                            </div>
+                            <div style="border:1px solid black; grid-column: buttons / span 1;">empty</div>
+                            <div style="border:1px solid black; grid-column: timing / span 1; ">
+                                xContest (timing): {{ contest.timing.xContest }}
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px;">
+                            <!-- This is the container for the heats -->
+                            <template v-for="(heat, iHeat) in contest.heats">
+                                <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1; ">
+                                    <!-- place the heat here -->
+                                    xSeries (site): {{heat.site.xSeries}}<br>
+                                    <table>
+                                        <tr>
+                                            <th v-if="JSON.parse(contest.site.conf).startInLanes"><%= __("Lane") %></th>
+                                            <th v-if="!JSON.parse(contest.site.conf).finishInLanes"><%= __("Position") %></th>
+                                            <th><%= __("Name") %></th>
+                                            <th><%= __("Firstname") %></th>
+                                            <th><%= __("Club") %></th>
+                                            <th><%= __("Result") %></th>
+                                            
+                                        </tr>
+                                        <tr v-for="ssr in heat.site.SSRs">
+                                            <td v-if="JSON.parse(contest.site.conf).startInLanes">{{ssr.startConf}}</td>
+                                            <td v-if="!JSON.parse(contest.site.conf).finishInLanes">{{ssr.position}}</td>
+                                            <td>{{ssr.athleteName}}</td>
+                                            <td>{{ssr.athleteForename}}</td>
+                                            <td>{{ssr.clubName}}</td>
+                                            <td><!-- result; must be formatted, e.g. the time or the result overrule! --></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div v-else style="border:1px solid black; grid-column: site / span 1; "></div>
+                                <div style="border:1px solid black; grid-column: buttons / span 1; ">Buttons</div>
+                                <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; ">
+                                    xSeries (timing): {{heat.timing.xSeries}}<br>
+                                    <table>
+                                        <tr>
+                                            <th v-if="JSON.parse(contest.timing.conf).startInLanes"><%= __("Lane") %></th>
+                                            <th v-if="!JSON.parse(contest.timing.conf).finishInLanes"><%= __("Position") %></th>
+                                            <th><%= __("Name") %></th>
+                                            <th><%= __("Firstname") %></th>
+                                            <th><%= __("Club") %></th>
+                                            <th><%= __("Result") %></th>
+
+                                        </tr>
+                                        <tr v-for="ssr in heat.timing.SSRs">
+                                            <td v-if="JSON.parse(contest.timing.conf).startInLanes">{{ssr.startConf}}</td>
+                                            <td v-if="!JSON.parse(contest.timing.conf).finishInLanes">{{ssr.position}}</td>
+                                            <td>{{ssr.athleteName}}</td>
+                                            <td>{{ssr.athleteForename}}</td>
+                                            <td>{{ssr.clubName}}</td>
+                                            <td><!-- result; must be formatted, e.g. the time or the result overrule! --></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div v-else style="border:1px solid black; grid-column: timing / span 1; "></div>
+                            </template>
+                        </div>
+                    </div>
+
+
+                    <!--<div style="border:1px solid black; grid-column: site / span 1; height: 20px;"></div>
+                    <div style="border:1px solid black; grid-column: buttons / span 1; height: 20px;"></div>
+                    <div style="border:1px solid black; grid-column: timing / span 1; height: 20px;"></div>
+
+                    <div style="border:1px solid black; grid-column: site / span 1; height: 20px;"></div>
+                    <div style="border:1px solid black; grid-column: timing / span 1; height: 20px;"></div>
+
+                    <div style="border:1px solid black; grid-column: site / span 1; height: 20px;"></div>
+                    <div style="border:1px solid black; grid-column: timing / span 1; height: 20px;"></div>-->
+                </div>
+
                 <h3>All data of the room</h3>
                 TimingOptions: {{timingOptions}} <br>
                 SiteConf: {{siteConf}} <br>
@@ -269,8 +494,8 @@
                 Infos: {{infos}} <br>
                 Auto: {{auto}} <br>
                 Timers: {{timers}} <br>
-                Data: {{data}} <br>
-                Contests: {{contests}} <br>
+                <!--Data: {{data}} <br>
+                Contests: {{contests}} <br>-->
                 <button class="btn" @click="showSiteConf"><%= __("Site connection setup") %></button>   
                 <button class="btn" @click="showTimingOptions"><%= __("Timing setup") %></button>
                 <button class="btn" @click="showConf"><%= __("Automatic transfer setup") %></button>
@@ -297,7 +522,7 @@
                             </label>
                             <label>
                                 <%= __("Meeting shortname") %>
-                                <input class="formCtrl" type="text" maxlength="4"  v-model="siteConfCopy.shortname">
+                                <input class="formCtrl" type="text" maxlength="10"  v-model="siteConfCopy.shortname">
                             </label>
                             <label>
                                 <%= __("Site number") %>
@@ -484,7 +709,6 @@
                 </div>
             </div>
             <a id="aConnection" class="Conn" onclick="rM.data.wsWindowShown=true;"><%= __("Connection") %></a>
-    
             <!-- include the roomManager-frontend -->
             <%- include('roomManagerDrawings') %>
     

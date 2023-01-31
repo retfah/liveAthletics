@@ -354,7 +354,7 @@ export default class roomClient {
 
         
         // notify the room manager about it 
-        this.rM.deleteRoom(this.name);
+        this.rM?.deleteRoom(this.name);
     }
 
     /**

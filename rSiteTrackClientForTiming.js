@@ -108,7 +108,7 @@ class rSiteTrackClientForTiming extends roomClient{
         this.rTiming.relaySiteChange('deleteSeries', series);
 
         // then let rTiming handle automatic take-over, if needed.
-        this.rTiming.deletSeriesTiming(series);
+        this.rTiming.deleteSeriesTiming(series);
     }
 
     // We do nto have any roomClientVues connected here, so we override those "event-functions"
@@ -131,7 +131,11 @@ class rSiteTrackClientForTiming extends roomClient{
 const mixin2 = {}
 for (let f in mixin){
     //rSiteTrackClientForTiming[`${f}2`] = mixin[f];
-    mixin2[`${f}2`] = mixin[f];
+    if (f != 'getOrCreateContest'){
+        mixin2[`${f}2`] = mixin[f];
+    } else {
+        mixin2[f] = mixin[f];
+    }
 }
 Object.assign(rSiteTrackClientForTiming.prototype, mixin2);
 
