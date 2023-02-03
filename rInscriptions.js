@@ -215,15 +215,7 @@ class rInscriptions extends roomServer{
 
         const data = await this.baseModules[request.base].getPerformances(request.identifier).catch(err=>{ throw {message: `Error while getting performances for athlete: ${JSON.stringify(err)}`, code:23}});
 
-        let ret = {
-            isAchange: false, 
-            doObj: null, 
-            undoObj: null,
-            response: data,
-            preventBroadcastToCaller: true
-        };
-
-        return ret;
+        return data;
 
     }
 
@@ -252,15 +244,7 @@ class rInscriptions extends roomServer{
             ],
         }*/
 
-        let ret = {
-            isAchange: false, 
-            doObj: null, 
-            undoObj: null,
-            response: data,
-            preventBroadcastToCaller: true
-        };
-
-        return ret;
+        return data;
         
     }
 

@@ -125,8 +125,9 @@ class rMeetings extends roomServer{
         this.functionsWrite.deleteMeeting = this.deleteMeeting.bind(this); 
         this.functionsWrite.activateMeeting = this.activateMeeting.bind(this);
         this.functionsWrite.deactivateMeeting = this.deactivateMeeting.bind(this);
-        this.functionsReadOnly.backupMeeting = this.backupMeeting.bind(this);
-        this.functionsReadOnly.schemaRestoreMeeting = this.restoreMeeting.bind(this); // note: despite the fact that we change a lot of data during restore, we do not change anything related to this room, as all the changes are within the DB of the meeting and not in the admin_meetings table
+        // 2023-01: I think those backup and restore functions were never really in use and also still contain example code.
+        //this.functionsReadOnly.backupMeeting = this.backupMeeting.bind(this);
+        //this.functionsReadOnly.schemaRestoreMeeting = this.restoreMeeting.bind(this); // note: despite the fact that we change a lot of data during restore, we do not change anything related to this room, as all the changes are within the DB of the meeting and not in the admin_meetings table
         //this.functionsReadOnly.TODO = this.TODO.bind(this);
         //this.functionsWrite.TODO2 = this.TODO2.bind(this);
 

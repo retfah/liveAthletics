@@ -357,15 +357,7 @@ class rMeeting extends roomServer{
         });
 
         // return
-        let ret = {
-            isAchange: false, 
-            //doObj: {funcName: '', data: data},
-            //undoObj: {funcName: '', data: oldData, ID: this.ID},
-            response: response, 
-            //preventBroadcastToCaller: true
-        };
-
-        return ret;
+        return response;
 
     }
 
@@ -455,15 +447,7 @@ class rMeeting extends roomServer{
         };
 
         // return
-        let ret = {
-            isAchange: false, 
-            //doObj: {funcName: '', data: data},
-            //undoObj: {funcName: '', data: oldData, ID: this.ID},
-            response: response, 
-            //preventBroadcastToCaller: true
-        };
-
-        return ret;
+        return response;
         
     }
 

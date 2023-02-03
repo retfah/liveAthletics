@@ -1678,48 +1678,58 @@ class roomServer{
         // check if the function exists:
         if (request.funcName in this.functionsReadOnly){
             // no checks needed here --> start directly
-            this.functionsReadOnly[request.funcName](request.data).then((ret)=>{
+            // differentiate async and non async functions
+            let prom = this.functionsReadOnly[request.funcName](request.data);
+            if (prom instanceof Promise){
+                prom.then((ret)=>{
                 
-                // send response
-                // must have the sam format as for writign changes (data, ID), except the ID --> only data
-                
-                //ret.ID = id;
-                respFunc({data: ret.response}); // does not include an ID since we did not change anything
-
-            }).catch((err)=>{
-                if (developMode){
-                    let schemaFail = {
-                        type: 'object',
-                        properties: {
-                            message:{type: 'string'},
-                            code: {type: 'number'}
-                        },
-                        required: ["message", "code"]
-                    }
-                    // check schema
-                    if(!(this.ajv.validate(schemaFail, err))){
-
-                        // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
-                        let errStr;
-                        if (err instanceof(Error)){
-                            errStr = err;
-                        } else {
-                            JSON.stringify(request.funcName);
+                    // send response
+                    // must have the same format as for writign changes (data, ID), except the ID --> only data
+                    
+                    //ret.ID = id;
+                    respFunc({data: ret}); // does not include an ID since we did not change anything
+    
+                }).catch((err)=>{
+                    if (developMode){
+                        let schemaFail = {
+                            type: 'object',
+                            properties: {
+                                message:{type: 'string'},
+                                code: {type: 'number'}
+                            },
+                            required: ["message", "code"]
                         }
-
-                        let text = "Error: The error-object returned from the room-function '"+ errStr +"' in room '"+ this.name +"' does not fulfill the failure-schema.";
-                        this.logger.log(3, text)
-                        respFunc("Error on the server: " + text, 11)
-                        return;
+                        // check schema
+                        if(!(this.ajv.validate(schemaFail, err))){
+    
+                            // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
+                            let errStr;
+                            if (err instanceof(Error)){
+                                errStr = err;
+                            } else {
+                                JSON.stringify(request.funcName);
+                            }
+    
+                            let text = "Error: The error-object returned from the room-function '"+ errStr +"' in room '"+ this.name +"' does not fulfill the failure-schema.";
+                            this.logger.log(3, text)
+                            respFunc("Error on the server: " + text, 11)
+                            return;
+                        }
                     }
-                }
-                // the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, >=21= room funciton specific failures)
-                if (err.code<21){
-                    // use the code 99 for wrong error codes in the room implementation
-                    err.code = 99;
-                }
-                respFunc(err.message, err.code); 
-            });
+                    // the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, >=21= room funciton specific failures)
+                    if (err.code<21){
+                        // use the code 99 for wrong error codes in the room implementation
+                        err.code = 99;
+                    }
+                    respFunc(err.message, err.code); 
+                });
+            } else {
+                // the function was a regular function; simply send the answer
+                // send response
+                // must have the same format as for writign changes (data, ID), except the ID --> only data
+                respFunc({data: prom}); // does not include an ID since we did not change anything
+            }
+            
         }
         else if (request.funcName in this.functionsWrite){
 

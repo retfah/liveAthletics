@@ -885,11 +885,7 @@ class rBackup extends roomServer{
 
         setTimeout(deleteTempFiles, this.deleteFileTimeout*1000);
 
-        let ret = {
-            isAchange: false, // is actually not checked...
-            response: backup,
-        }
-        return ret;
+        return backup;
 
     }
 
