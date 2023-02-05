@@ -392,6 +392,7 @@ class rContestTrack extends roomServer{
         // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
         this.functionsWrite.addSeries = this.addSeries.bind(this);
         this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
+        this.functionsWrite.allSeriesStatusChange = this.allSeriesStatusChange.bind(this);
 
         // define, compile and store the schemas:
         const schemaAuxDataPerSeries = {
@@ -669,7 +670,7 @@ class rContestTrack extends roomServer{
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
         this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
-
+        this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
     }
 
     /**
@@ -813,6 +814,36 @@ class rContestTrack extends roomServer{
 
         return ret;
 
+    }
+
+    async allSeriesStatusChange(status){
+        if (!this.validateAllSeriesStatusChange(status)){
+            throw {code:21, message: this.ajv.errorsText(this.validateAllSeriesStatusChange.errors)}
+        }
+
+        for (let series of this.data.series){
+            if (series.status != status){
+                series.status = status;
+                await series.save().catch(err=>{
+                    throw {code: 22, message: `Could not save the series ${series.xSeries} with its changed status: ${err}`}; 
+                });
+    
+                // notify the site about the change
+                if (series.xSite){
+                    this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+                }
+            }
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'allSeriesStatusChange', data: status},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
     }
 
     async deleteResult(data){

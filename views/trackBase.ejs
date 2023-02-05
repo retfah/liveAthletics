@@ -223,10 +223,10 @@
                     updateHeightIncrease: -1, // show change-line for height increases
                     heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
 
-                    selectedSeries: 0, // which series we are working on. 
-                    selectedSeriesLazy: 0, // which series we were working on before
+                    //selectedSeries: 0, // which series we are working on. 
+                    //selectedSeriesLazy: 0, // which series we were working on before
                     //allHeights:[], // contains all already fixed and all predicted heights; computed property as of 2022-06
-                    mode: 0, // 0: before all startHeights are set, 1=competition running (or is ready to be started), 2=jumpoff, 3=finished
+                    //mode: 0, // 0: before all startHeights are set, 1=competition running (or is ready to be started), 2=jumpoff, 3=finished
                     currentHeight2: -1,  // in cm
                     currentJumpoffHeightInd2: -1, // during jumpoff, store here the current index in the jumpoff order
                     jumpoffHeightRequired: false, // true if a new height should be defined by the user
@@ -299,7 +299,7 @@
                     const matchStatusShow = [
                         {from: 0, to:39, shows:['rollCall', 'contestInfo']},
                         {from: 60, to:89, shows:['series', 'contestInfo']},
-                        {from: 95, to:180, shows:['startheights', 'competition', 'order', 'resMod', 'resShow', 'settings', 'contestInfo']},
+                        {from: 95, to:180, shows:['competition', 'resMod', 'resShow', 'settings', 'contestInfo']},
                     ]; 
                     const range = matchStatusShow.find(el=>el.from<=this.contest.status && el.to>=this.contest.status);
                     // check if the current selected show makes sense
@@ -360,7 +360,7 @@
                     return status;
                 },
 
-                selectedSeriesChanged(){
+                /*selectedSeriesChanged(){
 
                     let u = new URL(window.location.href)
                     u.searchParams.set('xSeries', this.series[this.selectedSeries].xSeries);
@@ -369,7 +369,7 @@
                     // this way only the path in the tab should be changed without any reload. 
                     window.history.replaceState(window.history.state, "", u.href)
                     
-                },
+                },*/
 
                 /**
                  * returns the index and the object itself of the first object where the property prop is equal to value 
@@ -675,7 +675,21 @@
                     this.updatePositions(series);
                     return true;
                 },
-                siteChanged(series, evt){
+                getSiteName(xSite){
+                    if (xSite==null){
+                        return "<%= __('Site not defined') %>";
+                    } else {
+                        let s = this.trackSites.find(s=>s.xSite == xSite)
+                        if (s){
+                            return s.name;
+                        } else {
+                            return "<%= __('Site not found') %>";
+                        }
+                    }
+                },
+                siteChanged(series2, evt){
+                    // attention: series2 is not the actual series object!
+                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
                     // called e.g. when the time or the site was changed
                     if (evt.target.value===null || evt.target.value=='null'){
                         rCTrack.room.updateSeriesInit(series, 'xSite', null);
@@ -683,8 +697,15 @@
                         rCTrack.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
                     }
                 },
-                dateChanged(series, evt){
+                dateChanged(series2, evt){
+                    // attention: series2 is not the actual series object!
+                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
                     rCTrack.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+                },
+                seriesStateChanged(series2, evt){
+                    // attention: series2 is not the actual series object!
+                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
+                    rCTrack.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
                 },
                 initSeriesChanged(evt){
                     // make sure that again the number of the series as well as the default times are correct
@@ -692,9 +713,6 @@
                         this.seriesObj[h-1].number = h;
                         this.seriesObj[h-1].datetime = this.getStarttime(h);
                     }
-                },
-                seriesStateChanged(evt){
-                    // not needed for series assignment
                 },
                 presentChanged(affectedRow){
                     // the present status of an athlete was changed. Hand over the request to the room. 
@@ -1143,534 +1161,6 @@
                     // still needed?
 
                 },
-                calculateNextAthlete(){
-
-                    // Jumpoff: 
-                    /*
-                    - the jupoff does not necessary take place --> is defined in the jumpoff-variable
-                    - ranking in jumpoff: retired athletes are last, in the order of their retiring (i.e. 3 athletes in jumpoff, one retires at the beginning (--> rank 3), the second retires after three more heights (--> second rank) while tha last would continue (--> rank 1))
-                    - attention: it is possible that all athletes retire at the same time at any time in the competition. Then all are ranked first. 
-                    - the ranking should only be done after a height is jumped by all athletes in the jumpoff (in order to avoid that eventually one person is temporary ranked second, if he still has the chance to be in competition afterwards!)
-                    - ranking the following way: (1) more valid is better; (2) more failed is better (i.e. the athlete retired later; only used when >2 athletes in jumpoff)
-                    Note: if all athletes want to withdraw, the last withdrawel has to be made in the change-result section; until then, the remaining person is declared the winner.
-                    */
-
-                    //this.currentResultRegistered = false;
-
-                    let series = this.series[this.selectedSeries];
-
-                    // if the selectedSeries changes, we must reset position and positionNext to make sure the algorithm trying to alter the position array as little as possible when athletes are added or removed works as it should. 
-                    if (this.selectedSeries != this.selectedSeriesLazy) {
-                        this.position = [];
-                        this.positionNext = [];
-                    }
-
-                    // if the series is empty or no series exists yet (or the pre-"selected" series does not exist), do not start the subsequent calculation!
-                    if (!series || series.seriesstartsresults.length==0){
-                        this.mode=0;
-                        return
-                    }
-
-                    // check if all startheights are given
-                    if (this.allStartHeightsDefined()){
-
-                        // TODO: eventually we should determine the mode automatically as well..? This would also imply changes in calculateTemporaryRankingData
-
-                        // change the mode to competition running, if it was at 'define startheigts' before. (This check is needed since otherwise it would leave jumpoff!) 
-                        if (this.mode==0){
-                            this.mode=1;
-                        }
-
-                        // the currentHeight is calculated automatically:
-
-                        // find the lowest height, where an athlete is in competition (min(nextJumpingHeight)) (neither retired nor DQ nor DNS...) or get the next height after the last valid height of an athlete. 
-
-                        this.calculateTemporaryRankingData();
-
-                        // for athletes that are not yet in competition (no results), get the startheight; for athletes that are in competition, use the lower of lastFinistedHeight+next and firstUnfinished
-                        let lowestUnfinished = 1000; // here we can also include the startheight of athletes that were not in competition yet
-                        let lowestFinishedDefault = 1000;
-                        let lowestFinished = lowestFinishedDefault; // to calculate the next height after this
-
-                        // calculate some Jumpoff-stuff within the same loop
-                        let numJumpoffParticipants = 0;
-                        let nextJumpoffHeightInd = 1000; // the index in the jumpoffResults-Array represnting the jumping height th next athlete is doing. It is not necessarily the next coming height, e.g. when a few athletes already jumped on that height, while at least one has not.
-
-                        let mainCompetitionFinished = true;
-                        series.seriesstartsresults.forEach(start=>{
-
-                            let tmp = this.tempRankingData[start.xSeriesStart];
-                            if (!tmp.finished){
-
-                                mainCompetitionFinished = false;
-
-                                // athlete is still in competition
-                                if (start.resultshigh.length){
-                                    if (tmp.firstUnfinishedHeight){ // might be undefined, when there is no unfinished height
-                                        lowestUnfinished = Math.min(lowestUnfinished, tmp.firstUnfinishedHeight);    
-                                    }
-                                    if (tmp.lastFinishedHeight){ // undefined when there is no finished height yet
-                                        // at least one height is finished for this athlete
-                                        lowestFinished = Math.min(lowestFinished, tmp.lastFinishedHeight);
-                                    }
-                                    
-                                } else {
-                                    // no result yet; use the startheight
-                                    lowestUnfinished = Math.min(lowestUnfinished, start.startConf);
-                                }
-                            }
-                            if(tmp.finished && tmp.rank==1) {
-                                // finished, and rank 1 --> currently part of the jumpoff
-                                numJumpoffParticipants += 1;
-
-                                // get the next height in the jumpoff:
-                                if (nextJumpoffHeightInd>tmp.jumpoffResults.length && tmp.jumpoffFailedAtI==10000){
-                                    nextJumpoffHeightInd=tmp.jumpoffResults.length+1;
-                                }
-                            }
-                            if (tmp.jumpoffResults.length>0){
-                                // if an older jumpoffResult is deleted (which should NOT be done!), it would create a hole (<empty>) in the jumpoffResults --> in that case, the currentJumpoffHeight would be the first empty element in the array!
-                                let firstUndef = tmp.jumpoffResults.findIndex(val=>val==undefined);
-                                if (firstUndef>=0 && nextJumpoffHeightInd>firstUndef){
-                                    nextJumpoffHeightInd = firstUndef;
-                                    console.log('There was a jumpoff-height missing. This should not happen, since parts of the code might not work as expected in that case.')
-                                    // then we might also have to add this person to the count of the number of participants in the jumpoff:
-                                    if (!(tmp.finished && tmp.rank==1)){
-                                        numJumpoffParticipants++;
-                                    }
-                                }
-                            }
-
-
-                        })
-
-                        // when the competition is over, stop here (the rest is not needed and would not work appropriately)
-                        if (mainCompetitionFinished){
-                            if (numJumpoffParticipants>1 && this.conf.jumpoff){
-                                this.mode = 2;
-                            } else {
-                                this.mode = 3;
-                                this.positionNext = [];
-                                this.position = [];
-                                return; // dont need to continue when the competition is over
-                            }
-                        } else {
-                            this.mode = 1;
-                        }
-
-                        if (this.mode==1){
-
-                            let newCurrentHeight;
-                            if (lowestFinished == lowestFinishedDefault){
-                                // nothing finished yet, thus always lowestUnfinished is governing
-                                newCurrentHeight = lowestUnfinished;
-                            } else {
-                                // the current height is the minimum of: lowestUnfinishedHeight and the next height after the lowestFinishedHeight
-                                let i = this.allHeights.indexOf(lowestFinished);
-                                let lowestNextHeight = this.allHeights[i+1];
-                                
-                                newCurrentHeight = Math.min(lowestNextHeight,lowestUnfinished)
-                            }
-
-                            // get/create the height-element (it is actually not needed later)
-                            let hEl = series.heights.find(h=>h.height==newCurrentHeight && h.jumpoffOrder==0);
-                            
-                            if (!hEl){
-                                if (!this.readOnly){
-                                    // create the height, as it does not exist yet
-                                    this.addHeight(newCurrentHeight);
-                                    hEl = series.heights.find(h=>h.height==newCurrentHeight && h.jumpoffOrder==0);
-                                } else {
-                                    // cannot continue for teh moment, since the heigght is not available and we cannot create it. The server will soon send the new height and we can continue past here.
-                                    return;
-                                }
-                            }
-
-                            // calculate the new position and positionNext arrays; however, do NOT directly store them to this, but do this copy at the end, based on whether this client is writing or not!
-                            let position=[], positionNext=[];
-                            if (newCurrentHeight != this.currentHeight2){
-                                // the currentHeight has changed! We must a.o. recreate the positions array
-                                this.currentHeight2 = newCurrentHeight;
-
-                                // if the currentHeight changes:
-                                // 2022-03: I think the following paragraph is wrong. I indeed implemented an algorithm to find the bast position and add the athlete there!
-                                // OLD: 
-                                // as it is hardly possible to transfer the different order in 'positions' compared to the default given in sSeriesStart, the position is always resetted to the default. 
-                                // WHY is is hardly possible: The positions array always stores, who is still in competition on the current height (i.e. not overall). That means at the end, it will finally only contain the very last athlete, as all the others either failed 3 times or have a valid result already. Now we could think of not removing the elements from the array when the athlete do not jump on this height anymore, which would make transferring the changed order much simpler. However, if the user wants to change the order on the current height e.g. in the second attempt, then it would be strange if also athletes would appear that have passed already in the first attempt.
-
-                                // position gives the current (during this height) order of athletes; create this array from scratch:
-
-                                // find out what athletes are starting on this height: not finished, startheight <= currentHeight, has not finished this height yet
-                                // first add all starts to the following array, before creating the final position array (TODO: or should we keep the array with the full data? I'm a bit worried because of the observers bound to the object for Vue...)
-                                let starts = [];
-                                series.seriesstartsresults.forEach(el=>{
-                                    if (el.startConf <= this.currentHeight2 && !this.tempRankingData[el.xSeriesStart].finished && (this.tempRankingData[el.xSeriesStart].lastFinishedHeight === undefined || this.tempRankingData[el.xSeriesStart].lastFinishedHeight < this.currentHeight2)){
-                                        starts.push(el);
-                                    }
-                                })
-
-                                // sort the starts
-                                starts.sort((a,b)=>{
-                                    return a.position-b.position
-                                })
-
-                                // derive the position array
-                                position = []; 
-                                starts.forEach(el=>position.push(el.xSeriesStart));
-                            } else {
-                                // update the position array, without recreating it from default in order not to lose the current changes to it. 
-                                // check for every athlete that should jump on the current height whether he is in the position array or not; finally delete all those entries that are not jumping (anymore)
-                                let posCopy = this.position.slice(); 
-                                position = this.position.slice();
-
-                                series.seriesstartsresults.forEach(el=>{
-                                    if (el.startConf <= this.currentHeight2 && !this.tempRankingData[el.xSeriesStart].finished && (this.tempRankingData[el.xSeriesStart].lastFinishedHeight === undefined || this.tempRankingData[el.xSeriesStart].lastFinishedHeight < this.currentHeight2)){
-                                        
-                                        let ind = this.position.findIndex(el2=>el2==el.xSeriesStart)
-                                        if (ind == -1){
-                                            // start must be added on the best position!
-                                            // first create an array with the default positions of the athletes in the current positions-list
-                                            let positionDefault = Array(this.position.length);
-                                            for (let i=0;i<this.position.length;i++){
-                                                let start = this.series[this.selectedSeries].seriesstartsresults.find(el=>el.xSeriesStart==this.position[i])
-                                                if (!start){
-                                                    alert('Error: Something went terribly wrong.');
-                                                }
-                                                positionDefault[i] = start.position;
-                                            }
-
-                                            // go through the possible positions (number of positions: position.length+1)
-                                            // best position is where most of the athletes would be correctly before and after according to the position default
-                                            let minSortedWrong = this.position.length+10;
-                                            let minSortedWrongIndex = -1;
-                                            for (let i=0; i<=this.position.length;i++){
-                                                let sortedWrong = 0;
-                                                // before:
-                                                for (let j=0;j<i;j++){
-                                                    if (positionDefault[j]>el.position){
-                                                        sortedWrong++;
-                                                    }
-                                                }
-                                                // after: 
-                                                for (let j=i;j<this.position.length; j++){
-                                                    if (positionDefault[j]<el.position){
-                                                        sortedWrong++;
-                                                    }
-                                                }
-                                                if (sortedWrong<minSortedWrong){
-                                                    minSortedWrong = sortedWrong;
-                                                    minSortedWrongIndex = i;
-                                                }
-                                            }
-
-                                            // add the element at the best position
-                                            position.splice(minSortedWrongIndex,0,el.xSeriesStart);
-
-                                        } else {
-                                            // remove from posCopy
-                                            let ind = posCopy.indexOf(el.xSeriesStart);
-                                            if (ind==-1){
-                                                alert('Error: Should not happen...');
-                                            }else{
-                                                posCopy.splice(ind,1);
-                                            }
-                                        }
-                                    }
-                                })
-
-                                // delete all elements in position that are still in posCopy
-                                posCopy.forEach(el=>{
-                                    let ind = position.indexOf(el);
-                                    position.splice(ind,1);
-                                })
-                                // done.
-
-                            }
-
-
-                            // find out which athlete is the next
-                            // 1. find out the minimum number of failed attempts
-                            let minFailedAttempts = 10;
-                            let minFailedAttemptsCount = 0; // how many times this number of attempts appeared
-                            position.forEach(xSeriesStart=>{
-                                // get the corresponding start
-                                let start = series.seriesstartsresults.find(el=>el.xSeriesStart==xSeriesStart);
-
-                                // get the correspnding height result (if there is one! --> otherwise minFailedAttempts is zero!)
-                                let hAth = start.resultshigh.find((el)=>{
-                                    h = series.heights.find(hEl=>el.xHeight==hEl.xHeight); // if everything is correct, must always find an element
-                                    if (h===undefined){
-                                        alert('ERROR: Should never be here. Could not find the corresponding height for a given xHeight.');
-                                        throw('ERROR: Should never be here. Could not find the corresponding height for a given xHeight.');
-                                        
-                                    }
-                                    return h.height==this.currentHeight2;
-                                })
-                                if (hAth===undefined){
-                                    if (minFailedAttempts==0){
-                                        minFailedAttemptsCount++;
-                                    }else{
-                                        minFailedAttempts=0;
-                                        minFailedAttemptsCount=1;
-                                    }
-                                }else{
-                                    if (minFailedAttempts>hAth.resultsHighFailedAttempts){ 
-                                        minFailedAttempts=hAth.resultsHighFailedAttempts;
-                                        minFailedAttemptsCount=1;
-                                        
-                                    }else if(minFailedAttempts == hAth.resultsHighFailedAttempts){
-                                        minFailedAttemptsCount++;
-                                    }
-                                }
-
-                            })
-                            // now we know what attempt we are in (--> minFailedAttempts+1)
-                            this.attempt2 = minFailedAttempts+1;
-                            this.attemptNext2 = minFailedAttemptsCount>1 ? minFailedAttempts+1 : minFailedAttempts+2;
-
-                            // now, create the order of the next athletes (positionNext):
-
-                            
-                            // OLD:                             
-                            //if ((!this.readOnly) || positionNext.length==0){
-                            // NEW: 
-                            if (true){
-                                // get the first athlete where minFailedAttempts == hEl.resultsHighFailedAttempts
-                                let currentAthlete = -1;
-                                // reinitialize the positionNext array
-                                positionNext = Array(position.length);
-                                let n = 0;
-                                for (let a = minFailedAttempts; a<3; a++){
-                                    for (let i=0;i<position.length;i++){
-                                        // check for every athlete in the order of the position array, if failed attempt == a; then he starts as n'th athlete from now.
-                                        let xSeriesStart = position[i];
-
-                                        // get the corresponding start
-                                        let start = series.seriesstartsresults.find(el=>el.xSeriesStart==xSeriesStart);
-                                        // get the correspnding height result (if there is one! --> otherwise minFailedAttempts is zero!)
-                                        let hAth = start.resultshigh.find((el)=>{
-                                            h = series.heights.find(hEl=>el.xHeight==hEl.xHeight); 
-                                            return h.height==this.currentHeight2;
-                                        })
-                                        if (hAth==undefined){
-                                            if (minFailedAttempts != 0){
-                                                alert ("Error: Should never get here!");
-                                            } else {
-                                                // if hAth is undefined, then the athlete has no result yet on this height, i.e. his resultsHighFailedAttempts=0
-                                                if (a==0){
-                                                    positionNext[n] = i;
-                                                    n++;
-                                                }
-                                            }
-                                        }else {
-                                            if (hAth.resultsHighFailedAttempts==a){
-                                                positionNext[n] = i
-                                                n++;
-                                            }
-                                        }
-                                    }
-                                }
-                                if (n != position.length){
-                                    alert('Error: something went wrong in this loop.. :-(( The order of next athletes might be wrong.')
-                                } 
-                            } 
-
-                            //
-                            if (this.readOnly){
-                                // we actually do not use the position and positionNext data that we just have created, but we use the data that was given via the aux data. But we compare the length of the array in order to detect problems (which should never happen.)
-                                if (position.length != this.roomAuxData[series.xSeries].position.length || positionNext.length != this.roomAuxData[series.xSeries].positionNext.length){
-                                    console.log('Note: the number of athletes jumping on the current height was calculated differently by this browser than given by the data from the server. This may regulary hapen when the result has already arrived on reading clients, but not the new aus data. If this happens in other constellations, please report the constellation, where this happened, to the developers.')
-                                }
-                                this.positionNext = this.roomAuxData[series.xSeries].positionNext.slice(); // we use slice to create a copy!
-                                this.position = this.roomAuxData[series.xSeries].position;
-
-                                //this next part should not be needed anymore
-                                /*this.currentHeight2 = this.roomAuxData[series.xSeries].currentHeight;
-                                this.currentJumpoffHeightInd2 = this.roomAuxData[series.xSeries].currentJumpoffHeightInd;
-                                this.attempt2 = this.roomAuxData[series.xSeries].attempt;
-                                this.attemptNext2 = this.roomAuxData[series.xSeries].attemptNext;*/
-
-                            } else {
-                                // writing client. Set position and positionNext. If they have changed, send the changes to the server.
-                                if (JSON.stringify(this.position) != JSON.stringify(position) || JSON.stringify(this.positionNext) != JSON.stringify(positionNext) || this.roomAuxData[series.xSeries].currentHeight != this.currentHeight2 || this.roomAuxData[series.xSeries].currentJumpoffHeightInd != this.currentJumpoffHeightInd2 || this.roomAuxData[series.xSeries].attempt != this.attempt2 || this.roomAuxData[series.xSeries].attemptNext != this.attemptNext2) {
-                                    this.autoManageAuxData(false);
-                                    this.roomAuxData[series.xSeries].positionNext = positionNext;
-                                    this.roomAuxData[series.xSeries].position = position;
-
-                                    // additionally propagate the following properties to all clients (this is especially needed when the site is reloaded after the result is entered, but before it is advanced to the next athlete. Then, the current height and attempt would reference to the next height, while the position arrays still reference the last jump on the previous height, as intended.)
-                                    this.roomAuxData[series.xSeries].currentHeight = this.currentHeight2;
-                                    this.roomAuxData[series.xSeries].currentJumpoffHeightInd = this.currentJumpoffHeightInd2;
-                                    this.roomAuxData[series.xSeries].attempt = this.attempt2;
-                                    this.roomAuxData[series.xSeries].attemptNext = this.attemptNext2;
-
-                                    // send the changed data to the server
-                                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
-                                }
-                                this.position = position;
-                                this.positionNext = positionNext;
-                            }
-
-                            
-                        } else if (this.mode==2){
-                            // in jumpoff mode.
-
-                            // Important: Regarding the position and positionNext arrays, the whole jumpoff is handled as "one height", i.e. the positions array is reduced when somebody did his jump. Instead, the positionNext array gets modified. (In other words: the different jumpoff heights are equivalend to the attempts in the regular competition.)
-
-                            // a new jumpoff height is requried when there is no jumpoff height with jumpoffOrder==nextJumpoffHeightInd
-                            this.jumpoffHeightRequired = false; // needed such that adding the next jumpoff height in the heights-menu works as well 
-                            if (series.heights.findIndex(h=>h.jumpoffOrder==nextJumpoffHeightInd)==-1){
-                                this.jumpoffHeightRequired = true;
-
-                                // suggest the next height for the jumpoff
-                                // check whether the new height already exists or let the user define the next jumpoff height!
-                                let lastJumpoffIndex = 0;
-                                let lastJumpoffHeight = 0;
-                                for(let i=0;i<series.heights.length;i++){
-                                    let el = series.heights[i];
-                                    if (lastJumpoffIndex<el.jumpoffOrder){
-                                        lastJumpoffHeight = el.height;
-                                        lastJumpoffIndex = el.jumpoffOrder;
-                                    }
-                                }
-                                
-                                // create the new height
-                                let val = 0; 
-                                if (nextJumpoffHeightInd==1){
-                                    // the first jumpoffHeight if the first height after the height where all jumpoff-paritcipants have succeeded
-
-                                    // find the smallest height after the maxlastValidHeight
-                                    val = 10000;
-                                    series.heights.forEach((el,ind)=>{
-                                        if (el.height>this.maxLastValidHeight && el.height<val){
-                                            val = el.height;
-                                        }
-                                    })
-
-                                } else {
-                                    if (this.bestAtEachJumpoffHeight[this.bestAtEachJumpoffHeight.length-1]){
-                                        // TODO: get the jumpoffHeightVariation via baseDiscipline
-                                        // increase the last jumpoffHeight by this.jumpoffHeightVariation (i.e. 2cm for HJ and 5cm fo PV)
-                                        val = lastJumpoffHeight + this.disciplineConfiguration.jumpoffHeightVariation;
-                                    }else {
-                                        // decrease the last jumpoffHeight by this.jumpoffHeightVariation (i.e. 2cm for HJ and 5cm fo PV)
-                                        val = lastJumpoffHeight - this.disciplineConfiguration.jumpoffHeightVariation;
-                                    }
-                                }
-                                // predefine the next height and let the user confirm teh height
-                                this.manualJumpoffHeight = val;
-                                
-                            }
-
-                            // formerly, nextJumpoffHeight was really the next jumpoffHeight. However, it is used as the currentJumpoffHeight now.
-                            this.currentJumpoffHeightInd2 = nextJumpoffHeightInd;
-                            // try to take over the positions from the previous height. This only works, when there are the same or fewer athletes.
-
-                            // get all athletes that are still in the jumpoff (including those that jumped already on the current height!), i.e. all athletes where jumpoffFailedAtI>currentJumpoffHeightInd
-                            
-                            let recreatePos = false;
-                            let starts = []; // only used in case of additional athletes, which may only happen after changes in past results
-                            Object.entries(this.tempRankingData).forEach(([xSeriesStart, el])=>{
-
-                                if (el.jumpoffFailedAtI>this.currentJumpoffHeightInd2 && el.rank==1){//(el.jumpoffResults.length==nextJumpoffHeightInd || el.jumpoffResults[nextJumpoffHeightInd]==undefined){
-                                    starts.push(series.seriesstartsresults.find(el=>el.xSeriesStart==xSeriesStart));
-                                    if(this.position.indexOf(parseInt(xSeriesStart))==-1){
-                                        // if would have to add, we will recreate the positions array  afterwards
-                                        recreatePos = true;
-                                    }
-                                }
-                            })
-
-                            // work on local copies of position and positionNext and finally detect possible changes
-                            let position = this.position.slice();
-                            let positionNext = this.positionNext.slice();
-                            if (recreatePos){
-                                // sort the starts
-                                starts.sort((a,b)=>{
-                                    return a.position-b.position;
-                                })
-
-                                // derive the position array
-                                position = []; 
-                                starts.forEach(el=>position.push(el.xSeriesStart));
-
-                                /* positionNext = Array(position.length);
-                                for (let i=0;i<positionNext.length;i++){
-                                    positionNext[i] = i;
-                                } */
-
-                            } else {
-                                // delete positions that do not start on this height:
-                                let i = position.length;
-                                while (i--){
-                                    let xSeriesStart = position[i];
-                                    if (this.tempRankingData[xSeriesStart].jumpoffFailedAtI<=this.currentJumpoffHeightInd2){//(this.tempRankingData[xSeriesStart].jumpoffResults.length != nextJumpoffHeightInd && this.tempRankingData[xSeriesStart].jumpoffResults[nextJumpoffHeightInd]!=undefined){
-                                        position.splice(i,1);
-                                    }
-                                }
-                            }
-
-                            // OLD (pre 2022-03 = pre position/positionNext work as they should and non-autoAdvance works):
-                            //if ((!this.readOnly) || positionNext.length==0) {
-                            // NEW: 
-                            if (true){
-                                // define the order of athletes on the current height (positionNext)
-                                // loop over the position array and check which athletes will still jump on the current height
-                                positionNext = [];
-                                for (let i=0; i<position.length; i++){
-                                    let xSeriesStart = position[i];
-                                    if(this.tempRankingData[xSeriesStart].jumpoffResults[this.currentJumpoffHeightInd2-1]==undefined){
-                                        positionNext.push(i);
-                                    }
-                                }
-                            }
-
-                            if (this.readOnly){
-                                // we actually do not use the position and positionNext data that we just have created, but we use the data that was given via the aux data. But we compare the length of the array in order to detect problems (which should never happen.)
-                                if (position.length != this.roomAuxData[series.xSeries].position.length || positionNext.length != this.roomAuxData[series.xSeries].positionNext.length){
-                                    console.log('Note: the number of athletes jumping on the current height was calculated differently by this browser than given by the data from the server. This may regulary hapen when the result has already arrived on reading clients, but not the new aus data. If this happens in other constellations, please report the constellation, where this happened, to the developers.')
-                                }
-                                this.positionNext = this.roomAuxData[series.xSeries].positionNext.slice(); // we use slice to create a copy!
-                                this.position = this.roomAuxData[series.xSeries].position;
-
-                                // should not be needed anymore
-                                /*this.currentHeight2 = this.roomAuxData[series.xSeries].currentHeight;
-                                this.currentJumpoffHeightInd2 = this.roomAuxData[series.xSeries].currentJumpoffHeightInd;
-                                this.attempt = this.roomAuxData[series.xSeries].attempt;
-                                this.attemptNext2 = this.roomAuxData[series.xSeries].attemptNext;*/
-
-                            } else {
-                                // writing client. Set position and positionNext. If they have changed, send the changes to the server.
-                                if (JSON.stringify(this.position) != JSON.stringify(position) || JSON.stringify(this.positionNext) != JSON.stringify(positionNext) || this.roomAuxData[series.xSeries].currentHeight != this.currentHeight2 || this.roomAuxData[series.xSeries].currentJumpoffHeightInd != this.currentJumpoffHeightInd2 || this.roomAuxData[series.xSeries].attempt != this.attempt2 || this.roomAuxData[series.xSeries].attemptNext != this.attemptNext2) {
-                                    this.autoManageAuxData(false);
-                                    this.roomAuxData[series.xSeries].positionNext = positionNext;
-                                    this.roomAuxData[series.xSeries].position = position;
-
-                                    // additionally propagate the following properties to all clients (this is especially needed when the site is reloaded after the result is entered, but before it is advanced to the next athlete. Then, the current height and attempt would reference to the next height, while the position arrays still reference the last jump on the previous height, as intended.)
-                                    this.roomAuxData[series.xSeries].currentHeight = this.currentHeight2;
-                                    this.roomAuxData[series.xSeries].currentJumpoffHeightInd = this.currentJumpoffHeightInd2;
-                                    this.roomAuxData[series.xSeries].attempt = this.attempt2;
-                                    this.roomAuxData[series.xSeries].attemptNext = this.attemptNext2;
-
-                                    // send the changed data to the server
-                                    rCTrack.room.updateAuxDataInit(this.roomAuxData);
-                                }
-                                this.position = position;
-                                this.positionNext = positionNext;
-                            }
-                        }
-
-
-                        // make sure the ordering is updated (needed at least when the ordering is set to ranking)
-                        this.fakeProperty++;
-
-                    } else {
-                        // show: not all athletes have a startheight
-                        this.mode = 0;
-                        this.position = [];
-                        this.positionNext = [];
-                    }
-
-                },
                 
 
                 saveCurrentResChange(start){
@@ -1837,12 +1327,6 @@
                         return resCopy;
                     }
                 },
-                seriesStatusChanged(){
-
-                    // send the change to the server
-                    // TODO: changed call now!!!
-                    //rCTrack.room.updateSeriesInit(this.series[this.selectedSeries]);
-                },
                 
 
                 fitName(elementId, startgroup, pretext=""){
@@ -1927,17 +1411,12 @@
                     s += ":" + d.getMinutes().toString().padStart(2,0);
                     return s;
                 },
+                seriesOfficial(){
+                    // set all heats official
+                    rCTrack.room.allSeriesStatusInit(70);
+                },
             },
             watch:{
-                mode: function(newMode,oldMode){ 
-                    if (newMode>0 && oldMode==0){
-                        this.sortValue1 = 2;
-                        this.sortValue2 = 2;
-                    } else if(newMode==0 && oldMode>0){
-                        this.sortValue1 = 1;
-                        this.sortValue2 = 1;
-                    }
-                },
                 series: {
                     handler:function(seriesNew, seriesOld){
                         // if the series-data is handed over initially, try to get the selected xSeries from the url get parameter.
@@ -1983,6 +1462,7 @@
                         // harmonized over all changes on the contest properties
                         // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
                         // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.
+
                         if (this.propagateChange){
                             rCTrack.room.updateContest2Init(newContestObj, oldContestObj);
                             this.propagateChange = false;
@@ -2157,12 +1637,6 @@
 
                 /* !!! properties for COMPETITION only !!! */
 
-                selectedXSeries: function(){
-                    if (this.series.length>0){
-                        return this.series[this.selectedSeries].xSeries;
-                    }
-                    return undefined;
-                },
                 auxData: function(){
                     // change the xStartgroup array to an object with objects, where xStartgroup is the key
                     let auxData = {};

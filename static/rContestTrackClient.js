@@ -104,6 +104,26 @@ export class rContestTrackClient extends roomClient{
         this.data.series.sort((s1, s2)=>s1.number-s2.number);
     }
 
+    // set all series to a certain status
+    allSeriesStatusInit(status){
+
+        for (let s of this.data.series){
+            s.status = status;
+        }
+
+        let success = ()=>{
+            // actually there is nothing to do here, since the data has already been changed
+        };
+        let rollback = null; // currently no single rollback planned; get the full data from the server again
+        this.addToStack('allSeriesStatusChange', status, success, rollback)
+    }
+
+    allSeriesStatusExe(status){
+        for (let s of this.data.series){
+            s.status = status;
+        }
+    }
+
     updateSeriesInit(series, prop, val){
 
         let change = ()=>{

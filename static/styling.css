@@ -667,15 +667,28 @@ option.catMismatch{
     border-radius: var(--border-radius, 4px);
 }
 
-/* dragelementH is with highlighting on hover */
-.dragelement, .dragelementH {
+/* new 2023-02: separated the styling from the actual drag behavior, such that the hetas styling in the results view is teh same as in the startlist definition */
+.dragelement, .dragelementH, .heat {
     padding: 6px 12px;
     border: 1px solid RGB(206, 212, 218);
     border-radius: var(--border-radius, 4px);
+    margin-bottom: 1px;
+}
+
+.seriesAssignmentColHead {
+    width: 100%;
+    text-align: center;
+    font-weight: bold;
+    font-size:large;
+    padding: 15px 0 5px 0;
+}
+
+/* dragelementH is with highlighting on hover */
+.dragelement, .dragelementH {
+
     cursor: pointer;
     /*display: inline-block;*/
     /*margin-left: 10px;*/
-    margin-bottom: 1px;
     width:auto; /* TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
 }
 .dragelementH:hover, .seriesDragH:hover {
@@ -698,6 +711,10 @@ option.catMismatch{
     padding: 3px;
     border-radius: var(--border-radius, 4px);
     display: inline-block;
+}
+
+summary {
+    cursor: pointer;
 }
 
 .noDrag {
