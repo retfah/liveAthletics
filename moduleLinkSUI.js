@@ -284,11 +284,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 msg = `Download of base data successful. Duration: ${(timeDownloaded - timeStart)/1000}s. Starting unzipping.`;
                 notes.push(msg);
                 this.logger.log(90, msg);
-    
-                // first, simply store the compressed data (e.g. interesting for debugging to have the data file, but in the smaller, compressed version)
-    
-                // TODO: use raw queries for everything, since we do not need the model overhead!
-                // TODO: do not create all promises first but always use await! Otherwise we use massive amounts of memory (ram) to keep track of all our promises
                 
                 // two pipelines in parallel:
                 // storing to file (for debugging purposes)
@@ -334,12 +329,21 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         // NOTE: the approach here is to create one single insert query and then execute it. This is much faster than executing singe queries. However, the approach is not safe for sql injections and might have difficulties with unescaped special characters. The replacements done on the club name solves the problem with the " character. If there are other such yet unsolved problems, eventually change to single queries and use parameter binding. 
                         // for the moment, svms (club.svms.smv) and relays (club.relays.relay) are not imported!
                         let clubsInsertQuery = 'insert into clubs (code, name, short, type, lg) \n values \n '
+
+                        // until now (2023-02) the accountCodes were not necessarily unique (which was an error and should get fixed). Therefore, we have some additional effort: we only insert a club, if it was not inserted yet.
+
+                        let insertedClubs = new Set(); // probably the fastest possible way to accomplish this
+                        let problematicClubs = [];
+
                         for (let club of xml.watDataset.accounts.account){
     
-                            // there are currently (2022-05) two accounts (accountCode) that appear twice with a different accountType ("Verein" and "Lauftreff"). Since the athletes only reference the acctountCode, it should actually be unique. For the moment, we simply import only non-Lauftreff accounts.
-    
-                            if (club.accountType != 'Lauftreff'){
-    
+                            if (insertedClubs.has(club.accountCode)){
+                                problematicClubs.push(club.accountCode);
+
+                            } else{
+
+                                insertedClubs.add(club.accountCode);
+
                                 clubsInsertQuery += `("${club.accountCode}", "${club.accountName.replace(/"/g,'\\"')}", "${club.accountShort.replace(/"/g,'\\"')}", "${club.accountType}", "${club.lg}"), `; // the replacements are needed to escape the quotation ": sql needs the " being escaped with a backslash. However, since \" is treated in javascript as an escape for ", it would instantly be escaped to " without the backslash. So we use double backslash, since this escapes the backslash and finally results in having \" as we have wanted. 
     
                                 /*let insert= {
@@ -350,7 +354,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                     lg:club.lg,
                                 }*/
     
-                            }
+                            } 
                         }
     
                         
@@ -358,6 +362,11 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         msg = `Club string creation finished. Duration: ${(timeClubStringCreated - timeTruncated)/1000}s. Starting club insert.`
                         notes.push(msg);
                         this.logger.log(90, msg);
+                        if (problematicClubs.length>0){
+                            msg = `The following accountCode appeared multiple times in the base data. only the first was imported: ${problematicClubs}.`
+                            notes.push(msg);
+                            this.logger.log(90, msg);
+                        }
     
                         clubsInsertQuery = clubsInsertQuery.slice(0,-2) + ';';
                         await this.sequelize.query(clubsInsertQuery, {logging:false, raw:true}).then(()=>{
@@ -668,7 +677,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                             notes.push(msg);
                             this.logger.log(90, msg);
                             if (!athletesInserted){
-                                msg = `Single athletes insertion finished: successful: ${success}, failed: ${fail}. Errors: ${errorCodesA}`;
+                                msg = `Single athletes insertion finished: successful: ${success}, failed: ${fail}. Error numbers: ${errorCodesA}. Affected licenses: ${errorLicenses}`;
                                 notes.push(msg);
                                 this.logger.log(90, msg);
                             }

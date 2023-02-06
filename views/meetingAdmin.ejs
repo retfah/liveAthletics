@@ -160,19 +160,28 @@
                             this.importServiceData.errConnection = false;
                             this.importServiceData.errNoMeetings = false;
                             this.importServiceData.errCredentials = false;
+                            this.importServiceData.errGeneral = false;
 
                             this.overlay = 'importServiceBaseUpdate2';
                         } else if (data.err==2){
                             this.importServiceData.errCredentials = false;
                             this.importServiceData.errConnection = true;
+                            this.importServiceData.errGeneral = false;
                         } else if (data.err==3){
                             this.importServiceData.errCredentials = true;
                             this.importServiceData.errConnection = false;
+                            this.importServiceData.errGeneral = false;
                         }
 
                     }
 
-                    rMeet.room.baseUpdateInit(req, succFunc);
+                    const errFunc = (code, msg) =>{
+                        this.importServiceData.errCode = code;
+                        this.importServiceData.errMsg = msg;
+                        this.importServiceData.errGeneral = true;
+                    }
+
+                    rMeet.room.baseUpdateInit(req, succFunc, errFunc);
 
                 },
                 baseSuiImportCompetition: function(identifier){
@@ -375,6 +384,9 @@
                 </div>
                 <div v-if="importServiceData.errCredentials">
                     Die Loginangaben sind nicht korrekt.
+                </div>
+                <div v-if="importServiceData.errGeneral">
+                    {{`A general error (code ${importServiceData.errCode}) occured: ${importServiceData.errMsg}`}}
                 </div>
                 <button type="submit" class="btn" v-on:click="baseSuiUpdateBaseData($event)">Update</button>
                 <button type="button"class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>

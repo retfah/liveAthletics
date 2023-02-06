@@ -478,7 +478,7 @@ class rMeeting extends roomServer{
                 // login credentials wrong
                 response.err=3;
             } else {
-                throw {code:23, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
+                throw {code:24, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
             }
         });
 
