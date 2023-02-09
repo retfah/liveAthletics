@@ -6,7 +6,6 @@
 import roomServer from './roomServer.js';
 
 import Sequelize  from 'sequelize';
-import { getTransitionRawChildren } from 'vue';
 const Op = Sequelize.Op;
 
 /**
@@ -43,6 +42,31 @@ class rContestTechHigh extends roomServer{
 
         super(eventHandler, mongoDb, logger, roomName, true, 1, false, dynamicRoom);
 
+        //since this listener is needed very soon, define it up here             
+        let listenerUpdateAth = async (xStartgroup)=>{
+            // get the aux data for the added person, add it ot the local data and finally broadcast it
+            let dataFlat = await this.createStartgroupSingle(xStartgroup).catch(err=>{this.logger.log(15, `Unexpected error in adding the startgroup ${xStartgroup}: ${err}`)});
+
+            let i = this.data.startgroups.findIndex(sg=>sg.xStartgroup==xStartgroup);
+
+            if (i>=0) {
+                this.data.startgroups[i] = dataFlat;
+
+                // broadcast the change (without creating a new UUID!)
+                // broadcast for room clients (not in a dataset)
+                let broadcastData={
+                    // the roomName is added in broadcast
+                    arg: 'function',
+                    opt: { // this is the doObj
+                        ID: null, // null is kept on stringify, undefined wouldnt
+                        funcName: 'addStartsInGroup', 
+                        data:dataFlat,
+                    }
+                }
+                this.broadcast(broadcastData); 
+            }
+        }
+
         // if mysql is loaded and mongo is ready, do the stuff for the auxData. Finally, we are ready.
         // mongoConnected might be called before we even 
         this.mongoConnected;
@@ -54,6 +78,12 @@ class rContestTechHigh extends roomServer{
             this.mysqlDataLoaded = ()=>{res();}
         })
         Promise.all([pMongoLoaded, pMysqlDataLoaded]).then(()=>{
+
+            // create listeners for every change of an athlete to recreate its startingroup
+            for (let SG of this.data.startgroups){
+                this.eH.eventSubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${SG.xInscription}`, ()=>{listenerUpdateAth(SG.xStartgroup)}, this.name, true)
+            }
+
             // start the aux preparation
             this.prepareAuxData();
             // this will finally also set this.ready=true
@@ -130,39 +160,8 @@ class rContestTechHigh extends roomServer{
 
         // TODO: can we create the sql query, store it, and then reuse it every time? since nothing is dynamic (per room), it does not make sense to recreate this complex query each and every time when the data is to be updated! (But eventually the structure is needed also for creating the object structure. 
 
-        let bufferToBooleansStartsingroup = function(obj){
-            // bit is returned as buffer --> if we have raw results, we need to translate it ourselves! (Sequelize would do it for us)
-            
-            obj.present = !!obj.present[0]; // get the first bit; double negation makes it a boolean
-            obj.paid = !!obj.paid[0];
-            obj.combined = !!obj.combined[0];
-            obj.competitive = !!obj.competitive[0];
-            return obj;
-        }
-
         //let startsInGroups = []; // list of all starts in group of this contest
-        // TODO: there might be the following problem: since we do not use the data from rInscriptions but get our own models, a change of e.g. the name of an athlete (done in rInscriptions) would not show up here in the auxilary data!
-        let promiseStartsInGroup = this.models.startsingroup.findAll({
-            //where: {"xStartgroup":{[Op.in]:startsInGroups}}, // TODO: include
-            attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
-            include: [{model:this.models.groups, as:"group", // the association does not only check "xRound", but also "number" (thank to a special association-scope)
-            where:{"xContest": {[Op.eq]:contest.xContest}}
-            }, {model:this.models.starts, as:"start", attributes:['bestPerf', 'bestPerfLast', 'competitive', 'paid'], include:[{model:this.models.events, as:'event', attributes:['xEvent', 'xDiscipline', ['xCategory', 'eventXCategory'], 'info', 'xEventGroup'], include:[{model:this.models.eventgroups, as:'eventgroup', attributes:[['name', 'eventGroupName'], 'combined']}]}, {model:this.models.inscriptions, as:'inscription', attributes:[['number', 'bib'], 'xInscription', 'xCategory'], include:[{model:this.models.athletes, as:'athlete', attributes:['xAthlete', ['forename', 'athleteForename'], ['lastname', 'athleteName'], 'birthdate', 'sex'], include:[{model:this.models.clubs, as:'club', attributes:[['name', 'clubName'], ['sortvalue', 'clubSortvalue'], 'xClub']}, {model:this.models.regions, as:'region'}]}]}]}],
-            raw: true, // makes the data flat; but do the replacements still work?
-            //logging: console.log,
-            }).then(data=>{
-                // we actually would need an object for each xStartgroup with xStartgroup as the attribute --> this shall be done on the client
-                this.data.startgroups = flattenAttributes(data);
-                
-                for (let i=0;i<this.data.startgroups.length; i++){
-                    // manually convert bit (which are buffers) to boolean
-                    bufferToBooleansStartsingroup(this.data.startgroups[i]);
-                }
-
-            }).catch(err=>{
-                console.log(`Error when creating the startsingroup for contest ${contest.xContest}: ${err}`);
-            })
-        
+        let promiseStartsInGroup = this.createStartgroups();
 
         // get all groups assigned to this contest; include also the information until the events
         //let promiseGroups = this.models.groups.findAll({attributes:['xRound', 'number', 'name'], where:{"xContest":{[Op.eq]:this.contest.xContest}}, include: [{model:this.models.rounds, as:'round', include: [{model:this.models.eventgroups, as:"eventgroup", include:[{model:this.models.events, as:"events"}]}]}]})
@@ -180,35 +179,27 @@ class rContestTechHigh extends roomServer{
                 // Solution 1: split the information into two rooms: one just for reading this aux data, the other for the series. --> too complicated
                 // SOLUTION 2: neglect the very rare problem that a client might have outdated aux data, since it only occurs when 1) a client is offline during 2) a seldom broadcast of an added/deleted athlete . The client shall be able to do a full reload of the aux data (TODO: implement such a button). (There is only one very unlikely problem: A client is generating the series, but is unfortunately offline while one start gets deleted (i.e. also the startInGroup), when the athlete later should be assigned a series the entry in seriesStartsResults cannot be made) But this is only a very rare case where the client unfortunately was offline during the broadcast.
 
-            let listenerAddAth = (xStartgroup)=>{
+            let listenerAddAth = async (xStartgroup)=>{
                 // get the aux data for the added person, add it ot the local data and finally broadcast it
-                this.models.startsingroup.findAll({
-                    where: {"xStartgroup":xStartgroup},
-                    attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
-                    include: [{model:this.models.groups, as:"group", // the association does not only check "xRound", but also "number" (thank to a special association-scope)
-                    where:{"xContest": {[Op.eq]:contest.xContest}}
-                    }, {model:this.models.starts, as:"start", attributes:['bestPerf', 'bestPerfLast', 'competitive', 'paid'], include:[{model:this.models.events, as:'event', attributes:['xEvent', 'xDiscipline', ['xCategory', 'eventXCategory'], 'info', 'xEventGroup'], include:[{model:this.models.eventgroups, as:'eventgroup', attributes:[['name', 'eventGroupName'], 'combined']}]}, {model:this.models.inscriptions, as:'inscription', attributes:[['number', 'bib'], 'xInscription', 'xCategory'], include:[{model:this.models.athletes, as:'athlete', attributes:['xAthlete', ['forename', 'athleteForename'], ['lastname', 'athleteName'], 'birthdate', 'sex'], include:[{model:this.models.clubs, as:'club', attributes:[['name', 'clubName'], ['sortvalue', 'clubSortvalue'], 'xClub']}, {model:this.models.regions, as:'region'}]}]}]}],
-                    raw: true, 
-                    }).then((data)=>{
-                        // data is an array
-                        let dataFlat = flattenAttributes(data)[0];
-                        bufferToBooleansStartsingroup(dataFlat);
-                        this.data.startgroups.push(dataFlat);
+                let dataFlat = await this.createStartgroupSingle(xStartgroup).catch(err=>{this.logger.log(`Unexpected error in adding the startgroup ${xStartgroup}: ${err}`)});
 
-                        // broadcast the change (without creating a new UUID!)
-                        // broadcast for room clients (not in a dataset)
-                        let broadcastData={
-                            // the roomName is added in broadcast
-                            arg: 'function',
-                            opt: { // this is the doObj
-                                ID: null, // null is kept on stringify, undefined wouldnt
-                                funcName: 'addStartsInGroup', 
-                                data:dataFlat,
-                            }
-                        }
-                        this.broadcast(broadcastData); 
+                this.data.startgroups.push(dataFlat);
 
-                    })
+                // listen to events when the data of this person changes
+                this.eH.eventSubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${dataFlat.xInscription}`, ()=>{listenerUpdateAth(xStartgroup)}, this.name, true)
+
+                // broadcast the change (without creating a new UUID!)
+                // broadcast for room clients (not in a dataset)
+                let broadcastData={
+                    // the roomName is added in broadcast
+                    arg: 'function',
+                    opt: { // this is the doObj
+                        ID: null, // null is kept on stringify, undefined wouldnt
+                        funcName: 'addStartsInGroup', 
+                        data:dataFlat,
+                    }
+                }
+                this.broadcast(broadcastData); 
 
             }
 
@@ -216,6 +207,10 @@ class rContestTechHigh extends roomServer{
                 // find the athlete and delete it from the startgroups
                 let index = this.data.startgroups.findIndex(el=>el.xStartgroup==xStartgroup);
                 if (index>=0){
+
+                    // unregister from the athlete change event
+                    this.eH.eventUnsubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${this.data.startgroups[i].xInscription}`, this.name)
+                    
                     this.data.startgroups.splice(index, 1);
 
                     // broadcast the deletion
@@ -242,7 +237,11 @@ class rContestTechHigh extends roomServer{
                     this.data.relatedGroups.splice(i,1);
                 }
 
-                // remove startgroups
+                // remove startgroups and unregister the events
+                for (let SG of this.data.startgroups.filter(el=> el.xRound != data.xRound || el.number != data.number)){
+                    // unregister from the athlete change event
+                    this.eH.eventUnsubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${SG.xInscription}`, this.name);
+                }
                 this.data.startgroups = this.data.startgroups.filter(el=> el.xRound != data.xRound || el.number != data.number);
 
                 // remove event listeners: 
@@ -289,11 +288,14 @@ class rContestTechHigh extends roomServer{
                     //logging: console.log,
                     }).then(SIGs=>{
 
-                        SIGs = flattenAttributes(SIGs);
+                        SIGs = this.flattenAttributes(SIGs);
                         
                         for (let i=0;i<SIGs.length; i++){
                             // manually convert bit (which are buffers) to boolean
-                            bufferToBooleansStartsingroup(SIGs[i]);
+                            this.bufferToBooleansStartsingroup(SIGs[i]);
+
+                            // listen to events when the data of this person changes
+                            this.eH.eventSubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${SIGs[i].xInscription}`, ()=>{listenerUpdateAth(xStartgroup)}, this.name, true)
                         }
 
                         this.data.startgroups = this.data.startgroups.concat(SIGs);
@@ -336,6 +338,23 @@ class rContestTechHigh extends roomServer{
 
         this.ready = false; // as we have async stuff here, we need to know whether we are ready to do something or not (e.g. the sequelize data is loaded.)
 
+        // make sure that the startgroups are recreated on global changes; additionally, updating the startgroups can be requested by a writing client 
+        const recreateStartgroups = async ()=>{
+            await this.createStartgroups();
+            // broadcast the changed data
+            let broadcastData={
+                // the roomName is added in broadcast
+                arg: 'function',
+                opt: { // this is the doObj
+                    ID: null, // null is kept on stringify, undefined wouldnt
+                    funcName: 'renewStartgroups', 
+                    data:this.data.startgroups,
+                }
+            }
+            this.broadcast(broadcastData); 
+        };
+        this.eH.eventSubscribe(`general@${this.meetingShortname}:renewStartgroups`, recreateStartgroups, this.name, true)
+
 
         // get all series
         // it shall have the following structure: 
@@ -353,33 +372,6 @@ class rContestTechHigh extends roomServer{
             this.mysqlDataLoaded()
 
         })
-
-        /**
-         * Flatten all DB-attributes on the highest level of an array with objects. Useful e.g. for associated DB-objects, where columns of references tables result in attributes like "referencedTable.col1", which is changed here to "col1" (the rightmost part after a point) only. IMPORTANT: doews not work when the column name would contain a dot (.)!
-         * @param {array} data The array of object to flatten its properties
-         * @param {boolean} copy To copy the array and object first (no deep!) or not; default=false
-         * @returns The array with the flattened objects
-         */
-        function flattenAttributes(data, copy=false){
-            let flattened = data
-            if (copy){
-                // copy array and each simnge object
-                flattened = Array.from(data); 
-                flattened.forEach(el=>{el = Object.assign({}, el);})
-            }
-
-            flattened.forEach(obj=>{    
-                for (let key of Object.keys(obj)){
-                    let parts = key.split('.');
-                    if (parts.length==1){continue;}
-                    let newKey = parts[parts.length-1];
-                    obj[newKey] = obj[key];
-                    delete obj[key];
-                }
-            })
-
-            return flattened;
-        }
 
         this.data.contest = contest.dataValues;
 
@@ -449,7 +441,8 @@ class rContestTechHigh extends roomServer{
                 datetimeStart: {type:["string"], format:"date-time"},
                 xSite: {type: ["integer", "null"]},
                 status: {type: "integer"},
-                conf: {type:"string"}
+                conf: {type:"string"},
+                name: {type:"string", maxLength:50},
             },
             required: ["xContest", "xBaseDiscipline", "datetimeAppeal", "datetimeCall", "datetimeStart"]
         };
@@ -527,10 +520,10 @@ class rContestTechHigh extends roomServer{
             properties: {
                 xSeries: {type:"integer"}, // must be undefined sometimes
                 xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
-                xSite: {type: ["integer", "null"]},
-                status: {type:"integer", default:10},
+                xSite: {type: ["integer", "null"], default: null},
+                status: {type:"integer", default: 10},
                 number: {type:"integer"},
-                name: {type:"string", maxLength:50},
+                name: {type:"string", maxLength:50, default:''},
                 seriesstartsresults: {
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
@@ -542,7 +535,7 @@ class rContestTechHigh extends roomServer{
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
             },
-            required: ["xContest", "status", "number"],
+            required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
             // neither required nor additional propertzies are defined herein
         }
@@ -624,7 +617,7 @@ class rContestTechHigh extends roomServer{
             type:"object",
             properties:{
                 xSeriesStart: {type:"integer"},
-                fromXSeries: {type:"integer"}, // actually for information only
+                fromXSeries: {type:"integer"}, // actually for simplicity only
                 toXSeries: {type:"integer"},
                 toPosition: {type:"integer"}
             },
@@ -696,6 +689,85 @@ class rContestTechHigh extends roomServer{
         this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
 
+    }
+
+    /**
+     * Flatten all DB-attributes on the highest level of an array with objects. Useful e.g. for associated DB-objects, where columns of references tables result in attributes like "referencedTable.col1", which is changed here to "col1" (the rightmost part after a point) only. IMPORTANT: doews not work when the column name would contain a dot (.)!
+     * @param {array} data The array of object to flatten its properties
+     * @param {boolean} copy To copy the array and object first (no deep!) or not; default=false
+     * @returns The array with the flattened objects
+     */
+    flattenAttributes(data, copy=false){
+        let flattened = data
+        if (copy){
+            // copy array and each simnge object
+            flattened = Array.from(data); 
+            flattened.forEach(el=>{el = Object.assign({}, el);})
+        }
+
+        flattened.forEach(obj=>{    
+            for (let key of Object.keys(obj)){
+                let parts = key.split('.');
+                if (parts.length==1){continue;}
+                let newKey = parts[parts.length-1];
+                obj[newKey] = obj[key];
+                delete obj[key];
+            }
+        })
+
+        return flattened;
+    }
+
+    bufferToBooleansStartsingroup(obj){
+        // bit is returned as buffer --> if we have raw results, we need to translate it ourselves! (Sequelize would do it for us)
+        
+        obj.present = !!obj.present[0]; // get the first bit; double negation makes it a boolean
+        obj.paid = !!obj.paid[0];
+        obj.combined = !!obj.combined[0];
+        obj.competitive = !!obj.competitive[0];
+        return obj;
+    }
+
+    // create the startgroups and write it to this.data.startgroups
+    // this function should be called at startup, on request and when important general stuff change, e.g. all bib assignments or the base data.
+    async createStartgroups(){
+        return this.models.startsingroup.findAll({
+            //where: {"xStartgroup":{[Op.in]:startsInGroups}}, // TODO: include
+            attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
+            include: [{model:this.models.groups, as:"group", // the association does not only check "xRound", but also "number" (thank to a special association-scope)
+            where:{"xContest": {[Op.eq]:this.contest.xContest}}
+            }, {model:this.models.starts, as:"start", attributes:['bestPerf', 'bestPerfLast', 'competitive', 'paid'], include:[{model:this.models.events, as:'event', attributes:['xEvent', 'xDiscipline', ['xCategory', 'eventXCategory'], 'info', 'xEventGroup'], include:[{model:this.models.eventgroups, as:'eventgroup', attributes:[['name', 'eventGroupName'], 'combined']}]}, {model:this.models.inscriptions, as:'inscription', attributes:[['number', 'bib'], 'xInscription', 'xCategory'], include:[{model:this.models.athletes, as:'athlete', attributes:['xAthlete', ['forename', 'athleteForename'], ['lastname', 'athleteName'], 'birthdate', 'sex'], include:[{model:this.models.clubs, as:'club', attributes:[['name', 'clubName'], ['sortvalue', 'clubSortvalue'], 'xClub']}, {model:this.models.regions, as:'region'}]}]}]}],
+            raw: true, // makes the data flat; but do the replacements still work?
+            //logging: console.log,
+            }).then(data=>{
+                // we actually would need an object for each xStartgroup with xStartgroup as the attribute --> this shall be done on the client
+                this.data.startgroups = this.flattenAttributes(data);
+                
+                for (let i=0;i<this.data.startgroups.length; i++){
+                    // manually convert bit (which are buffers) to boolean
+                    this.bufferToBooleansStartsingroup(this.data.startgroups[i]);
+                }
+
+            }).catch(err=>{
+                console.log(`Error when creating the startsingroup for contest ${this.contest.xContest}: ${err}`);
+            })
+    }
+
+    async createStartgroupSingle(xStartgroup){
+        return this.models.startsingroup.findAll({
+            where: {"xStartgroup":xStartgroup},
+            attributes: ['xStartgroup', ['number', 'groupNumber'], 'xRound', 'xStart', 'present'], // array instead of one value: the first is the actual attribute, the second is how it should be named in the output
+            include: [{model:this.models.groups, as:"group", // the association does not only check "xRound", but also "number" (thank to a special association-scope)
+            where:{"xContest": {[Op.eq]:this.contest.xContest}}
+            }, {model:this.models.starts, as:"start", attributes:['bestPerf', 'bestPerfLast', 'competitive', 'paid'], include:[{model:this.models.events, as:'event', attributes:['xEvent', 'xDiscipline', ['xCategory', 'eventXCategory'], 'info', 'xEventGroup'], include:[{model:this.models.eventgroups, as:'eventgroup', attributes:[['name', 'eventGroupName'], 'combined']}]}, {model:this.models.inscriptions, as:'inscription', attributes:[['number', 'bib'], 'xInscription', 'xCategory'], include:[{model:this.models.athletes, as:'athlete', attributes:['xAthlete', ['forename', 'athleteForename'], ['lastname', 'athleteName'], 'birthdate', 'sex'], include:[{model:this.models.clubs, as:'club', attributes:[['name', 'clubName'], ['sortvalue', 'clubSortvalue'], 'xClub']}, {model:this.models.regions, as:'region'}]}]}]}],
+            raw: true, 
+            }).then((data)=>{
+                // data is an array
+                let dataFlat = this.flattenAttributes(data)[0];
+                this.bufferToBooleansStartsingroup(dataFlat);
+                return  dataFlat;
+    
+            })
     }
 
     /**
@@ -819,12 +891,31 @@ class rContestTechHigh extends roomServer{
             throw {code:22, message:`Could not find series ${data.xSeries}.`};
         }
 
+        let oldSite = series.xSite;
+
         // make sure the xContest is not changed!
         if (data.xContest != this.contest.xContest){
             throw {message:`xContest should be ${this.contest.xContest}, but was ${series[i].xContest}`, code:24}
         }
 
-        series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; })
+        series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
+
+        // notify site about changes
+        if (oldSite != series.xSite){
+            if (oldSite != null){
+                this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: series.xSeries, xContest:series.xContest});
+            }
+            if (series.xSite != null){
+                let addData = {
+                    contest: this.contest.dataValues, 
+                    series: series.dataValues,
+                    startgroups: this.data.startgroups,
+                };
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+            }
+        } else if (series.xSite != null){
+            this.eH.raise(`sites/${data.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+        }
 
         let ret = {
             isAchange: true, 
@@ -1155,6 +1246,14 @@ class rContestTechHigh extends roomServer{
 
         await Promise.all(proms);
 
+        // notify all rSite about the changes in the series
+        for (let si = Math.min(oldIndex, newIndex); si<=Math.max(oldIndex, newIndex); si++){
+            const s = this.data.series[si];
+            if (s.xSite != null){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+            }
+        }
+
         // return broadcast
         let ret = {
             isAchange: true, 
@@ -1221,6 +1320,14 @@ class rContestTechHigh extends roomServer{
             // save change
             await ssr.save();
 
+            // notify rSite
+            if (newSeries.xSite != null){
+                this.eH.raise(`sites/${newSeries.xSite}@${this.meetingShortname}:seriesChanged`, {series:newSeries, startgroups:this.data.startgroups});
+            }
+            if (newSeries != oldSeries && oldSeries.xSite !== null){
+                this.eH.raise(`sites/${oldSeries.xSite}@${this.meetingShortname}:seriesChanged`, {series:oldSeries, startgroups:this.data.startgroups});
+            }
+
             // return broadcast
             let ret = {
                 isAchange: true, 
@@ -1266,6 +1373,11 @@ class rContestTechHigh extends roomServer{
                 }
                 // add to the list of seriesstartsresults
                 series.seriesstartsresults.push(newSSR);
+
+                // notify rSite
+                if (series.xSite != null){
+                    this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+                }
                 
                 // return broadcast
                 let ret = {
@@ -1316,6 +1428,11 @@ class rContestTechHigh extends roomServer{
                 }
             }
 
+            // notify rSite
+            if (series.xSite != null){
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+            }
+
             // broadcast the change
             let ret = {
                 isAchange: true, 
@@ -1350,7 +1467,7 @@ class rContestTechHigh extends roomServer{
         // This should also ensure that there are no heights and results yet.
         // TODO
 
-        // destroy all at once (looping over teh array and do it one by one)
+        // destroy all at once (looping over the array and do it one by one)
         
         // first delete all seriesstartsresults and heights
         for (let i=0; i<this.data.series.length; i++){
@@ -1367,6 +1484,9 @@ class rContestTechHigh extends roomServer{
 
         }
 
+        // keep a reference to the series for later events to rSite
+        let seriesDeleted = this.data.series;
+
         // then delete all series
         return this.models.series.destroy({where:{xContest: this.contest.xContest}}).then(async ()=>{
             // sucessfully deleted everything in the DB; now also delete the auxData
@@ -1380,6 +1500,13 @@ class rContestTechHigh extends roomServer{
                 // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
                 this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
             })
+
+            // notify the site(s) that about the deleted series
+            for (let s of seriesDeleted){
+                if (s.xSite != null){
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest})
+                }
+            }
 
             let ret = {
                 isAchange: true, 
@@ -1441,7 +1568,13 @@ class rContestTechHigh extends roomServer{
             await s.save().catch(err=>{
                 throw {code: 25, message: `Could not save the changed series (xSeries=${s.xSeries}). This should never happen. ${err}`};
             });
+            if (s.rSite != null){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {s, startgroups:this.data.startgroups});
+            }
         };
+        if (series.xSite != null){
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest});
+        }
 
         let ret = {
             isAchange: true, 
@@ -1479,6 +1612,16 @@ class rContestTechHigh extends roomServer{
 
                 // broadcast the new series object
                 dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+
+                // notify the site, if given
+                if (s.xSite != null){
+                    let addData = {
+                        contest: this.contest.dataValues, 
+                        series: s.dataValues,
+                        startgroups: this.data.startgroups,
+                    };
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+                }
 
                 // return the xSeries
                 dataReturn = s.xSeries;
@@ -1570,6 +1713,18 @@ class rContestTechHigh extends roomServer{
                 this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
             })
 
+            // notify the sites (if chosen) about the added series
+            for (let s of this.data.series){
+                if (s.xSite !=null){
+                    let addData = {
+                        contest: this.contest.dataValues, 
+                        series: s.dataValues,
+                        startgroups: this.data.startgroups,
+                    }
+                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData)
+                }
+            }
+
             // return the xSeries and xSeriesStart to the calling client; 
             // broadcast the full data to all other clients
 
@@ -1637,6 +1792,9 @@ class rContestTechHigh extends roomServer{
             // - need at least one series to allow series defined
             // - must not have neither results nor heights to go back from the competition part to series definition
 
+            const confBeforeRaw = this.data.contest.conf;
+            let confBefore = JSON.parse(this.data.contest.conf);
+            let confAfter = JSON.parse(data.conf);
 
             // if everything is fine, call the update function on the contests room
             return this.rContests.serverFuncWrite('updateContest', data).then(result=>{
@@ -1647,7 +1805,7 @@ class rContestTechHigh extends roomServer{
                     response: true, // no need for data to the calling client
                     preventBroadcastToCaller: true
                 };
-
+			// TODO: here we would have to notify rSItes about changed rContest; see rContestTrack for reference
                 return ret;
 
             }).catch(err=> {throw err})

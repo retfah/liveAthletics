@@ -263,6 +263,9 @@
                     });
 
                     this.mode = 2;
+                },
+                renewStartgroups: function(){
+                    rMeet.room.renewStartgroupsInit();
                 }
             },
             watch:{
@@ -354,7 +357,9 @@
         <select v-model="selectedImportService" >
             <option v-for="(s,i) in importServices" v-bind:value=i>{{s}}</option>
         </select>
-        <button type="button" class="btn" v-on:click="baseSuiUpdateBaseDataInit($event)"><%= __("Initialize update") %></button>
+        <button type="button" class="btn" v-on:click="baseSuiUpdateBaseDataInit($event)"><%= __("Initialize update") %></button><br>
+        <%= __("Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests") %>:
+        <button type="button" class="btn" v-on:click="renewStartgroups($event)"><%= __("Renew") %></button>
 
         <h2><%= __("Import competition from an online service") %></h2>
         <select v-model="selectedImportService" >

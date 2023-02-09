@@ -157,12 +157,13 @@ class rInscriptions extends roomServer{
                     //required:["notExisting"]
                 },
                 number:{type:"integer"},
-
+                xCategory: {type:"integer"},
             },
             oneOf:[
                 {required: ["xInscription", "athlete"]},
                 {required: ["xInscription", "relay"]}
             ],
+            required:["xCategory"],
             additionalProperties:false,
         };
         let schemaDeleteInscription = {
@@ -275,6 +276,9 @@ class rInscriptions extends roomServer{
 
             // the data we send back to the client here is simply what he sent us, applying the change that was requested
             let sendData = data;
+
+            // make sure that all contests recreate their startgroups !
+            this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
 
             // object storing all data needed to DO the change
             let doObj = {
@@ -472,6 +476,9 @@ class rInscriptions extends roomServer{
                 // also update relayAthletes!
             }
 
+            // notify all rooms about the change (e.g. to update startgroups)
+            this.eH.raise(`inscriptions@${this.meetingShortname}:inscriptionChanged${data.xInscription}`)
+
             let ret = {
                 isAchange: true, 
                 doObj: {funcName: 'updateInscription', data: o.dataValues}, 
@@ -510,7 +517,7 @@ class rInscriptions extends roomServer{
             });*/
 
         } else {
-            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
+            throw {code: 23, message: this.ajv.errorsText(this.validateUpdateInscription.errors)}
         }
     }
 

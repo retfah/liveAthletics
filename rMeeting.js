@@ -67,6 +67,7 @@ class rMeeting extends roomServer{
         this.functionsWrite.baseImportCompetition = this.baseImportCompetition.bind(this); 
         this.functionsReadOnly.baseLastUpdate = this.baseLastUpdate.bind(this);
         this.functionsWrite.baseUpdate = this.baseUpdate.bind(this);
+        this.functionsReadOnly.renewStartgroups = this.renewStartgroups.bind(this); // renew all startgroups in all rooms
 
         // first create the date of today (UTC):
         let now = new Date();
@@ -281,6 +282,13 @@ class rMeeting extends roomServer{
         return this.ajv.compile(this.schemaMeeting);
     }
 
+    // notify all rooms to renew the startgroups; this is needed e.g. when the base data were updated in another meeting, since the automatucally raised event is only received in this room 
+    renewStartgroups(data){
+        // make sure that all contests recreate their startgroups !
+        this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
+        return true;
+    }
+
     async updateMeeting(data){
 
         // first we need to do some prevalidation without the model options; if the model options have changed, we need to update the schema first, before we do the final validation
@@ -481,6 +489,9 @@ class rMeeting extends roomServer{
                 throw {code:24, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
             }
         });
+
+        // make sure that all contests recreate their startgroups !
+        this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
 
         // return
         let ret = {

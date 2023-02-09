@@ -62,6 +62,7 @@ export class rContestTechHighClient extends roomClient{
         this._addFunction('addSeries', this.addSeriesExe);
         this._addFunction('deleteSeries', this.deleteSeriesExe);
         this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
+        this._addFunction('renewStartgroups', this.renewStartgroupsExe);
     }
 
     // Infos about aux data:
@@ -1123,8 +1124,18 @@ export class rContestTechHighClient extends roomClient{
         }
     }
 
+    renewStartgroupsExe(startgroups){
+        this.propertyTransfer(startgroups, this.data.startgroups, false);
+    }
+
+    // can be add or update
     addStartsInGroupExe(data){
-        this.data.startgroups.push(data);
+        let i = this.data.startgroups.findIndex(SG=>SG.xStartgroup == data.xStartgroup); 
+        if (i>=0){
+            this.propertyTransfer(data, this.data.startgroups[i]);
+        } else {
+            this.data.startgroups.push(data);
+        }
     }
 
     updatePresentStateInit(affectedRow){

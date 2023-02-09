@@ -667,7 +667,6 @@ class rContestTrack extends roomServer{
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
         this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
     }
-
     /**
      * Flatten all DB-attributes on the highest level of an array with objects. Useful e.g. for associated DB-objects, where columns of references tables result in attributes like "referencedTable.col1", which is changed here to "col1" (the rightmost part after a point) only. IMPORTANT: doews not work when the column name would contain a dot (.)!
      * @param {array} data The array of object to flatten its properties
@@ -809,7 +808,6 @@ class rContestTrack extends roomServer{
     }
 
     // TODO: add single series, delete single series.
-
     async updateAuxData(data){
         if (!this.validateAuxData(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateAuxData.errors)}
@@ -835,7 +833,7 @@ class rContestTrack extends roomServer{
             doObj: {funcName: 'updateAuxData', data: data},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
-            preventBroadcastToCaller: true,
+            preventBroadcastToCaller: true
         };
 
         return ret;

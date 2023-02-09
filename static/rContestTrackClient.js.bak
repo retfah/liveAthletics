@@ -1257,14 +1257,8 @@ export class rContestTrackClient extends roomClient{
         this.propertyTransfer(startgroups, this.data.startgroups, false);
     }
 
-    // can be add or update
     addStartsInGroupExe(data){
-        let i = this.data.startgroups.findIndex(SG=>SG.xStartgroup == data.xStartgroup); 
-        if (i>=0){
-            this.propertyTransfer(data, this.data.startgroups[i]);
-        } else {
-            this.data.startgroups.push(data);
-        }
+        this.data.startgroups.push(data);
     }
 
     updatePresentStateInit(affectedRow){

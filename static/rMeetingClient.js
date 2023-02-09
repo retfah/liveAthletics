@@ -28,6 +28,14 @@ export class rMeetingClient extends roomClient{
         this._addFunction('updateMeeting', this.updateMeetingExe);
     }
 
+    renewStartgroupsInit(){
+        const opt = {
+            readOnly:true,
+        }
+        // actually there is no data to transmit; transmit true
+        this.addToStack('renewStartgroups', true, ()=>{}, ()=>{}, opt)
+    }
+
     updateMeetingInit(meeting, funcOverride=undefined){
         // meeting should contain all mandatory properties except the index...
         this.addToStack('updateMeeting', meeting, funcOverride)
