@@ -898,7 +898,7 @@ class rContestTechHigh extends roomServer{
             throw {message:`xContest should be ${this.contest.xContest}, but was ${series[i].xContest}`, code:24}
         }
 
-        series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
+        await series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
 
         // notify site about changes
         if (oldSite != series.xSite){

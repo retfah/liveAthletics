@@ -123,6 +123,12 @@ import moduleLinkSUI from './moduleLinkSUI.js';
 
 global.developMode = true;
 
+// unhandled rejection do not show a reasonable error in the console. Thus, catch it here and show it.
+process.on('unhandledRejection', function(reason, promise) {
+	console.log("Unhandled Rejection:", reason, promise);
+	process.exit(1);
+  });
+
 // ----------------
 // Classes
 // ----------------
@@ -275,6 +281,8 @@ const mysqlPool = mariadb.createPool({
 	port:conf.database.port, 
 	connectionLimit: 5, 
 	multipleStatements: true,
+	connectTimeout: 10000, //ms
+	acquireTimeout: 30000, //ms
 	//charset: 'UTF8MB3_general_ci',
 }); // multiple statements is needed for table creation; ATTENTION: this is a security problem (SQL injection) --> do not use this connection 
 
@@ -325,6 +333,8 @@ const sequelizeAdmin = new Sequelize(conf.database.dbBaseName+"_"+conf.database.
 	dialect: 'mariadb', // mariadb, mysql
 	dialectOptions: {
 		timezone: 'local',
+		connectTimeout: 10000, //ms
+		acquireTimeout: 30000, //ms
 		// multipleStatements: true, //would be needed if the admin-table creation was done through sequelize; however, it is dangerous as it allows SQL-injections!
 	},
     host: conf.database.host,

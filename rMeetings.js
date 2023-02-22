@@ -250,6 +250,8 @@ class rMeetings extends roomServer{
                 dialectOptions: {
                     multipleStatements: true, // attention: we need this option for creating meetings; however, it is dangerous as it allows SQL-injections! TODO: do all queries with multiple statements on the mysqlBaseConn and use sequelize only for ingle queries!
                     timezone: 'local', // sequelize would define an other default otherwise!
+                    connectTimeout: 10000, //ms
+                    acquireTimeout: 30000, //ms
                 },
                 host: conf.database.host,
                 port: conf.database.port,
