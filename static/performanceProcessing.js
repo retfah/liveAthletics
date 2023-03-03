@@ -20,11 +20,15 @@ export const disciplineFormatters = {
     },
     3: function (value, discipline, showUnit=false, showMillis=false){
         // competition rules 19.23: up to and inlcuding 10'000m on track, the times have to be shown with 1/100 s precision. On track >10'000m (does that even exist?), times are shown with 1/10 precision. For disciplines partially or fully outside a track the times are precise to 1 s. 
-        // since we do not differentiate on track/poutside trakc at the moment, we simply take the distance as the criterion for the precision.
+        // since we do not differentiate on track/outside track at the moment, we simply take the distance as the criterion for the precision.
 
         // NOTE: performances from manual timing have to be rounded differently! However, there is no special treatment here, since it is assumed that those results are already entered with the correct rounding.
 
         // NOTE: never show units as soon as there is a doble dot in the time-string, e.g. when at least minutes are shown.
+
+        if (!value){
+            return '';
+        }
 
         // get the configuration:
         const conf = JSON.parse(discipline.baseConfiguration);
@@ -33,7 +37,7 @@ export const disciplineFormatters = {
             throw {code: 101, message: `Discipline ${discipline?.xDiscipline} is lacking a distance in the configuration.`}
         }
         if (conf.distance<=10000){
-            // get the ronded values
+            // get the rounded values
             const valObj = disciplineValueProcessors[3](value, showMillis ? 3:2); 
             if (conf.distance<=400){
                 // only show seconds, even if there are minutes
@@ -233,13 +237,20 @@ export const disciplineValidators = {
         4: hh:mm:ss.000
         */ 
 
-        // provide an object matching xBaseDiscipline with the range of reasonable data
-        const realisticMinMax = {
-            // in DB-units, i.e. 1s=100000 !
-            // choose the range rather large enough, to include also the results of kids and Masters. For the timeScore in the evaluation of the string-interpretation it does not matter, since the difference to the next interpretatoin is still large enough 
-            3:{min: 950000, max: 3000000}, // 100m 
-            2:{min: 1150000, max: 4000000}, // 100mH
-        } 
+        // provide a range of realistic times, based on two dependencies of the distance (<=2K, >2K). The maximum time is simply 3.5x the minimum
+        // get the configuration:
+        const conf = JSON.parse(discipline.baseConfiguration);
+                
+        if (!conf?.distance){
+            throw {code: 101, message: `Discipline ${discipline?.xDiscipline} is lacking a distance in the configuration.`}
+        }
+        let realisticMin = 0;
+        if (conf.distance<=2000){
+            realisticMin = (2.768221904 + 0.021595552 * conf.distance ** 1.244221402) * 100000; // the actual formula is in s; multiply with 100000 to be comaprable
+        } else {
+            realisticMin = (0.099521788 * conf.distance ** 1.043362228) * 100000; // the actual formula is in s; multiply with 100000 to be comaprable
+        }
+        let realisticMax = 3.5*realisticMin;
 
         // handle letters, e.g. units
         // first, replace letters with a whitespace e.g. "1 min 13 s" -> "1  13  "
@@ -341,7 +352,7 @@ export const disciplineValidators = {
             valuesModified.push(true);
 
             // 00000 (1/100000 s)
-            // very unrealistic that somebody enters the data this way, but it might happen that this function is really called on a DB value, so:
+            // very unrealistic that somebody enters the data this way, but but this function can be called on a DB value, so:
             times.push(values[0]);
             delimiterScores.push(1); // always unrelaistic, but if the time matches, then it will be ok.
             valuesModified.push(false);
@@ -405,27 +416,12 @@ export const disciplineValidators = {
         let realistic = [];
         let timeScores = [];
 
-        // do we have a range of realistic times?
-        if (discipline.xBaseDiscipline in realisticMinMax){
-            const minMax = realisticMinMax[discipline.xBaseDiscipline];
-
-            // OLD: complex time score with a square deviation rule:
-            // 1 if it is outside the boundary
-            // 10 if it is at one third from the min towards the max
-            // 9 if it is at the min or at 2/3
-            // 6 if it is at max
-            // formula: score = 10 - 9/(max-min)^2 * (time-2/3*min-1/3*max)^2
-            
-            // NEW: since the different time interpretations are clearly different from each other, there is no need for a complex timeScore. Just set to 10 when the time is within the range (i.e. =realistic) and to 1 otherwise
-            for (let time of times){
-                realistic.push(time>minMax.min && time < minMax.max)
-                timeScores.push((time>minMax.min && time < minMax.max) ? 10 : 1)
-            }
-        } else {
-            console.log(`Could not check whether the value ${value} is realistic or not, since no boundaries are given for this base discipline.`);
-            realistic = Array(delimiterScores.length).fill(false);
-            timeScores = Array(delimiterScores.length).fill(1);
+        // NEW: since the different time interpretations are clearly different from each other, there is no need for a complex timeScore. Just set to 10 when the time is within the range (i.e. =realistic) and to 1 otherwise
+        for (let time of times){
+            realistic.push(time>realisticMin && time < realisticMax)
+            timeScores.push((time>realisticMin && time < realisticMax) ? 10 : 1)
         }
+
 
         let indexMax = 0;
         let scoreMax = 0;

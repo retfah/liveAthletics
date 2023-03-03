@@ -174,6 +174,8 @@
                     yesNoTitle: '',
                     yesNoFunction:()=>{},
 
+                    showReactionTimes: false,
+
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
                     },
@@ -1161,47 +1163,6 @@
                     // still needed?
 
                 },
-                
-
-                saveCurrentResChange(start){
-                    /*let el = document.getElementById('resChange' + this.currentResultChange.xResult);
-                    //let el = document.getElementById('resChange');
-                    if (el==undefined){
-                        alert('ERROR: cound not find the html-element of the result change. Should actually never happen. ');
-                        return;
-                    }*/
-
-                    // if the string is empty, delete the result completely, otherwise, just alter it
-                    if (this.currentResultString==''){
-                        
-                        rCTrack.room.deleteResultInit(this.currentResultChange, start)
-
-
-                    }else if (this.currentResultString != this.currentResultStringCopy){
-
-                        // get the height element to find out whether it is a jumpoff-height
-                        let hEl = this.sortedHeights.find((el)=>{return el.xHeight==this.currentResultChange.xHeight})
-                        if (!hEl){
-                            alert('ERROR: could not find the height corresponding to the ')
-                        }
-
-                        let raw = this.strToResult(this.currentResultString, false, hEl.jumpoffOrder>0)
-
-                        if (raw){
-                            // transfer the changes to the actual result
-                            this.currentResultChange.resultsHighPassed = raw.resultsHighPassed;
-                            this.currentResultChange.resultsHighValid = raw.resultsHighValid;
-                            this.currentResultChange.resultsHighFailedAttempts= raw.resultsHighFailedAttempts;
-
-                            rCTrack.room.updateResultInit(this.currentResultChange, start)
-
-                        }else{
-                            alert("<%= __('The entered result is invalid. The previous value is restored.') %>")
-                        }
-                    }
-                    // leave the result change mode:
-                    this.currentResultChange = {};
-                },
 
                 addResultBlur(start, $event){
                     if (this.resultKeyPressed!=27){
@@ -1415,6 +1376,63 @@
                     // set all heats official
                     rCTrack.room.allSeriesStatusInit(70);
                 },
+                /**
+                 * format the given integer-value for the presentation to the user
+                 * @param {integer} value The integer value to format
+                 **/
+                formatValue(value){
+                    return window.disciplineFormatters[this.discipline.type](value, this.discipline, true, true); // including milliseconds
+                },
+
+                validateInput(value){
+                    return window.validatePerformance(value, this.discipline);
+                },
+                checkInput(ssrCopy, applyChange=false){
+                    // check whether the made string input is realistic
+                    // only initiate a value change when applyChange=true
+
+                    
+                    // get the discipline first
+                    let disc = this.discipline;
+
+                    let validity = this.validateInput(ssrCopy.resultStr, disc)
+                    //validity={valid, value, modified, realistic}
+
+                    ssrCopy.resultValid = validity.valid && validity.realistic;
+
+                    if (applyChange){
+                        // we do nto need to set the new value as formatted string, since this will be done automatically after we change the data in the main series object in the room, since it is a compited property
+                        // call the change function on the room
+                        if (validity.valid){
+                            // differentiate add or update
+                            if (ssrCopy.resultstrack){
+                                // there is already a result; update it
+                                // TODO
+                            } else {
+                                // add the result
+                                rCTrack.room.addResultInit(ssrCopy.xSeries, ssrCopy.xSeriesStart, validity.value)
+                            }
+
+                        } else if (ssrCopy.resultStr == ''){
+                            // delete the result
+                            rCTrack.room.deleteResultInit(ssrCopy.xSeries, ssrCopy.xSeriesStart);
+
+                        } else {
+                            // show a warning that the change cannot be processed since the input is invalid
+                            // TODO
+                        }
+
+                    } 
+                    // do not use the html validation here
+                    /*if (validity.valid){
+                        element.setCustomValidity('');
+                    } else {
+                        element.setCustomValidity('<%= __("The value is invalid.") %>')
+                        element.reportValidity();
+                    }*/
+
+                    
+                },
             },
             watch:{
                 series: {
@@ -1533,6 +1551,9 @@
 
                 seriesAsStartgroups: function(){
                     // "copy" the series and its seriesstartsresults (as startgroup)
+
+                    // TODO: eventually we need to make sure that the data is only recomputed when there is no change on results ongoing; otherwise it would happen that the present change is deleted. This might happen regularly, e.g. when another client changes data or when the timing sends new results!
+
                     let seriesAsStartgroups = [];
                     for (let i=0;i<this.series.length; i++){
 
@@ -1557,6 +1578,15 @@
                             } else {
                                 console.log('Error: could not find xStartgroup of an assigned athlete. This data inconsistency should not occure. Try to fully reload the auxilary data.')
                             }
+                            // separate variables for showing the result
+                            if (ssrCopy.resultstrack){
+                                let val = this.validateInput(ssrCopy.resultstrack.time)
+                                ssrCopy.resultValid = val.valid && val.realistic; //validity={valid, value, modified, realistic}
+                            } else {
+                                ssrCopy.resultValid = false;
+                            }
+                            
+                            ssrCopy.resultStr = this.formatValue(ssrCopy.resultstrack?.time)
 
                             // reference the original (!) 'parent'; avoids that xSeries has to be defined to be used in "changePosition"
                             ssrCopy.series = seriesCopy;

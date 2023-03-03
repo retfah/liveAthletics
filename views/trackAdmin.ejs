@@ -436,7 +436,14 @@
 
                     <!-- TODO: format this -->
                     <h3><%= __("Series Settings") %></h3>
-                    What kind of settings do we need here for track? eventually none
+                    <%= __("Show reaction times") %>:
+                    <div class="onoffswitch">
+                        <input type="checkbox" v-model="showReactionTimes" class="onoffswitch-checkbox" id="autoAdvanceSwitch">
+                        <label class="onoffswitch-label" for="autoAdvanceSwitch">
+                            <span class="onoffswitch-inner"></span>
+                            <span class="onoffswitch-switch"></span>
+                        </label>
+                    </div>
                     
                 </div>
                 
@@ -477,30 +484,33 @@
                                                 <th><%= __("Name") %></th>
                                                 <th><%= __("Firstname") %></th>
                                                 <th><%= __("Club") %></th>
-                                                <th><%= __("PB") %></th>
-                                                <th><%= __("SB") %></th>
+                                                <th><%= __("Result") %></th>
+                                                <th><%= __("Rank") %></th>
+                                                <th v-if="showReactionTimes"><%= __("Reaction time") %></th>
+                                                <!-- Decision: we do not provide a possibility to set the official flag, since this is only needed with automatic timing softwares during evaluation. Every result that is entered/altered by hand is automaticaly official -->
+                                                <th><%= __("Participation status") %></th>
+                                                <!--<th><%= __("PB") %></th>
+                                                <th><%= __("SB") %></th>-->
                                             </tr>
-                                        </thead>
-                                                                    
+                                        </thead>            
                                         <tbody style="background-color: white;">
                                             <template v-for="(element, index) in series.SSRs">
-                                                <tr v-if="element.startsingroup==null" @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, $event, element)" @mousedown="preventDrag" style="cursor: default; " @dragenter="dragEnter" @dragleave="dragLeave"  @dragend="dragEnd" :class="{alert2: element.alert==2}" class="emptyLane">
-                                                    <td>{{element.lane}}</td>
-                                                    <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                    <td><%= __("empty") %></td>
-                                                    <td> </td>
-                                                    <td> </td>
-                                                    <td> </td>
-                                                    <td> </td>
-                                                </tr>
-                                                <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
+                                                <tr v-if="element.startsingroup!==null" class="heat"  :class="{alert1: element.alert==1}">
                                                     <td>{{element.lane}}</td>
                                                     <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
                                                     <td>{{element.startsingroup.athleteName}}</td>
                                                     <td>{{element.startsingroup.athleteForename}}</td>
                                                     <td>{{element.startsingroup.clubName}}</td>
-                                                    <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                    <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                    <td><input v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series.SSRs[index])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
+                                                    <td>{{element?.resultstrack?.rank}}</td>
+                                                    <td v-if="showReactionTimes"><div v-if="element.resultOverrule">reaction time (show only when there is already a result)</div></td>
+                                                    <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="TODO">
+                                                        <option v-for="option in participationStatesTrack" v-bind:value="option.value">
+                                                            {{option.text}}
+                                                        </option>
+                                                    </select></td>
+                                                    <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                    <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -593,12 +603,7 @@
                                 <div class="row2">
                                     <div class="elText"><%= __("Valid height") %>: {{(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].lastValidHeight/100).toFixed(2)}} m</div>
                                     <template v-for="res in sortedResults(series[selectedSeries].seriesstartsresults[startIndex].resultshigh)"> 
-                                        <div class="el2" v-bind:class="{hidden: res==currentResultChange}">
-                                            <button class="btn btnGrey" v-on:click="changeResult(res)" v-bind:class="{validHeight: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].lastValidHeight==getHeight(res.xHeight)}" :disabled="readOnly">{{getHeight(res.xHeight)}}: {{resultToStr(res)}}</button>
-                                        </div>
-                                        <div class="el2" v-bind:class="{hidden: res!=currentResultChange}">
-                                            <input class="formCtrl" type="text" size=3 maxlength=3 name="result" v-bind:id="'resChange' + res.xResult" v-model="currentResultString" v-on:blur="saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex])" :disabled="readOnly">
-                                        </div>
+
                                     </template>
                                     
                                     <div class="elText"><%= __("# failed attempts") %>: {{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].totalFailedAttempts}}</div>

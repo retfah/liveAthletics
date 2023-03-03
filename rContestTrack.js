@@ -380,9 +380,9 @@ class rContestTrack extends roomServer{
         this.functionsWrite.swapPosition = this.swapPosition.bind(this);
         this.functionsWrite.moveSeries = this.moveSeries.bind(this);
         // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
-        // this.functionsWrite.addResult = this.addResult.bind(this);
+        this.functionsWrite.addResult = this.addResult.bind(this);
         // this.functionsWrite.updateResult = this.updateResult.bind(this);
-        // this.functionsWrite.deleteResult = this.deleteResult.bind(this);
+        this.functionsWrite.deleteResult = this.deleteResult.bind(this);
         this.functionsWrite.updateSeries = this.updateSeries.bind(this);
         // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
         this.functionsWrite.addSeries = this.addSeries.bind(this);
@@ -470,7 +470,7 @@ class rContestTrack extends roomServer{
                 resultRemark: {type:"string", maxLength:100},
                 qualification: {type:"integer"}, 
                 startConf: {type:["string", "integer"]}, // actually the length is limited to 65536 bytes, which means the same or less characters! This cannot be checked yet with JSON schema. Allow integers as well; they will be casted to string
-                resultstrack: schemaResultsTrack,
+                //resultstrack: schemaResultsTrack, // do not allow to update resultstrack here; the code is better structured if the results add/update/delete are handled separately
             },
             required: ["xSeries", "xStartgroup", "position"],
             additionalProperties: false, 
@@ -621,30 +621,34 @@ class rContestTrack extends roomServer{
             additionalProperties: false
         }
 
-        // TODO: change or include in updateSSR
         const schemaAddResult = {
             type: "object",
             properties: {
-                result: schemaResultsTrack,
-                xSeries: {type:"integer"}
+                xSeries: {type:"integer"},
+                xSeriesStart: {type: "integer"},
+                time: {type:"integer"}, // in 1/100000 s (allows up to 11.9 hours)
+                // timeRounded will be calculated here
+                rank: {type:"integer"},
+                official: {type:"boolean"},
+                reactionTime : {type:"integer"}, // in ms
             },
-            required: ["result", "xSeries"],
+            required: ["xSeriesStart", "xSeries", "time", "rank", "official"], // 
             additionalProperties: false,
         };
 
-        // TODO: probably not needed anymore, when included in 
         const schemaDeleteResult = {
             type:"object",
             properties: {
-                xResult: {type:"integer"},
-                xHeight: {type:"integer"},
+                xSeriesStart: {type:"integer"},
                 xSeries: {type:"integer"}
-            }
+            },
+            required: ['xSeries', 'xSeriesStart'],
+            additionalProperties: false,
         }
 
         const schemaDeleteSeries = {type:"integer"};
 
-        const schemaUpdateResult = schemaAddResult;
+        const schemaUpdateResult = schemaAddResult; // TODO
 
         const schemaAddSSR = schemaSeriesStartsResults;
 
@@ -937,15 +941,24 @@ class rContestTrack extends roomServer{
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xResult}.`}
         }
 
-        let res = ssr.resultshigh.find(r=>r.xHeight==data.xHeight && r.xResult == data.xResult); // actually the latter check should always be true; otherwise, we have a result added to the wrong ssr
-        if (!res){
-            throw {code:24, message: `Could not find the result to update (xResult=${data.xResult}, xHeight=${data.xHeight})`}
-        }
+        let rankDeleted = ssr.resultstrack.rank;
 
         // try to delete the result
-        await res.destroy().catch(err=>{
-            throw {code: 25, message: `Could not delete the result (xResult=${data.xResult}, xHeight=${data.xHeight})`}
+        await ssr.resultstrack.destroy().catch(err=>{
+            throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries})`}
         })
+
+        // decrease the rank of all other SSRs in the same heat
+        for (let ssr2 of s.seriesstartsresults){
+            if ('resultstrack' in ssr2){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                    await ssr2.save().catch(err=>{
+                        throw {code: 26, message: `Could not update the rank of xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}). This error should not be possible. The data might be inconsistent now.`}
+                    })
+                }
+            }
+        }
 
         // remove it locally
         let ind = ssr.resultshigh.indexOf(res);
@@ -972,28 +985,53 @@ class rContestTrack extends roomServer{
         }
 
         // check that the result does not exist yet
-        // not needed, since adding the result would fail because the key (xResult=xSweriesStart + xHeight) would be already used.
+        // not needed, since adding the result would fail because the key (xResultTrack=xSeriesStart) would be already used.
 
-        // try to get the respecitve ssr
-        let s = this.data.series.find(s=>s.xSeries==data.xSeries);
-        if (!s){
+        // try to get the respective ssr
+        let series = this.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!series){
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
+        let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
         if (!ssr){
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`}
         }
 
+        let resultData = {
+            xResultTrack: data.xSeriesStart,
+            time: data.time,
+            timeRounded: Math.ceil(data.time/100)*100, // 1/1000s, as allowed to consider for the ranking/progress to next round
+            rank: data.rank,
+            official: data.official,
+            reactionTime: null,
+        }
+
         // add the result
-        let newRes = await this.models.resultshigh.create(data.result).catch(err=>{throw {code: 24, message: `new heightresult could not be created (most likely because there is already a result for this height): ${err}`}})
+        let newRes = await this.models.resultstrack.create(resultData).catch(err=>{throw {code: 24, message: `new resulttrack could not be created (most likely because the result already exists): ${err}`}});
         
         // add the result to the ssr
-        ssr.resultshigh.push(newRes);
+        // TODO: eventually this doe snot work; try what happens when a JSON is created after setting the resultsrack. Probably the data is not sent, since the model did not realize yet that we added data!
+        //ssr.resultstrack = newRes;
+        ssr.set('resultstrack', newRes);
+
+        // change the rank of all other ssrs with a rank
+        let currentResults = series.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.xSeriesStart);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank>=data.rank){
+                ssr2.resultstrack.rank++;
+                await ssr2.resultstrack.save().catch(err=>{throw{code: 25, message: `Could not store the changed rank of xSeriesStart ${ssr2.xSeriesStart} due to ${err}`}});
+            }
+        }
+
+        let res = {
+            xSeries: data.xSeries, 
+            result: newRes.get({plain:true})
+        }
 
         let ret = {
             isAchange: true, 
-            doObj: {funcName: 'addResult', data: data},
+            doObj: {funcName: 'addResult', data: res},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true

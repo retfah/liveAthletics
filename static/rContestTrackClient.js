@@ -209,31 +209,40 @@ export class rContestTrackClient extends roomClient{
         if (!ssr){
             this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.xResult}.`)
         }
+        let rankDeleted = ssr.resultstrack.rank;
+        ssr.resultstrack = null;
 
-        let ind = ssr.resultshigh.findIndex(r=>r.xHeight==data.xHeight && r.xResult == data.xResult); // actually the latter check should always be true; otherwise, we have a result added to the wrong ssr
-        if (ind<0){
-            this.logger.log(10, `Could not find the result to update (xResult=${data.xResult}, xHeight=${data.xHeight})`)
-        } else {
-            // should always be the case
-            ssr.resultshigh.splice(ind, 1);
+        for (let ssr2 of s.seriesstartsresults){
+            if ('resultstrack' in ssr2){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                }
+            }
         }
 
     }
 
-    deleteResultInit(result, ssr){
+    deleteResultInit(xSeries, xSeriesStart){
 
         // instantly remove the result from the array
         // find the result in the results array
-        let ind = ssr.resultshigh.indexOf(result);
+        let series = this.data.series.find(s=>s.xSeries == xSeries);
+        let ssr = series.ssr.find(s=>s.xSeriesStart == xSeriesStart);
+        let rankDeleted = ssr.resultstrack.rank;
+        ssr.resultstrack = null;
 
-        // delete the result
-        ssr.resultshigh.splice(ind,1);
-
+        for (let ssr2 of series.seriesstartsresults){
+            if ('resultstrack' in ssr2){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                }
+            }
+        }
+        
         let change = ()=>{
             return {
-                xResult: result.xResult,
-                xHeight: result.xHeight,
-                xSeries: ssr.xSeries
+                xSeriesStart,
+                xSeries
             }
         }
 
@@ -244,14 +253,49 @@ export class rContestTrackClient extends roomClient{
         this.addToStack('deleteResult', change, success, rollback)
     }
 
-    addResultInit(resulthigh, ssr){
+    addResultInit(xSeries, xSeriesStart, time){
+
+        // the rank is not defined yet. It will be automatically calculated here and may be changed later on.
+
+        let series = this.data.series.find(s=>s.xSeries == xSeries);
+        let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart == xSeriesStart);
+        if (ssr.resultstrack){
+            alert('cannot add the result, because there is already a result.');
+            return;
+        }
+
+        let currentResults = series.seriesstartsresults.filter(ssr=>ssr.resultstrack)
+        let rank = 1;
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.time<time){
+                rank++;
+            } else {
+                ssr2.resultstrack.rank++;
+            }
+        }
         
         let change = ()=>{
             return {
-                result: resulthigh,
-                xSeries: ssr.xSeries
+                xSeries,
+                xSeriesStart,
+                time,
+                rank,
+                official: true,
+                // optional: reactionTime
+                // timeRounded will be calculated
             }
         }
+
+        // add the new result locally
+        ssr.resultstrack = {
+            xResultTrack: xSeriesStart,
+            time: time,
+            timeRounded: Math.ceil(time/100)*100, // 1/1000s, as allowed to consider for the ranking/progress to next round
+            rank,
+            official: true,
+            reactionTime: null,
+        }
+        
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)
@@ -263,20 +307,28 @@ export class rContestTrackClient extends roomClient{
 
     addResultExe(data){
         // try to get the respecitve ssr
-        let s = this.data.series.find(s=>s.xSeries==data.xSeries);
-        if (!s){
+        let series = this.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!series){
             this.logger.log(10, `Could not find the series with xSeries=${data.xSeries}.`)
             return
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
+        let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResultTrack);
         if (!ssr){
-            this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`)
+            this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.result.xResultTrack}.`)
             return
         }
         
         // add the result to the ssr
-        ssr.resultshigh.push(data.result);
+        ssr.resultstrack = data.result;
+        
+        // change the rank of all other ssrs with a rank
+        let currentResults = series.seriesstartsresults.filter(ssr2=>ssr2.resultstrack && ssr2.xSeriesStart != data.result.xResultTrack);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank>=data.result.rank){
+                ssr2.resultstrack.rank++;
+            }
+        }
     }
 
     updateResultInit(resulthigh, ssr){
