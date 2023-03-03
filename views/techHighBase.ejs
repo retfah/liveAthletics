@@ -124,7 +124,7 @@
 
                     // the names and id's of series and contest states:
                     // Note: the comment before the ejs-include only affects the first row of the included file; (thats why it still works)
-                    // also gets seriesStates and participationStates
+                    // also gets seriesStates and participationStatesTech
                     //<%- include('contestStates.ejs') %>
 
                     numSeries:0,
@@ -2497,16 +2497,16 @@
 
                     // DISQ, DNS
                     if (resultOverrule>1){
-                        return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                        return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                     }
 
                     // retired
                     if (resultOverrule==1){
                         // if the athlete had a result then show the last height together with the abbreviaiton for retired
                         if (tempRankingData.lastValidHeight>0){
-                            return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                            return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                         } else {
-                            return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                            return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                         }
                     }
 

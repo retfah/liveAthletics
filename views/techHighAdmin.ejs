@@ -427,7 +427,7 @@
                                         <%= __("Change participation status") %>  
                                     </label>
                                     <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart)">
-                                        <option v-for="option in participationStates" v-bind:value="option.value">
+                                        <option v-for="option in participationStatesTech" v-bind:value="option.value">
                                             {{option.text}}
                                         </option>
                                     </select>
@@ -546,7 +546,7 @@
                                         <%= __("Change participation status") %>  
                                     </label>
                                     <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart);">
-                                        <option v-for="option in participationStates" v-bind:value="option.value">
+                                        <option v-for="option in participationStatesTech" v-bind:value="option.value">
                                             {{option.text}}
                                         </option>
                                     </select>
@@ -701,7 +701,7 @@
                                         </label>
                                         <!-- TODO: participation should be changed only after confirmation or in a usually hidden menu (e.g. click on "change status" to show the dropdown) -->
                                         <select class="content dropdown marginLeft" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
-                                            <option v-for="option in participationStates" v-bind:value="option.value">
+                                            <option v-for="option in participationStatesTech" v-bind:value="option.value">
                                                 {{option.text}}
                                             </option>
                                         </select>
