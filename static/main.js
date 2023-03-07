@@ -1376,7 +1376,7 @@ function getCookie(cname) {
     return ""; // returns empty if the cookie is not found
 }
 
-// copy Objects, copeid from 'Speaking Javascript'-book
+// copy Objects, copied from 'Speaking Javascript'-book
 function copyObject(orig) {
     // 1. copy has same prototype as orig
     var copy = Object.create(Object.getPrototypeOf(orig));
@@ -1422,8 +1422,8 @@ function propertyTransfer(objFrom, objTo, updateOnly=false){
         // copy the elements
         for (let i=0;i<objFrom.length;i++){
             // pay attention to objects and arrays --> recursive calls needed
-            if (typeof(objFrom[i])=='object'){
-                if (typeof(objTo[i])!='object'){
+            if (typeof(objFrom[i])=='object' && objFrom[i] !== null){
+                if (typeof(objTo[i])!='object' || objTo[i] === null){ // null is an object, but we need to set ot to the correct type (array or object) for the next step
                     // if this is not done here and if objTo[i] is just a property, the recursive call on propertyTransfer will not occur byReference, as it must be to work.
                     if (Array.isArray(objFrom[i])){
                         objTo[i] = [];
@@ -1454,9 +1454,10 @@ function propertyTransfer(objFrom, objTo, updateOnly=false){
         // is a regular object
         // copy new to objTo
         for (let prop in objFrom){
-            if (typeof(objFrom[prop])=='object' && objFrom[prop] != null){ // null interestingly is an object...
+            // TODO: how to handle when objTo is null? Currently fails at 2842
+            if (typeof(objFrom[prop])=='object' && objFrom[prop] !== null){ // null interestingly is an object...
 
-                if (!(prop in objTo)){
+                if (objTo[prop] === null || !(prop in objTo)){
                     if (Array.isArray(objFrom[prop])){
                         objTo[prop] = [];
                     } else {
