@@ -1104,28 +1104,6 @@
                 // convert the birthday to a two letter year code
                     return bd.substr(2,2);
                 },
-                getStartByXSeriesStart(xSeriesStart){
-                    //return this.series[this.selectedSeries].seriesstartsresults.find(el=>el.xSeriesStart == xSeriesStart)
-                    // TODO: revert this, since it is only for debugging
-                    let x = this.series[this.selectedSeries].seriesstartsresults.find(el=>el.xSeriesStart == xSeriesStart)
-                    if (!x){
-                        //alert('could not find the athlete!');
-
-                        // TODO: this is NOT a solution, since the returned object is also used to reference xStartgroup, which will fail with this default, non.existing value 
-                        return {
-                            xSeriesStart: xSeriesStart,
-                            xStartgroup: -1,
-                            xSeries: -1,
-                            position: -1,
-                            resultOverrule: 0,
-                            resultRemark:'',
-                            qualification: 0,
-                            startConf: '',
-                        }
-
-                    }
-                    return x; 
-                },
                 sortAthletes(seriesIndex){
                     /* this must be the only sort function run on the seriesstartsresults! They need to keep this order all the time. */
                     this.series[seriesIndex].seriesstartsresults.sort((el1, el2)=>{
@@ -1387,6 +1365,9 @@
                 validateInput(value){
                     return window.validatePerformance(value, this.discipline);
                 },
+                rankChanged(ssr){
+                    rCTrack.room.updateResultInitRank(ssr.xSeries, ssr.xSeriesStart, ssr.resultstrack.rank);
+                },
                 checkInput(ssrCopy, applyChange=false){
                     // check whether the made string input is realistic
                     // only initiate a value change when applyChange=true
@@ -1407,7 +1388,7 @@
                             // differentiate add or update
                             if (ssrCopy.resultstrack){
                                 // there is already a result; update it
-                                // TODO
+                                rCTrack.room.updateResultInitTime(ssrCopy.xSeries, ssrCopy.xSeriesStart, validity.value)
                             } else {
                                 // add the result
                                 rCTrack.room.addResultInit(ssrCopy.xSeries, ssrCopy.xSeriesStart, validity.value)
@@ -1563,13 +1544,13 @@
                         // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
                         let seriesCopy = {};
                         propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
-                        
 
                         // get the startgroup for every seriesstartsresult
                         let SSRs = [];
                         series.seriesstartsresults.forEach(ssr=>{
                             // create a copy of the ssr
-                            let ssrCopy = copyObject(ssr);
+                            let ssrCopy = {}; 
+                            propertyTransfer(ssr, ssrCopy);
                             // find the startgroup for the respective seriesstartsresult and add it to the list
                             let startgroup = this.startgroups.find(SG=>SG.xStartgroup == ssr.xStartgroup)
                             if (startgroup){
@@ -1582,8 +1563,19 @@
                             if (ssrCopy.resultstrack){
                                 let val = this.validateInput(ssrCopy.resultstrack.time)
                                 ssrCopy.resultValid = val.valid && val.realistic; //validity={valid, value, modified, realistic}
+                                
+                                // create an array with all possible ranks
+                                let equalSsrs = series.seriesstartsresults.filter(ssr3=> ssr3.resultstrack !== null && ssr3.resultstrack.timeRounded == ssrCopy.resultstrack.timeRounded).map(el=>el.resultstrack.rank);
+                                let possibleRanks = [];
+                                let firstRank = Math.min( ...Array.from(equalSsrs.values()));
+                                for (let i=firstRank; i<firstRank+equalSsrs.length; i++){
+                                    possibleRanks.push(i);
+                                }
+
+                                ssrCopy.possibleRanks = possibleRanks;
                             } else {
                                 ssrCopy.resultValid = false;
+                                ssrCopy.possibleRanks = []
                             }
                             
                             ssrCopy.resultStr = this.formatValue(ssrCopy.resultstrack?.time)

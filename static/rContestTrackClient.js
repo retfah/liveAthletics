@@ -200,20 +200,20 @@ export class rContestTrackClient extends roomClient{
     deleteResultExe(data){
 
         // try to get the respecitve series, ssr, result
-        let s = this.data.series.find(s=>s.xSeries==data.xSeries);
-        if (!s){
+        let series = this.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!series){
             this.logger.log(10, `Could not find the series with xSeries=${data.xSeries}.`)
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xResult);
+        let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
         if (!ssr){
             this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.xResult}.`)
         }
         let rankDeleted = ssr.resultstrack.rank;
         ssr.resultstrack = null;
 
-        for (let ssr2 of s.seriesstartsresults){
-            if ('resultstrack' in ssr2){
+        for (let ssr2 of series.seriesstartsresults){
+            if (ssr2.resultstrack !== null){
                 if (ssr2.resultstrack.rank > rankDeleted){
                     ssr2.resultstrack.rank--;
                 }
@@ -227,12 +227,12 @@ export class rContestTrackClient extends roomClient{
         // instantly remove the result from the array
         // find the result in the results array
         let series = this.data.series.find(s=>s.xSeries == xSeries);
-        let ssr = series.ssr.find(s=>s.xSeriesStart == xSeriesStart);
+        let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart == xSeriesStart);
         let rankDeleted = ssr.resultstrack.rank;
         ssr.resultstrack = null;
 
         for (let ssr2 of series.seriesstartsresults){
-            if ('resultstrack' in ssr2){
+            if (ssr2.resultstrack !== null){
                 if (ssr2.resultstrack.rank > rankDeleted){
                     ssr2.resultstrack.rank--;
                 }
@@ -331,12 +331,97 @@ export class rContestTrackClient extends roomClient{
         }
     }
 
-    updateResultInit(resulthigh, ssr){
+    updateResultInitTime(xSeries, xSeriesStart, timeNew){
+        let s = this.data.series.find(s=>s.xSeries==xSeries);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == xSeriesStart);
+        let timeRounded = Math.ceil(timeNew/100)*100;
+
+        // calculate the new rank by counting how many were faster (excluding itself)
+        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.xSeriesStart != xSeriesStart && ssr2.resultstrack !== null);
+        let rank = 1;
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.timeRounded < timeRounded){
+                rank++;
+            }
+        }
+
+        let result = {
+            xResultTrack: ssr.resultstrack.xResultTrack,
+            official: true,
+            rank,
+            timeRounded,
+            time: timeNew,
+            reactionTime: ssr.resultstrack.reactionTime,
+        }
+
+        this.updateResultInit(xSeries, result);
+    }
+
+    updateResultInitRank(xSeries, xSeriesStart, rankNew){
+        let s = this.data.series.find(s=>s.xSeries==xSeries);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == xSeriesStart);
+
+        let result = {
+            xResultTrack: ssr.resultstrack.xResultTrack,
+            official: ssr.resultstrack.official,
+            rank: rankNew,
+            timeRounded: ssr.resultstrack.timeRounded,
+            time: ssr.resultstrack.time,
+            reactionTime: ssr.resultstrack.reactionTime,
+        }
+
+        this.updateResultInit(xSeries, result);
+    }
+
+    // NOTE: ideally do not call this funciton directly, but call the funcitons for rank and time changes!
+    updateResultInit(xSeries, result){
+
+        // create the same object as we get on the server, so, we can have the same code here
+        let data = {
+            xSeries,
+            result,
+        }
+
+        // try to get the respecitve series, ssr, result
+        let s = this.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!s){
+            this.logger.log(10, `Could not find the series with xSeries=${data.xSeries}.`)
+        }
+
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResultTrack);
+        if (!ssr){
+            this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.result.xResultTrack}.`)
+        }
+
+        if (ssr.resultstrack===null){
+            this.logger.log(10, `There is no result yet for xSeriesStart=${data.result.xResultTrack}. Thus, update of data is not possible.`);
+        }
+
+        // TODO: this is wrong !!! the rank is already chnaged here -_> make sure that this is not the case! (do not change the original object in the dropdown, but a copy!)
+        let rankBefore = ssr.resultstrack.rank;
+
+        // update the result
+        this.propertyTransfer(result, ssr.resultstrack,true);
+
+        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+                // the rank of the changed result was lowered
+                // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
+                // NOTE: currently we do no checks if the rank is realistic based on the times.
+                if (ssr.resultstrack.timeRounded != ssr2.resultstrack.timeRounded || ssr2.resultstrack.rank != data.result.rank){
+                    ssr2.resultstrack.rank++;
+                }
+            } else if (ssr2.resultstrack.rank > rankBefore && ssr2.resultstrack.rank <= data.result.rank){
+                // the rank of the changed result was increased
+                ssr2.resultstrack.rank--;
+            }
+        }
 
         let change = ()=>{
             return {
-                result: resulthigh,
-                xSeries: ssr.xSeries
+                xSeries,
+                result
             }
         }
 
@@ -352,23 +437,36 @@ export class rContestTrackClient extends roomClient{
         let s = this.data.series.find(s=>s.xSeries==data.xSeries);
         if (!s){
             this.logger.log(10, `Could not find the series with xSeries=${data.xSeries}.`)
-            return
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResultTrack);
         if (!ssr){
-            this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`)
-            return
+            this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.result.xResultTrack}.`)
         }
 
-        let res = ssr.resultshigh.find(r=>r.xHeight==data.result.xHeight && r.xResult == data.result.xResult); // actually the latter check should always be true; otherwise, we have a result added to the wrong ssr
-        if (!res){
-            this.logger.log(10, `Could not find the result to update (xResult=${data.result.xResult}, xHeight=${data.result.xHeight})`)
-            return
+        if (ssr.resultstrack===null){
+            this.logger.log(10, `There is no result yet for xSeriesStart=${data.result.xResultTrack}. Thus, update of data is not possible.`);
         }
+
+        let rankBefore = ssr.resultstrack.rank;
 
         // update the result
-        this.propertyTransfer(data.result, res, true)
+        this.propertyTransfer(data.result, ssr.resultstrack,true);
+
+        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+                // the rank of the changed result was lowered
+                // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
+                // NOTE: currently we do no checks if the rank is realistic based on the times.
+                if (ssr.resultstrack.timeRounded != ssr2.resultstrack.timeRounded  || ssr2.resultstrack.rank != data.result.rank){
+                    ssr2.resultstrack.rank++;
+                }
+            } else if (ssr2.resultstrack.rank > rankBefore && ssr2.resultstrack.rank <= data.result.rank){
+                // the rank of the changed result was increased
+                ssr2.resultstrack.rank--;
+            }
+        }
 
     }
 

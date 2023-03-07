@@ -501,8 +501,13 @@
                                                     <td>{{element.startsingroup.athleteName}}</td>
                                                     <td>{{element.startsingroup.athleteForename}}</td>
                                                     <td>{{element.startsingroup.clubName}}</td>
-                                                    <td><input v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series.SSRs[index])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
-                                                    <td>{{element?.resultstrack?.rank}}</td>
+                                                    <td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series.SSRs[index])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
+                                                    <td v-if="element.possibleRanks.length>1"><select class="content dropdown" v-model="element.resultstrack.rank" v-on:change="rankChanged(element)">
+                                                        <option v-for="option in element.possibleRanks" v-bind:value="option">
+                                                            {{option}}
+                                                        </option>
+                                                    </select></td>
+                                                    <td v-else style="text-align: center;">{{element?.resultstrack?.rank}}</td>
                                                     <td v-if="showReactionTimes"><div v-if="element.resultOverrule">reaction time (show only when there is already a result)</div></td>
                                                     <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="TODO">
                                                         <option v-for="option in participationStatesTrack" v-bind:value="option.value">

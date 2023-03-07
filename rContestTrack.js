@@ -381,7 +381,7 @@ class rContestTrack extends roomServer{
         this.functionsWrite.moveSeries = this.moveSeries.bind(this);
         // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
         this.functionsWrite.addResult = this.addResult.bind(this);
-        // this.functionsWrite.updateResult = this.updateResult.bind(this);
+        this.functionsWrite.updateResult = this.updateResult.bind(this);
         this.functionsWrite.deleteResult = this.deleteResult.bind(this);
         this.functionsWrite.updateSeries = this.updateSeries.bind(this);
         // this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
@@ -446,16 +446,19 @@ class rContestTrack extends roomServer{
             required: ['xStart', 'xStartgroup', 'newState']
         }
 
+        const propsResultsTrack = {
+            xResultTrack: {type:'integer'},
+            time: {type: "integer", minimum:0},
+            timeRounded: {type: "integer", minimum:0},
+            rank: {type: 'integer', minimum:1},
+            official: {type: 'boolean'},
+            reactionTime: {type:['null', 'integer']},
+        }
+
         const schemaResultsTrack = {
             type:['object', 'null'], // null to allow that there is no result yet; mainly when included in 
-            properties:{
-                xResultTrack: {type:'integer'},
-                time: {type: "integer", minimum:0},
-                timeRounded: {type: "integer", minimum:0},
-                rank: {type: 'integer', minimum:1},
-                official: {type: 'boolean'},
-            },
-            additionalProperties:false,
+            properties: propsResultsTrack,
+            additionalProperties: false,
             required:['time', 'timeRounded', 'rank', 'official'], // note: if there will be an addResult function, xResultTrack will be needed!
         }
 
@@ -648,7 +651,19 @@ class rContestTrack extends roomServer{
 
         const schemaDeleteSeries = {type:"integer"};
 
-        const schemaUpdateResult = schemaAddResult; // TODO
+        const schemaUpdateResult = {
+            type:'object',
+            properties:{
+                xSeries: {type:'integer'},
+                result:{
+                    type:'object',
+                    properties: propsResultsTrack,
+                    required: ['xResultTrack', 'time', 'timeRounded', 'rank', 'official', 'reactionTime'],
+                }
+            },
+            required:['xSeries', 'result'],
+            additionalProperties: false,
+        }; 
 
         const schemaAddSSR = schemaSeriesStartsResults;
 
@@ -936,35 +951,34 @@ class rContestTrack extends roomServer{
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xResult);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
         if (!ssr){
-            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xResult}.`}
+            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
         }
 
         let rankDeleted = ssr.resultstrack.rank;
 
         // try to delete the result
+        // the following does not work; so we need to do it manually in two steps
+        /*await ssr.setResultstrack(null).catch(err=>{
+            throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
+        })*/
         await ssr.resultstrack.destroy().catch(err=>{
             throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries})`}
         })
+        // remove locally
+        ssr.set('resultstrack', null); // would it be possible to delete the result in one request instead of detroying the model and deleting the reference manually? setResultstrack(null) does not work at all. 
 
         // decrease the rank of all other SSRs in the same heat
         for (let ssr2 of s.seriesstartsresults){
-            if ('resultstrack' in ssr2){
+            if (ssr2.resultstrack !== null){
                 if (ssr2.resultstrack.rank > rankDeleted){
                     ssr2.resultstrack.rank--;
-                    await ssr2.save().catch(err=>{
-                        throw {code: 26, message: `Could not update the rank of xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}). This error should not be possible. The data might be inconsistent now.`}
+                    await ssr2.resultstrack.save().catch(err=>{
+                        throw {code: 26, message: `Could not update the rank of xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}). This error should not be possible. The data might be inconsistent now. ${err}`}
                     })
                 }
             }
-        }
-
-        // remove it locally
-        let ind = ssr.resultshigh.indexOf(res);
-        if (ind>=0){
-            // should always be the case
-            ssr.resultshigh.splice(ind, 1);
         }
 
         let ret = {
@@ -998,6 +1012,7 @@ class rContestTrack extends roomServer{
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`}
         }
 
+        // NOTE: currently we do not check whether the given rank is reasonable. This is up to the client.
         let resultData = {
             xResultTrack: data.xSeriesStart,
             time: data.time,
@@ -1011,8 +1026,7 @@ class rContestTrack extends roomServer{
         let newRes = await this.models.resultstrack.create(resultData).catch(err=>{throw {code: 24, message: `new resulttrack could not be created (most likely because the result already exists): ${err}`}});
         
         // add the result to the ssr
-        // TODO: eventually this doe snot work; try what happens when a JSON is created after setting the resultsrack. Probably the data is not sent, since the model did not realize yet that we added data!
-        //ssr.resultstrack = newRes;
+        // Do not simply set resultstrack=result, since the JSON.stringify funciton would still send the old data, despite the changed data
         ssr.set('resultstrack', newRes);
 
         // change the rank of all other ssrs with a rank
@@ -1052,18 +1066,42 @@ class rContestTrack extends roomServer{
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResult);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.result.xResultTrack);
         if (!ssr){
-            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`}
+            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.result.xResultTrack}.`}
         }
 
-        let res = ssr.resultshigh.find(r=>r.xHeight==data.result.xHeight && r.xResult == data.result.xResult); // actually the latter check should always be true; otherwise, we have a result added to the wrong ssr
-        if (!res){
-            throw {code:24, message: `Could not find the result to update (xResult=${data.result.xResult}, xHeight=${data.result.xHeight})`}
+        if (ssr.resultstrack===null){
+            throw {code:24, message: `There is no result yet for xSeriesStart=${data.result.xResultTrack}. Thus, update of data is not possible.`}
         }
+
+        let rankBefore = ssr.resultstrack.rank;
 
         // update the result
-        let newRes = await res.update(data.result).catch(err=>{throw {code: 25, message: `heightresult could not be updated: ${err}`}})
+        await ssr.resultstrack.update(data.result).catch(err=>{throw {code: 25, message: `heightresult could not be updated: ${err}`}})
+
+        // if the rank is changed, update the necessary other ranks
+        // what cases are possible and are they handled well?:
+        // - regular time changes, where obviously the rank might change as well
+        // - equal times, different rank to same (better) rank
+        // - equal times, equal rank to worse rank.
+        // if the better ranked result of two results with equal time is ranked down, then the other MUST be rnaked better. Otherwise we could end up having 1st, and twice third. However, the opposite way around is not true. 
+        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+                // the rank of the changed result was lowered
+                // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
+                // NOTE: currently we do no checks if the rank is realistic based on the times.
+                if (ssr.resultstrack.timeRounded != ssr2.resultstrack.timeRounded || ssr2.resultstrack.rank != data.result.rank){ // NOTE: the last condition is needed in cases where >2 persons have the same time and the person of rank 3 is moved to 1 (together with the person that is already on 1; then, rank 2 must be increased to 3) 
+                    ssr2.resultstrack.rank++;
+                    await ssr2.resultstrack.save().catch(err=>{throw{code: 25, message: `Could not store the changed rank of xSeriesStart ${ssr2.xSeriesStart} due to ${err}`}});
+                }
+            } else if (ssr2.resultstrack.rank > rankBefore && ssr2.resultstrack.rank <= data.result.rank){
+                // the rank of the changed result was increased
+                ssr2.resultstrack.rank--;
+                await ssr2.resultstrack.save().catch(err=>{throw{code: 25, message: `Could not store the changed rank of xSeriesStart ${ssr2.xSeriesStart} due to ${err}`}});
+            }
+        }
 
         let ret = {
             isAchange: true, 
