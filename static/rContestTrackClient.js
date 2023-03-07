@@ -405,7 +405,7 @@ export class rContestTrackClient extends roomClient{
 
         let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
         for (let ssr2 of currentResults){
-            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+            if (ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.rank >= data.result.rank){ // the = in <= typically has no effect (since this ssr will not be inthe list), except when we had multiple results with the same rank and we improve one time
                 // the rank of the changed result was lowered
                 // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
                 // NOTE: currently we do no checks if the rank is realistic based on the times.
@@ -455,7 +455,7 @@ export class rContestTrackClient extends roomClient{
 
         let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
         for (let ssr2 of currentResults){
-            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+            if (ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.rank >= data.result.rank){
                 // the rank of the changed result was lowered
                 // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
                 // NOTE: currently we do no checks if the rank is realistic based on the times.

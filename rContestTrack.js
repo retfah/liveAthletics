@@ -1088,7 +1088,7 @@ class rContestTrack extends roomServer{
         // if the better ranked result of two results with equal time is ranked down, then the other MUST be rnaked better. Otherwise we could end up having 1st, and twice third. However, the opposite way around is not true. 
         let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
         for (let ssr2 of currentResults){
-            if (ssr2.resultstrack.rank < rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+            if (ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.rank >= data.result.rank){
                 // the rank of the changed result was lowered
                 // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
                 // NOTE: currently we do no checks if the rank is realistic based on the times.
