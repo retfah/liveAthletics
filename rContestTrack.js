@@ -376,10 +376,10 @@ class rContestTrack extends roomServer{
         this.functionsWrite.deleteAllSeries = this.deleteAllSeries.bind(this);
         this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
         this.functionsWrite.addSSR = this.addSSR.bind(this);
+        this.functionsWrite.updateSSR = this.updateSSR.bind(this);
         this.functionsWrite.changePosition = this.changePosition.bind(this);
         this.functionsWrite.swapPosition = this.swapPosition.bind(this);
         this.functionsWrite.moveSeries = this.moveSeries.bind(this);
-        // this.functionsWrite.updateSSR = this.updateSSR.bind(this);
         this.functionsWrite.addResult = this.addResult.bind(this);
         this.functionsWrite.updateResult = this.updateResult.bind(this);
         this.functionsWrite.deleteResult = this.deleteResult.bind(this);
@@ -665,6 +665,20 @@ class rContestTrack extends roomServer{
             additionalProperties: false,
         }; 
 
+        const schemaUpdateSSR = {
+            type:'object',
+            properties: {
+                xSeriesStart: {type:"integer"}, // used to indentify the right entry
+                xSeries: {type:"integer"}, // used to indentify the right entry
+                resultOverrule: {type:"integer"},
+                resultRemark: {type:"string", maxLength:100},
+                qualification: {type:"integer"},
+                // xStartgroup, position, startConf are not allowed to be changed!
+            },
+            required:['xSeriesStart', 'xSeries', 'resultOverrule', 'resultRemark', 'qualification'],
+            additionalProperties: false,
+        }
+
         const schemaAddSSR = schemaSeriesStartsResults;
 
         this.validateChangePosition = this.ajv.compile(schemaChangePosition);
@@ -675,7 +689,7 @@ class rContestTrack extends roomServer{
         this.validateUpdatePresentState = this.ajv.compile(schemaUpdatePresentState);
         this.validateInitialSeriesCreation = this.ajv.compile(schemaInitialSeriesCreation);
         this.validateMoveSeries = this.ajv.compile(schemaMoveSeries);
-        this.validateUpdateSSR = this.ajv.compile(schemaSeriesStartsResults);
+        this.validateUpdateSSR = this.ajv.compile(schemaUpdateSSR);
         this.validateAddResult = this.ajv.compile(schemaAddResult);
         this.validateUpdateResult = this.ajv.compile(schemaUpdateResult);
         this.validateDeleteResult = this.ajv.compile(schemaDeleteResult);
@@ -1118,7 +1132,7 @@ class rContestTrack extends roomServer{
     // the position is NOT alowed to be changed! Only do this through changePosition
     async updateSSR(data){
         
-        // ONLY update changes in the SSR; changes in a result shall be handled separately; nevertheless, the client may send also the results array.
+        // ONLY update changes in the SSR; changes in a result shall be handled separately; nevertheless, the client might send also the results array.
 
         if (!this.validateUpdateSSR(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateUpdateSSR.errors)};
@@ -1131,15 +1145,13 @@ class rContestTrack extends roomServer{
         }
 
         // find the seriesStarStartResult
-        let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart==data.xSeriesStart && ssr.xStartgroup==data.xStartgroup);
+        let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart==data.xSeriesStart);
         if (!ssr){
             throw {code:22, message:`seriesstartresult ${data.xSeriesStart} was not found in the respective series. series start result cannot be changed.`}
         }
 
-        // make sure the position has not changed!
-        if (ssr.position != data.position){
-            throw {code:23, message:`The position cannot be changed in the update SSR function! Use 'changePosition'.`}
-        }
+        // make sure that position and startConf are not changed!
+        // since position and startConf cannot be part of the change-data, there is no need to make sure that this is not changed
 
         await ssr.update(data).catch(err=>{
             throw {code: 24, message: `Could not update the seriesstartresult: ${err}`}

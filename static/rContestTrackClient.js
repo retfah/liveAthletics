@@ -373,6 +373,22 @@ export class rContestTrackClient extends roomClient{
         this.updateResultInit(xSeries, result);
     }
 
+    updateResultInitReaction(xSeries, xSeriesStart, reactionTime){
+        let s = this.data.series.find(s=>s.xSeries==xSeries);
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == xSeriesStart);
+
+        let result = {
+            xResultTrack: ssr.resultstrack.xResultTrack,
+            official: ssr.resultstrack.official,
+            rank: ssr.resultstrack.rank,
+            timeRounded: ssr.resultstrack.timeRounded,
+            time: ssr.resultstrack.time,
+            reactionTime,
+        }
+
+        this.updateResultInit(xSeries, result);
+    }
+
     // NOTE: ideally do not call this funciton directly, but call the funcitons for rank and time changes!
     updateResultInit(xSeries, result){
 
@@ -488,22 +504,34 @@ export class rContestTrackClient extends roomClient{
     }
 
     updateSSRInit(ssr){
-        // ssr is the same ssr object we also have in the data here (not a copy of the vue!)
+        // ssr should be a copy of the actual object
+        // only resultOverrule, resultRemark (and qualification) can be changed!
 
-        // not needed due to above fact
-        /*let series = this.data.series.find(s=>s.xSeries == ssr.xSeries);
+        let series = this.data.series.find(s=>s.xSeries == ssr.xSeries);
         if (!series){
-            console.log(`Could not find the series ${data.xSeries}`);
+            console.log(`Could not find the series ${ssr.xSeries}`);
             return;
         }
-        let ssrIndex = series.seriesstartsresults.findIndex(s=>s.xSeriesStart==data.xSeriesStart);
-        if (ssrIndex==-1){
-            console.log(`Could not find the seriesstartresult ${data.xSeriesStart}`);
+        let ssrOriginal = series.seriesstartsresults.find(s=>s.xSeriesStart==ssr.xSeriesStart);
+        if (!ssrOriginal){
+            console.log(`Could not find the seriesstartresult ${ssr.xSeriesStart}`);
             return;
-        }*/
+        }
+
+        // manual property transfer to prevent that the vue "successfully" changes properties that actually cannot be changed
+        ssrOriginal.resultOverrule = ssr.resultOverrule;
+        ssrOriginal.resultRemark = ssr.resultRemark;
+        ssrOriginal.qualification = ssr.qualification;
 
         let change = ()=>{
-            return ssr;
+            return {
+                xSeriesStart: ssr.xSeriesStart,
+                xSeries: ssr.xSeries,
+                resultOverrule: ssr.resultOverrule,
+                resultRemark: ssr.resultRemark,
+                qualification: ssr.qualification,
+                // xStartgroup, position, startConf are not allowed to be changed!
+            };
         }
 
         let success = ()=>{};

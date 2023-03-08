@@ -174,7 +174,7 @@
                     yesNoTitle: '',
                     yesNoFunction:()=>{},
 
-                    showReactionTimes: false,
+                    showReactionTimes: true,
 
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
@@ -1132,8 +1132,46 @@
                     }
                 },
                 updateSSR(ssr){
-                    // send the change to the server
+                    // ssr is a copy, where the particiaption status should already be changed
                     rCTrack.room.updateSSRInit(ssr);
+                },
+                formatReactionTime(time){
+                    if (time===null){
+                        return '';
+                    }
+                    // time is in ms
+                    let timeStr = (time/1000).toLocaleString(undefined, {minimumFractionDigits:3});
+                    return `${timeStr} s`;
+                },
+                reactionTimeChanged(ssrCopy){
+                    // try to process the input string into the right value to store in the DB; if this fails, show a warning to the user
+
+                    if(ssrCopy.reactionTimeStr == ''){
+                        // reset to "no reaction time"
+                        rCTrack.room.updateResultInitReaction(ssrCopy.xSeries, ssrCopy.xSeriesStart, null);
+                        return
+                    }
+
+                    // remove non-necessary characters with regex
+                    let r = /[-+]*[\d]+[.\d]*/g;
+                    let valueStr = ssrCopy.reactionTimeStr.match(r);
+                    //let valueStr = r.exec(ssrCopy.reactionTimeStr);
+
+                    // try to convert it to Number
+                    let value = Number(valueStr[0]);
+                    if (isNaN(value) || valueStr[0]==''){ // an empty string would result in value=0
+                        this.infoContent = `<%- __("The reaction time must be given as integer in milliseconds (e.g. '300') or with a period in seconds (e.g. '-0.1').") %>`;
+                        this.infoTitle = '<%- __("Wrong format") %>';
+                        this.infoVisible = true;
+                        // reset the value
+                        ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.ssrOriginal.resultstrack.reactionTime);
+                    } else {
+                        // if the value is float, it is in s and must be converted to an integer in ms
+                        if(Number.isInteger(value)==false){
+                            value = parseInt(value*1000);
+                        }
+                        rCTrack.room.updateResultInitReaction(ssrCopy.xSeries, ssrCopy.xSeriesStart, value);
+                    }
 
                 },
 
@@ -1572,10 +1610,14 @@
                                     possibleRanks.push(i);
                                 }
 
+                                // format reaction time
+                                ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.resultstrack.reactionTime);
+
                                 ssrCopy.possibleRanks = possibleRanks;
                             } else {
                                 ssrCopy.resultValid = false;
                                 ssrCopy.possibleRanks = []
+                                ssrCopy.reactionTimeStr = '';
                             }
                             
                             ssrCopy.resultStr = this.formatValue(ssrCopy.resultstrack?.time)

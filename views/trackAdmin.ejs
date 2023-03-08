@@ -489,6 +489,7 @@
                                                 <th v-if="showReactionTimes"><%= __("Reaction time") %></th>
                                                 <!-- Decision: we do not provide a possibility to set the official flag, since this is only needed with automatic timing softwares during evaluation. Every result that is entered/altered by hand is automaticaly official -->
                                                 <th><%= __("Participation status") %></th>
+                                                <th><%= __("Remarks") %></th>
                                                 <!--<th><%= __("PB") %></th>
                                                 <th><%= __("SB") %></th>-->
                                             </tr>
@@ -508,12 +509,15 @@
                                                         </option>
                                                     </select></td>
                                                     <td v-else style="text-align: center;">{{element?.resultstrack?.rank}}</td>
-                                                    <td v-if="showReactionTimes"><div v-if="element.resultOverrule">reaction time (show only when there is already a result)</div></td>
-                                                    <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="TODO">
+                                                    <td v-if="showReactionTimes">
+                                                        <input v-if="element.resultstrack !== null && element.resultstrack.time>0" class="" type="text" v-model="element.reactionTimeStr" v-on:change="reactionTimeChanged(element)" size="5"></input>
+                                                    </td>
+                                                    <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
                                                         <option v-for="option in participationStatesTrack" v-bind:value="option.value">
                                                             {{option.text}}
                                                         </option>
                                                     </select></td>
+                                                    <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
                                                     <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
                                                     <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
                                                 </tr>
