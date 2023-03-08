@@ -1155,17 +1155,16 @@
                     // remove non-necessary characters with regex
                     let r = /[-+]*[\d]+[.\d]*/g;
                     let valueStr = ssrCopy.reactionTimeStr.match(r);
-                    //let valueStr = r.exec(ssrCopy.reactionTimeStr);
 
                     // try to convert it to Number
-                    let value = Number(valueStr[0]);
-                    if (isNaN(value) || valueStr[0]==''){ // an empty string would result in value=0
+                    if (valueStr == null || isNaN(Number(valueStr[0]))){
                         this.infoContent = `<%- __("The reaction time must be given as integer in milliseconds (e.g. '300') or with a period in seconds (e.g. '-0.1').") %>`;
-                        this.infoTitle = '<%- __("Wrong format") %>';
+                        this.infoTitle = '<%- __("Invalid format") %>';
                         this.infoVisible = true;
                         // reset the value
                         ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.ssrOriginal.resultstrack.reactionTime);
                     } else {
+                        let value = Number(valueStr[0]);
                         // if the value is float, it is in s and must be converted to an integer in ms
                         if(Number.isInteger(value)==false){
                             value = parseInt(value*1000);
