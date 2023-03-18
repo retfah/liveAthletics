@@ -49,13 +49,10 @@
                 <a class="navItem" v-on:click="show='competition'; burgerChecked=false" v-bind:class="{active: show=='competition'}">
                     <%= __('Competition') %>
                 </a>
-                <a class="navItem" v-on:click="show='resMod'; burgerChecked=false" v-bind:class="{active: show=='resMod'}">
-                    <%= __('Change results') %>
-                </a>
-                <a class="navItem" v-on:click="show='resShow'; burgerChecked=false" v-bind:class="{active: show=='resShow'}">
-                    <%= __('Show results') %>
-                </a>
             </div>
+            <a class="navItem" v-on:click="show='resShow'; burgerChecked=false" v-bind:class="{active: show=='resShow'}">
+                <%= __('Live view') %>
+            </a>
 
         </div>
         <div class="main" style="padding-left:10px">
@@ -205,6 +202,7 @@
 
             
             <div v-if="contest.status>=60 && contest.status<=89 && show=='series'">
+                <!-- define heats -->
 
                 <!--<div>
                     <draggable v-model="list1" item-key="number" group="g1" :swap="true">
@@ -352,6 +350,11 @@
                                                         <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
                                                     </template>
                                                 </select>
+                                                <select class="content dropdown" v-model="series.status" v-on:change="seriesStateChanged(series, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series.status, seriesStates), color: statusTextColor(series.status, seriesStates) }">
+                                                    <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
+                                                        {{option.text}}
+                                                    </option>
+                                                </select>
                                                 <button class="formCtrl" type="button" @click="initDeleteSeries(series)">X</button>
                                             </div>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
@@ -432,17 +435,20 @@
             <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
     
     
-                <div v-if="show=='settings'" id="settings" style="width:100%">
+                <div v-if="show=='settings' && disciplineConfiguration.crouchStart" id="settings" style="width:100%">
+                     <!-- remove the crouchStart-condition as soon as we have another setting apart of this; the actual crouchStart setting already has the condition -->
 
                     <!-- TODO: format this -->
                     <h3><%= __("Series Settings") %></h3>
-                    <%= __("Show reaction times") %>:
-                    <div class="onoffswitch">
-                        <input type="checkbox" v-model="showReactionTimes" class="onoffswitch-checkbox" id="autoAdvanceSwitch">
-                        <label class="onoffswitch-label" for="autoAdvanceSwitch">
-                            <span class="onoffswitch-inner"></span>
-                            <span class="onoffswitch-switch"></span>
-                        </label>
+                    <div v-if="disciplineConfiguration.crouchStart">
+                        <%= __("Show reaction times") %>:
+                        <div class="onoffswitch">
+                            <input type="checkbox" v-model="showReactionTimes" class="onoffswitch-checkbox" id="autoAdvanceSwitch">
+                            <label class="onoffswitch-label" for="autoAdvanceSwitch">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                        </div>    
                     </div>
                     
                 </div>
@@ -458,17 +464,17 @@
                     <template v-if="conf.startInLanes">
                         <!-- started in lanes -->
                         <div style="grid-area: series;">
-                            <div v-for="(series, index) in seriesAsStartgroups">
+                            <div v-for="(series2, index) in seriesAsStartgroups">
                                 <div class="heat">
                                     <div style="display:flex">
-                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series.datetime, false)}} </div><div style="flex-grow:1"></div>
-                                        <div style="padding-top:7px">{{getSiteName(series.xSite)}}</div>
+                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                         <div style="flex-grow:1"></div>
                                         <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                             
                                         <div>
                                             <!--<%= __("Series Status") %>-->
-                                            <select class="content dropdown" v-model="series.status" v-on:change="seriesStateChanged(series, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series.status, seriesStates), color: statusTextColor(series.status, seriesStates) }">
+                                            <select class="content dropdown" v-model="series2.status" v-on:change="seriesStateChanged(series2, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
                                                 <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
                                                     {{option.text}}
                                                 </option>
@@ -476,223 +482,505 @@
                                         </div>
                                         
                                     </div>
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th><%= __("Lane") %></th>
-                                                <th v-if="conf.groupSize>1"><%= __("Position") %></th>
-                                                <th><%= __("Name") %></th>
-                                                <th><%= __("Firstname") %></th>
-                                                <th><%= __("Club") %></th>
+
+                                    <v-table :data="series2.SSRs">
+                                        <template v-slot:head>
+                                            <thead>
+                                                <th is="vue:v-th" sortkey="sortRank"><%= __("Rank") %></th>
+                                                <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                                <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
                                                 <th><%= __("Result") %></th>
-                                                <th><%= __("Rank") %></th>
-                                                <th v-if="showReactionTimes"><%= __("Reaction time") %></th>
+                                                <th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>
                                                 <!-- Decision: we do not provide a possibility to set the official flag, since this is only needed with automatic timing softwares during evaluation. Every result that is entered/altered by hand is automaticaly official -->
                                                 <th><%= __("Participation status") %></th>
                                                 <th><%= __("Remarks") %></th>
                                                 <!--<th><%= __("PB") %></th>
                                                 <th><%= __("SB") %></th>-->
-                                            </tr>
-                                        </thead>            
-                                        <tbody style="background-color: white;">
-                                            <template v-for="(element, index) in series.SSRs">
-                                                <tr v-if="element.startsingroup!==null" class="heat"  :class="{alert1: element.alert==1}">
-                                                    <td>{{element.lane}}</td>
-                                                    <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
-                                                    <td>{{element.startsingroup.athleteName}}</td>
-                                                    <td>{{element.startsingroup.athleteForename}}</td>
-                                                    <td>{{element.startsingroup.clubName}}</td>
-                                                    <td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series.SSRs[index])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
-                                                    <td v-if="element.possibleRanks.length>1"><select class="content dropdown" v-model="element.resultstrack.rank" v-on:change="rankChanged(element)">
-                                                        <option v-for="option in element.possibleRanks" v-bind:value="option">
-                                                            {{option}}
-                                                        </option>
-                                                    </select></td>
-                                                    <td v-else style="text-align: center;">{{element?.resultstrack?.rank}}</td>
-                                                    <td v-if="showReactionTimes">
-                                                        <input v-if="element.resultstrack !== null && element.resultstrack.time>0" class="" type="text" v-model="element.reactionTimeStr" v-on:change="reactionTimeChanged(element)" size="5"></input>
-                                                    </td>
-                                                    <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
-                                                        <option v-for="option in participationStatesTrack" v-bind:value="option.value">
-                                                            {{option.text}}
-                                                        </option>
-                                                    </select></td>
-                                                    <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
-                                                    <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                    <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                
-                            </div>
-                        </div>
-                    </template>
-                    <template v-else> <!-- not started in lanes -->
-                        <div style="grid-area: series; padding: 5px;">
-                            <%= __("Series") %>: 
-                            <draggable v-model="seriesAsStartgroups" item-key="number" group="seriesMain" @change="moveSeries">
-                                <template #item="{element:series, index}">
-                                    <div class="dragelement">
-                                        <div class="seriesDragH"  style="display:flex">
-                                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}}</div>
-                                            <div style="flex-grow:1"></div>
-                                            <input class="formCtrl" type="datetime-local" v-bind:value="formatInputDate(series.datetime)" 
-                                            v-on:blur="dateChanged(series, $event)" v-bind:min="minDateTime" v-bind:max="maxDateTime">
-                                            <select v-if="defaultSite" class="formCtrl" @change="siteChanged(series, $event)">
-                                                <option value="null"><%= __("Not defined") %></option>
-                                                <template v-for="(site, i) in trackSites">
-                                                    <option v-bind:selected="site.xSite == series.xSite" v-bind:value="site.xSite">{{site.name}}</option>
-                                                </template>
-                                            </select>
-                                            <button class="formCtrl" type="button" @click="initDeleteSeries(series)">X</button>
-                                        </div>
-                                        <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th><%= __("Position") %></th>
-                                                    <th><%= __("Name") %></th>
-                                                    <th><%= __("Firstname") %></th>
-                                                    <th><%= __("Club") %></th>
-                                                    <th><%= __("PB") %></th>
-                                                    <th><%= __("SB") %></th>
-                                                </tr>
-                                            </thead>
-                                            <!-- the following draggable must be named as tbody to make it work, however, we then need to specify that it actually is a vue component by using the is="vue:draggable" label. Finally, draggable would usually result in a div, but we want it to be a tbody element, so we set tag="tbody".-->
-                                            <tbody is="vue:draggable" v-model="seriesAsStartgroups[index].SSRs" item-key="index" group="athleteSeriesAssignment2" @change="changePosition(seriesAsStartgroups[index], $event)" v-bind:id="'s' + (index+1)" tag="tbody">
-                                                <template #item="{element, index}">
-                                                    <tr class="dragelementH">
-                                                        <td>{{element.position}}</td>
+                                            </thead> 
+                                        </template>   
+                                        <template v-slot:body="{displayData:ssrs}">
+                                            <tbody style="background-color: white;">
+                                                <template v-for="(element, index2) in ssrs">
+                                                    <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                        <td v-if="element.possibleRanks.length>1">
+                                                            <select class="content dropdown" v-model="element.resultstrack.rank" v-on:change="rankChanged(element)">
+                                                                <option v-for="option in element.possibleRanks" v-bind:value="option">
+                                                                    {{option}}
+                                                                </option>
+                                                            </select>
+                                                        </td>
+                                                        <td v-else style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                        <td>{{element.lane}}</td>
+                                                        <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                        <td>{{element.startsingroup.bib}}</td>
                                                         <td>{{element.startsingroup.athleteName}}</td>
                                                         <td>{{element.startsingroup.athleteForename}}</td>
                                                         <td>{{element.startsingroup.clubName}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        <td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series2.SSRs[index2])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
+                                                        <td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">
+                                                            <input v-if="element.resultstrack !== null && element.resultstrack.time>0" class="" type="text" v-model="element.reactionTimeStr" v-on:change="reactionTimeChanged(element)" size="5"></input>
+                                                        </td>
+                                                        <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
+                                                            <option v-for="option in participationStatesTrack" v-bind:value="option.value">
+                                                                {{option.text}}
+                                                            </option>
+                                                        </select></td>
+                                                        <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
+                                                        <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
+                                                    </tr>
+                                                    <tr v-else>
                                                     </tr>
                                                 </template>
                                             </tbody>
-                                        </table>
-                                    </div>
-                                </template>
-                            </draggable>
+                                        </template>
+                                    </v-table>
+                                </div>
+                            </div>
                         </div>
-                        
+                    </template>
+
+                    <template v-else> <!-- not started in lanes -->
+                        <div style="grid-area: series;">
+                            <div v-for="(series2, index) in seriesAsStartgroups">
+                                <div class="heat">
+                                    <div style="display:flex">
+                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
+                                        <div style="flex-grow:1"></div>
+                                        <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                            
+                                        <div>
+                                            <!--<%= __("Series Status") %>-->
+                                            <select class="content dropdown" v-model="series2.status" v-on:change="seriesStateChanged(series2, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                                <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
+                                                    {{option.text}}
+                                                </option>
+                                            </select>
+                                        </div>
+                                        
+                                    </div>
+                                    <v-table :data="series2.SSRs">
+                                        <template v-slot:head>
+                                            <thead>
+                                                <th is="vue:v-th" sortkey="sortRank"><%= __("Rank") %></th>
+                                                <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                                <th><%= __("Result") %></th>
+                                                <th><%= __("Participation status") %></th>
+                                                <th><%= __("Remarks") %></th>
+                                                <!--<th><%= __("PB") %></th>
+                                                <th><%= __("SB") %></th>-->
+                                            </thead> 
+                                        </template>   
+                                        <template v-slot:body="{displayData:ssrs}">
+                                            <tbody style="background-color: white;">
+                                                <template v-for="(element, index2) in ssrs">
+                                                    <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                        <td v-if="element.possibleRanks.length>1">
+                                                            <select class="content dropdown" v-model="element.resultstrack.rank" v-on:change="rankChanged(element)">
+                                                                <option v-for="option in element.possibleRanks" v-bind:value="option">
+                                                                    {{option}}
+                                                                </option>
+                                                            </select>
+                                                        </td>
+                                                        <td v-else style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                        <td>{{element.position}}</td>
+                                                        <td>{{element.startsingroup.bib}}</td>
+                                                        <td>{{element.startsingroup.athleteName}}</td>
+                                                        <td>{{element.startsingroup.athleteForename}}</td>
+                                                        <td>{{element.startsingroup.clubName}}</td>
+                                                        <td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series2.SSRs[index2])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>
+                                                        <td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
+                                                            <option v-for="option in participationStatesTrack" v-bind:value="option.value">
+                                                                {{option.text}}
+                                                            </option>
+                                                        </select></td>
+                                                        <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
+                                                        <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
+                                                    </tr>
+                                                    <tr v-else>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </template>
+                                    </v-table>
+                                </div>
+                            </div>
+                        </div>
                     </template>
 
                 </div>
 
-                <div v-if="show=='resMod'" id="resultsView" v-if="mode>0" style="display:block">
-                    <h2><%= __("View / add / change results") %>:</h2>
-                    <%= __("Sorting") %>: 
-                    <select v-model="sortValue1" class="dropdown marginS">
-                        <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
-                        <option value="2"><%= __("Rank") %></option>
-                        <option value="3"><%= __("Name") %></option>
-                        <option value="4"><%= __("Bib") %></option>
-                    </select><br />
-                    <!-- 
-                        Two different views of the results are possible (while the athlete data in both is +- the same):
-                        1) Just show a list of the athletes, their rank and the best valid height. In small, show the details of every height. This view is mobile-friendly and columns could be hidden dependent on screen size. 
-                        2) Show a big table in the style as the judge has it on his paper: one column per height. Gives a wider table than option 1, which is less mobile friendly.
-                        => so far only option 1 is implemented
-                    -->
-                    <div style="display:inline-block" >
-                        <template v-for="(startIndex, sortIndex) in sortedStarts1">
-                            <div class="athlete" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }">
-                                <div class="row2">
-                                    <div class="elText">{{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}} </div>
-                                    <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
-                                    <div class="elText" style="font-weight: bold">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
-                                    <div class="elText">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
-                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].countryCode}}</div>
-                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
-                                </div>
-                                <div class="row2">
-                                    <div class="elText"><%= __("Valid height") %>: {{(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].lastValidHeight/100).toFixed(2)}} m</div>
-                                    <template v-for="res in sortedResults(series[selectedSeries].seriesstartsresults[startIndex].resultshigh)"> 
+            </div>
+            <div v-if="show=='resShow'">
+                <h2><%= __("Live view") %></h2>
+                <div id="rollCallView2" v-if="contest.status<90">
+                    <!-- show all participants as in roll call -->
+                    <h3><%= __("Startlist") %></h3>
+                    <v-table :data="startgroups" > <!-- :filters="filters"-->
+                    <template #head> <!-- # head is a shorthand for v-slot:head-->
+                        <thead>
+                            <tr>
+                                <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                                <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
+                                <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                                <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
+                                <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                                <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                                <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                            </tr>
+                        </thead>
+                    </template>
+                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                        <tbody>
+                            <tr v-for="row in displayData" :key="row.xInscription">
+                                <td>{{ row.bib }}</td>
+                                <td>{{ row.athleteName }}</td>
+                                <td>{{ row.athleteForename }}</td>
+                                <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                                <!--<td>{{ row.sex }}</td>-->
+                                <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
+                                <td>{{ row.clubName }}</td>
+                                <!--<td>{{ row.country }}</td>-->
+                                <td>{{formatValue(row.bestPerfLast)}}</td>
+                                <td>{{formatValue(row.bestPerf)}}</td>
+                            </tr>
+                        </tbody>
+                    </template>
 
-                                    </template>
-                                    
-                                    <div class="elText"><%= __("# failed attempts") %>: {{tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].totalFailedAttempts}}</div>
+                </v-table>
+                </div>
+                <div id="heatsView2" v-if="contest.status>=90 && contest.status<140">
+                    <!-- show heats with PB / SB and the position/lane -->
+                    <template v-if="conf.startInLanes">
+                        <!-- started in lanes -->
+                        <div style="grid-area: series;">
+                            <div v-for="(series2, index) in seriesAsStartgroups">
+                                <div class="heatContainer">
+                                    <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                        <div style="flex-grow:1"></div>
+                                        <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                            
+                                        <div style="padding-top:7px">
+                                            {{statusText(series2.status, seriesStates)}}
+                                        </div>
+                                        
+                                    </div>
+
+                                    <v-table :data="series2.SSRs" class="heatContent">
+                                        <template v-slot:head>
+                                            <thead>
+                                                <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                                <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                                <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                                <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                                <!--<th><%= __("Result") %></th>-->
+                                                <!--<th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>-->
+                                                <!--<th><%= __("Remarks") %></th>-->
+                                                <th><%= __("PB") %></th>
+                                                <th><%= __("SB") %></th>
+                                            </thead> 
+                                        </template>   
+                                        <template v-slot:body="{displayData:ssrs}">
+                                            <tbody style="background-color: white;">
+                                                <template v-for="(element, index2) in ssrs">
+                                                    <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                        <td>{{element.lane}}</td>
+                                                        <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                        <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                        <td>{{element.startsingroup.athleteName}}</td>
+                                                        <td>{{element.startsingroup.athleteForename}}</td>
+                                                        <td>{{element.startsingroup.clubName}}</td>
+                                                        <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                        <!--<td v-if="element.resultOverrule==0">{{checkInput(series2.SSRs[index2])}}</td>
+                                                        <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>-->
+                                                        <!--<td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>-->
+                                                        <!--<td>{{element.resultRemark}}</td>-->
+                                                        <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                    </tr>
+                                                    <tr v-else>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </template>
+                                    </v-table>
                                 </div>
-                                
-                                <div class="row2" v-if="readOnly==false">
-                                    <!-- provide here the possibility to add a result (as it would be useful in TIC mode): -->
-                                    <div v-if="!tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished">
-                                        <div class="elText" style="display:inline-block"><%= __('Add result') %>: </div>
-                                        <!-- dropdown with heights that were not jumped yet by this athlete; the next higher height is preselected -->
-                                        <select class="dropdown" name="" v-bind:id="'newResultHeight' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart">
-                                            <option v-for="hEl in getNewHeigthsByXSeriesStart(series[selectedSeries].seriesstartsresults[startIndex])" v-bind:value="hEl.value" v-bind:selected="hEl.next">
-                                                {{hEl.text}}
-                                            </option>
-                                        </select>
-                                        <input class="formCtrl" size="3" maxlength="3" type="text" name="newResult" v-bind:id="'newResultValue' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" v-on:blur="addResultBlur(series[selectedSeries].seriesstartsresults[startIndex], $event)" v-on:keydown="resultKeyPressed=$event.which || $event.keyCode">
+                            </div>
+                        </div>
+                    </template>
+
+                    <template v-else> <!-- not started in lanes -->
+                        <div style="grid-area: series;">
+                            <div v-for="(series2, index) in seriesAsStartgroups">
+                                <div class="heatContainer">
+                                    <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                        <div style="flex-grow:1"></div>
+                                        <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                            
+                                        <div style="padding-top:7px">
+                                            {{statusText(series2.status, seriesStates)}}
+                                        </div>
+                                        
                                     </div>
-                                    <div class="marginLeft">
-                                        <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
-                                    </div>
+                                    <v-table :data="series2.SSRs" class="heatContent">
+                                        <template v-slot:head>
+                                            <thead>
+                                                <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
+                                                <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                                <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                                <!--<th><%= __("Result") %></th>-->
+                                                <!--<th><%= __("Participation status") %></th>-->
+                                                <!--<th><%= __("Remarks") %></th>-->
+                                                <th><%= __("PB") %></th>
+                                                <th><%= __("SB") %></th>
+                                            </thead> 
+                                        </template>   
+                                        <template v-slot:body="{displayData:ssrs}">
+                                            <tbody style="background-color: white;">
+                                                <template v-for="(element, index2) in ssrs">
+                                                    <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                        <td>{{element.position}}</td>
+                                                        <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                        <td>{{element.startsingroup.athleteName}}</td>
+                                                        <td>{{element.startsingroup.athleteForename}}</td>
+                                                        <td>{{element.startsingroup.clubName}}</td>
+                                                        <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                        <!--<td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series2.SSRs[index2])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>-->
+                                                        <!--<td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
+                                                            <option v-for="option in participationStatesTrack" v-bind:value="option.value">
+                                                                {{option.text}}
+                                                            </option>
+                                                        </select></td>-->
+                                                        <!--<td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>-->
+                                                        <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                    </tr>
+                                                    <tr v-else>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </template>
+                                    </v-table>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div id="resultsView2" v-if="contest.status>=140">
+                    <!-- show results including rank; do not show position for non-started in lanes -->
+                    <h3><%= __("Results") %></h3>
+                    <div>
+                        <%= __("Grouping") %>: 
+                        <select v-model="sortValue2" class="dropdown marginS">
+                            <option value="1"><%= __("By heat") %></option> <!-- means the order on the judge's sheet -->
+                            <option value="2"><%= __("Overall") %></option>
+                        </select>
+                    </div>
+                    <label>
+                        <input type="checkbox" v-model="showPBSB">
+                        <%= __('Show PB and SB') %>
+                    </label>
+                    <div v-if="sortValue2==1">
+                        <template v-if="conf.startInLanes">
+                            <!-- started in lanes -->
+                            <div style="grid-area: series;">
+                                <div v-for="(series2, index) in seriesAsStartgroups">
+                                    <div class="heatContainer">
+                                        <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                            <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                            <div style="flex-grow:1"></div>
+                                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                                
+                                            <div style="padding-top:7px">
+                                                {{statusText(series2.status, seriesStates)}}
+                                            </div>
+                                            
+                                        </div>
     
-                                    <section class="el2 collapsable marginLeft marginRight">
-                                        <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correctly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
-                                        <input type="checkbox" v-bind:id="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" name="participationStatusHider" ></input><!-- do not show the radio button; tha label is still clickable -->
-                                        <label v-bind:for="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart">
-                                            <%= __("Change participation status") %>    
-                                        </label>
-                                        <!-- TODO: participation should be changed only after confirmation or in a usually hidden menu (e.g. click on "change status" to show the dropdown) -->
-                                        <select class="content dropdown marginLeft" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
-                                            <option v-for="option in participationStates" v-bind:value="option.value">
-                                                {{option.text}}
-                                            </option>
-                                        </select>
-                                    </section>
+                                        <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
+                                            <template v-slot:head>
+                                                <thead>
+                                                    <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                                    <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                                    <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                                    <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                                    <th><%= __("Result") %></th>
+                                                    <th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>
+                                                    <th><%= __("Remarks") %></th>
+                                                    <th v-if="showPBSB"><%= __("PB") %></th>
+                                                    <th v-if="showPBSB"><%= __("SB") %></th>
+                                                </thead> 
+                                            </template>   
+                                            <template v-slot:body="{displayData:ssrs}">
+                                                <tbody style="background-color: white;">
+                                                    <template v-for="(element, index2) in ssrs">
+                                                        <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                            <td style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                            <td>{{element.lane}}</td>
+                                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                            <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                            <td>{{element.startsingroup.athleteName}}</td>
+                                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                                            <td>{{element.startsingroup.clubName}}</td>
+                                                            <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                            <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                                            <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                                            <td v-if="showReactionTimes && disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>
+                                                            <td>{{element.resultRemark}}</td>
+                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        </tr>
+                                                        <tr v-else>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </template>
+                                        </v-table>
+                                    </div>
                                 </div>
                             </div>
-                            <br />
                         </template>
-                    </div>
-                </div>
-                <div v-if="show=='resShow'">
-                    <h2><%= __("Results (table view)") %>:</h2>
-                    <%= __("Sorting") %>: 
-                    <select v-model="sortValue2" class="dropdown marginS">
-                        <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
-                        <option value="2"><%= __("Rank") %></option>
-                        <option value="3"><%= __("Name") %></option>
-                        <option value="4"><%= __("Bib") %></option>
-                    </select>
-                    <div id="resultsView2" v-if="mode>0" style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
-                        <!-- table view of the results with a grid layout -->
-                        <!-- show all the heights; the column is given by height in cm + 100 -->
-        
-                        <!-- eventually we can also use Vue to create named lines and use those to order the items; woudl probably be faster! 
-                        grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
-        
-                        <template v-for="h in sortedHeights">
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
-                        </template>
-                        <template v-for="(startIndex, sortIndex) in sortedStarts2">
-                            
-                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
-                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
-                            </div>
-                            <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
-                            </div>
-                            <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
-                            </div>
-                            <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                                <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
-                                    {{resultToStr(hRes)}}
+    
+                        <template v-else> <!-- not started in lanes -->
+                            <div style="grid-area: series;">
+                                <div v-for="(series2, index) in seriesAsStartgroups">
+                                    <div class="heatContainer">
+                                        <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                            <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                            <div style="flex-grow:1"></div>
+                                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                                
+                                            <div style="padding-top:7px">
+                                                {{statusText(series2.status, seriesStates)}}
+                                            </div>
+                                            
+                                        </div>
+                                        <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
+                                            <template v-slot:head>
+                                                <thead>
+                                                    <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                                    <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
+                                                    <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                                    <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                                    <th><%= __("Result") %></th>
+                                                    <th><%= __("Remarks") %></th>
+                                                    <th v-if="showPBSB"><%= __("PB") %></th>
+                                                    <th v-if="showPBSB"><%= __("SB") %></th>
+                                                </thead> 
+                                            </template>   
+                                            <template v-slot:body="{displayData:ssrs}">
+                                                <tbody style="background-color: white;">
+                                                    <template v-for="(element, index2) in ssrs">
+                                                        <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                            <td style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                            <td>{{element.position}}</td>
+                                                            <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                            <td>{{element.startsingroup.athleteName}}</td>
+                                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                                            <td>{{element.startsingroup.clubName}}</td>
+                                                            <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                            <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                                            <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                                            <td>{{element.resultRemark}}</td>
+                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        </tr>
+                                                        <tr v-else>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </template>
+                                        </v-table>
+                                    </div>
                                 </div>
-                            </template>
+                            </div>
                         </template>
                     </div>
-                </div>
+                    <div v-if="sortValue2==2">
+                        <!-- show an overall list over all heats with all results -->
+                        <v-table :data="overall" class="heatContent">
+                            <template v-slot:head>
+                                <thead>
+                                    <th is="vue:v-th" sortkey="sortRankOverall" defaultSort="asc"><%= __("Rank") %></th>
 
+                                    <!--<th is="vue:v-th" sortkey="series.number"><%= __("Heat") %></th>
+                                    <th v-if="conf.startInLanes" is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                    <th v-if="conf.startInLanes && conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                    <th v-if="!conf.startInLanes" is="vue:v-th" sortkey="position"><%= __("Position") %></th>-->
+                                    
+                                    <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                    <th><%= __("Result") %></th>
+                                    <th><%= __("Remarks") %></th>
+                                    <th v-if="showPBSB"><%= __("PB") %></th>
+                                    <th v-if="showPBSB"><%= __("SB") %></th>
+                                </thead> 
+                            </template>   
+                            <template v-slot:body="{displayData:ssrs}">
+                                <tbody style="background-color: white;">
+                                    <template v-for="(element, index2) in ssrs">
+                                        <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValAll}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                            <td style="text-align: center;">{{element?.rankOverall}}</td>
+                                            
+                                            <!--<td>{{element?.series?.number}}</td>
+                                            <td v-if="conf.startInLanes">{{element.lane}}</td>
+                                            <td v-if="conf.startInLanes && conf.groupSize>1">{{element.posInLane}}</td>
+                                            <td v-if="!conf.startInLanes">{{element.position}}</td>-->
+
+                                            <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                            <td>{{element.startsingroup.athleteName}}</td>
+                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                            <td>{{element.startsingroup.clubName}}</td>
+                                            <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                            <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                            <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                            <td>{{element.resultRemark}}</td>
+                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                        </tr>
+                                        <tr v-else>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </template>
+                        </v-table>
+                    </div>
+                </div>
             </div>
     
             <!-- Overlay for the initial series assignment: -->

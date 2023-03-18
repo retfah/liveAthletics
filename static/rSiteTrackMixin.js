@@ -79,6 +79,7 @@ export default {
                 xBaseDiscipline: c2.xBaseDiscipline,
                 xContest: c2.xContest,
                 series:[],
+                baseConfiguration: c2.baseConfiguration,
             }
             this.data.contests.push(c);
         }

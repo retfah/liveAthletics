@@ -471,6 +471,7 @@ class rContestTrack extends roomServer{
                 position: {type:"integer"},
                 resultOverrule: {type:"integer"},
                 resultRemark: {type:"string", maxLength:100},
+                resultstrack: {type:["object", "null"], default:null}, // this default is needed to make sure that resultstrack is added to the returned object; otherwise, the object will not have tis property, evne if it is included in the model-includes!
                 qualification: {type:"integer"}, 
                 startConf: {type:["string", "integer"]}, // actually the length is limited to 65536 bytes, which means the same or less characters! This cannot be checked yet with JSON schema. Allow integers as well; they will be casted to string
                 //resultstrack: schemaResultsTrack, // do not allow to update resultstrack here; the code is better structured if the results add/update/delete are handled separately

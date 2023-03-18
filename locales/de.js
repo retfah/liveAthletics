@@ -623,5 +623,10 @@
 	"DNF": "aufg.",
 	"withdrawal": "abgemeldet",
 	"The reaction time must be given as integer in milliseconds (e.g. '300') or with a period in seconds (e.g. '-0.1').": "Die Reaktionszeit muss entweder als Ganzzahl in Millisekunden angegeben werden (z.B. '300') oder als Gleitkommazahl in Sekunden(z.B. '-0.1').",
-	"Invalid format": "Ungültiges Format"
+	"Invalid format": "Ungültiges Format",
+	"Grouping": "Gruppierung",
+	"By heat": "Nach Lauf",
+	"Overall": "Gesamtliste",
+	"Live view": "Live Ansicht",
+	"Show PB and SB": "Show PB and SB"
 }

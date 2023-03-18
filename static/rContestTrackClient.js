@@ -1074,7 +1074,7 @@ export class rContestTrackClient extends roomClient{
         for (let series of this.data.series){
             // check that there are no results yet
             series.seriesstartsresults.forEach(ssr=>{
-                if (ssr.resultstrack){
+                if (ssr.resultstrack !== null){
                     hasResults = true;
                 }
             }) 

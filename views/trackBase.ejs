@@ -175,6 +175,9 @@
                     yesNoFunction:()=>{},
 
                     showReactionTimes: true,
+                    showBib: false, // currently only for live results
+                    showPBSB: false, // currently only for live results, where this option is important for speakers to also have this info when the contest is in progress
+
 
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
@@ -259,7 +262,7 @@
                     currentResultStringCopy:'',
                     resultKeyPressed: -1, // the key that was pressed last inside a addResult-input. If this is the esc-key, the blur event will not be evaluated. 
                     sortValue1: 1,
-                    sortValue2: 2, // default by rank
+                    sortValue2: 1, // default by rank
                     fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
                     temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
                     timeOffset: 0,
@@ -760,6 +763,9 @@
                     }
                     return conf;
                 },
+                getCategoryForTable(row){
+                    return this.getCategory(row.xCategory);
+                },
                 getCategory(xCategory, property='shortname'){
                     let cat = this.categories.find(c=>c.xCategory==xCategory)
                     if (cat){
@@ -996,8 +1002,8 @@
                 deleteAllSeriesInit(){
                     // show warning
                     this.yesNoVisible = true,
-                    this.yesNoText = '<%= __("Delete all series") %>';
-                    this.yesNoTitle = `<%= __("Do you really want to delete all series? This can't be undone.") %>`;
+                    this.yesNoText = '<%- __("Delete all series") %>';
+                    this.yesNoTitle = `<%- __("Do you really want to delete all series? This can't be undone.") %>`;
                     this.yesNoFunction = this.deleteAllSeries;
                     
                 },
@@ -1174,99 +1180,6 @@
 
                 },
 
-                calculateTemporaryRankingData(){
-                    // still needed?
-
-                },
-
-                addResultBlur(start, $event){
-                    if (this.resultKeyPressed!=27){
-                        this.addResult(start);
-                    }
-                    this.resultKeyPressed = -1;
-                },
-                addResult(start){
-
-                    // add a result 
-                    let valEl = document.getElementById('newResultValue' + start.xSeriesStart);
-                    let heightEl = document.getElementById('newResultHeight' + start.xSeriesStart);
-
-                    if (valEl.value!=''){
-                        // first try to parse the entered result string
-                        let resParsed = this.strToResult(valEl.value);
-                        if (!resParsed){
-                            // TODO: what shall be reverted
-                            alert("<%= __('The entered result is invalid. Saving is aborted.') %>")
-                            return;
-                        }
-
-                        // check that the result is also reasonable together with the previous results:
-                        // - not more than 2 failed attempts in a row
-                        // - athlete was not finished before already
-                        // - not nothing
-                        if (this.tempRankingData[start.xSeriesStart].finished ){
-                            alert("ERROR: the athlete is already finished! Actually you should not even be able to enter a result.");
-                            valEl.value = '';
-                            return;
-                        }
-
-                        if (this.tempRankingData.failedAttemptsSinceLastValid + resParsed.resultsHighFailedAttempts + resParsed.resultsHighPassed + resParsed.resultsHighValid>3){
-                            // TODO: 
-                            alert("<%= __('The entered result is invalid, as the number of failed attempts since the last valid jump is >3. Saving is aborted.') %>")
-                            valEl.value = '';
-                            return;
-                        }
-                        if (resParsed.resultsHighFailedAttempts + resParsed.resultsHighPassed + resParsed.resultsHighValid==0){
-                            // TODO: 
-                            alert("<%= __('The entered result is invalid, as neither passed, nor valid nor a failed attempt was entered. Saving is aborted.') %>")
-                            valEl.value = '';
-                            return;
-                        }
-
-                        // get the xHeight for the selected height (if it exists)
-                        let hEl = this.sortedHeights.find(el=>el.height == heightEl.value && el.jumpoffOrder==0)
-                        if (!hEl){
-                            this.addHeight(heightEl.value)
-                            hEl = this.sortedHeights.find(el=>el.height == heightEl.value && el.jumpoffOrder==0)
-                        }
-                        let res = {
-                            xResult: start.xSeriesStart,
-                            xHeight: hEl.xHeight,
-                            resultsHighFailedAttempts: resParsed.resultsHighFailedAttempts, // how many fails on this hight
-                            resultsHighValid: resParsed.resultsHighValid, 
-                            resultsHighPassed: resParsed.resultsHighPassed // verzichtet (-) 
-                        };
-                        start.resultshigh.push(res)
-
-                        // send the change to the server
-                        rCTrack.room.addResultInit(res, start);
-
-
-                        // reset the field 
-                        valEl.value = '';
-                        // define the new focus:
-                        if (this.tempRankingData[start.xSeriesStart].finished){
-                            // focus the next athletes field, where the athletes results
-                            // i= index of the current athlete
-                            let i = this.sortedStarts1.findIndex(el=>start.xSeriesStart==el.xSeriesStart);
-                            for (let j=i+1;j<this.sortedStarts1.length;j++){
-                                // check if the athlete is not finished yet
-                                if (!this.tempRankingData[this.sortedStarts1[j].xSeriesStart].finished){
-                                    document.getElementById('newResultValue'+this.sortedStarts1[j].xSeriesStart).focus();
-                                    break;
-                                }
-                            }
-                        }else{
-                            // focus the same element again
-                            valEl.focus();
-                        }
-                    }
-
-
-
-                // is the height automatically removed from the heights options dropdown? Otherwise make Vue reload in some way.
-
-                },
                 changeResult(res){
                     this.currentResultChange=res;
 
@@ -1567,10 +1480,103 @@
 
                 },
 
+                overall: function(){
+                    // create an overall list with results:
+                    // there are two approaches: 
+                    // 1) start with a copy of all startgroups, filter startgroups without a seriesstartresult (complicated) and add this result
+                    // 2) loop over all heats and add the persons to a new array --> probably the easier approach and can be done on the already copied data in seriesAsStartgroups
+                    // --> use approach 2
+
+                    // data structure: we simply add the ssr from seriesAsStartgroups, since this contains all infos in one or the other way
+
+                    let overall = [];
+
+                    for (let s of this.seriesAsStartgroups){
+                        for (let ssr of s.SSRs){
+                            overall.push(ssr)
+                        }
+                    }
+
+                    // sort by result-time
+                    overall.sort((a,b)=>{
+
+                        // not started persons are shown at the end
+
+                        // first check if there are results
+                        if (a.resultstrack === null && b.resultstrack === null){
+                            return 0
+                        } else if (a.resultstrack === null){
+                            return 1
+                        } else if (b.resultstrack === null){
+                            return -1
+                        } else {
+                            // compare the results
+                            // first, check the results overrule
+                            // the resultsOverrule are sorted; the higher the more in the back it must be shown.
+                            if (b.resultOverrule != a.resultOverrule){
+                                return a.resultOverrule - b.resultOverrule;
+                            }
+
+                            // now, in fact compare results:
+                            return a.resultstrack.time - b.resultstrack.time
+
+                            // TODO: add the sorting also in seriesAsStartgroups
+                        }
+
+                    });
+
+                    // add the rank
+                    let lastRank = 0;
+                    let lastResult = 0;
+                    for (let i=0; i<overall.length; i++){
+                        if (overall[i].resultstrack !==null){
+                            // NOTE: we only consider the time; the ranking within one heat is not considered for the overlal view.
+                            if (overall[i].resultstrack.timeRounded>lastResult){
+                                overall[i].rankOverall = i+1;
+                                lastRank = i+1;
+                                lastResult = overall[i].resultstrack.timeRounded;
+                            } else {
+                                overall[i].rankOverall = lastRank;
+                            }
+                            // sort rank is equal to rank
+                            overall[i].sortRankOverall = lastRank;
+                        } else {
+                            overall[i].sortRankOverall = 999999 + overall[i].resultsOverrule;
+                            overall[i].rankOverall = '';
+                        }
+                    }
+
+                    return overall;
+
+                },
+
                 seriesAsStartgroups: function(){
                     // "copy" the series and its seriesstartsresults (as startgroup)
 
                     // TODO: eventually we need to make sure that the data is only recomputed when there is no change on results ongoing; otherwise it would happen that the present change is deleted. This might happen regularly, e.g. when another client changes data or when the timing sends new results!
+
+                    // for the backgroundbar, find the min/max times overall and within each series
+                    let overallMin = Infinity;
+                    let overallMax = -Infinity;
+                    let seriesMinMax = [];
+                    for (let i=0;i<this.series.length; i++){
+                        let seriesMin = Infinity;
+                        let seriesMax = -Infinity;
+                        this.series[i].seriesstartsresults.forEach(ssr=>{
+                            if (ssr.resultstrack){
+                                overallMax = ssr.resultstrack.timeRounded>overallMax ? ssr.resultstrack.timeRounded : overallMax;
+                                overallMin = ssr.resultstrack.timeRounded<overallMin ? ssr.resultstrack.timeRounded : overallMin;
+                                seriesMax = ssr.resultstrack.timeRounded>seriesMax ? ssr.resultstrack.timeRounded : seriesMax;
+                                seriesMin = ssr.resultstrack.timeRounded<seriesMin ? ssr.resultstrack.timeRounded : seriesMin;
+                            }
+                        })
+                        if (seriesMin != Infinity){
+                            seriesMinMax.push([seriesMin, seriesMax]);
+                        } else {
+                            seriesMinMax.push([1,1]);
+                        }
+                    }
+
 
                     let seriesAsStartgroups = [];
                     for (let i=0;i<this.series.length; i++){
@@ -1613,10 +1619,25 @@
                                 ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.resultstrack.reactionTime);
 
                                 ssrCopy.possibleRanks = possibleRanks;
+
+                                // needed for sorting in v-table, where the sortproperties must exist, which is not necessarily the case
+                                ssrCopy.sortRank = ssrCopy.resultstrack.rank;
+                                ssrCopy.sortReactionTime = ssrCopy.resultstrack.reactionTime;
+
+                                // values for the background bars
+                                ssrCopy.barValAll = 1-(ssrCopy.resultstrack.timeRounded - overallMin)/(overallMax - overallMin);
+                                ssrCopy.barValHeat = 1-(ssrCopy.resultstrack.timeRounded - seriesMinMax[i][0])/(seriesMinMax[i][1] - seriesMinMax[i][0]);
+                                
                             } else {
                                 ssrCopy.resultValid = false;
                                 ssrCopy.possibleRanks = []
                                 ssrCopy.reactionTimeStr = '';
+                                // TODO: eventually there is a certain sort needed here as well, e.g. DNF before DNS, ...
+                                ssrCopy.sortRank = 999999;
+                                ssrCopy.sortReactionTime = 999999;
+
+                                ssrCopy.barValAll = 0;
+                                ssrCopy.barValHeat = 0;
                             }
                             
                             ssrCopy.resultStr = this.formatValue(ssrCopy.resultstrack?.time)
@@ -1652,7 +1673,8 @@
                             if (SSR.lane == lastLane){
                                 SSR.posInLane = ++lastPosInLane;
                             } else {
-                                SSR.posInLane = 1
+                                SSR.posInLane = 1;
+                                lastPosInLane = 1;
                             }
                             lastLane = SSR.lane;
                         })
@@ -1846,6 +1868,7 @@
                         let o = JSON.parse(d.baseConfiguration);
                         // avoid problems when the definition was not right in the DB
                         o.startInLanes = o.startInLanes ?? true;
+                        o.crouchStart = o.crouchStart ?? true;
                         o.groupSize = o.groupSize ?? 1;
                         o.distance = o.distance ?? 0;
                         o.wind = o.wind ?? true;
