@@ -1,20 +1,7 @@
-**important: always add the date of the error/todo (when it is added)**
+** important: always add the date of the error/todo (when it is added) **
 ** see also MantisBT in xampp; UN: administrator, PW: "as usual" **
 
 TODO shortterm:
-- 2022-12-31: when the server is restarted, a different client might get the writign rights! Eventually, the writing ticket is not stored..?
-for (let s of vueSeriesAdminTrack.series){
-    console.log(`Series ${s.number}`)
-    for (let ssr of s.seriesstartsresults){
-        console.log(`xSeriesStart: ${ssr.xStartgroup}, pos: ${ssr.position}, lane:${ssr.startConf}`)
-    }
-}
-for (let s of rSiteTest.room.data.contests[0].series){
-    console.log(`Series ${s.number}`)
-    for (let ssr of s.SSRs){
-        console.log(`xSeriesStart: ${ssr.xStartgroup}, pos: ${ssr.position}, lane:${ssr.startConf}`)
-    }
-}
 - 2022-08-12: when the client tries to reconnect after the connection was lost, the following error occurs, probably, when the roomCLient tries to connect again, but the roomManager could not yet create the connection: "Connecting to room failed with the following code and message: 3: Connection was closed before the reqeust could be sent." It seems like after this error, the client does nto try again to connect to the roomServer, which is problematic and eventually is the cause for one error in Frauenkappelen with loss of local data. This problem can be stipulated by killing the server and not reloading on the client. 
 - 2022-08-01: when the mongo DB tools od not exist (on PATH), the whole server crashes --> make sure only backup/restore fails
 - 2022-08-01: for some reason, a meeting (!) that was created previously was gone after a restart! WHY CAN THIS HAPPEN?

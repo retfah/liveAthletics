@@ -675,6 +675,21 @@ option.catMismatch{
     margin-bottom: 1px;
 }
 
+
+.heatContainer {
+    border: 1px solid RGB(206, 212, 218);
+    border-radius: var(--border-radius, 4px);
+    margin-bottom: 1px;
+}
+
+.heatHeader {
+    padding: 6px 12px;
+}
+
+.heatContent {
+    padding: 6px 12px;
+}
+
 .seriesAssignmentColHead {
     width: 100%;
     text-align: center;
@@ -1025,6 +1040,15 @@ summary {
         --backColorHover: grey; /* used when there is no inline style definition */
         background-color: var(--backColorHover) !important;
         cursor: pointer;
+}
+
+.backgroundbar {
+    /* variables to be used when there is no inline style definition */
+    --start: 25%;
+    --end: 75%;
+    --value: 1; /* this should always be overwritten for a meaningful output */
+    background-image: linear-gradient(to right, #8bd98b 0%, #8bd98b calc(var(--start) + (var(--end) - var(--start))*var(--value)), white calc(var(--start) + (var(--end) - var(--start))*var(--value)), white 100%);
+    /*background-image: linear-gradient(to right, #8bd98b 0%, #8bd98b calc(0.8 * 50%), white calc(0.8 * 50%), white var(--end));*/
 }
 
 /* currently (2022-05) option:hover is not supported by browsers */
