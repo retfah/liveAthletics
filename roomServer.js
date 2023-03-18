@@ -1969,30 +1969,30 @@ class roomServer{
         }).catch((err)=>{
             // catch for the writeFunction defined in the respective room
 
-            if (developMode){
-                // check schema
-                if(!(this.validateFail(err))){
+            
+            // check schema
+            if(!(this.validateFail(err))){
 
-                    // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
-                    let errStr;
-                    if (err instanceof(Error)){
-                        errStr = err;
-                    } else {
-                        JSON.stringify(request.funcName);
-                    }
-
-                    let text = "Error: The error-object returned from the room-function '"+ request.funcName +"' in room '"+ this.name +"' does not fulfill the failure-schema. Error: " + errStr;
-                    this.logger.log(3, text)
-                    respFunc("Error on the server: " + text, 11)
-                    return;
+                // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
+                let errStr;
+                if (err instanceof(Error)){
+                    errStr = err;
+                } else {
+                    JSON.stringify(request.funcName);
                 }
+
+                let text = "Error: The error-object returned from the room-function '"+ request.funcName +"' in room '"+ this.name +"' does not fulfill the failure-schema. Error: " + errStr;
+                this.logger.log(3, text)
+                respFunc("Error on the server: " + text, 11)
+                
+            } else {
+                // the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, >=21= room funciton specific failures)
+                if (err.code<21){
+                    // use the code 99 for wrong error codes in the room implementation
+                    err.code = 99;
+                }
+                respFunc(err.message, err.code);
             }
-            // the error code must be larger than 21! (0=success, 1-10=connection failures, 11-20=Server internal room problems, >=21= room funciton specific failures)
-            if (err.code<21){
-                // use the code 99 for wrong error codes in the room implementation
-                err.code = 99;
-            }
-            respFunc(err.message, err.code); 
 
             // even if there was a failure, we have to call the next waiting writeFunction
             this.finishedFunc();
