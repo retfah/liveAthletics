@@ -41,10 +41,29 @@ export class rTimingClient extends roomClient{
         this._addFunction('deleteSeriesTiming', this.deleteSeriesTExe);
         this._addFunction('changeSeriesTiming', this.changeSeriesTExe);
         this._addFunction('changeContestTiming', this.changeContestTExe);
+
+        // functions for result changes
+        // TODO
     }
 
     updateInfoExe(infos){
         this.propertyTransfer(infos, this.data.infos);
+    }
+
+    // there is no exe function for this, since this is actually a note (sent as a request, since roomClient is not designed for notes yet). The note simply invokes changes, which are broadcast by other means.
+    heatsToTimingInit(add, update, del, updateContest){
+        this.addToStack('heatsToTiming', {add, update, delete:del, updateContest}, ()=>{});
+    }
+    heatToTimingInit(xContest, xSeries){
+        this.addToStack('heatToTiming', {xContest, xSeries}, ()=>{});
+    }
+
+    // there is no exe function for this, since this is actually a note (sent as a request, since roomClient is not designed for notes yet). The note simply invokes changes, which are broadcast by other means.
+    resultsToLAInit(add, update, includeReaction){
+        this.addToStack('resultsToLA', {add, update, includeReaction}, ()=>{});
+    }
+    resultsToLASingleInit(xContest, xSeries, includeReaction){
+        this.addToStack('resultsToLASingle', {xContest, xSeries, includeReaction}, ()=>{});
     }
 
     // provide the possibility to call onResponse-function when the response has arrived. Used if timers and auto are changed at the same time

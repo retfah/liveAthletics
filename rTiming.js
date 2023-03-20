@@ -131,6 +131,7 @@ export default class rTiming extends roomServer{
         };
 
         this.defaultAuto = {
+            // TODO: 2023-02-18: the following is not evaluated anymore:
             changeContestAuto: -1,
             changeSeriesAuto: -1,
             addSeriesAuto: -1,
@@ -141,6 +142,26 @@ export default class rTiming extends roomServer{
             addResultHeatAuto: -1, // full heat, eventually including some info about the heat itself, eventually inofficial
             addReactionTimeAuto: -1, // 
             // TODO: probably we need more events; but try to keep the number of events low!
+
+            /**
+             * settings for each state
+             * heatAud: string, transfer data from site to timing; 'a'=add, 'u'=update, 'd': delete; delete is understood that the heat still exists in the site, but is deleted from the timing, e.g. when the heat is official; the state in the new data is considered
+             * heatD: boolean, propagate a deleted heat in site to timing. (note: This is not the same as deleting based on state, where the heat still exists. This setting may be important to avoid that a heat is deleted that is currently used in the timing software. Note: since the heat is deleted, the state that the heat had before deleting is evaluated.
+             * heatPreventOnResult: boolean, prevent any transfer from site to timing when there are already results
+             * resultAud: string, transfer results and reaction times from timing to site; 'a'=add, 'u'=update, 'd'=delete result.; 
+             * 
+             * If a new state is added, 
+             * - the client will automatically update the seriesStateSetting to match the new existing seriesStates
+             * - the server will use {heatAud:"", heatD:false, heatPreventOnResult:true, resultAud:""} for non existing seriesStates.
+             **/  
+            seriesStateSetting:{
+                "10":{heatAud:"", heatD:true, heatPreventOnResult:true, resultAud:""},
+                "70":{heatAud:"au", heatD:true, heatPreventOnResult:true, resultAud:""},
+                "130":{heatAud:"au", heatD:true, heatPreventOnResult:true, resultAud:"a"},
+                "150":{heatAud:"au", heatD:true, heatPreventOnResult:true, resultAud:"au"},
+                "180":{heatAud:"u", heatD:true, heatPreventOnResult:true, resultAud:"u"},
+                "200":{heatAud:"d", heatD:true, heatPreventOnResult:true, resultAud:""}
+            },
         };
 
         this.defaultTimers = {
@@ -187,7 +208,52 @@ export default class rTiming extends roomServer{
         this.functionsWrite.updateAuto = this.updateAuto.bind(this);
         this.functionsWrite.updateTimers = this.updateTimers.bind(this);
         this.functionsWrite.updateTimingOptions = this.updateTimingOptions.bind(this);
+        // those functions are actually not read-only, but they do not generate a new ID on its own, but by calling other functions that do.
+        this.functionsReadOnly.heatToTiming = this.heatToTiming.bind(this);
+        this.functionsReadOnly.heatsToTiming = this.heatsToTiming.bind(this);
+        this.functionsReadOnly.resultsToLA = this.resultsToLA.bind(this);
+        this.functionsReadOnly.resultsToLASingle = this.resultsToLASingle.bind(this);
 
+        const schemaHeatToTiming = {
+            type:'object',
+            properties: {
+                xContest: {type:'integer'},
+                xSeries: {type:'integer'}
+            },
+            required:['xContest', 'xSeries'],
+            additionalProperties: false,
+        }
+        const schemaHeatsToTiming = {
+            type:'object',
+            properties: {
+                add: {type:'boolean'},
+                update: {type:'boolean'},
+                delete: {type:'boolean'},
+                updateContest: {type:'boolean'},
+            },
+            required:['add', 'update', 'delete', 'updateContest'],
+            additionalProperties: false,
+        }
+        const schemaResultsToLASingle = {
+            type:'object',
+            properties: {
+                xContest: {type:'integer'},
+                xSeries: {type:'integer'},
+                includeReaction: {type:'boolean'},
+            },
+            required:['xContest', 'xSeries', 'includeReaction'],
+            additionalProperties: false,
+        }
+        const schemaResultsToLA = {
+            type:'object',
+            properties: {
+                add: {type:'boolean'},
+                update: {type:'boolean'},
+                includeReaction: {type:'boolean'},
+            },
+            required:['add', 'update', 'includeReaction'],
+            additionalProperties: false,
+        }
         const schemaTimers = {
             type:'object',
             properties: {
@@ -200,6 +266,7 @@ export default class rTiming extends roomServer{
         const schemaAuto = {
             type:'object',
             properties: {
+                // TODO: delete all except seriesStateSetting
                 changeContestAuto: {type: 'integer', minimum:-2}, 
                 changeSeriesAuto: {type: 'integer', minimum:-2}, 
                 addSeriesAuto: {type: 'integer', minimum:-2}, 
@@ -207,8 +274,22 @@ export default class rTiming extends roomServer{
                 addResultAuto: {type: 'integer', minimum:-2}, 
                 addResultHeatAuto: {type: 'integer', minimum:-2}, 
                 addReactionTimeAuto: {type: 'integer', minimum:-2}, 
+                seriesStateSetting: {
+                    type:'object',
+                    patternProperties:{
+                        "^\d*$":{ // regex: all numbers as properties are allowed 
+                            type:'object',
+                            properties: {
+                                heatAud:{type:'string'},
+                                heatD:{type:'boolean'},
+                                heatPreventOnResult:{type:'boolean'},
+                                resultAud:{type:'string'},
+                            }
+                        },
+                    }
+                },
             },
-            required:['changeContestAuto', 'changeSeriesAuto', 'addSeriesAuto', 'deleteSeriesAuto', 'addResultAuto', 'addResultHeatAuto', 'addReactionTimeAuto'],
+            required:['seriesStateSetting'],
             additionalProperties: false,
         };
         const schemaSiteConf = {
@@ -229,6 +310,10 @@ export default class rTiming extends roomServer{
         this.validateAuto = this.ajv.compile(schemaAuto);
         this.validateTimers = this.ajv.compile(schemaTimers);
         this.validateTimingOptions = this.ajv.compile({}); // to be implemented by the inheriting class
+        this.validateHeatsToTiming = this.ajv.compile(schemaHeatsToTiming);
+        this.validateHeatToTiming = this.ajv.compile(schemaHeatToTiming);
+        this.validateResultsToLA = this.ajv.compile(schemaResultsToLA);
+        this.validateResultsToLASingle = this.ajv.compile(schemaResultsToLASingle);
 
     }
 
@@ -402,28 +487,67 @@ export default class rTiming extends roomServer{
             this.broadcastInf();
             
             this.rSiteClient = null;
-            this.conn = null;
+            //this.conn = null; // the connection should get restored automatically
         }, this.name);
 
+    }
+
+    
+    /**
+     * evaluate whether an change in site shall be processed / applied to the data in timing. (Note: this does not include deleting, when the heat is deleted on the site. Delete is understod here as delete based on the given status.) If no data for the specific status code is found, the default is "do noting". Return true if the change shall be done, false otherwise.
+     * @param {integer} statusCode The status code to be evaluated
+     * @param {string} action The action, either 'a' for add, 'u' for update or 'd' for delete due to status
+     */
+    evaluateAutoProcessHeats (statusCode, action, hasResults){
+        const setting = this.data.auto.seriesStateSetting[statusCode];
+        if (!setting || (hasResults && setting.heatPreventOnResult) || setting.heatAud.indexOf(action)==-1){
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * evaluate whether a change in timing shall be processed / applied to the given data in the site. If no data for the specific status code is found, the default is "do noting". Return true if the change shall be done, false otherwise.
+     * @param {integer} statusCode The status code to be evaluated
+     * @param {string} action The action, either 'a' for add, 'u' for update or 'd' for delete due to statusion 
+     * @returns boolean
+     */
+    evaluateAutoProcessResults (statusCode, action){
+        const setting = this.data.auto.seriesStateSetting[statusCode];
+        if (!setting || setting.resultAud.indexOf(action)==-1){
+            return false;
+        }
+        return true;
+    }
+
+    heatHasResults(series){
+        let hasResults = false;
+        for (let SSR of series.SSRs){
+            if (SSR.resultstrack){
+                hasResults = true;
+                break;
+            }
+        }
+        return hasResults;
     }
 
     // TODO: provide a function to actively reload the data in rSIteTrackClient in order to get the updated rMeeting data. (Since this data typically does not change during a meeting, it is not so important.)
 
     closeSiteConnection(){
-        if (this.conn?.connected){
+        if (this.conn){
             this.data.infos.siteRoomConnected = false;
             this.data.infos.siteServerConnected = false;
             this.data.infos.lastSiteRoomConnectionError = '';
             this.data.infos.lastSiteServerConnectionError = '';
             this.broadcastInf();
     
-            // send leave signal
             if (this.rSiteClient){
+                // send leave signal
                 this.rSiteClient.leave();
+
+                // delete the room
+                this.rSiteClient = null;
             }
-    
-            // delete the room
-            this.rSiteClient = null;
     
             // unsubscribe from the connection-events:
             //this.eH.eventUnsubscribe(`wsConnected/${this.conn.tabId}`, this.name);
@@ -491,16 +615,12 @@ export default class rTiming extends roomServer{
                         // create series
                         this.addSeriesTiming({contest: contestT, series: seriesS});
                     } else {
+                        // without sort, the objectsEqual would say that the two SSR arrays are different
+                        seriesS.SSRs.sort((a,b)=>a.position-b.position)
+                        seriesT.SSRs.sort((a,b)=>a.position-b.position)
                         if (!this.objectsEqual( seriesS, seriesT, false, false )){
                             // if there are no results yet, copy the series to timing, otherwise vice versa
-                            let hasResults = false;
-                            for (let SSR of seriesT.SSRs){
-                                if (SSR.resultstrack){
-                                    hasResults = true;
-                                    break;
-                                }
-                            }
-                            if (hasResults){
+                            if (this.heatHasResults(seriesT)){
                                 // has results --> copy to rSite
                                 // TODO !!! 
                             } else{
@@ -517,14 +637,7 @@ export default class rTiming extends roomServer{
                         // check if the flag is set, then simply keep everything as it is.
                         if (seriesT.timingCreated) continue;
                         // if there are no results in this series, delete it
-                        let hasResults = false;
-                        for (let SSR of seriesT.SSRs){
-                            if (SSR.resultstrack){
-                                hasResults = true;
-                                break;
-                            }
-                        }
-                        if (!hasResults){
+                        if (!this.heatHasResults(seriesT)){
                             this.deleteSeriesTiming(seriesT);
                         }
 
@@ -561,9 +674,11 @@ export default class rTiming extends roomServer{
     }
 
     // do the same as rSiteTrack (given the auto is set accordingly)
-    changeContestTiming(contest){
+    changeContestTiming(contest, override=false){
         // check the auto setting whether to transfer the data or not:
-        if (this.data.auto.changeContestAuto==-2 || (this.data.auto.changeContestAuto>=0 && this.data.auto.changeContestAuto<=contest.status)){
+        //if (override || this.data.auto.changeContestAuto==-2 || (this.data.auto.changeContestAuto>=0 && this.data.auto.changeContestAuto<=contest.status)){
+        // currently, changes in the contest are always transferred. There are only settings based on heat status
+        if (override || true){
             // search the contest first
             const ic = this.data.data.findIndex(c=>c.xContest==contest.xContest);
             // copy over the present series to the new contest object and save it
@@ -589,39 +704,75 @@ export default class rTiming extends roomServer{
 
         }
     }
-    changeSeriesTiming(series){
-        if (this.data.auto.changeSeriesAuto == -2 || (this.data.auto.changeSeriesAuto>=0 && this.data.auto.changeSeriesAuto <=series.status)){
-            // search the contest first
-            const c = this.data.data.find(c=>c.xContest==series.xContest);
-            let s;
-            if (c){
-                // search the series
-                s = c.series.find(s=>s.xSeries == series.xSeries);
+    changeSeriesTiming(series, override=false){
 
-                // update it
+        // NOTE: this can not only be change/update, but also add/delete: if the status changes accordingly. Therefore, check this first:
+        // try to find the heat in the timing data; if it is present, check for the delete rule; if it is not present, check for the add rule.
+        // search the contest first
+        const c = this.data.data.find(c=>c.xContest==series.xContest);
+        let s;
+        if (c){
+            // search the series
+            s = c.series.find(s=>s.xSeries == series.xSeries);
+        } /*else {
+            this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`);
+            return;
+        }*/
+        if (s===undefined && this.evaluateAutoProcessHeats(series.status, 'a')){
+            // get the contest from the site, and not from the contest
+            const data = {
+                series: series,
+                contest: this.data.contests.find(c2=>c2.xContest == series.xContest),
+            }
+            this.addSeriesTiming(data, true); // set the override flag, since we anyway already did the evaluation.
+
+            // in this case, there is no actual change to send to the client here
+            return
+        }
+
+        if (s){
+            // the heat already exists.
+            
+            // do we need to delete the heat based on the new status?
+            if (this.evaluateAutoProcessHeats(series.status, 'd')){
+                
+                this.deleteSeriesTiming(series, true);
+                // in this case, there is no actual change to send to the client here
+                return;
+            }
+
+            // do we need to update the heat?
+            if (this.evaluateAutoProcessHeats(series.status, 'u')){
+                // update the heat
                 this.propertyTransfer(series, s)
 
-            } else {
-                this.logger.log(20, `Could not update xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
-            }
-            // sort all data
-            this.sortData();
-            this._storeData(); // async
+                // sort all data
+                this.sortData();
+                this._storeData(); // async
 
-            // broadcast the change:
-            let doObj = {
-                funcName: 'changeSeriesTiming', 
-                data: series,
-            }
-            this.processChange(doObj, {})
+                // broadcast the change:
+                let doObj = {
+                    funcName: 'changeSeriesTiming', 
+                    data: series,
+                }
+                this.processChange(doObj, {})
 
-            this.changedSeries(s, c);
+                this.changedSeries(s, c);
+            }
+
         }
     }
-    deleteSeriesTiming(series){
+    // series must contain status, xSeries and xContest
+    deleteSeriesTiming(series, override=false){
 
         // check the auto setting whether to transfer the data or not:
-        if (this.data.auto.deleteSeriesAuto==-2 || ( this.data.auto.deleteSeriesAuto>=0 && this.data.auto.deleteSeriesAuto<=series.status)){
+        //if (override || this.data.auto.deleteSeriesAuto==-2 || ( this.data.auto.deleteSeriesAuto>=0 && this.data.auto.deleteSeriesAuto<=series.status)){
+        const setting = this.data.auto.seriesStateSetting[series.status];
+        if (!setting){
+            // if there is nothing defined for this status, we do not delete the heat
+            return
+        }
+        if (override || setting.heatD){
             // search the contest first
             const c = this.data.data.find(c=>c.xContest==series.xContest);
             if (c){
@@ -640,11 +791,11 @@ export default class rTiming extends roomServer{
                     }
                 }
             } else {
-                this.logger.log(20, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
+                this.logger.log(95, `Could not delete xSeries=${series.xSeries} from xContest=${series.xContest} because this contest has no series on xSite=${this.site.xSite}.`)
             }
             // sort all data
             this.sortData();
-            this._storeData(); // async
+            this._storeData().catch(err=>console.log('the error is ', err)); // async
 
             // broadcast the change:
             let doObj = {
@@ -656,13 +807,14 @@ export default class rTiming extends roomServer{
             this.deletedSeries(series, c);
         }
     }
-    addSeriesTiming(data){
+    addSeriesTiming(data, override=false){
 
         const contestS = data.contest;
         const seriesS = data.series;
 
         // check the auto setting whether to transfer the data or not:
-        if (this.data.auto.addSeriesAuto==-2 || (this.data.auto.addSeriesAuto>=0 && this.data.auto.addSeriesAuto<=seriesS.status)){
+        //if (override || this.data.auto.addSeriesAuto==-2 || (this.data.auto.addSeriesAuto>=0 && this.data.auto.addSeriesAuto<=seriesS.status)){
+        if (override || this.evaluateAutoProcessHeats(seriesS.status, 'a')){
     
             // get (or create) the contest in the data of this room 
             const c = this.getOrCreateContestTiming(contestS.xContest, contestS);
@@ -710,6 +862,72 @@ export default class rTiming extends roomServer{
      */
     changedContest(contest){
 
+    }
+
+    heatsToTiming(data){
+        if (!this.validateHeatsToTiming(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateHeatsToTiming.errors)}
+        }
+
+    }
+    heatToTiming(data){
+        if (!this.validateHeatToTiming(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateHeatToTiming.errors)}
+        }
+
+        // get the contest and heat in site
+        const contestS = this.data.contests.find(c=>c.xContest == data.xContest);
+        if (!contestS){
+            throw {code:22, message: `Contest ${data.xContest} does not exist in site.`}
+        }
+        const seriesS = contestS.series.find(s=>s.xSeries == data.xSeries);
+
+        // try to find the respective contest/heat in timing
+        const contestT = this.data.data.find(c=>c.xContest == data.xContest);
+        if (!contestT){
+            throw {code:24, message: `Contest ${data.xContest} does not exist in timing.`}
+        }
+
+        let seriesT;
+        if (contestT){
+            seriesT = contestT.series.find(s=>s.xSeries == data.xSeries);
+        }
+        if (!seriesS){
+            if (seriesT){
+                // should actually always arrive here when there is no series in site; in this case, delete the heat from timing
+                // then we need  to delete the heat in timing
+                this.deleteSeriesTiming({status:-99, xSeries: data.xSeries, xContest:data.xContest}, true); // status will not be checked
+                return true;
+            } else {
+                // should not occure, if the client does not try to fool us
+                throw {code:23, message: `The series ${data.xSeries} neither exists in site nor in timing.`}
+            }
+            
+        }
+        // seriesS certainly exists as of here
+        if (seriesT){
+            // update
+            this.changeSeriesTiming(seriesS, true);
+        } else {
+            // create
+            this.addSeriesTiming({contest:contestS, series:seriesS}, true);
+        }
+        
+        // actually nothing to return
+        return true;
+        
+    }
+    resultsToLA(data){
+        if (!this.validateResultsToLA(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateResultsToLA.errors)}
+        }
+        
+    }
+    resultsToLASingle(data){
+        if (!this.validateResultsToLASingle(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateResultsToLASingle.errors)}
+        }
+        
     }
 
     broadcastInf(){
@@ -1299,7 +1517,7 @@ export class rTimingAlge extends rTiming {
 
         // if any path has changed, rewrite the xml.
         if (oldTimingOptions.xmlHeatsFolder != timingOptions.timingOptions){
-            this.writeInput();
+            this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
 
         // broadcast
@@ -1316,7 +1534,7 @@ export class rTimingAlge extends rTiming {
 
     // called after many changes to this.data.data were made, while "deferWrite" was true
     deferredWrite(){
-        this.writeInput();
+        this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
     }
 
 
@@ -1406,7 +1624,7 @@ export class rTimingAlge extends rTiming {
      */
     seriesAdded(series, contest){
         if (!this.deferWrite){
-            this.writeInput();
+            this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
     }
     /**
@@ -1414,7 +1632,7 @@ export class rTimingAlge extends rTiming {
      */
     deletedSeries(series, contest){
         if (!this.deferWrite){
-            this.writeInput();
+            this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
     }
     /**
@@ -1422,7 +1640,7 @@ export class rTimingAlge extends rTiming {
      */
     changedSeries(series, contest){
         if (!this.deferWrite){
-            this.writeInput();
+            this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
     }
     /**
@@ -1430,7 +1648,7 @@ export class rTimingAlge extends rTiming {
      */
     changedContest(contest){
         if (!this.deferWrite){
-            this.writeInput();
+            this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
     }
 

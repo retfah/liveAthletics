@@ -147,6 +147,21 @@
                             //<%- include('contestStates.ejs') %>
 
                             readOnly:false, // not really used yet
+                            
+                            transferToTiming:{
+                                add: true,
+                                update: true,
+                                delete: true,
+                                updateContest: true,
+                            },
+                            transferToLA: {
+                                add: true,
+                                update: false,
+                                includeReaction: true,
+                            },
+
+                            // for testing only
+                            auto2: {10:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 70:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 130:{heatAud:'au', heatD:true, heatPreventOnResult:true, resultAud: ''}, 150:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 180:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 200:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}},
                         }
                     },
                     methods:{
@@ -155,12 +170,41 @@
                             this.infoContent = content;
                             this.infoVisible = true;
                         },
-                        formatDate(dateString){
+                        showHeatsToTiming(){
+                            this.transferToTiming.add = true;
+                            this.transferToTiming.update = true;
+                            this.transferToTiming.delete = true;
+                            this.transferToTiming.updateContest = true;
+                            this.overlay = 'heatsToTiming';
+                        },
+                        applyHeatsToTiming(){
+                            // send "note" (actually a request where we do not care about the answer) to server
+                            rTiming.room.heatsToTimingInit(this.transferToTiming.add, this.transferToTiming.update, this.transferToTiming.delete, this.transferToTiming.updateContest);
+                            this.overlay = null;
+                        },
+                        heatToTiming(xContest, xSeries){
+                            rTiming.room.heatToTimingInit(xContest, xSeries);
+                        },
+                        showResultsToLA(){
+                            this.transferToLA.add = true;
+                            this.transferToLA.update = false;
+                            this.transferToLA.includeReaction = true;
+                            this.overlay = 'resultsToLA';
+                        },
+                        applyResultsToLA(){
+                            // send "note" (actually a request where we do not care about the answer) to server
+                            rTiming.room.resultsToLAInit(this.transferToLA.add, this.transferToLA.update, this.transferToLA.includeReaction);
+                            this.overlay = null;
+                        },
+                        resultsToLASingle(xContest, xSeries, includeReaction){
+                            rTiming.room.resultsToLASingleInit(xContest, xSeries, includeReaction);
+                        },
+                        formatDate(dateString, noDate=false){
                             // first, get the first and last date of the competition (consider start, call and appealtime) 
                             const firstDate = new Date(this.meeting.dateFrom); 
                             const lastDate = new Date(this.meeting.dateTo);
-                            let showMonth = lastDate.getMonth() != firstDate.getMonth();
-                            let showDay = lastDate.getDay() != firstDate.getDay();
+                            let showMonth = noDate ? false : lastDate.getMonth() != firstDate.getMonth();
+                            let showDay = noDate ? false : lastDate.getDay() != firstDate.getDay();
 
                             // exclude month if the competition does not span 2 month
                             // exclude day if the competition is on one day only
@@ -182,25 +226,38 @@
                             str += ":" + `${d.getMinutes()}`.padStart(2,'0');
                             return str;
                         },
+                        getContestTitleSite(contest){
+                            // contest is the contest as available in main
+                            // if available, use the data in site; otherwise teh data from timing
+                            
+                            // title string shall be "time disciplineName contestName"
+                            let time = new Date(contest.site.datetimeStart);
+                            let contestName = contest.site.name;
+                            let xBaseDiscipline = contest.site.xBaseDiscipline;
+
+                            return `${this.formatDate(time)} - ${this.translateDiscipline(xBaseDiscipline).name} ${contestName}`;
+                        },
+                        getContestTitleTiming(contest){
+                            // contest is the contest as available in main
+                            // if available, use the data in site; otherwise teh data from timing
+                            
+                            // title string shall be "time disciplineName contestName"
+                            let time = new Date(contest.timing.datetimeStart);
+                            let contestName = contest.timing.name;
+                            let xBaseDiscipline = contest.timing.xBaseDiscipline;
+
+                            return `${this.formatDate(time)} - ${this.translateDiscipline(xBaseDiscipline).name} ${contestName}`;
+                        },
                         getContestTitle(contest){
                             // contest is the contest as available in main
                             // if available, use the data in site; otherwise teh data from timing
                             
                             // title string shall be "time disciplineName contestName"
-                            let time = null;
-                            let contestName = null;
-                            let disciplineName = null;
-                            let xBaseDiscipline = null;
                             if (contest.site){
-                                time = new Date(contest.site.datetimeStart);
-                                contestName = contest.site.name;
-                                xBaseDiscipline = contest.site.xBaseDiscipline;
+                                return this.getContestTitleSite(contest);
                             } else {
-                                time = new Date(contest.timing.datetimeStart);
-                                contestName = contest.timing.name ?? ''; // do we have the name here?
-                                xBaseDiscipline = contest.timing.xBaseDiscipline;
+                                return this.getContestTitleTiming(contest);
                             }
-                            return `${this.formatDate(time)} - ${this.translateDiscipline(xBaseDiscipline).name} ${contestName}`;
                         },
                         translateDiscipline(xBaseDiscipline){
 
@@ -310,8 +367,212 @@
                             }
                             return status;
                         },
+                        // copied from https://github.com/ReactiveSets/toubkal/blob/master/lib/util/value_equals.js
+                        /* --------------------------------------------------------------------------
+                            @function value_equals( a, b, enforce_properties_order, cyclic )
+                            
+                            @short Returns true if a and b are deeply equal, false otherwise.
+                            
+                            @parameters
+                            - **a** (Any type): value to compare to ```b```
+                            - **b** (Any type): value compared to ```a```
+                            - **enforce_properties_order** (Boolean): true to check if Object
+                            properties are provided in the same order between ```a``` and
+                            ```b```
+                            - **cyclic** (Boolean): true to check for cycles in cyclic objects
+                            
+                            @description
+                            Implementation:
+                            ```a``` is considered equal to ```b``` if all scalar values in
+                            a and b are strictly equal as compared with operator '===' except
+                            for these two special cases:
+                            - ```0 === -0``` but are not considered equal by value_equals().
+                            - ```NaN``` is not equal to itself but is considered equal by
+                            value_equals().
+                            
+                            ```RegExp``` objects must have the same ```lastIndex``` to be
+                            considered equal. i.e. both regular expressions have matched
+                            the same number of times.
+                            
+                            Functions must be identical, so that they have the same closure
+                            context.
+                            
+                            ```undefined``` is a valid value, including in Objects
+                            
+                            This function is checked by 106 CI tests.
+                            
+                            Provide options for slower, less-common use cases:
+                            
+                            - Unless enforce_properties_order is true, if ```a``` and ```b```
+                            are non-Array Objects, the order of occurence of their attributes
+                            is considered irrelevant: ```{ a: 1, b: 2 }``` is considered equal
+                            to ```{ b: 2, a: 1 }```.
+                            
+                            - Unless cyclic is true, Cyclic objects will throw a
+                            ```RangeError``` exception: ```"Maximum call stack size exceeded"```
+                        */
+                        objectsEqual( a, b, enforce_properties_order, cyclic ) {
+                            return a === b       // strick equality should be enough unless zero
+                                && a !== 0         // because 0 === -0, requires test by _equals()
+                                || _equals( a, b ) // handles not strictly equal or zero values
+                            ;
+                            
+                            function _equals( a, b ) {
+                                // a and b have already failed test for strict equality or are zero
+                                
+                                var toString = Object.prototype.toString;
+                                var s, l, p, x, y;
+                                
+                                // They should have the same toString() signature
+                                if ( ( s = toString.call( a ) ) !== toString.call( b ) ) return false;
+                                
+                                switch( s ) {
+                                default: // Boolean, Date, String
+                                    return a.valueOf() === b.valueOf();
+                                
+                                case '[object Number]':
+                                    // Converts Number instances into primitive values
+                                    // This is required also for NaN test bellow
+                                    a = +a;
+                                    b = +b;
+                                    
+                                    return a ?         // a is Non-zero and Non-NaN
+                                        a === b
+                                    :                // a is 0, -0 or NaN
+                                        a === a ?      // a is 0 or -O
+                                        1/a === 1/b    // 1/0 !== 1/-0 because Infinity !== -Infinity
+                                    : b !== b        // NaN, the only Number not equal to itself!
+                                    ;
+                                // [object Number]
+                                
+                                case '[object RegExp]':
+                                    return a.source   == b.source
+                                    && a.global     == b.global
+                                    && a.ignoreCase == b.ignoreCase
+                                    && a.multiline  == b.multiline
+                                    && a.lastIndex  == b.lastIndex
+                                    ;
+                                // [object RegExp]
+                                
+                                case '[object Function]':
+                                    return false; // functions should be strictly equal because of closure context
+                                // [object Function]
+                                
+                                case '[object Array]':
+                                    if ( cyclic && ( x = reference_equals( a, b ) ) !== null ) return x; // intentionally duplicated bellow for [object Object]
+                                    
+                                    if ( ( l = a.length ) != b.length ) return false;
+                                    // Both have as many elements
+                                    
+                                    while ( l-- ) {
+                                    if ( ( x = a[ l ] ) === ( y = b[ l ] ) && x !== 0 || _equals( x, y ) ) continue;
+                                    
+                                    return false;
+                                    }
+                                    
+                                    return true;
+                                // [object Array]
+                                
+                                case '[object Object]':
+                                    if ( cyclic && ( x = reference_equals( a, b ) ) !== null ) return x; // intentionally duplicated from above for [object Array]
+                                    
+                                    l = 0; // counter of own properties
+                                    
+                                    if ( enforce_properties_order ) {
+                                    var properties = [];
+                                    
+                                    for ( p in a ) {
+                                        if ( a.hasOwnProperty( p ) ) {
+                                        properties.push( p );
+                                        
+                                        if ( ( x = a[ p ] ) === ( y = b[ p ] ) && x !== 0 || _equals( x, y ) ) continue;
+                                        
+                                        return false;
+                                        }
+                                    }
+                                    
+                                    // Check if 'b' has as the same properties as 'a' in the same order
+                                    for ( p in b )
+                                        if ( b.hasOwnProperty( p ) && properties[ l++ ] != p )
+                                        return false;
+                                    } else {
+                                    for ( p in a ) {
+                                        if ( a.hasOwnProperty( p ) ) {
+                                        ++l;
+                                        
+                                        if ( ( x = a[ p ] ) === ( y = b[ p ] ) && x !== 0 || _equals( x, y ) ) continue;
+                                        
+                                        return false;
+                                        }
+                                    }
+                                    
+                                    // Check if 'b' has as not more own properties than 'a'
+                                    for ( p in b )
+                                        if ( b.hasOwnProperty( p ) && --l < 0 )
+                                        return false;
+                                    }
+                                    
+                                    return true;
+                                // [object Object]
+                                } // switch toString.call( a )
+                            } // _equals()
+                            
+                            /* -----------------------------------------------------------------------------------------
+                                reference_equals( a, b )
+                                
+                                Helper function to compare object references on cyclic objects or arrays.
+                                
+                                Returns:
+                                - null if a or b is not part of a cycle, adding them to object_references array
+                                - true: same cycle found for a and b
+                                - false: different cycle found for a and b
+                                
+                                On the first call of a specific invocation of equal(), replaces self with inner function
+                                holding object_references array object in closure context.
+                                
+                                This allows to create a context only if and when an invocation of equal() compares
+                                objects or arrays.
+                            */
+                            function reference_equals( a, b ) {
+                                var object_references = [];
+                                
+                                return ( reference_equals = _reference_equals )( a, b );
+                                
+                                function _reference_equals( a, b ) {
+                                var l = object_references.length;
+                                
+                                while ( l-- )
+                                    if ( object_references[ l-- ] === b )
+                                    return object_references[ l ] === a;
+                                
+                                object_references.push( a, b );
+                                
+                                return null;
+                                } // _reference_equals()
+                            } // reference_equals()
+                        } // equals()
                     },
                     computed:{
+                        /**
+                         * gets the language code (ISO 639-1) from the path
+                         */
+                        timingName(){
+                            let p = window.location.pathname; // something like /en/timing/theName
+                            let arr = p.split('/');
+                            if (arr[0]=="" && arr.length>=4){
+                                //generally, the first element should be empty, since the string starts with "/"
+                                return arr[3]; 
+                            }
+                            return '';
+                        },
+                        autoTransferGridRows(){
+                            let s = '[header1] auto [header2] auto';
+                            for (let status of this.seriesStates){
+                                s += ` [s${status.value}] auto`;
+                            }
+                            s += ' [end]';
+                            return s;
+                        },
                         basePath(){
                             // derive the base path from the current path
                             // origin = 'https://www.xy.com:1234', pathname = /hello/world.php, href: 'https://www.xy.com:1234/hello/world.php'
@@ -337,18 +598,13 @@
                                         xSeries: h.xSeries,
                                         timing: h,
                                         site: null,
+                                        number: h.number,
                                     };
 
                                     c2.heats.push(h2);
                                 }
-                                // check if the contest already exists
-                                /*let c2 = cs.find(c2=>c2.xContest == c.xContest);
-                                if (c2){
-
-                                }else {
-
-                                } */
                             }
+                            // this.contests is the site data
                             for (let c of this.contests){
                                 // check if the contest already exists
                                 let c2 = cs.find(c3=>c3.xContest == c.xContest);
@@ -381,9 +637,49 @@
                             }
                             
                             // now compare all objectes and define which options (copy heats to timing, copy results to site, ...) are applicable to the contest/heat
-                            // TODO: reaction times
+                            /**
+                             * - heatToTiming(-Update or -Create) --> single heat in contest
+                             * - heatsToTiming(-Update or -Create) --> all heats of contest (currently always available!)
+                             * - contestToTimingUpdate ("create" does NOT exist; this is automatically done when a/all heat/s is/are added, but the contest does not exist yet) (currently always available!)
+                             * - heatsToTimingDelete (currently always available!)
+                             * - resultsToSite (all of contest) (currently always available!)
+                             * - resultsToSiteSingle (only for this heat)
+                             * - reactionsToSite (TODO) 
+                             **/
+                            // IMPORTANT: these comparisons must be done in analogy to the comparison in rTiming.fullUpdate
+                            for (let c of cs){
+                                // currently, the buttons for "allHeatsToTiming" and "allREsultsToLiveAthletics" are alwaqys shown!
+                                // only the buttons for each heat depend on the actual state
+                                for (let h of c.heats){
+                                    h.heatToTiming = false;
+                                    h.resultsToSite = false;
+                                    // if heat is not in timing or is different between timing and live athletics, provide a 
+                                    // the site might not be sorted; thus sort it here
+                                    if (h.site){
+                                        h.site.SSRs.sort((a,b)=> a.position-b.position);
+                                    }
+                                    if (!h.timing){
+                                        h.heatToTiming = true;
+                                    } else if (!h.site || !this.objectsEqual( h.timing, h.site, false, false )){
 
+                                        // differentiate with/out results
+                                        let hasResults = false;
+                                        for (let SSR of h.timing.SSRs){
+                                            if (SSR.resultstrack){
+                                                hasResults = true;
+                                                break;
+                                            }
+                                        }
 
+                                        if (hasResults){
+                                            h.resultsToSite = true;
+                                        } else{
+                                            h.heatToTiming = true;
+                                        }
+                                    } 
+                                }
+                            }
+                            
 
                             // finally, sort the object by starttime, heat number and position; use the data of rSIte if available
                             cs.sort((c1, c2)=>{
@@ -413,7 +709,51 @@
                             }
                             return cs;
                         }
-                    }
+                    },
+                    watch: {
+                        auto(newAuto, oldAuto){
+                            // initially check if all states exist in auto.seriesStateSetting; if not, add some default data. if existing, the default is a copy of the status with the next lower value. Otherwise, a general default is applied
+                            if (Object.keys(oldAuto).length === 0){
+
+                                let confBefore = JSON.stringify(newAuto); 
+
+                                if (!('seriesStateSetting' in newAuto)){
+                                    newAuto.seriesStateSetting = {};
+                                }
+
+                                let currentStates = Object.keys(newAuto.seriesStateSetting).sort();
+
+                                for (let state of this.seriesStates){
+                                    if (!(state.value in newAuto.seriesStateSetting)){
+                                        // try to get the best matching current value
+                                        let lastS = -1;
+                                        for (let s of currentStates){
+                                            if (s>state.value){
+                                                break;
+                                            }
+                                            lastS = s;
+                                        }
+                                        if (lastS==-1){
+                                            // no matching state found; apply default value
+                                            newAuto.seriesStateSetting[state.value] = {heatAud:"", heatD:false, heatPreventOnResult:true, resultAud:""};
+                                        } else {
+                                            newAuto.seriesStateSetting[state.value] = JSON.parse(JSON.stringify(newAuto.seriesStateSetting[lastS]));
+                                        }
+                                    }
+                                }
+                                // cleanup: delete settings that are not used anymore
+                                for (let stateSetting in newAuto.seriesStateSetting){
+                                    // check if the state exists in the seriesStates; if not, delete the setting here
+                                    if (this.seriesStates.findIndex(ss=>ss.value==stateSetting)==-1){
+                                        delete newAuto[stateSetting];
+                                    }
+                                }
+                                if (JSON.stringify(newAuto) != confBefore){
+                                    rTiming.room.updateAutoInit(newAuto, null);
+                                }
+                            }
+                        },
+                    },
                 };
 
                 // start the vueInstance, which should do the rest (connect to the room, get the right data, show it)
@@ -426,7 +766,8 @@
         </head>
         <body onload="startupTiming()" onbeforeunload="unloadMe()">
             <div id="vueDiv"> <!-- inside here all the vue.js stuff -->
-                   
+                <h1><%= __("Timing") %> {{timingName}}</h1>
+                <h3><%= __("Status") %></h3>
                 <!-- provide some information about the status etc 
                  "lastHeatPushFailed": false, "siteServerConnected": true, "lastSiteServerConnectionError": "", "siteRoomConnected": true, "lastSiteRoomConnectionError": "", "timing": { "tcpConnected": true, "tcpErrorLast": "16:18:48: Error: connect ECONNREFUSED 127.0.0.1:4446", "xmlHeatErrorLast": "", "xmlResultErrorLast": "" } }-->
                 <div style="margin:3px 0;">
@@ -476,30 +817,57 @@
                 </div>
 
                 <div style="">
+                    <h3><%= __("Contests") %></h3>
                     <!-- development note: subgrids are not yet available in Chrome based browsers, but it is in development (2023-01);-->
                     <!-- create the following container for every contest -->
                     <details v-for="(contest, iContest) in main" style="border: 1px solid black; margin: 0;" >
                         <!-- this is the container per contest -->
-                        <summary style="margin-left:3px">
+                        <summary v-if="contest.site" style="padding-left:3px" v-bind:style="{ 'background-color': statusBackgroundColor(contest.site.status), '--backColorHover': statusBackgroundColorHover(contest.site.status), color: statusTextColor(contest.site.status) }">
+                            <!-- header to expand the details; -->
+                            {{getContestTitle(contest)}} {{contest.site.xContest}} {{statusText(contest.site.status)}}<!-- TODO: remove the xContest in production -->
+                        </summary>
+                        <summary v-else style="margin-left:3px" >
                             <!-- header to expand the details; -->
                             {{getContestTitle(contest)}} {{contest.site.xContest}} <!-- TODO: remove the xContest in production -->
                         </summary>
                         <div style="top:0px; position: sticky; display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; background-color: white;"><!-- display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px; -->
                             <!-- this is the sticky contest header -->
                             <div style="border:1px solid black; grid-column: site / span 1;">
-                                xContest (site): {{contest.site.xContest}}
+                                <div v-if="contest.site" >
+                                    <div style="font-weight:bold">{{getContestTitleSite(contest)}}</div>
+                                    live athletics: {{contest.site.series.length}} <%= __("Heats") %>
+                                </div>
+                                <div v-else>
+                                    <%= __("Contest does not exist in live athletics") %>
+                                </div>
                             </div>
-                            <div style="border:1px solid black; grid-column: buttons / span 1;">empty</div>
+                            <div style="border:1px solid black; grid-column: buttons / span 1;">
+                                <button type="button" class="btn" v-on:click="showHeatsToTiming">⇨ <%= __("Heats to timing") %> ⇨</button>
+                                <button type="button" class="btn" v-on:click="showResultsToLA">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
+                            </div>
                             <div style="border:1px solid black; grid-column: timing / span 1; ">
-                                xContest (timing): {{ contest.timing.xContest }}
+                                <div v-if="contest.timing" >
+                                    <div style="font-weight:bold">{{getContestTitleTiming(contest)}}</div>
+                                    timing: {{contest.timing.series.length}} <%= __("Heats") %>
+                                </div>
+                                <div v-else>
+                                    <%= __("Contest does not exist in timing") %>
+                                </div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns:[site] 45% [buttons] minmax(20px, 10%) [timing] 45%; margin: 2px;">
                             <!-- This is the container for the heats -->
                             <template v-for="(heat, iHeat) in contest.heats">
-                                <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1; ">
+                                <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }"> <!--  -->
+                                    <div v-bind:style="{ 'background-color': statusBackgroundColor(heat.site.status, seriesStates), '--backColorHover': statusBackgroundColorHover(heat.site.status, seriesStates), color: statusTextColor(heat.site.status, seriesStates) }">
+                                        {{formatDate(heat.site.datetime, false)}} - <%= __("Heat") %> {{heat.number}} {{heat.site.name}}
+                                        {{statusText(heat.site.status, seriesStates)}} 
+                                        <br>{{heat.site.id}}
+                                        <!-- TODO: allow to change the status! -->
+                                    </div>
+                                </div>
+                                <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1;" v-bind:style="{'grid-row-start': heat.number*2+1}">
                                     <!-- place the heat here -->
-                                    xSeries (site): {{heat.site.xSeries}}<br>
                                     <table>
                                         <tr>
                                             <th v-if="JSON.parse(contest.site.conf).startInLanes"><%= __("Lane") %></th>
@@ -520,10 +888,17 @@
                                         </tr>
                                     </table>
                                 </div>
-                                <div v-else style="border:1px solid black; grid-column: site / span 1; "></div>
-                                <div style="border:1px solid black; grid-column: buttons / span 1; ">Buttons</div>
-                                <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; ">
+                                <!--<div v-else style="border:1px solid black; grid-column: site / span 1; "></div>--> <!-- since there is no content, we do not need to show the div -->
+                                <div style="border:1px solid black; grid-column: buttons / span 1; grid-row-end: span 2;" v-bind:style="{'grid-row-start': heat.number*2}">
+                                    <button type="button" class="btn" v-on:click="heatToTiming(contest.xContest, heat.xSeries)" v-bind:disabled="!heat.heatToTiming">⇨ <%= __("Heat to timing") %> ⇨</button>
+                                    <button type="button" class="btn" v-on:click="resultsToLASingle(contest.xContest, heat.xSeries, false)" v-bind:disabled="!heat.resultsToSite">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
+                                    <button type="button" class="btn" v-on:click="resultsToLASingle(contest.xContest, heat.xSeries, true)" v-bind:disabled="!heat.resultsToSite">⇦ <%= __("Results and reaction times to liveAthletics") %> ⇦</button>
+                                </div>
+                                <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }">
                                     xSeries (timing): {{heat.timing.xSeries}}<br>
+                                
+                                </div>
+                                <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2+1, }">
                                     <table>
                                         <tr>
                                             <th v-if="JSON.parse(contest.timing.conf).startInLanes"><%= __("Lane") %></th>
@@ -613,10 +988,51 @@
                 </div>
 
                 <div class="overlay" v-bind:class="{shown: overlay=='conf'}">
-                    <div class="overlayContainer">
+                    <div class="overlayContainerWide">
                         <h3><%= __("Automatic transfer") %></h3>
                         <h5>Automatically transfer the following changes in live athletics to the timing:</h5>
-                        <form class="verticalForm">
+                        <form class="verticalForm" v-if="overlay=='conf'"><!-- the if is needed to prevent errors when autoCopy is not yet ready -->
+                            <!-- New method -->
+                            <div style="display:grid; justify-items: stretch; grid-template-columns: [status] auto [heatAUD] auto [heatD] auto [heatPreventOnResult] auto [resultAUD] auto;" v-bind:style="{'grid-template-rows': autoTransferGridRows}">
+                                <div style="grid-column: heatAUD / span 3; grid-row: header1">heats to timing</div>
+                                <div style="grid-column: resultAUD; grid-row: header1">results to site</div>
+
+                                <div style="grid-column: status; grid-row: header2;">Status</div>
+                                <div style="grid-column: heatAUD; grid-row: header2;">add update status-delete</div>
+                                <div style="grid-column: heatD; grid-row: header2;">propagate delete</div>
+                                <div style="grid-column: heatPreventOnResult; grid-row: header2;">no change with results</div>
+                                <div style="grid-column: resultAUD; grid-row: header2;">transfer results to site</div>
+                                
+                                <!-- add here all states with the options -->
+                                <template v-for="status in seriesStates">
+                                    <div style="grid-column: status;" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor, 'grid-row': `s${status.value}`}">
+                                        {{status.text}}
+                                    </div>
+
+                                    <select v-model="autoCopy.seriesStateSetting[status.value].heatAud" class="formCtrl" style="grid-column: heatAUD;" v-bind:style="{'grid-row': `s${status.value}`}">
+                                        <option value="">-</option>
+                                        <option value="a">add</option>
+                                        <option value="u">update</option>
+                                        <option value="au">add/update</option>
+                                        <option value="d">delete</option>
+                                    </select>
+
+                                    <input type="checkbox" style="grid-column: heatD" v-model="autoCopy.seriesStateSetting[status.value].heatD">
+
+                                    <input type="checkbox" style="grid-column: heatPreventOnResult" v-model="autoCopy.seriesStateSetting[status.value].heatPreventOnResult">
+
+                                    <select v-model="autoCopy.seriesStateSetting[status.value].resultAud" class="formCtrl" style="grid-column: resultAUD;" v-bind:style="{'grid-row': `s${status.value}`}">
+                                        <option value="">-</option>
+                                        <option value="a">add</option>
+                                        <option value="u">update</option>
+                                        <option value="au">add/update</option>
+                                        <option value="audd">add/update/delete</option>
+                                    </select>
+
+                                </template> 
+                            </div>
+
+                            <!-- TODO: eventually add later which contest states shall be decisive for the heat and result transfer -->
                             <label>
                                 <%= __("Contest changed") %>
                                 <select class="formCtrl" v-model.number="autoCopy.changeContestAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeContestAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeContestAuto), color: statusTextColor(autoCopy.changeContestAuto) }">
@@ -642,7 +1058,7 @@
                                 </select>
                             </label>
                             <label>
-                                <%= __("Series changed") %>
+                                <%= __("Series changed") %> <button type="button" class="information" v-on:click="overlayInfo('<%= __('Note') %>:', '<%= __('If the status of the heat changes, the rules set for adding/deleting the heat are applied to determine whether the heat shall be added to/deleted from the timing automatically.') %>')"><%= __('i') %></button>
                                 <select class="formCtrl" v-model.number="autoCopy.changeSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeSeriesAuto), color: statusTextColor(autoCopy.changeSeriesAuto) }">
                                     <option value="-1"><%= __("Never") %></option>
                                     <option value="-2"><%= __("Always") %></option>
@@ -705,7 +1121,7 @@
                                 </select>
                             </label>
 
-                            <h5>Check for new data in the timing software in the following interval (set to 0 for never):</h5>
+                            <h5>Check for results/reaction times in the timing software in the following interval (in seconds; 0=never):</h5>
                             <!-- data that must/can be pulled from the timing software -->
                             <label>
                                 <%= __("Results") %>
@@ -718,6 +1134,52 @@
                         </form>
                         <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
                         <button type="button" class="btn btnGreen" v-on:click="saveConf"><%= __("Save") %></button>
+                    </div>
+                </div>
+                <div class="overlay" v-bind:class="{shown: overlay=='heatsToTiming'}">
+                    <div class="overlayContainer">
+                        <h3><%= __("Transfer heats to timing") %></h3>
+                        <form class="verticalForm">
+                            <label>
+                                <input type="checkbox"  v-model="transferToTiming.add">
+                                <%= __("Add new heats") %>
+                            </label>
+                            <label>
+                                <input type="checkbox"  v-model="transferToTiming.update">
+                                <%= __("Update changed heats") %>
+                            </label>
+                            <label>
+                                <input type="checkbox"  v-model="transferToTiming.delete">
+                                <%= __("Delete removed heats") %>
+                            </label>
+                            <label>
+                                <input type="checkbox"  v-model="transferToTiming.updateContest">
+                                <%= __("Update contest information") %>
+                            </label>
+                            <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
+                            <button type="button" class="btn btnGreen" v-on:click="applyHeatsToTiming"><%= __("Apply") %></button>
+                        </form>
+                    </div>
+                </div>
+                <div class="overlay" v-bind:class="{shown: overlay=='resultsToLA'}">
+                    <div class="overlayContainer">
+                        <h3><%= __("Transfer results to live athletics") %></h3>
+                        <form class="verticalForm">
+                            <label>
+                                <input type="checkbox"  v-model="transferToLA.add">
+                                <%= __("Add new results") %>
+                            </label>
+                            <label>
+                                <input type="checkbox"  v-model="transferToLA.update">
+                                <%= __("Update results") %>
+                            </label>
+                            <label>
+                                <input type="checkbox"  v-model="transferToLA.includeReaction">
+                                <%= __("include reaction times (if available)") %>
+                            </label>
+                            <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
+                            <button type="button" class="btn btnGreen" v-on:click="applyResultsToLA"><%= __("Apply") %></button>
+                        </form>
                     </div>
                 </div>
 
