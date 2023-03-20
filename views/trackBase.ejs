@@ -1493,7 +1493,9 @@
 
                     for (let s of this.seriesAsStartgroups){
                         for (let ssr of s.SSRs){
-                            overall.push(ssr)
+                            if (ssr.startsingroup !==null){
+                                overall.push(ssr)
+                            }
                         }
                     }
 

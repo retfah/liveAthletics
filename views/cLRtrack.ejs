@@ -1,0 +1,2211 @@
+
+
+// component for live results track
+const cLRtrack = {
+    name:'cLRtrack',
+    template:`
+    
+<div id="vueSeriesAdminTrack">
+    <h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h2>
+    <div id="rollCallView2" v-if="contest.status<90">
+        <!-- show all participants as in roll call -->
+        <h3><%= __("Startlist") %></h3>
+        <v-table :data="startgroups" > <!-- :filters="filters"-->
+        <template #head> <!-- # head is a shorthand for v-slot:head-->
+            <thead>
+                <tr>
+                    <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                    <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
+                    <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                    <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                    <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
+                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                    <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                    <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                    <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                    <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                </tr>
+            </thead>
+        </template>
+        <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+            <tbody>
+                <tr v-for="row in displayData" :key="row.xInscription">
+                    <td>{{ row.bib }}</td>
+                    <td>{{ row.athleteName }}</td>
+                    <td>{{ row.athleteForename }}</td>
+                    <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                    <!--<td>{{ row.sex }}</td>-->
+                    <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
+                    <td>{{ row.clubName }}</td>
+                    <!--<td>{{ row.country }}</td>-->
+                    <td>{{formatValue(row.bestPerfLast)}}</td>
+                    <td>{{formatValue(row.bestPerf)}}</td>
+                </tr>
+            </tbody>
+        </template>
+
+    </v-table>
+    </div>
+    <div id="heatsView2" v-if="contest.status>=90 && contest.status<140">
+        <!-- show heats with PB / SB and the position/lane -->
+        <template v-if="conf.startInLanes">
+            <!-- started in lanes -->
+            <div style="grid-area: series;">
+                <div v-for="(series2, index) in seriesAsStartgroups">
+                    <div class="heatContainer">
+                        <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                            <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                            <div style="flex-grow:1"></div>
+                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                
+                            <div style="padding-top:7px">
+                                {{statusText(series2.status, seriesStates)}}
+                            </div>
+                            
+                        </div>
+
+                        <v-table :data="series2.SSRs" class="heatContent">
+                            <template v-slot:head>
+                                <thead>
+                                    <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                    <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                    <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                    <!--<th><%= __("Result") %></th>-->
+                                    <!--<th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>-->
+                                    <!--<th><%= __("Remarks") %></th>-->
+                                    <th><%= __("PB") %></th>
+                                    <th><%= __("SB") %></th>
+                                </thead> 
+                            </template>   
+                            <template v-slot:body="{displayData:ssrs}">
+                                <tbody style="background-color: white;">
+                                    <template v-for="(element, index2) in ssrs">
+                                        <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                            <td>{{element.lane}}</td>
+                                            <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                            <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                            <td>{{element.startsingroup.athleteName}}</td>
+                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                            <td>{{element.startsingroup.clubName}}</td>
+                                            <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                            <!--<td v-if="element.resultOverrule==0">{{checkInput(series2.SSRs[index2])}}</td>
+                                            <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>-->
+                                            <!--<td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>-->
+                                            <!--<td>{{element.resultRemark}}</td>-->
+                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                        </tr>
+                                        <tr v-else>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </template>
+                        </v-table>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template v-else> <!-- not started in lanes -->
+            <div style="grid-area: series;">
+                <div v-for="(series2, index) in seriesAsStartgroups">
+                    <div class="heatContainer">
+                        <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                            <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                            <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                            <div style="flex-grow:1"></div>
+                            <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                
+                            <div style="padding-top:7px">
+                                {{statusText(series2.status, seriesStates)}}
+                            </div>
+                            
+                        </div>
+                        <v-table :data="series2.SSRs" class="heatContent">
+                            <template v-slot:head>
+                                <thead>
+                                    <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
+                                    <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                    <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                    <!--<th><%= __("Result") %></th>-->
+                                    <!--<th><%= __("Participation status") %></th>-->
+                                    <!--<th><%= __("Remarks") %></th>-->
+                                    <th><%= __("PB") %></th>
+                                    <th><%= __("SB") %></th>
+                                </thead> 
+                            </template>   
+                            <template v-slot:body="{displayData:ssrs}">
+                                <tbody style="background-color: white;">
+                                    <template v-for="(element, index2) in ssrs">
+                                        <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                            <td>{{element.position}}</td>
+                                            <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                            <td>{{element.startsingroup.athleteName}}</td>
+                                            <td>{{element.startsingroup.athleteForename}}</td>
+                                            <td>{{element.startsingroup.clubName}}</td>
+                                            <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                            <!--<td><input class="" v-if="element.resultOverrule==0" type="text" v-model="element.resultStr" v-on:input="checkInput(series2.SSRs[index2])" v-on:change="checkInput(element, true)" v-bind:class="{unrealistic: !element.resultValid}" size="10"></td>-->
+                                            <!--<td><select class="content dropdown" v-model="element.resultOverrule" v-on:change="updateSSR(element)">
+                                                <option v-for="option in participationStatesTrack" v-bind:value="option.value">
+                                                    {{option.text}}
+                                                </option>
+                                            </select></td>-->
+                                            <!--<td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>-->
+                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                        </tr>
+                                        <tr v-else>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </template>
+                        </v-table>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+    <div id="resultsView2" v-if="contest.status>=140">
+        <!-- show results including rank; do not show position for non-started in lanes -->
+        <h3><%= __("Results") %></h3>
+        <div>
+            <%= __("Grouping") %>: 
+            <select v-model="sortValue2" class="dropdown marginS">
+                <option value="1"><%= __("By heat") %></option> <!-- means the order on the judge's sheet -->
+                <option value="2"><%= __("Overall") %></option>
+            </select>
+        </div>
+        <label>
+            <input type="checkbox" v-model="showPBSB">
+            <%= __('Show PB and SB') %>
+        </label>
+        <div v-if="sortValue2==1">
+            <template v-if="conf.startInLanes">
+                <!-- started in lanes -->
+                <div style="grid-area: series;">
+                    <div v-for="(series2, index) in seriesAsStartgroups">
+                        <div class="heatContainer">
+                            <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                <div style="flex-grow:1"></div>
+                                <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                    
+                                <div style="padding-top:7px">
+                                    {{statusText(series2.status, seriesStates)}}
+                                </div>
+                                
+                            </div>
+
+                            <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
+                                <template v-slot:head>
+                                    <thead>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                                        <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                                        <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                        <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                        <th><%= __("Result") %></th>
+                                        <th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>
+                                        <th><%= __("Remarks") %></th>
+                                        <th v-if="showPBSB"><%= __("PB") %></th>
+                                        <th v-if="showPBSB"><%= __("SB") %></th>
+                                    </thead> 
+                                </template>   
+                                <template v-slot:body="{displayData:ssrs}">
+                                    <tbody style="background-color: white;">
+                                        <template v-for="(element, index2) in ssrs">
+                                            <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                <td style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                <td>{{element.lane}}</td>
+                                                <td v-if="conf.groupSize>1">{{element.posInLane}}</td>
+                                                <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                <td>{{element.startsingroup.athleteName}}</td>
+                                                <td>{{element.startsingroup.athleteForename}}</td>
+                                                <td>{{element.startsingroup.clubName}}</td>
+                                                <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                                <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                                <td v-if="showReactionTimes && disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>
+                                                <td>{{element.resultRemark}}</td>
+                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                            </tr>
+                                            <tr v-else>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <template v-else> <!-- not started in lanes -->
+                <div style="grid-area: series;">
+                    <div v-for="(series2, index) in seriesAsStartgroups">
+                        <div class="heatContainer">
+                            <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
+                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                <div style="flex-grow:1"></div>
+                                <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
+                                    
+                                <div style="padding-top:7px">
+                                    {{statusText(series2.status, seriesStates)}}
+                                </div>
+                                
+                            </div>
+                            <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
+                                <template v-slot:head>
+                                    <thead>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
+                                        <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                                        <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                                        <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                        <th><%= __("Result") %></th>
+                                        <th><%= __("Remarks") %></th>
+                                        <th v-if="showPBSB"><%= __("PB") %></th>
+                                        <th v-if="showPBSB"><%= __("SB") %></th>
+                                    </thead> 
+                                </template>   
+                                <template v-slot:body="{displayData:ssrs}">
+                                    <tbody style="background-color: white;">
+                                        <template v-for="(element, index2) in ssrs">
+                                            <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValHeat}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                                <td style="text-align: center;">{{element?.resultstrack?.rank}}</td>
+                                                <td>{{element.position}}</td>
+                                                <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                                <td>{{element.startsingroup.athleteName}}</td>
+                                                <td>{{element.startsingroup.athleteForename}}</td>
+                                                <td>{{element.startsingroup.clubName}}</td>
+                                                <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                                <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                                <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                                <td>{{element.resultRemark}}</td>
+                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                            </tr>
+                                            <tr v-else>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div v-if="sortValue2==2">
+            <!-- show an overall list over all heats with all results -->
+            <v-table :data="overall" class="heatContent">
+                <template v-slot:head>
+                    <thead>
+                        <th is="vue:v-th" sortkey="sortRankOverall" defaultsort="asc"><%= __("Rank") %></th>
+
+                        <!--<th is="vue:v-th" sortkey="series.number"><%= __("Heat") %></th>
+                        <th v-if="conf.startInLanes" is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
+                        <th v-if="conf.startInLanes && conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
+                        <th v-if="!conf.startInLanes" is="vue:v-th" sortkey="position"><%= __("Position") %></th>-->
+                        
+                        <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
+                        <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
+                        <th is="vue:v-th" sortkey="startsingroup.athleteForename"><%= __("Firstname") %></th>
+                        <th is="vue:v-th" sortkey="startsingroup.clubName"><%= __("Club") %></th>
+                        <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                        <th><%= __("Result") %></th>
+                        <th><%= __("Remarks") %></th>
+                        <th v-if="showPBSB"><%= __("PB") %></th>
+                        <th v-if="showPBSB"><%= __("SB") %></th>
+                    </thead> 
+                </template>   
+                <template v-slot:body="{displayData:ssrs}">
+                    <tbody style="background-color: white;">
+                        <template v-for="(element, index2) in ssrs">
+                            <tr v-if="element.startsingroup!==null" class="heat" v-bind:style="{'--value': element.barValAll}" v-bind:class="{backgroundbar: element.resultOverrule==0 && element.resultstrack !== null}">
+                                <td style="text-align: center;">{{element?.rankOverall}}</td>
+                                
+                                <!--<td>{{element?.series?.number}}</td>
+                                <td v-if="conf.startInLanes">{{element.lane}}</td>
+                                <td v-if="conf.startInLanes && conf.groupSize>1">{{element.posInLane}}</td>
+                                <td v-if="!conf.startInLanes">{{element.position}}</td>-->
+
+                                <td v-if="showBib">{{element.startsingroup.bib}}</td>
+                                <td>{{element.startsingroup.athleteName}}</td>
+                                <td>{{element.startsingroup.athleteForename}}</td>
+                                <td>{{element.startsingroup.clubName}}</td>
+                                <td>{{getCategory(element.startsingroup.xCategory)}}</td>
+                                <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
+                                <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
+                                <td>{{element.resultRemark}}</td>
+                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
+                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                            </tr>
+                            <tr v-else>
+                            </tr>
+                        </template>
+                    </tbody>
+                </template>
+            </v-table>
+        </div>
+    </div>
+
+</div>
+    `, 
+    // things to change:
+    /**
+     * sortHeightsAddOrder: new: computed property called sortedHeights
+     * createAllHeights --> computed property of allHeights now; seems to work so far
+     * evaluateHeightDeletable -> cannot siply be computed property since the "deletable" is added to the series.heights.height . --> create a computed property "usedHeights" instead of adding to another object
+     * sortSeries --> implemented in rTechHighClient now
+     * timeUpdateInterval --> kept as it is, but called from the new timeManager 
+     * updateShownTime --> kept as it is, but called from the new timeManager
+     * timeOffset --> keep eventually as it is
+     * calculateTemporaryRankingData DONE
+     * calculateNextAthlete DONE
+     * autoManageAuxData: --> done. Moved mostly into the room (not in vue anymore.)
+     * showAuto --> via watcher on series  (called at the first load, when all data has arrived; eventually do this when the room-id is not '' anymore)
+     * transferAuxData: -->replaced by computed properties
+     * 
+     * --> eventually we simply make a proeprty of the room-id, at chich change all those properties will be changed.
+     * 
+     * 
+     * difference between dataArrived and afterFullReload:
+     * - afterFulLReload sets timeOffset
+     * - afterFullReload handles the timeRunning--> timeUpdateInterval stuff
+     * - dataArrived calls showAuto at the end
+     * 
+     * different between dataArrived and onChange
+     * - a lot...
+     * - onChange handles the timeRunning--> timeUpdateInterval stuff
+     * - auxData transfer handling (inclucing positionNext, calculateNextAthlete, calculateTemporaryRankingData, autoManageAuxData) only in onChange --> can eventually be moved to a watcher
+     * - createAllHeights, evaluateHeightDeleted, sortSeries
+     */
+
+    props: {
+        // define here all properties needed as an input
+        //auxData: {required:true, type:Object},
+        categories:{required:true, type:Array},
+        contest: {required:true, type:Object},
+        disciplines:{required:true, type:Array},
+        meeting:{required:true, type:Object},
+        relatedGroups:{required:true, type:Array},
+        series:{required:true, type:Array},
+        startgroups:{required:true, type:Array},
+    },
+
+    // all code below copied from trackBase; 
+    // the only change thing is the deletion of props from data
+
+    data(){
+        return {
+
+            list1:[1,2,3],
+            list2:[4,5,6],
+
+            dragged:null, // note which element is currently dragged
+
+            sites:[],
+
+            heatInterval: 60, // in s
+
+            developMode:false,
+            //showContestInfo: false,
+            show:'none', // TODO: automatically show most reasonable thing at startup
+            overlay: undefined, // either undefined or 'createSeries'
+            overlay2: undefined, // createSeries or undefined
+            overlay3: undefined, // config or undefined
+            // there will be no waiting page, but a limit to one client and this will be the first offline working page.
+            burgerChecked: false, // burger menu activated
+
+            onSeriesChangeCalcNextAth: true,
+
+            // show a clock on some screens (e.g. live screen); 
+            // start an interval to update the time in "mounted", if the time is odd, show the ":" between minutes and hours 
+            timeHours:'00',
+            timeMinutes:'00',
+            timeSeconds:'00',
+            timeOdd: false,
+            timeInterval: null, // the function to stop the interval
+
+            // the data is split into three parts, to be able to reuse the seriesAdmin parts
+            // TODO: also split computed properties, watchers and methods!
+
+            /* !!! data for SERIES CREATION and COMPETITION !!! */
+            //categories:[],
+            //meeting:{},     // informational only
+            //disciplines:[], // informational only, to be able to show the name of the discipline and get some conf-data about the discipline, such as the max-reasonable height used to create the limit until where the heights shall be created
+            // TODO
+
+            //activateLate: false, // thing that cannot be drawn at startup, e.g. because they rely 
+            readOnly: false, // whether we can do changes or not (have a writingTicket or not)
+            
+            // info overlay
+            infoTitle: '',
+            infoContent:'',
+            infoVisible:false,
+
+            // yesNo overlay
+            yesNoVisible:false,
+            yesNoText: '',
+            yesNoTitle: '',
+            yesNoFunction:()=>{},
+
+            showReactionTimes: true,
+            showBib: false, // currently only for live results
+            showPBSB: false, // currently only for live results, where this option is important for speakers to also have this info when the contest is in progress
+
+
+            /*contest:{ // to be overridden as soon as the room-data arrives
+                status: 10,
+            },*/
+            //startgroups: [],
+            //relatedGroups: [],
+            // IMPORTANT: the contest data must be equivalent to the data in techHigh (which should be the case since this was based on the database structure)
+
+            // the names and id's of series and contest states:
+            // Note: the comment before the ejs-include only affects the first row of the included file; (thats why it still works)
+            // also gets seriesStates and participationStates
+            //<%- include('contestStates.ejs') %>
+
+            numSeries:0,
+            //unassignedAthletes:[100,101, 102, 103],
+            unassignedAthletesCreate:[], // the array is manually populated when the initial series assignment is shown
+
+            //series:[],
+            seriesObj:[], //{1:[15,16], 2:[17,18]},
+
+
+            /* !!! data for SERIES CREATION ONLY !!! */
+
+            propagateChange: false, // if the most recent change on the data (registered and monitored via "watchers") must be propagated to the server or not. (Not is typically the case when the changes comes from the server or any other change on the data done in the room but not in the data)
+
+            updateHeightIncrease: -1, // show change-line for height increases
+            heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
+            confForMod: {}, // the conf-object that is modified during conf changes. Recreated everytime conf-change is opened. At the end, the changes are either stored back to to the JSON in contest.conf (which then is applied to the computed property conf) or we just do nothing. 
+            newHeightIncreaseStart: undefined,
+            newInterval: undefined,
+
+            // series assignments (the different strategies that can be applied)
+            seriesAssignmentsAll: [
+            //includes<% seriesAssignments.forEach((SA)=>{ %>
+                // next include:<%- include(SA, {type:"js"}) %>,
+            //<% }); %>
+            ],
+            seriesAssignmentConfiguration:{}, // object will be populated by init functions of the respective functions
+            selectedSeriesAssignment: 0, // by default choose the first series assignment strategy
+
+            filterAthletes:'',
+            showFullDetails: false, // TODO: true for debugging only
+
+            /* !!! data for COMPETITION only !!! */
+            
+            xHeightTemp: -1, // temporary xHeight, until the height could be written to the DB and we get the actual index, we use this. Auto-increment into negative. When the correct key arrives, we must not only change the key in xHeight, but also in every result!  
+            xResultTemp: -1, // temporary xResult (needed for identical element id's; it is not referenced somewhere)
+            updateHeightIncrease: -1, // show change-line for height increases
+            heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
+
+            //selectedSeries: 0, // which series we are working on. 
+            //selectedSeriesLazy: 0, // which series we were working on before
+            //allHeights:[], // contains all already fixed and all predicted heights; computed property as of 2022-06
+            //mode: 0, // 0: before all startHeights are set, 1=competition running (or is ready to be started), 2=jumpoff, 3=finished
+            currentHeight2: -1,  // in cm
+            currentJumpoffHeightInd2: -1, // during jumpoff, store here the current index in the jumpoff order
+            jumpoffHeightRequired: false, // true if a new height should be defined by the user
+            bestAtEachJumpoffHeight: [],
+            manualJumpoffHeight:0, // used to set the default next jumpoff height, before we actually see the input element
+            position:[], // array with the xStartgroup of all athletes starting on the current height, defining the order in the copetition; changed by the drag and drop part; in the jumpoff, it contains all athletes that still participate in the jumpoff, independent whether they aready jumped on the current height
+            positionNext: [], // the first element contains the index in the position array of the first athlete to come, the second element the second, and so on; during the main competition, positionNext has the same length as position; in the jumpoff, it can be smaller, since it only contains the athletes that will still jump on the current jumpoff-height, while position also contains the athletes that already jumped on the current height
+            tempRankingData: { // all data needed for ranking and for gettign the current athlete
+                //xSeriesStart
+                /*12:{
+                    totalFailedAttempts: 0, // until and with the last valid hight
+                    failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
+                    failedAttemptsOnLastValid: 0,
+                    lastValidHeight: 0,
+                    nextJumpingHeight: 0, // is this really needed? lastValidHeight should be enough..?
+                    rank: 0, // (temporary, ) locally calculated rank. 
+                },
+                13:{
+
+                }*/
+            },
+            maxLastValidHeight: 0, // store which was the heighest, last valid height; required in the jumpoff
+            attempt2: 0, // in normal mode==1: 1 to 3; in jumpoff used to announce the i-th jumpoff height
+            attemptNext2: 0, // 1 to 3; for the next athlete (not the current). It is easier to store this value than to (re)calculate it for drawing.
+            
+            currentResultChange: {}, // the result that we are currently changing in the results view 1
+            currentResultString:'',
+            currentResultStringCopy:'',
+            resultKeyPressed: -1, // the key that was pressed last inside a addResult-input. If this is the esc-key, the blur event will not be evaluated. 
+            sortValue1: 1,
+            sortValue2: 1, // default by rank
+            fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
+            temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
+            timeOffset: 0,
+            roomAuxData:{
+                // uses xSeries to reference objects storing the following information:
+                // positionNext:[],
+                // position:[],
+                // attemptPeriod: 60, // s
+                // periodStartTime: undefined, // date-string of the server time when the attempt period started
+                // showAttemptPeriod: false,
+                // currentHeight
+                // currentJumpoffHeightInd
+                // attempt
+                // attemptNext 
+            },
+            autoAdvance: false,
+            attemptTime: "1:00", // TODO: aventually as time instead of string
+            attemptTimeSetting: "00:30",
+            shownTime: "0:00", // shall be string
+            timeUpdateInterval: undefined,
+            last15: false, // last 15 s
+            //currentResultRegistered: false,
+        }
+    },
+    methods:{
+
+        /* !!! methods for both SERIES creation and COMPETITION !!! */
+
+        parseJSON(startConf){
+            if (startConf){
+                return JSON.parse(startConf);
+            }else {
+                return {}
+            }
+        },
+
+        statusChanged(){
+            // check whether the current "show" property is meaningful; if not, automatically set a meaningful property
+            const matchStatusShow = [
+                {from: 0, to:39, shows:['rollCall', 'contestInfo']},
+                {from: 60, to:89, shows:['series', 'contestInfo']},
+                {from: 95, to:180, shows:['competition', 'resMod', 'resShow', 'settings', 'contestInfo']},
+            ]; 
+            const range = matchStatusShow.find(el=>el.from<=this.contest.status && el.to>=this.contest.status);
+            // check if the current selected show makes sense
+            if (range && range.shows.indexOf(this.show)==-1){
+                this.showAuto();
+            }
+        },
+        showAuto(){
+            // automatically show the most meaningful page when the selected status is changed
+            if (this.contest.status<=39){
+                this.show='rollCall';
+            } else if (this.contest.status<=89 && this.contest.status>=60){
+                this.show = 'series';
+            } else if (this.contest.status<=180 && this.contest.status>=95){
+                this.show = 'competition';
+            }
+        },
+
+        statusBackgroundColor(status, states=this.contestStates){
+            let s = states.find(s=>s.value==status);
+            if (s){
+                return s.backgroundColor;
+            }
+            return '#333333';
+        },
+        colorHexMultiplier(color, f){
+            // split the hex code into the three parts and multiply it with f
+            let R = Math.min(255,Math.round(f*parseInt(color.slice(1,3),16)));
+            let G = Math.min(255,Math.round(f*parseInt(color.slice(3,5),16)));
+            let B = Math.min(255,Math.round(f*parseInt(color.slice(5,7),16)));
+            return '#' + R.toString(16).padStart(2,0) + G.toString(16).padStart(2,0) + B.toString(16).padStart(2,0);
+        },
+        statusBackgroundColorHover(status, states=this.contestStates){
+            let s = states.find(s=>s.value==status);
+            if (s){
+                return this.colorHexMultiplier(s.backgroundColor)
+                // split the hex code into the three parts and multiply it with 0.8
+                /*let f = 0.8;
+                let R = Math.round(f*parseInt(s.backgroundColor.slice(1,3),16));
+                let G = Math.round(f*parseInt(s.backgroundColor.slice(3,5),16));
+                let B = Math.round(f*parseInt(s.backgroundColor.slice(5,7),16));
+                return '#' + R.toString(16).padStart(2,0) + G.toString(16).padStart(2,0) + B.toString(16).padStart(2,0);*/
+            }
+            return '#111111';
+        },
+        statusTextColor(status, states=this.contestStates){
+            let s = states.find(s=>s.value==status);
+            if (s){
+                return s.textColor;
+            }
+            return status;
+        },
+        statusText(status, states=this.contestStates){
+            let s = states.find(s=>s.value==status);
+            if (s){
+                return s.text;
+            }
+            return status;
+        },
+
+        /*selectedSeriesChanged(){
+
+            let u = new URL(window.location.href)
+            u.searchParams.set('xSeries', this.series[this.selectedSeries].xSeries);
+            // this would reload the page
+            // window.location.href = u.href;
+            // this way only the path in the tab should be changed without any reload. 
+            window.history.replaceState(window.history.state, "", u.href)
+            
+        },*/
+
+        /**
+         * returns the index and the object itself of the first object where the property prop is equal to value 
+         * @param {array of objects} arr 
+         * @param {string} prop 
+         * @param {*} val 
+         * @return {array} [index, the object]
+         */
+        findObjInArrayByProp(arr, prop, val){
+            for (let i=0; i<arr.length;i++){
+                if (arr[i][prop] == val){
+                    return [i, arr[i]];
+                }
+            }
+            return [-1, {}];
+        },
+        autoManageAuxData(autoSaveToServer=true){
+
+            // this should all be done now (2022-06) in the room! It is wrong to do this in the view!
+
+            /*// based on the available series, automatically create (with default values) and delete the auxData per series.
+            // returns true if something has changed (so far 2022-06 not needed)
+
+            let changed = false;
+
+            // first make sure, that all currently available auxData have their respective series; otherwise delete them
+            for (let xSeries in this.roomAuxData){
+                let series = this.series.find(s=>s.xSeries==xSeries);
+                if (!series){
+                    delete this.roomAuxData[xSeries];
+                    changed=true;
+                }
+            }
+
+            // then check that all available series have also an entry in auxData
+            for (let series of this.series){
+                if (!(series.xSeries in this.roomAuxData)){
+                    this.roomAuxData[series.xSeries] = {
+                        positionNext:[],
+                        position:[],
+                        attemptPeriod: 60, // s; mainly related to the next athlete
+                        periodStartTime: null, // date-string of the server time when the attempt period started
+                        showAttemptPeriod: false, 
+                        currentHeight: -1,
+                        currentJumpoffHeightInd: -1,
+                        attempt: 0,
+                        attemptNext: 0,
+                    };
+                    changed = true;
+                }
+            }
+            
+            if (changed && autoSaveToServer && !this.readOnly){
+                rCTrack.room.updateAuxDataInit(this.roomAuxData);
+            }
+            return changed;*/
+        },
+        overlayInfo(title, content){
+            this.infoTitle = title;
+            this.infoContent = content;
+            this.infoVisible = true;
+        },
+
+        /* !!! methods for SERIES creation only !!! */
+
+        unassignedAthleteChanged(evt){
+            // override the default behavior (add/remove to/from 'displayData' within v-table, which does not work) and add/remove the element instead to/from 'unassignedAthletesCreate'
+            console.log('drag changed');
+            if ('removed' in evt){
+                // remove the element from 'unassignedAthletesCreate'
+                var i = this.unassignedAthletesCreate.indexOf(evt.removed.element);
+                if (i!=-1){
+                    // should always come here; remove the element
+                    this.unassignedAthletesCreate.splice(i,1);
+                }
+
+            } else if ('added' in evt){
+                // add the element to 'unassignedAthletesCreate'
+                this.unassignedAthletesCreate.push(evt.added.element.startsingroup)
+            }
+        },
+
+        // to make an element a dropzone, it needs the following event handlers:
+        // - ondragover
+        // - ondrop
+        preventDrag(evt){
+            // this is needed on all placeholders to make sure that the click is not propagated to the underlying series (to drag series). This should only be possible around the athletes
+            evt.preventDefault();
+            evt.stopPropagation();
+            evt.stopImmediatePropagation();
+        },
+        dragOver(element, list, evt){
+            //console.log('dragOver');
+            if (!this.dragged){
+                return false;
+            }
+            // prevent unassigned athlete to be dropped on existing athlet
+            if (this.dragged.replace && (element.startsingroup || list==this.unassignedAthletesCreate)){
+                evt.dataTransfer.dropEffect = "none";
+            } else {
+                evt.dataTransfer.dropEffect = "move";
+            }
+            evt.preventDefault();
+        },
+        dragEnd(evt){
+            // if we dropped the element, dragged will already be null, since drop-event is fired first
+            console.log('dragEnd')
+            this.dragged=null;
+        },
+        dragEnter(evt){
+            console.log('dragEnter')
+            if (!this.dragged){
+                return false;
+            }
+            // change color
+            evt.currentTarget.classList.add('swappos');
+            evt.preventDefault();
+        },
+        dragLeave(evt){
+            console.log('dragLeave')
+            if (!this.dragged){
+                return false;
+            }
+            // this event is called whenever the lowermost element (here: td) is left, and not only when the element with the drag-listener (here: tr) is left; thus, we need to differentiate whether the tr was left or only the td
+            // NOTE: it seems like toElement and fromElement are swapped here
+            // NOTE: this is also called when drop ends over an element, even if dropping is not possible. In that case fromElement is empty (it would make more sense if toElement was empty...). Thus, first make sure both elements exist
+            if (evt.toElement && evt.fromElement && evt.toElement.parentNode!=evt.fromElement.parentNode){
+                // change color
+                evt.currentTarget.classList.remove('swappos');
+            }
+
+        },
+        drop(list, index, evt){
+            // do not react on dragged series:
+            if (!this.dragged){
+                return;
+            }
+            console.log('drop');
+            evt.preventDefault();
+
+            // differentiate different cases
+            // within the same series
+            if (this.dragged.list==list){
+                if (list == this.unassignedAthletesCreate){
+                    // do not sort within the unassigned athletes
+                    this.dragged=null;
+                    return false;
+                }
+                // swap the startsingroup
+                var sig1 = list[index].startsingroup;
+                list[index].startsingroup = this.dragged.element.startsingroup;
+                this.dragged.element.startsingroup = sig1;
+            } else {
+
+                if (this.dragged.list == this.unassignedAthletesCreate){
+                    // unassigned to series
+                    // remove in unassigned athletes
+                    // NOTE: since the unassignedAthletesCreate can be sorted different from the view, we need to find the index and cannot use the provided index
+                    let ind = this.unassignedAthletesCreate.indexOf(this.dragged.element);
+                    this.unassignedAthletesCreate.splice(ind,1);
+
+                    // replace placeholder in series
+                    list[index].startsingroup= this.dragged.element;
+
+                } else if (list == this.unassignedAthletesCreate){
+                    // series to unassigned
+
+                    // add athlete to unassigned athletes
+                    this.unassignedAthletesCreate.push(this.dragged.element.startsingroup)
+
+                    // change the element to a placeholder
+                    this.dragged.element.startsingroup=null;
+
+                } else{
+                    // series to series
+                    // swap the startsingroup
+                    var sig1 = list[index].startsingroup;
+                    list[index].startsingroup = this.dragged.element.startsingroup;
+                    this.dragged.element.startsingroup = sig1;
+                }
+
+
+            }
+            this.dragged = null;
+            evt.currentTarget.classList.remove('swappos');
+            this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
+        },
+        // same as "drop", but for the series assignment after the initial assignment, where the changes are processed in the room
+        drop2(list, evt, element){
+            // do not react on dragged series:
+            if (!this.dragged){
+                return;
+            }
+            console.log('drop');
+            evt.preventDefault();
+
+            // Note: we cannot store unassignedAthetes/series.SSRs as a list as we do in the init rooms, since unassignedAthletes/series.SSRs is a computed property (i.e. has no proxy) and Vue.js does not realize that and proxies the data when we store it to vue.data (in dragStart). Thus, the list is not stored as a list, but as a string ('unassignedAthletes') or as an integer (xSeries).
+
+            // differentiate different cases
+            if (this.dragged.list==list){
+                // within the same series
+                if (list == "unassignedAthletes"){
+                    // do not sort within the unassigned athletes
+                    this.dragged=null;
+                    return false;
+                }
+
+                let data = {
+                    series1: this.dragged.element.seriesOriginal, 
+                    series2: this.dragged.element.seriesOriginal,
+                    SSR1: this.dragged.element.ssrOriginal,
+                }
+
+                // swap the startsingroup
+                // differentiate whether it is swapped with an empty lane or not!
+                if (element.startsingroup == null){
+                    // with empty lane
+                    data.position = element.position;
+                    data.lane = element.lane;
+                } else {
+                    // with another athlete
+                    data.SSR2 = element.ssrOriginal;
+                }
+
+                rCTrack.room.swapPositionInit(data);
+                
+            } else {
+
+                if (this.dragged.list == "unassignedAthletes"){
+                    // unassigned to series
+                    // remove in unassigned athletes not needed, since this is a computed property
+
+                    // get the series object
+                    let series = this.series.find(s=>s.xSeries == list);
+
+                    rCTrack.room.addSSRInit(series, this.dragged.element.xStartgroup, element.position, element.lane);
+
+
+                } else if (list == "unassignedAthletes"){
+                    // series to unassigned
+
+                    // add athlete to unassigned athletes
+                    rCTrack.room.deleteSSRInit(this.dragged.element.seriesOriginal, this.dragged.element.ssrOriginal);
+
+                } else{
+                    // series to series
+                    // nearly the same code as for swap within a series
+                    // swap the startsingroup
+                    
+                    let data = {
+                        series1: this.dragged.element.seriesOriginal, 
+                        series2: this.series.find(s=>s.xSeries == list),
+                        SSR1: this.dragged.element.ssrOriginal,
+                    }
+
+                    // swap the startsingroup
+                    // differentiate whether it is swapped with an empty lane or not!
+                    if (element.startsingroup == null){
+                        // with empty lane
+                        data.position = element.position;
+                        data.lane = element.lane;
+                    } else {
+                        // with another athlete
+                        data.SSR2 = element.ssrOriginal;
+                    }
+
+                    rCTrack.room.swapPositionInit(data);
+                }
+
+
+            }
+            this.dragged = null;
+            evt.currentTarget.classList.remove('swappos');
+            this.updateEmptyInitLanes(this.seriesObj); // needed to recalculate the positions after an invalidated lane was removed
+        },
+        dragStart(list, element, index, evt, replace=false){
+            // set replace to true for 
+            // - drag elements in unassignedAthletes
+            // - invalid lanes (e.g. when the number of persons per lane or the number of lanes gets reduced after persons were assigned)
+            console.log('dragStart');
+            // since we must know later, what vue data (and not only which html-element) was dragged, we must keep that record
+            this.dragged = {list, element, index, replace}; // if replace is false, swap is used
+            // prevent that also the series (drag element on the parent) will change
+            evt.stopPropagation();
+        },
+
+        changeOnSeries(evt, series, index){
+            console.log(`ath changed in series`);
+            console.log(evt);
+
+            if ('added' in evt && !("lane" in evt.added.element)){
+                // if the element was actually from the unassigned athletes, we have to make sure it is a correct object for the present list
+                // overwrite the default behavior
+                this.seriesObj[index].SSRs[evt.added.newIndex] = {
+                //series.SSRs[evt.added.newIndex] = {
+                    lane: 0,
+                    alert: 0,
+                    posInLane:0,
+                    position: 0,
+                    startsingroup: evt.added.element,
+                }
+            }
+            this.updatePositions(series);
+            return true;
+        },
+        getSiteName(xSite){
+            if (xSite==null){
+                return "<%= __('Site not defined') %>";
+            } else {
+                let s = this.trackSites.find(s=>s.xSite == xSite)
+                if (s){
+                    return s.name;
+                } else {
+                    return "<%= __('Site not found') %>";
+                }
+            }
+        },
+        siteChanged(series2, evt){
+            // attention: series2 is not the actual series object!
+            let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            // called e.g. when the time or the site was changed
+            if (evt.target.value===null || evt.target.value=='null'){
+                rCTrack.room.updateSeriesInit(series, 'xSite', null);
+            } else {
+                rCTrack.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+            }
+        },
+        dateChanged(series2, evt){
+            // attention: series2 is not the actual series object!
+            let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            rCTrack.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+        },
+        seriesStateChanged(series2, evt){
+            // attention: series2 is not the actual series object!
+            let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            rCTrack.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
+        },
+        initSeriesChanged(evt){
+            // make sure that again the number of the series as well as the default times are correct
+            for (let h=1; h<= this.seriesObj.length; h++){
+                this.seriesObj[h-1].number = h;
+                this.seriesObj[h-1].datetime = this.getStarttime(h);
+            }
+        },
+        presentChanged(affectedRow){
+            // the present status of an athlete was changed. Hand over the request to the room. 
+            rCTrack.room.updatePresentStateInit(affectedRow);
+        },
+        startUpdateConf(){
+            this.confForMod = this.parseConf(this.contest.conf);
+            this.overlay3 = 'config';
+        },
+        abortUpdateConf(){
+            this.overlay3 = undefined;
+        },
+        saveUpdateConf(){
+            this.overlay3 = undefined;
+            this.propagateChange = true; // store the change to server!
+            this.contest.conf = JSON.stringify(this.confForMod);
+            this.updateEmptyInitLanes(this.seriesObj);
+        },
+        startInLanesChanged(){
+            if (this.confForMod?.startInLanes===false){
+                // set the value for the group size to the default of the default-site
+                this.confForMod.groupSize = this.defaultSiteConf?.heatSizeRuns ?? 26;
+            } else if (this.confForMod?.startInLanes===true){
+                this.confForMod.groupSize = 1;
+            }
+        },
+        parseConf(jason){
+            // a valid JSON must contain {} or []; an empty string, as it might occur in the DB as a default, is not valid!
+            let conf;
+            try{
+                conf = JSON.parse(jason);
+            }catch(ex){
+                conf = {};
+            }
+            // make sure that the reuired stuff is present
+            if (!('groupSize' in conf)){
+                logger.log(2, 'GroupSize not in the contest configuration.')
+                conf.groupSize = 1;
+            }
+            if (!('startInLanes' in conf)){
+                logger.log(2, 'StartInLanes not in the contest configuration.')
+                conf.startInLanes = true;
+            }
+            return conf;
+        },
+        getCategoryForTable(row){
+            return this.getCategory(row.xCategory);
+        },
+        getCategory(xCategory, property='shortname'){
+            let cat = this.categories.find(c=>c.xCategory==xCategory)
+            if (cat){
+                return  cat[property]
+            } else {
+                return '';
+            }
+        },
+        getYearShort(dateString){
+            let d = new Date(dateString);
+            return d.getFullYear().toString().slice(-2);
+        },
+        endRollCallCreateSeries(){
+            this.propagateChange = true;
+            this.contest.status = 70;
+            this.show="series";
+            if(this.series.length==0){
+                this.showInitialSeriesAssignment();
+            }
+        },
+        formatPerf(heightInDB){
+            if (heightInDB){
+                return window.disciplineFormatters[3](heightInDB, this.discipline, true);
+            }
+
+            return "";
+        },
+        formatTime(time, dateIfNeeded=true, secondsIfNeeded=true){
+            // return a formatted time value.
+            // if dateFrom=dateTo, only return the time; otherwise include the portion of date needed.
+            // if seconds are given, include them
+            let s = '';
+            let d = new Date(time);
+            if (dateIfNeeded && this.meeting.dateFrom != this.meeting.dateTo){
+                s += (d.getMonth()+1).toString().padStart(2,0);
+                s += "." + d.getDate().toString().padStart(2,0) + ' ';
+            }
+            s += `${d.getHours()}`.padStart(2, '0');
+            s += ":" + `${d.getMinutes()}`.padStart(2,'0');
+            if (secondsIfNeeded && d.getSeconds() != 0){
+                s += ':' + `${d.getSeconds()}`.padStart(2,'0');
+            }
+
+            return s;
+
+        },
+        showInitialSeriesAssignment(){
+            // create a list of all unassigned athletes for the initial series assignment. This is a separate list from the unassignedAthletes for the base configuration
+            this.resetInitialSeriesAssignment()
+            
+            this.overlay2 = 'createSeries';
+        },
+        updatePositions(seriesObj2){
+            // update the position (and lane) values if not startInLanes
+            if (this.conf.startInLanes){
+                return;
+            }
+            
+            // simply loop over the series and recreate all positions and lanes
+            for (let i=0; i < seriesObj2.SSRs.length; i++){
+                const ssr = seriesObj2.SSRs[i];
+                ssr.lane = i+1;
+                ssr.position = i+1;
+                ssr.posInLane = 1;
+            }
+        },
+        updateEmptyInitLanes(seriesObj2){
+            // called e.g. after the number of lanes/groupSize/startInLanes have changed, when a new series is added, when an seriesStart is added or deleted,
+
+            // there is nothing to do when the contest is not started in lanes
+            if (!this.conf.startInLanes){
+                return;
+            }
+            
+            for (let heat of seriesObj2){
+                // every startsingroup/seriesStartResult-object should look like this:
+                // {position, lane, posInLane, startsingroup, alert}
+
+                // first, delete unnecessary empty lanes or mark filled lanes with alert=1
+                for (let iLane=heat.SSRs.length-1; iLane>=0; iLane--){
+                    const lane = heat.SSRs[iLane];
+                    if (lane.lane>this.conf.lanes || lane.posInLane>this.conf.groupSize){
+                        // empty lanes can be deleted, occupied ones must be marked with alert=1
+                        if (lane.startsingroup){
+                            lane.alert=1;
+                        } else {
+                            heat.SSRs.splice(iLane, 1);
+                        }
+                    } else {
+                        lane.alert = 0;
+                    }
+                }
+
+                // add missing lanes:
+                for (let iLane = 1; iLane<=this.conf.lanes; iLane++){
+                    for (let iPosInLane = 1; iPosInLane<=this.conf.groupSize; iPosInLane++){
+                        // try to find the lane; if not, add an empty one
+                        if (!heat.SSRs.find(ssr=>ssr.lane==iLane && ssr.posInLane == iPosInLane)){
+                            heat.SSRs.push({
+                                position: 0,
+                                lane: iLane,
+                                alert: 0,
+                                posInLane: iPosInLane,
+                                startsingroup: null,
+                            })
+                        } 
+                    }
+                }
+
+                // sort the elements (important: this must be done before the next step!)
+                heat.SSRs.sort((lane1, lane2)=>{
+                    if (lane1.lane != lane2.lane) return lane1.lane-lane2.lane;
+                    if (lane1.posInLane != lane2.posInLane) return lane1.posInLane - lane2.posInLane;
+                    return 0
+                })
+
+                // finally update the positions (Note: this cannot be done earlier, since the positions must also consider invalidated lanes and added lanes). Empty lanes get the position value of the next occupied lane, since this is what is needed to add a person between another.
+                // at the same time: check whether there are empty lanes between occupied lanes
+                // add alert=2 to those SSRs
+                let position = 1;
+                let firstOccupied = -1;
+                let lastOccupied;
+                let empty = []
+                for (let iLane=0;iLane< heat.SSRs.length; iLane++){
+                    const lane = heat.SSRs[iLane];
+                    lane.position = position; // before 2022-12-19 position was always incresed here; now we only increase the position of the lane is occupied.
+                    if (lane.startsingroup){
+                        position++;
+                        lastOccupied = iLane;
+                        if (firstOccupied<0){
+                            firstOccupied = iLane;
+                        }
+                    } else {
+                        // reset alert here, since the non-empty lanes are already defined and should not be overwritten
+                        lane.alert = 0;
+                        empty.push(iLane)
+                    }
+                }
+                for (let emptyLane of empty){
+                    if (emptyLane>firstOccupied && emptyLane<lastOccupied){
+                        heat.SSRs[emptyLane].alert=2;
+                    }
+                }
+
+            }
+        },
+        /**
+         * n: the number of the series 
+         **/
+        getStarttime(n){
+            const d = new Date(this.contest.datetimeStart);
+            // set a reasonable default value! Must change when the order of series changes
+            let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + this.disciplineConfiguration.heatInterval*(n-1));
+            return datetime;
+        },
+        addEmptySeriesInitial(){
+            // add an empty series to the seriesObj used in the inital series configuration tool
+            let xSite = this.defaultSite?.xSite ?? null;
+            this.seriesObj.push({
+                number: this.seriesObj.length+1, 
+                xSite: xSite, 
+                status: 10, 
+                name: '', 
+                datetime: this.getStarttime(this.seriesObj.length+1), 
+                SSRs:[], // will be filled by updateEmptyInitLanes
+            });
+            this.updateEmptyInitLanes(this.seriesObj);
+        },
+        resetInitialSeriesAssignment(){
+            // recreate the set of unassigned athletes (=all startingroup where present=true): 
+            this.unassignedAthletesCreate = this.startgroups.filter(el=>el.present);
+
+            // delete all current series:
+            this.seriesObj = [];
+        },
+        createSeriesAutomatically(){
+            // first, reset current series
+            this.resetInitialSeriesAssignment();
+
+            // use selected algorithm to do automatic assignment
+            this.seriesAssignments[this.selectedSeriesAssignment].assignFunc.bind(this)()
+
+            // hide the overlay
+            this.overlay=undefined;
+            
+            // activate the ok button
+            //this.$refs["saveInitSeries"].focus();
+        },
+        saveInitSeries(){
+            // save the initial series assignment
+            
+            // TODO: manually populate the actual series object; as soon as the change is processed on the server, the IDs will be replaced here with the actual IDs. 
+            // DIFFICULTY: Assume a client without connection, a series is (locally) generated, then it is deleted again. As soon as we have connection, the changes are sent to the server. However, the answer for the series creation cannot be processed completely, because the series was deleted meanwhile in the local data. HOW CAN THIS PROBLEM BE SOLVED?:
+            // IDEA 1: fail-safe programming. If an object does not exist anymore, simply do not care and just continue. This only works when we do not try to know, what element must be updated on data arrival via e.g. the series number, when we have a unique identifier, e.g. a temporary ID or we have function where the objects are referenced (not the position in the array or the array itself!)
+            
+            // The series structure should look like this
+            // series : all series objects
+            // series[0].seriesstartsresults : all athletes in this series
+
+            // since the number of the series is not changed on moving the series, we must do it here
+            for (let i=1; i<=this.seriesObj.length; i++){
+                this.seriesObj[i-1].number = i;
+            } 
+
+            // do all the data managament in the room and not within vue!
+            rCTrack.room.initialSeriesCreationInit(this.seriesObj);
+
+            this.overlay2 = undefined;
+
+            return false; // avoid reload of the page
+
+        },
+        deleteSeries(xSeries){
+            rCTrack.room.deleteSeriesInit(xSeries);
+            this.yesNoVisible = false;
+            //this.showTimeUpdate();
+        },
+        initDeleteSeries(series){
+            this.yesNoTitle = '<%= __("Delete heat") %>';
+            this.yesNoText = `<%= __("Do you want to delete heat ${series.number}?") %>`;
+            this.yesNoFunction = ()=>{
+                this.deleteSeries(series.xSeries);
+            }
+            this.yesNoVisible = true;
+        },
+        addSeries(){
+            // add an empty series
+            let xSite = null
+            if (this.defaultSite){
+                xSite = this.defaultSite.xSite;
+            }
+            rCTrack.room.addSeriesInit(xSite, this.getStarttime(this.series.length+1));
+        },
+        deleteAllSeriesInit(){
+            // show warning
+            this.yesNoVisible = true,
+            this.yesNoText = '<%- __("Delete all series") %>';
+            this.yesNoTitle = `<%- __("Do you really want to delete all series? This can't be undone.") %>`;
+            this.yesNoFunction = this.deleteAllSeries;
+            
+        },
+        deleteAllSeries(){
+            this.yesNoVisible=false;
+            // the room functiuon will also change the local data
+            rCTrack.room.deleteAllSeriesInit();
+        },
+        moveSeries(evt){
+            // called, when series are reordered
+            // no differentiation needed between moved/added/removed, since only move is possible; 
+
+            // Note: evt.moved.element is NOT the series-element in data.series, since we work on a copy seriesAsStartgroups
+            rCTrack.room.moveSeriesInit(evt.moved.oldIndex, evt.moved.newIndex)
+
+            this.showTimeUpdate();
+        },
+        showTimeUpdate(){
+
+            // show a window to update the starttimes
+            this.heatInterval = this.disciplineConfiguration.heatInterval;
+            this.overlay = 'timeUpdate';
+
+        },
+        updateHeatStarttimes(){
+            rCTrack.room.updateHeatStarttimesInit(this.heatInterval);
+
+            this.overlay = undefined;
+        },
+        removeSSR(evt){
+            if ("added" in evt){
+                rCTrack.room.deleteSSRInit(evt.added.element.seriesOriginal, evt.added.element.ssrOriginal)
+            }
+            // nothing to do when removed or moved; removed is handled in the add event of the series and moving within the unassignedAthletes is useless, since it is done via the sortable table.
+        },
+        changePosition(series, evt){
+            // this function is responsible for:
+            // - moving athletes within series
+            // - moving athletes beyond series
+            // - newly assign athletes to a series
+            // --> unassign athletes is handled in "removeSSR"! 
+
+            // if an athlete is moved from one series to another, the function is called in both series, once with "removed" and once with "added" as the argument; if it is within the same series, then with "moved"
+            // evt .element .newIndex .oldIndex
+
+            if ("removed" in evt){
+                // if we do the work in added, we  do not need to do anything in removed, since the data will already be gone.
+                // the opposite way around is not possible, since it would not be known where to move the element to.
+            } else if ("added" in evt){
+
+                // differentiate whether the element is a seriesstartsresult or an xStartgroup (i.e. unassignedAthlete)
+                if ("athleteName" in evt.added.element){
+                    // previously was an unassigned athlete
+                    // create seriesstartsresults
+                    rCTrack.room.addSSRInit(series.seriesOriginal, evt.added.element.xStartgroup, evt.added.newIndex+1, evt.added.newIndex+1);
+                } else {
+                    // athlete moved from one series to another; data is a seriesstartsresults entry
+                    // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
+                    // let the room do the rest
+                    rCTrack.room.changePositionInit(evt.added.element.ssrOriginal, evt.added.element.seriesOriginal, series.seriesOriginal, evt.added.newIndex+1);
+                }
+
+            } else if ("moved" in evt){
+                // hand over all needed references to the original, referenced objects. Make sure the room stays independent from the copied series structure within 
+                // let the room do the rest
+                rCTrack.room.changePositionInit(evt.moved.element.ssrOriginal, evt.moved.element.seriesOriginal, series.seriesOriginal, evt.moved.newIndex+1);
+            }
+            
+        },
+
+        /* !!! methods for COMPETITION only !!! */
+
+        transferAuxData(){
+            // manually transfer some of the aux properties (position and positionNext are transferred in calculateNextAthlete)
+            // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
+            /*this.currentHeight2 = this.roomAuxDataSelected.currentHeight;
+            this.currentJumpoffHeightInd2 = this.roomAuxDataSelected.currentJumpoffHeightInd;
+            this.attempt2 = this.roomAuxDataSelected.attempt;
+            this.attemptNext2 = this.roomAuxDataSelected.attemptNext;*/
+
+        },
+
+        setTime(){
+            // set the time for the attempt period and show it
+
+            // split the time between hours (here: minutes) and minutes (here: seconds)
+            let t = this.attemptTimeSetting.split(':');
+            let minutes = Number(t[0])
+            let seconds = Number(t[1])
+            if (isNaN(minutes) || isNaN(seconds)){
+                alert('Time is not valid')
+            } else {
+                this.roomAuxDataSelected.attemptPeriod = minutes*60+seconds;
+
+                this.roomAuxDataSelected.showAttemptPeriod = true;
+                this.roomAuxDataSelected.periodStartTime = null;
+
+                rCTrack.room.updateAuxDataInit(this.roomAuxData);
+            }
+            this.updateShownTime();
+
+        },
+        birthdayToXX(bd){
+        // convert the birthday to a two letter year code
+            return bd.substr(2,2);
+        },
+        sortAthletes(seriesIndex){
+            /* this must be the only sort function run on the seriesstartsresults! They need to keep this order all the time. */
+            this.series[seriesIndex].seriesstartsresults.sort((el1, el2)=>{
+                return el1.position-el2.position;
+            })
+        },
+        sortAthletesAllSeries(){
+            for (i=0;i<this.series.length;i++){
+                this.sortAthletes(i);
+            }
+        },
+        
+
+        
+        
+        replaceXResult(xSeriesStart, oldKey, newKey){
+            alert('TODO')
+
+            // replace the old key by the new key
+            // TODO
+
+            // if the result is currently changed, we need to change the key of the input element there, as it will be invalid afterwards otherwise
+            let el = document.getElementById('resChange' + oldKey)
+            if (el){
+                el.id = 'resChange' + newKey;
+            }
+        },
+        updateSSR(ssr){
+            // ssr is a copy, where the particiaption status should already be changed
+            rCTrack.room.updateSSRInit(ssr);
+        },
+        formatReactionTime(time){
+            if (time===null){
+                return '';
+            }
+            // time is in ms
+            let timeStr = (time/1000).toLocaleString(undefined, {minimumFractionDigits:3});
+            return `${timeStr} s`;
+        },
+        reactionTimeChanged(ssrCopy){
+            // try to process the input string into the right value to store in the DB; if this fails, show a warning to the user
+
+            if(ssrCopy.reactionTimeStr == ''){
+                // reset to "no reaction time"
+                rCTrack.room.updateResultInitReaction(ssrCopy.xSeries, ssrCopy.xSeriesStart, null);
+                return
+            }
+
+            // remove non-necessary characters with regex
+            let r = /[-+]*[\d]+[.\d]*/g;
+            let valueStr = ssrCopy.reactionTimeStr.match(r);
+
+            // try to convert it to Number
+            if (valueStr == null || isNaN(Number(valueStr[0]))){
+                this.infoContent = `<%- __("The reaction time must be given as integer in milliseconds (e.g. '300') or with a period in seconds (e.g. '-0.1').") %>`;
+                this.infoTitle = '<%- __("Invalid format") %>';
+                this.infoVisible = true;
+                // reset the value
+                ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.ssrOriginal.resultstrack.reactionTime);
+            } else {
+                let value = Number(valueStr[0]);
+                // if the value is float, it is in s and must be converted to an integer in ms
+                if(Number.isInteger(value)==false){
+                    value = parseInt(value*1000);
+                }
+                rCTrack.room.updateResultInitReaction(ssrCopy.xSeries, ssrCopy.xSeriesStart, value);
+            }
+
+        },
+
+        changeResult(res){
+            this.currentResultChange=res;
+
+            // create a copy of the current result-string. If we are not doing it this way, the value of the html-element will instantly be changed back to the original value, before blur actually hits and we can store the changed result. Additionally, it allows not to raise an update event when there was no change.
+            let resStr = this.resultToStr(res);
+            this.currentResultString = resStr;
+            this.currentResultStringCopy = resStr;
+
+            // set the focus: problem: when the element is still hidden, it cannot get the focus. And Vue will change the hidden status with a slight delay (either just asynchronous or indeed with a delay), thus we also have to implement some delay here:
+            setTimeout(()=>{document.getElementById('resChange' + res.xResult).focus();}, 1) // time in ms (1 ms so far seems to be enough, 3-2020)
+            //document.getElementById('resChange' + res.xResult).focus();
+            //document.getElementById('resChange').focus();
+        },
+        sortedResults(results){
+            // sort the results by height /to make it look nice
+
+            let sortingFailed = false;
+            // create an array copy, in order not to sort the original array
+            let resCopy = [...results].sort((resA,resB)=>{
+                // get the height for both results
+                let hA = this.sortedHeights.find(h=>h.xHeight==resA.xHeight);
+                let hB = this.sortedHeights.find(h=>h.xHeight==resB.xHeight);
+                if (hA==undefined || hB==undefined){
+                    logger.log(20, `Could not sort the result-array. Returning the unsorted array.`);
+                    sortingFailed = true;
+                    return 0;
+                } else {
+                    return hA.height-hB.height;
+                }
+            })
+            if (sortingFailed){
+                return results;
+            } else {
+                return resCopy;
+            }
+        },
+        
+
+        fitName(elementId, startgroup, pretext=""){
+
+            // in some cases, it seems that positionNext.length>1 is not false yet, but nextAthleteStart is already undefined; in that case just return ''
+            /*if (!startgroup){
+                return '';
+            }*/
+
+            // try to fit firstname and name in a html element
+            // returns the best possible name
+            let el = document.getElementById(elementId);
+
+            // if the mode was just changed from 0 to 1, the element might not be shown yet. In that case, simply show the last name 
+            if (!el){
+                return startgroup.athleteName;
+            }
+
+            // store the overflow-style, then set it to hidden
+            let overflowBefore = el.style.overflow;
+            let innerTextBefore = el.innerText;
+            if ( !overflowBefore || overflowBefore === "visible" ){
+                el.style.overflow = "hidden";
+            }
+
+            // first try firstname / lastname
+            el.innerText = `${pretext}${startgroup.athleteForename} ${startgroup.athleteName}`;
+            if (el.clientWidth >= el.scrollWidth){
+                el.style.overflow = overflowBefore;
+                //el.innerText = innerTextBefore;
+                return el.innerText;
+            }
+
+            // fn. / lastname
+            el.innerText = `${pretext}${startgroup.athleteForename[0]}. ${startgroup.athleteName}`;
+            if (el.clientWidth >= el.scrollWidth){
+                el.style.overflow = overflowBefore;
+                //el.innerText = innerTextBefore;
+                return el.innerText;
+            }
+
+            el.style.overflow = overflowBefore;
+            //el.innerText = innerTextBefore;
+
+            // if both did nto fit, return just the lastname
+            return `${pretext}${startgroup.athleteName}`
+        },
+        rankLocalizer(rank, lang='en'){
+            // return the rank as a localized string, e.g. 
+            // en: 1st, 2nd, 3rd, 4th, ...
+            // de: 1., 2., 3., ...
+            if (lang=='de'){
+                return `${rank}.`
+            }else {
+                // english is the default
+                if (rank==1){
+                    return '1st';
+                }else if (rank==2){
+                    return '2nd';
+                } else if (rank==3){
+                    return '3rd';
+                } else {
+                    return `${rank}th`;
+                }
+            }
+        },
+        getLastResults(numRes=2){
+            // get the specified number of results 
+        },
+        saveDateUtc(series, evt){
+            series.datetime = new Date(evt.srcElement.value).toISOString();
+        },
+        formatInputDate(date){
+            // date can be of type date or a datestring
+            // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+            let s = "";
+            let d = new Date(date); // doesnt change anything is date is already a date
+            s += d.getFullYear();
+            s += "-" + (d.getMonth()+1).toString().padStart(2,0);
+            s += "-" + d.getDate().toString().padStart(2,0);
+            s += "T" + d.getHours().toString().padStart(2,0);
+            s += ":" + d.getMinutes().toString().padStart(2,0);
+            return s;
+        },
+        seriesOfficial(){
+            // set all heats official
+            rCTrack.room.allSeriesStatusInit(70);
+        },
+        /**
+         * format the given integer-value for the presentation to the user
+         * @param {integer} value The integer value to format
+         **/
+        formatValue(value){
+            return window.disciplineFormatters[this.discipline.type](value, this.discipline, true, true); // including milliseconds
+        },
+
+        validateInput(value){
+            return window.validatePerformance(value, this.discipline);
+        },
+        rankChanged(ssr){
+            rCTrack.room.updateResultInitRank(ssr.xSeries, ssr.xSeriesStart, ssr.resultstrack.rank);
+        },
+        checkInput(ssrCopy, applyChange=false){
+            // check whether the made string input is realistic
+            // only initiate a value change when applyChange=true
+
+            
+            // get the discipline first
+            let disc = this.discipline;
+
+            let validity = this.validateInput(ssrCopy.resultStr, disc)
+            //validity={valid, value, modified, realistic}
+
+            ssrCopy.resultValid = validity.valid && validity.realistic;
+
+            if (applyChange){
+                // we do nto need to set the new value as formatted string, since this will be done automatically after we change the data in the main series object in the room, since it is a compited property
+                // call the change function on the room
+                if (validity.valid){
+                    // differentiate add or update
+                    if (ssrCopy.resultstrack){
+                        // there is already a result; update it
+                        rCTrack.room.updateResultInitTime(ssrCopy.xSeries, ssrCopy.xSeriesStart, validity.value)
+                    } else {
+                        // add the result
+                        rCTrack.room.addResultInit(ssrCopy.xSeries, ssrCopy.xSeriesStart, validity.value)
+                    }
+
+                } else if (ssrCopy.resultStr == ''){
+                    // delete the result
+                    rCTrack.room.deleteResultInit(ssrCopy.xSeries, ssrCopy.xSeriesStart);
+
+                } else {
+                    // show a warning that the change cannot be processed since the input is invalid
+                    // TODO
+                }
+
+            } 
+            // do not use the html validation here
+            /*if (validity.valid){
+                element.setCustomValidity('');
+            } else {
+                element.setCustomValidity('<%= __("The value is invalid.") %>')
+                element.reportValidity();
+            }*/
+
+            
+        },
+    },
+    watch:{
+        series: {
+            handler:function(seriesNew, seriesOld){
+                // if the series-data is handed over initially, try to get the selected xSeries from the url get parameter.
+                if (seriesOld.length == 0){
+
+                    // get the selected series from the GET parameter
+                    let u = new URL(window.location.href);
+                    if (u.searchParams.has('xSeries')){
+                        let xSeries = Number(u.searchParams.get('xSeries'))
+
+                        // get the index of the respective series
+                        let ind = this.series.findIndex(s=>s.xSeries==xSeries);
+                        if (ind>=0){
+                            this.selectedSeries = ind;
+                        }
+                    }
+
+                }
+
+                if (seriesOld.length == 0){
+                    // no series before; this of course also occurs when the series are initially defined, but this should still be fine
+                    this.showAuto();
+                }
+
+            },
+            deep:true, // this will increase the computational load, I know... but I see no other solution
+        },
+        // TODO: to be adapted for the startTime
+        'roomAuxDataSelected.periodStartTime': function(newTime, oldTime){
+            //this.timeManager();
+        },
+
+        selectedXSeries: function(newXSeries, oldXSeries){
+            //this.timeManager();
+        },
+        contestWatching: {
+            // we cannot directly watch contest, because if the changes were within the object, the oldContestObj would reference the same as newContestObj. However, the contestWatching property is always a new copy and thus new and old should be correct
+            // (The alternative would be to have watchers for each property that might change, e.g. 'contest.status', ...)
+
+            // this is how we watch changes not only of the property "contest", but of all the properties within it:
+            deep:true,
+            handler: function(newContestObj, oldContestObj){
+                // harmonized over all changes on the contest properties
+                // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
+                // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.
+
+                if (this.propagateChange){
+                    rCTrack.room.updateContest2Init(newContestObj, oldContestObj);
+                    this.propagateChange = false;
+                }
+            }
+        },
+    },
+    computed:{
+        
+        /* !!! properties for SERIES CREATION and COMPETITION !!! */
+
+        maxDateTime: function(){
+            return `${this.meeting.dateTo.slice(0,10)}T23:59`;
+        },
+        minDateTime: function(){
+            return `${this.meeting.dateFrom.slice(0,10)}T00:00`;
+        },
+
+        defaultSite: function(){
+            return this.sites.find(s=>s.type==0);
+        },
+        defaultSiteConf: function(){
+            if (this.defaultSite){
+                try{
+                    const conf = JSON.parse(this.defaultSite.conf);
+                    return conf;
+                }catch(ex){
+                    logger.log(10, 'The site configuration object is not a valid JSON.')
+                }
+            }
+        },
+        trackSites: function(){
+            return this.sites.filter(s=>s.type==0);
+        },
+        
+        roomAuxDataSelected: function(){
+            return this.roomAuxData[this.selectedXSeries];
+        },
+
+        urlFieldMonitor: function(){
+            // the url of the field monitor for the selected series
+            return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/trackBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
+        },
+
+        contestWatching: function(){
+            // create a copy of the contest object to make sure that newContestObj and oldContestObj in the contest(Watching)-watcher are truly the old and new object, and not the same. 
+            return JSON.parse(JSON.stringify(this.contest));
+        },
+        conf: function(){
+            return this.parseConf(this.contest.conf);
+        },
+        filters: function(){
+            // create a custom filter for everything that filters by name, first name and bib at the same time. (club would be nice, but is not possible with the builtin-filters, since the club would have to be part of the object structure, but only the xClub is, but not the clubs and its name.) 
+            
+            // split the input string by whitespace
+            let filterWords = this.filterAthletes.split(" ");
+
+            // every word may be part of every of the four columns
+            let filter = {};
+            let i=1;
+            for (let filterWord of filterWords){
+                filter["filter" + i] = {keys:['athleteName', 'athleteForename', 'bib', 'sex, clubName', 'country'], value:filterWord} //
+                i += 1;
+            }
+            return filter;
+
+        },
+
+        overall: function(){
+            // create an overall list with results:
+            // there are two approaches: 
+            // 1) start with a copy of all startgroups, filter startgroups without a seriesstartresult (complicated) and add this result
+            // 2) loop over all heats and add the persons to a new array --> probably the easier approach and can be done on the already copied data in seriesAsStartgroups
+            // --> use approach 2
+
+            // data structure: we simply add the ssr from seriesAsStartgroups, since this contains all infos in one or the other way
+
+            let overall = [];
+
+            for (let s of this.seriesAsStartgroups){
+                for (let ssr of s.SSRs){
+                    if (ssr.startsingroup !==null){
+                        overall.push(ssr)
+                    }
+                }
+            }
+
+            // sort by result-time
+            overall.sort((a,b)=>{
+
+                // not started persons are shown at the end
+
+                // first check if there are results
+                if (a.resultstrack === null && b.resultstrack === null){
+                    return 0
+                } else if (a.resultstrack === null){
+                    return 1
+                } else if (b.resultstrack === null){
+                    return -1
+                } else {
+                    // compare the results
+                    // first, check the results overrule
+                    // the resultsOverrule are sorted; the higher the more in the back it must be shown.
+                    if (b.resultOverrule != a.resultOverrule){
+                        return a.resultOverrule - b.resultOverrule;
+                    }
+
+                    // now, in fact compare results:
+                    return a.resultstrack.time - b.resultstrack.time
+
+                    // TODO: add the sorting also in seriesAsStartgroups
+                }
+
+            });
+
+            // add the rank
+            let lastRank = 0;
+            let lastResult = 0;
+            for (let i=0; i<overall.length; i++){
+                if (overall[i].resultstrack !==null){
+                    // NOTE: we only consider the time; the ranking within one heat is not considered for the overlal view.
+                    if (overall[i].resultstrack.timeRounded>lastResult){
+                        overall[i].rankOverall = i+1;
+                        lastRank = i+1;
+                        lastResult = overall[i].resultstrack.timeRounded;
+                    } else {
+                        overall[i].rankOverall = lastRank;
+                    }
+                    // sort rank is equal to rank
+                    overall[i].sortRankOverall = lastRank;
+                } else {
+                    overall[i].sortRankOverall = 999999 + overall[i].resultsOverrule;
+                    overall[i].rankOverall = '';
+                }
+            }
+
+            return overall;
+
+        },
+
+        seriesAsStartgroups: function(){
+            // "copy" the series and its seriesstartsresults (as startgroup)
+
+            // TODO: eventually we need to make sure that the data is only recomputed when there is no change on results ongoing; otherwise it would happen that the present change is deleted. This might happen regularly, e.g. when another client changes data or when the timing sends new results!
+
+            // for the backgroundbar, find the min/max times overall and within each series
+            let overallMin = Infinity;
+            let overallMax = -Infinity;
+            let seriesMinMax = [];
+            for (let i=0;i<this.series.length; i++){
+                let seriesMin = Infinity;
+                let seriesMax = -Infinity;
+                this.series[i].seriesstartsresults.forEach(ssr=>{
+                    if (ssr.resultstrack){
+                        overallMax = ssr.resultstrack.timeRounded>overallMax ? ssr.resultstrack.timeRounded : overallMax;
+                        overallMin = ssr.resultstrack.timeRounded<overallMin ? ssr.resultstrack.timeRounded : overallMin;
+                        seriesMax = ssr.resultstrack.timeRounded>seriesMax ? ssr.resultstrack.timeRounded : seriesMax;
+                        seriesMin = ssr.resultstrack.timeRounded<seriesMin ? ssr.resultstrack.timeRounded : seriesMin;
+                    }
+                })
+                if (seriesMin != Infinity){
+                    seriesMinMax.push([seriesMin, seriesMax]);
+                } else {
+                    seriesMinMax.push([1,1]);
+                }
+            }
+
+
+            let seriesAsStartgroups = [];
+            for (let i=0;i<this.series.length; i++){
+
+                let series = this.series[i];
+                
+                // add the other data of the series, for informational purposes only! A change to those is useless.
+                // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
+                let seriesCopy = {};
+                propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
+
+                // get the startgroup for every seriesstartsresult
+                let SSRs = [];
+                series.seriesstartsresults.forEach(ssr=>{
+                    // create a copy of the ssr
+                    let ssrCopy = {}; 
+                    propertyTransfer(ssr, ssrCopy);
+                    // find the startgroup for the respective seriesstartsresult and add it to the list
+                    let startgroup = this.startgroups.find(SG=>SG.xStartgroup == ssr.xStartgroup)
+                    if (startgroup){
+                        ssrCopy.startsingroup = startgroup;
+                        ssrCopy.ssrOriginal = ssr;
+                    } else {
+                        console.log('Error: could not find xStartgroup of an assigned athlete. This data inconsistency should not occure. Try to fully reload the auxilary data.')
+                    }
+                    // separate variables for showing the result
+                    if (ssrCopy.resultstrack){
+                        let val = this.validateInput(ssrCopy.resultstrack.time)
+                        ssrCopy.resultValid = val.valid && val.realistic; //validity={valid, value, modified, realistic}
+                        
+                        // create an array with all possible ranks
+                        let equalSsrs = series.seriesstartsresults.filter(ssr3=> ssr3.resultstrack !== null && ssr3.resultstrack.timeRounded == ssrCopy.resultstrack.timeRounded).map(el=>el.resultstrack.rank);
+                        let possibleRanks = [];
+                        let firstRank = Math.min( ...Array.from(equalSsrs.values()));
+                        for (let i=firstRank; i<firstRank+equalSsrs.length; i++){
+                            possibleRanks.push(i);
+                        }
+
+                        // format reaction time
+                        ssrCopy.reactionTimeStr = this.formatReactionTime(ssrCopy.resultstrack.reactionTime);
+
+                        ssrCopy.possibleRanks = possibleRanks;
+
+                        // needed for sorting in v-table, where the sortproperties must exist, which is not necessarily the case
+                        ssrCopy.sortRank = ssrCopy.resultstrack.rank;
+                        ssrCopy.sortReactionTime = ssrCopy.resultstrack.reactionTime;
+
+                        // values for the background bars
+                        ssrCopy.barValAll = 1-(ssrCopy.resultstrack.timeRounded - overallMin)/(overallMax - overallMin);
+                        ssrCopy.barValHeat = 1-(ssrCopy.resultstrack.timeRounded - seriesMinMax[i][0])/(seriesMinMax[i][1] - seriesMinMax[i][0]);
+                        
+                    } else {
+                        ssrCopy.resultValid = false;
+                        ssrCopy.possibleRanks = []
+                        ssrCopy.reactionTimeStr = '';
+                        // TODO: eventually there is a certain sort needed here as well, e.g. DNF before DNS, ...
+                        ssrCopy.sortRank = 999999;
+                        ssrCopy.sortReactionTime = 999999;
+
+                        ssrCopy.barValAll = 0;
+                        ssrCopy.barValHeat = 0;
+                    }
+                    
+                    ssrCopy.resultStr = this.formatValue(ssrCopy.resultstrack?.time)
+
+                    // reference the original (!) 'parent'; avoids that xSeries has to be defined to be used in "changePosition"
+                    ssrCopy.series = seriesCopy;
+                    ssrCopy.seriesOriginal = series;
+
+                    SSRs.push(ssrCopy)
+                })
+                
+                seriesCopy.SSRs= SSRs;
+                seriesCopy.seriesOriginal = series;
+                seriesAsStartgroups.push(seriesCopy);
+            }
+
+            // sort the series
+            seriesAsStartgroups.sort((a,b)=>{
+                return a.number-b.number;
+            })
+            // sort the seriesstartsresults
+            seriesAsStartgroups.forEach(series=>{
+                series.SSRs.sort((a,b)=>{
+                    return a.position-b.position;
+                })
+            })
+            // add posInLane and lane (to make updateEmptyLane to work)
+            seriesAsStartgroups.forEach(series=>{
+                let lastLane = 0;
+                let lastPosInLane = 0;
+                series.SSRs.forEach(SSR=>{
+                    SSR.lane = SSR.startConf;
+                    if (SSR.lane == lastLane){
+                        SSR.posInLane = ++lastPosInLane;
+                    } else {
+                        SSR.posInLane = 1;
+                        lastPosInLane = 1;
+                    }
+                    lastLane = SSR.lane;
+                })
+            })
+
+            this.updateEmptyInitLanes(seriesAsStartgroups);
+
+            return seriesAsStartgroups;
+        },
+
+
+        /* !!! properties for SERIES CREATION only !!! */
+
+        // to move around the atheletes e.g. from non-assigned to series we have to work on the startgroups. Create an array with all unassigned startgroups (unassignedAthletes) and one for every series with the same info (seriesAsStartgroups). 
+
+        unassignedAthletes: function(){
+            // create an array of all unassigned athletes, including those with present=false
+            // first copy the full list of startsingroups
+            let unassignedAthletes = this.startgroups.slice(); //map(el=>el.xStartgroup);
+
+            // remove all entries which are references in a series
+            for (let i=0; i<this.series.length; i++){
+                this.series[i].seriesstartsresults.forEach((el, seriesIndex)=>{
+                    let ind = unassignedAthletes.findIndex(el2=> el.xStartgroup==el2.xStartgroup);
+                    if (ind<0){
+                        console.log('Error: could not find xStartgroup of an assigned athlete. This data inconsistency should not occure. Try to fully reload the auxilary data.')
+                    } else {
+                        // remove the startgroups
+                        unassignedAthletes.splice(ind,1);
+                    }
+                })
+            }
+            return unassignedAthletes;
+        },
+
+        seriesAssignments: function(){
+            // filter all series assignments to show only track (ytype==3) assignements
+            return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(3)>=0);
+        },
+        
+        seriesAssignmentOverlay: function(){
+            // show the configuration of the currently selected series assignment algorithm
+            return this.seriesAssignments[this.selectedSeriesAssignment].overlayName;
+        },
+
+        /* !!! properties for COMPETITION only !!! */
+
+        auxData: function(){
+            // change the xStartgroup array to an object with objects, where xStartgroup is the key
+            let auxData = {};
+            auxData.xStartgroup = {};
+            this.startgroups.forEach(el=>{
+                auxData.xStartgroup[el.xStartgroup]=el;
+            })
+            return auxData;
+        },
+        sortedStarts1: function(){
+            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
+            // TODO
+            //return this.series[this.selectedSeries].seriesstartsresults;
+
+            // we cannot just sort the seriesstartsresults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
+
+            // create an array with all array-indexes (0 to length-1) of the seriesstartsresults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
+            let order = Array(this.series[this.selectedSeries].seriesstartsresults.length).fill(undefined).map(function (x, i) { return i; })
+
+            let compareFn = (a,b)=>{a-b} // fallback
+            if (this.sortValue1 == 1){
+                // default sequence
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    return A.position - B.position
+                }
+            } else if (this.sortValue1 == 2){
+                // sort by rank
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let rA = this.tempRankingData[A.xSeriesStart].rank;
+                    let rB = this.tempRankingData[B.xSeriesStart].rank;
+                    if (rA==0 && rB==0){
+                        // both have no rank yet: sort by default order
+                        return A.position - B.position;
+                    } else if (rA==0){
+                        // A must be lower than B
+                        return 1;
+                    } else if (rB==0){
+                        // B must be lower than A
+                        return -1;
+                    } else {
+                        // sort by rank
+                        return rA-rB;
+                    }
+                }
+            } else if (this.sortValue1 == 3){
+                // sort by name
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
+                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
+
+                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
+                }
+            } else if (this.sortValue1 == 4){
+                // sort by bib
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
+                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
+                    
+                    return auxA.bib - auxB.bib;
+                }
+            }
+            order.sort(compareFn);
+
+            return order;
+
+        },
+        sortedStarts2: function(){
+            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
+
+            // we cannot just sort the seriesstartsresults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
+
+            // create an array with all array-indexes (0 to length-1) of the seriesstartsresults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
+            let order = Array(this.series[this.selectedSeries].seriesstartsresults.length).fill(undefined).map(function (x, i) { return i; })
+
+            let compareFn = (a,b)=>{a-b} // fallback
+            if (this.sortValue2 == 1){
+                // default sequence
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    return A.position - B.position
+                }
+            } else if (this.sortValue2 == 2){
+                // sort by rank
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let rA = this.tempRankingData[A.xSeriesStart].rank;
+                    let rB = this.tempRankingData[B.xSeriesStart].rank;
+                    if (rA==0 && rB==0){
+                        // both have no rank yet: sort by default order
+                        return A.position - B.position;
+                    } else if (rA==0){
+                        // A must be lower than B
+                        return 1;
+                    } else if (rB==0){
+                        // B must be lower than A
+                        return -1;
+                    } else {
+                        // sort by rank
+                        return rA-rB;
+                    }
+                }
+            } else if (this.sortValue2 == 3){
+                // sort by name
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
+                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
+
+                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
+                }
+            } else if (this.sortValue2 == 4){
+                // sort by bib
+                compareFn = (a, b)=>{
+                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
+                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
+                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
+                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
+                    
+                    return auxA.bib - auxB.bib;
+                }
+            }
+            order.sort(compareFn);
+
+            return order;
+
+        },
+        disciplineConfiguration: function(){
+            // get the first discipline with matching baseDiscipline and parse its configuration
+            let d = this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
+            if (!d){
+                return {startInLanes:true, groupSize:1, distance: 0, wind:true, straight:true};
+            } else {
+                let o = JSON.parse(d.baseConfiguration);
+                // avoid problems when the definition was not right in the DB
+                o.startInLanes = o.startInLanes ?? true;
+                o.crouchStart = o.crouchStart ?? true;
+                o.groupSize = o.groupSize ?? 1;
+                o.distance = o.distance ?? 0;
+                o.wind = o.wind ?? true;
+                o.straight = o.straight ?? true;
+                o.heatInterval = o.heatInterval ?? 60; // 60 s
+                return o;
+            }
+        },
+        discipline: function(){
+            return this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
+        }, 
+
+    },
+    beforeMount(){
+        // work on data before it is showed the first time
+        // moved to when the data arrives
+/*                this.createAllHeights();
+        this.evaluateHeightDeletable();*/
+    },
+    mounted:function(){
+        // initialize all series assignments
+        this.seriesAssignments.forEach((SA)=>{
+            SA.initFunc.bind(this)();
+        })
+
+        // regularly update the shown time
+        this.timeInterval = setInterval(()=>{
+            const t = new Date();
+            this.timeHours = t.getHours().toString().padStart(2,0);
+            this.timeSeconds = t.getSeconds().toString().padStart(2,0);
+            this.timeMinutes = t.getMinutes().toString().padStart(2,0);
+            this.timeOdd = t.getMilliseconds() < 500;
+        }, 100); // 10 times per second
+        
+    },
+    components:{
+        'draggable': vuedraggable,
+        'v-table':VTable,
+        'v-th': VTh,
+        'v-tr':VTr,
+    },
+
+}
+
+//export default cLRtrack;

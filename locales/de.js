@@ -575,7 +575,7 @@
 	"Evaluated time of a person": "Evaluated time of a person",
 	"Evaluated times of a full heat": "Evaluated times of a full heat",
 	"Reaction times": "Reaction times",
-	"Result": "Result",
+	"Result": "Resultat",
 	"Modify event": "Modify event",
 	"Site server": "Site server",
 	"Site server connection": "Site server connection",

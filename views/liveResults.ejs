@@ -25,6 +25,15 @@ for contest in selectedContests:
 -->
 
 <script src="/static/vuContestTechHigh.js"></script>
+<script src="/static/vuContestTrack.js"></script>
+<script type="module">
+    // include stuff which is in a module; add it to window, so that it can be used 
+    import {formatCountryRegion, disciplineFormatters, validatePerformance} from '/static/performanceProcessing.js';
+    window.formatCountryRegion = formatCountryRegion;
+    window.disciplineFormatters = disciplineFormatters;
+    window.validatePerformance = validatePerformance;
+
+</script>
 <script>
 
     class vuContestsOverview_LR extends roomClientVue{
@@ -67,6 +76,7 @@ for contest in selectedContests:
     }
 
     //<%- include('cLRtechHigh.ejs') %>
+    //<%- include('cLRtrack.ejs') %>
 
     var vueLiveResults;
     // add _LR (liveresults) to make this global property unique! (important for prelaoding reasons)
@@ -210,10 +220,11 @@ for contest in selectedContests:
                         // create the room
                         room = {
                             data:{},
-                            room,
+                            room:null, 
                         };
 
                         if (this.contestType(co)==1){
+                            // tech high discipline
                             // we need to initialize the data object here in order not to get any errors
                             room.data = {
                                 contest:{}, 
@@ -231,6 +242,22 @@ for contest in selectedContests:
 
                             this.contestRooms[co.xContest].room = new vuContestTechHigh(this.contestRooms[co.xContest].data, ms, co.xContest, false);
 
+                        } else if (this.contestType(co)==3) {
+                            // track disciplines
+                            room.data = {
+                                //auxData:{},
+                                categories:[],
+                                contest:{},
+                                disciplines:[],
+                                meeting:{},
+                                relatedGroups:[],
+                                series:[],
+                                startgroups:[],
+                            }
+                            // we must create the reactive object here and then only reference the reactive property and not the original object since room!= this.contestRooms[co.xContest]
+                            this.contestRooms[co.xContest] = room;
+
+                            this.contestRooms[co.xContest].room = new vuContestTrack(this.contestRooms[co.xContest].data, ms, co.xContest, false);
                         } else {
                             // cannot handle this kind of discipline currently.
                             alert(`There are no liveResults for this discipline (${co.xBaseDiscipline}) yet.`);
@@ -361,6 +388,7 @@ for contest in selectedContests:
                 'v-th': VTh,
                 'v-tr':VTr,
                 'techHighLive':cLRtechHigh,
+                'trackLive': cLRtrack,
             }
         }
 
@@ -452,10 +480,12 @@ for contest in selectedContests:
                 <tech-high-live :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups" :related-groups="contestRooms[co.xContest].data.relatedGroups" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :categories="contestRooms[co.xContest].data.categories" :room-aux-data="contestRooms[co.xContest].data.roomAuxData" :contest="contestRooms[co.xContest].data.contest" :read-only="true">
                 </tech-high-live>
             </template>
+            <template v-if="contestType(co)==3">
+                <track-live :categories="contestRooms[co.xContest].data.categories" :contest="contestRooms[co.xContest].data.contest" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :related-groups="contestRooms[co.xContest].data.relatedGroups" :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups"   :read-only="true">
+                </track-live>
+            </template>
         </div>
     </div>
-    
-
     
 
     <!--<techHighLive :series="contestDataTest.series" :startgroups="contestDataTest.startgroups" :related-groups="contestDataTest.relatedGroups" :disciplines="contestDataTest.disciplines" :meeting="contestDataTest.meeting" :categories="contestDataTest.categories" :room-aux-data="contestDataTest.roomAuxData" :contest="contestDataTest.contest" :read-only="true">
