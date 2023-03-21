@@ -1,6 +1,102 @@
 
 // define the methods for rSiteTrackClient here, and use them as a mixin for rSiteTrackClient (browser) and rSiteTrackClientForTiming (server)
 export default {
+
+    addUpdateResultExe: function(data){
+        // data contains: xContest, xSeries, xSeriesStart, result
+        // add or update a single result
+
+        // get the contest
+        let c = this.data.contests.find(contest=>contest.xContest == data.xContest);
+        if (!c){
+            throw {code:21, message: `Could not find the contest with xContest=${data.xContest}.`}
+        }
+
+        // partially copied form rContestTrack
+        // try to get the respecitve series, ssr, result
+        let s = c.series.find(s=>s.xSeries==data.xSeries);
+        if (!s){
+            throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
+        }
+
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
+        if (!ssr){
+            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
+        }
+
+        let rankBefore;
+        if (ssr.resultstrack===null){
+            // add result
+            ssr.resultstrack = data.result;
+
+            rankBefore = Infinity;
+        } else {
+            // update result
+            rankBefore = ssr.resultstrack.rank;
+            ssr.resultstrack = data.result;
+        }
+
+        // if the rank is changed, update the necessary other ranks
+        // what cases are possible and are they handled well?:
+        // - regular time changes, where obviously the rank might change as well
+        // - equal times, different rank to same (better) rank
+        // - equal times, equal rank to worse rank.
+        // if the better ranked result of two results with equal time is ranked down, then the other MUST be rnaked better. Otherwise we could end up having 1st, and twice third. However, the opposite way around is not true. 
+        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
+        for (let ssr2 of currentResults){
+            if (ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.rank >= data.result.rank){
+                // the rank of the changed result was lowered
+                // if the rounded times are equal, we assume that having equal ranks is expected and no change is needed; otherwise, increase the rank
+                // NOTE: currently we do no checks if the rank is realistic based on the times.
+                if (ssr.resultstrack.timeRounded != ssr2.resultstrack.timeRounded || ssr2.resultstrack.rank != data.result.rank){ // NOTE: the last condition is needed in cases where >2 persons have the same time and the person of rank 3 is moved to 1 (together with the person that is already on 1; then, rank 2 must be increased to 3) 
+                    ssr2.resultstrack.rank++;
+                }
+            } else if (ssr2.resultstrack.rank > rankBefore && ssr2.resultstrack.rank <= data.result.rank){
+                // the rank of the changed result was increased
+                ssr2.resultstrack.rank--;
+            }
+        }
+
+    },
+
+    deleteResultExe: function(data){
+        // data contains: xContest, xSeries, xSeriesStart
+
+        // get the contest
+        let c = this.data.contests.find(contest=>contest.xContest == data.xContest);
+        if (!c){
+            throw {code:21, message: `Could not find the contest with xContest=${data.xContest}.`}
+        }
+
+        // try to get the respecitve series, ssr, result
+        let s = c.series.find(s=>s.xSeries==data.xSeries);
+        if (!s){
+            throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
+        }
+
+        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
+        if (!ssr){
+            throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
+        }
+
+        let rankDeleted = ssr.resultstrack.rank;
+
+        // remove locally
+        ssr.resultstrack=null; 
+
+        // decrease the rank of all other SSRs in the same heat
+        for (let ssr2 of s.seriesstartsresults){
+            if (ssr2.resultstrack !== null){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                }
+            }
+        }
+
+    },
+
+    // TODO: add all other result-functions here
+
     changeContestExe: function(contest){
         // search the contest first
         const ic = this.data.contests.findIndex(c=>c.xContest==contest.xContest);

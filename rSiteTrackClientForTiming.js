@@ -29,6 +29,9 @@ class rSiteTrackClientForTiming extends roomClient{
         this._addFunction('deleteSeries', this.deleteSeriesExe);
         this._addFunction('changeSeries', this.changeSeriesExe);
         this._addFunction('changeContest', this.changeContestExe);
+
+        this._addFunction('addUpdateResult', this.addUpdateResultExe);
+        this._addFunction('deleteResult', this.deleteResultExe);
     }
 
     /**
@@ -64,6 +67,24 @@ class rSiteTrackClientForTiming extends roomClient{
     finish(inofficialTime){
         // send note to rSite
         // TODO
+    }
+
+    addUpdateResultExe(data){
+        // first, process the change regularly
+        this.addUpdateResultExe2(data);
+
+        // then, notify the clients of the timing about the change
+        this.rTiming.relaySiteChange('addUpdateResult', data);
+
+    }
+    
+    deleteResultExe(data){
+        // first, process the change regularly
+        this.deleteResult2(data);
+
+        // then, notify the clients of the timing about the change
+        this.rTiming.relaySiteChange('deleteResult', data);
+
     }
 
     // override all exe-functions in rSiteTrackClient in order to be able to react to those events:

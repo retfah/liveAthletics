@@ -842,8 +842,6 @@ class rContestTrack extends roomServer{
         }*/
     }
 
-    // TODO: add single series, delete single series.
-
     async updateAuxData(data){
         if (!this.validateAuxData(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateAuxData.errors)}
@@ -996,6 +994,11 @@ class rContestTrack extends roomServer{
             }
         }
 
+        // notify the site
+        if (series.xSite != null){
+            this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:resultDeleted`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.xSeriesStart})
+        }
+
         let ret = {
             isAchange: true, 
             doObj: {funcName: 'deleteResult', data: data},
@@ -1053,6 +1056,11 @@ class rContestTrack extends roomServer{
             }
         }
 
+        // notify the site
+        if (series.xSite != null){
+            this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:resultChanged`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.xSeriesStart, result: resultData})
+        }
+
         let res = {
             xSeries: data.xSeries, 
             result: newRes.get({plain:true})
@@ -1093,7 +1101,7 @@ class rContestTrack extends roomServer{
         let rankBefore = ssr.resultstrack.rank;
 
         // update the result
-        await ssr.resultstrack.update(data.result).catch(err=>{throw {code: 25, message: `heightresult could not be updated: ${err}`}})
+        await ssr.resultstrack.update(data.result).catch(err=>{throw {code: 25, message: `track result could not be updated: ${err}`}})
 
         // if the rank is changed, update the necessary other ranks
         // what cases are possible and are they handled well?:
@@ -1116,6 +1124,11 @@ class rContestTrack extends roomServer{
                 ssr2.resultstrack.rank--;
                 await ssr2.resultstrack.save().catch(err=>{throw{code: 25, message: `Could not store the changed rank of xSeriesStart ${ssr2.xSeriesStart} due to ${err}`}});
             }
+        }
+
+        // notify the site
+        if (s.xSite != null){
+            this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:resultChanged`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.result.xResultTrack, result: ssr.resultstrack.get({plain:true})})
         }
 
         let ret = {

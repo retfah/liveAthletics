@@ -29,6 +29,9 @@ export class rSiteTrackClient extends roomClient{
         this._addFunction('deleteSeries', this.deleteSeriesExe);
         this._addFunction('changeSeries', this.changeSeriesExe);
         this._addFunction('changeContest', this.changeContestExe);
+
+        this._addFunction('addUpdateResult', this.addUpdateResultExe);
+        this._addFunction('deleteResult', this.deleteResultExe);
     }
 
     
