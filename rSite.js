@@ -232,7 +232,7 @@ export class rSiteTrack extends rSite{
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
+        let ssr = s.SSRs.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
         if (!ssr){
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
         }
@@ -255,7 +255,7 @@ export class rSiteTrack extends rSite{
         // - equal times, different rank to same (better) rank
         // - equal times, equal rank to worse rank.
         // if the better ranked result of two results with equal time is ranked down, then the other MUST be rnaked better. Otherwise we could end up having 1st, and twice third. However, the opposite way around is not true. 
-        let currentResults = s.seriesstartsresults.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
+        let currentResults = s.SSRs.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != data.result.xResultTrack);
         for (let ssr2 of currentResults){
             if (ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.rank >= data.result.rank){
                 // the rank of the changed result was lowered
@@ -310,7 +310,7 @@ export class rSiteTrack extends rSite{
             throw {code:22, message: `Could not find the series with xSeries=${data.xSeries}.`}
         }
 
-        let ssr = s.seriesstartsresults.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
+        let ssr = s.SSRs.find(ssr=>ssr.xSeriesStart == data.xSeriesStart);
         if (!ssr){
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
         }
@@ -321,7 +321,7 @@ export class rSiteTrack extends rSite{
         ssr.resultstrack=null; 
 
         // decrease the rank of all other SSRs in the same heat
-        for (let ssr2 of s.seriesstartsresults){
+        for (let ssr2 of s.SSRs){
             if (ssr2.resultstrack !== null){
                 if (ssr2.resultstrack.rank > rankDeleted){
                     ssr2.resultstrack.rank--;

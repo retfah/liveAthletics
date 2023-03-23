@@ -995,7 +995,7 @@ class rContestTrack extends roomServer{
         }
 
         // notify the site
-        if (series.xSite != null){
+        if (s.xSite != null){
             this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:resultDeleted`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.xSeriesStart})
         }
 
@@ -1058,7 +1058,7 @@ class rContestTrack extends roomServer{
 
         // notify the site
         if (series.xSite != null){
-            this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:resultChanged`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.xSeriesStart, result: resultData})
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:resultChanged`, {xContest: this.contest.xContest, xSeries: data.xSeries, xSeriesStart:data.xSeriesStart, result: resultData})
         }
 
         let res = {
