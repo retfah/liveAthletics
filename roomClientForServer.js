@@ -577,16 +577,25 @@ export default class roomClient {
             // call the function
             // broadcasted changes without a new ID (typically for non-important aux data) have ID=null 
             if (this.ID!=change.ID || change.ID==null){
-                this.functions[change.funcName](change.data, change.ID);
-                // change the current ID
-                if (change.ID!=null){
-                    this.ID = change.ID;
-                }
-                // notify the room manager about the changed data
-                this.eH.raise('roomInfoChange', this);
+                // on the server we need to make sure that we do not have an error, since it would crash the whole program
+                try{
+                    this.functions[change.funcName](change.data, change.ID);
+                    // change the current ID
+                    if (change.ID!=null){
+                        this.ID = change.ID;
+                    }
+                    // notify the room manager about the changed data
+                    this.eH.raise('roomInfoChange', this);
 
-                // notify vue's
-                this.onChange();
+                    // notify vue's
+                    this.onChange();
+                } catch(err){
+                    this.logger.log(5, `Full reload done in room ${this.name} due to unexpected error while processing an incoming change (${JSON.stringify(change)}): ${err}.`);
+
+                    // full reload
+                    this.getFullData();
+                }
+
 
             } else {
                 this.logger.log(98, `Incoming change (${JSON.stringify(change)}) was applied already before (i.e. this.ID=change.ID). The incoming change is ignored.`)
