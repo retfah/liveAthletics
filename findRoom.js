@@ -84,8 +84,8 @@ export default async function findRoom(meetingAndRoomName, rMeetings, serverRoom
 export async function findSubroom(room, strSubrooms, logger={log:()=>{}}, awaitRoomReady=true){
     const subroom = room.getSubroom(strSubrooms); // return false on failure
     if (!subroom){
-        logger.log(75, 'The subroom "' + strSubrooms + '" does not exist in the respective meeting.');
-        throw {message:'The subroom "' + strSubrooms + '" does not exist in the respective meeting.', code:11} ;
+        logger.log(75, `The subroom " + ${strSubrooms} + " does not exist in ${room.name}.`);
+        throw {message:`The subroom " + ${strSubrooms} + " does not exist in ${room.name}.`, code:11} ;
     } else {
         if (awaitRoomReady){
             await subroom._roomReady();
