@@ -312,8 +312,9 @@ class roomClient {
                     // TODO: maybe let the inheriting class define a callback, that would be called now.
                     failure(msg, code);
                 }*/ else {
-                    this.logger.log(3, 'Connecting to room failed with the following code and message: ' + code + ": " + msg);
-                    failure('Connecting to room failed with the following code and message: ' + code + ": " + msg, code)
+                    let msg2 = `Connecting to room ${this.name} failed with the following code and message: ${code}: ${msg}`;
+                    this.logger.log(3, msg2);
+                    failure(msg2, code)
                 }
             });
         }
@@ -646,7 +647,7 @@ class roomClient {
      *          - (deleteContinue) delete from stack, send the next request on the stack; notify user (makes sense e.g. for any "opt.readOnly=true" request, or as an alternative method on connection loss, assuming the server already processed it; however, since the server would directly anywer with the response if the last request is sent again, resending is probably the better option.)
      *          - (deleteRollback) delete from stack and do full rollback (if other requests might be based on this one.)
      *          - (smartDelete): choose between deleteContinue and deleteRollback whether the request is independent of others or not 
-     *          - (user) specific function defined together with the request; additional parameter: function:()=>{}. The function will be bound to "this".
+     *          - (user) specific function defined together with the request; additional parameter: userFunc:(errCode, errMsg)=>{}. The function will be bound to "this".
      *    DEFAULT: [{rule:'sendAgain', from:1, to:1.5}, {rule:'sendAgain', from:3, to:3.5}, {rule:'sendAgainTimeout', from:2, to:2.5, timeout:requestTimeout?requestTimeout:10}, {rule:'smartDelete'}]
      * @param {any} info Some information about the change. Might be useful in the future, as soon as there is a conflict handling.   
      */
@@ -1223,9 +1224,9 @@ class roomClient {
                         }
                     } else {
                         // is it of the same type? otherwise reset the property in objTo
-                        if ((typeof(objTo[prop])!='object' || Array.isArray(objTo[prop])) && !Array.isArray(objFrom[prop])){
+                        if ((typeof(objTo[prop])!='object' || objTo[prop]===null || Array.isArray(objTo[prop])) && !Array.isArray(objFrom[prop])){
                             objTo[prop] = {};
-                        } else if ((typeof(objTo[prop])!='object' || !Array.isArray(objTo[prop])) && Array.isArray(objFrom[prop])){
+                        } else if ((typeof(objTo[prop])!='object' || objTo[prop]===null || !Array.isArray(objTo[prop])) && Array.isArray(objFrom[prop])){
                             objTo[prop] = [];
                         }
                     }

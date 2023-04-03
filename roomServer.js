@@ -1592,6 +1592,9 @@ class roomServer{
             // add all offline writing clients
             for (let sidHash in this.offlineWritingClients){
                 let client = this.offlineWritingClients[sidHash];
+                if (!client){
+                    console.log('why here?'); // this really heppened; but I dont know how this is possible.
+                }
                 this.infos.clients[sidHash] = {name:client.name, connected:false, writing:client.writing, sidHash:sidHash}
             }
         }
@@ -2801,8 +2804,11 @@ class roomServer{
             // copy the elements
             for (let i=0;i<objFrom.length;i++){
                 // pay attention to objects and arrays --> recursive calls needed
-                if (typeof(objFrom[i])=='object' && objFrom[i] !== null){
-                    if (typeof(objTo[i])!='object' || objTo[i] === null){ // null is an object, but we need to set ot to the correct type (array or object) for the next step
+                if (typeof(objFrom[i])=='object'){
+                    // since typeof(null)=object, we have to handle this separately here
+                    if (objTo[i]===null){
+                        objTo[i] = objFrom[i];
+                    } else if (typeof(objTo[i])!='object'){
                         // if this is not done here and if objTo[i] is just a property, the recursive call on propertyTransfer will not occur byReference, as it must be to work.
                         if (Array.isArray(objFrom[i])){
                             objTo[i] = [];
@@ -2810,6 +2816,7 @@ class roomServer{
                             objTo[i] = {};
                         }
                     } else {
+                        // typeof(null)=object; therefore
                         // is it of the same type? otherwise reset the element in objTo
                         if (Array.isArray(objTo[i]) && !Array.isArray(objFrom[i])){
                             objTo[i] = {};
@@ -2833,10 +2840,9 @@ class roomServer{
             // is a regular object
             // copy new to objTo
             for (let prop in objFrom){
-                // TODO: how to handle when objTo is null? Currently fails at 2842
-                if (typeof(objFrom[prop])=='object' && objFrom[prop] !== null){ // null interestingly is an object...
+                if (typeof(objFrom[prop])=='object' && objFrom[prop] != null){ // null interestingly is an object...
 
-                    if (objTo[prop] === null || !(prop in objTo)){
+                    if (!(prop in objTo)){
                         if (Array.isArray(objFrom[prop])){
                             objTo[prop] = [];
                         } else {
@@ -2844,9 +2850,9 @@ class roomServer{
                         }
                     } else {
                         // is it of the same type? otherwise reset the property in objTo
-                        if ((typeof(objTo[prop])!='object' || Array.isArray(objTo[prop])) && !Array.isArray(objFrom[prop])){
+                        if ((typeof(objTo[prop])!='object' || objTo[prop]===null || Array.isArray(objTo[prop])) && !Array.isArray(objFrom[prop])){
                             objTo[prop] = {};
-                        } else if ((typeof(objTo[prop])!='object' || !Array.isArray(objTo[prop])) && Array.isArray(objFrom[prop])){
+                        } else if ((typeof(objTo[prop])!='object' || objTo[prop]===null || !Array.isArray(objTo[prop])) && Array.isArray(objFrom[prop])){
                             objTo[prop] = [];
                         }
                     }
