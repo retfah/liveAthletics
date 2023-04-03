@@ -96,6 +96,9 @@ export default {
     },
 
     // TODO: add all other result-functions here
+    // addUpdateResultsHeat: used by timing to send results of full heat
+    // deleteResultsHeat
+    // addUpdateheatAux
 
     changeContestExe: function(contest){
         // search the contest first

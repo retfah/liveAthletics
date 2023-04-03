@@ -390,6 +390,7 @@ class rContestTrack extends roomServer{
         this.functionsWrite.allSeriesStatusChange = this.allSeriesStatusChange.bind(this);
 
         // define, compile and store the schemas:
+        // TODO: remove, since it is probably not needed for track. We store this information in MariaDB now!
         const schemaAuxDataPerSeries = {
             type:"object",
             properties:{
@@ -462,24 +463,32 @@ class rContestTrack extends roomServer{
             required:['time', 'timeRounded', 'rank', 'official'], // note: if there will be an addResult function, xResultTrack will be needed!
         }
 
+        const ssrProperties = {
+            xSeriesStart: {type:"integer"},
+            xStartgroup: {type:"integer"},
+            xSeries: {type:"integer"}, // reference to the respective series; must be equivalent to what is givne in the parent object, if handled like this
+            position: {type:"integer"},
+            resultOverrule: {type:"integer"},
+            resultRemark: {type:"string", maxLength:100},
+            resultstrack: {
+                type:["object", "null"], 
+                default:null,
+                properties:propsResultsTrack,
+                // probably it makes no sense to define a requirement here
+                additionalProperties: false,
+            }, // this default is needed to make sure that resultstrack is added to the returned object; otherwise, the object will not have tis property, evne if it is included in the model-includes!
+            qualification: {type:"integer"}, 
+            startConf: {type:["string", "integer"]}, // actually the length is limited to 65536 bytes, which means the same or less characters! This cannot be checked yet with JSON schema. Allow integers as well; they will be casted to string
+        };
+
         const schemaSeriesStartsResults = {
             type:"object",
-            properties:{
-                xSeriesStart: {type:"integer"},
-                xStartgroup: {type:"integer"},
-                xSeries: {type:"integer"}, // reference to the respective series; must be equivalent to what is givne in the parent object, if handled like this
-                position: {type:"integer"},
-                resultOverrule: {type:"integer"},
-                resultRemark: {type:"string", maxLength:100},
-                resultstrack: {type:["object", "null"], default:null}, // this default is needed to make sure that resultstrack is added to the returned object; otherwise, the object will not have tis property, evne if it is included in the model-includes!
-                qualification: {type:"integer"}, 
-                startConf: {type:["string", "integer"]}, // actually the length is limited to 65536 bytes, which means the same or less characters! This cannot be checked yet with JSON schema. Allow integers as well; they will be casted to string
-                //resultstrack: schemaResultsTrack, // do not allow to update resultstrack here; the code is better structured if the results add/update/delete are handled separately
-            },
+            properties:ssrProperties,
             required: ["xSeries", "xStartgroup", "position"],
             additionalProperties: false, 
         }
 
+        // do we still use this? Probably not
         const schemaSeriestrack = {
             type:["object", "null"], 
             properties:{
@@ -508,6 +517,7 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
+                aux: {type:"string"},
             },
             required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
@@ -526,9 +536,37 @@ class rContestTrack extends roomServer{
                 name: {type:"string", maxLength:50},
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
+                aux: {type:"string"},
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
+        }
+
+        const schemaAddUpdateResults = {
+            type:"object",
+            properties: {
+                xSeries: {type:"integer"}, 
+                xContest: {type:"integer"}, // MUST be the xContest of this room! To be checked!
+                xSite: {type: ["integer", "null"]},
+                status: {type:"integer"},
+                number: {type:"integer"},
+                seriestrack: schemaSeriestrack,
+                name: {type:"string", maxLength:50},
+                datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
+                seriesstartsresults: {
+                    type:"array",
+                    items: {
+                        type:"object",
+                        properties:ssrProperties,
+                        required: ["xSeries", "xStartgroup", "xSeriesStart"],
+                        additionalProperties: false, 
+                    }
+                },
+                aux: {type:"string"},
+            },
+            required: ["xSeries"],
+            additionalProperties: false, // very important: since we simply copy al data, we must amke sure that the restricted data are not chnaged.
         }
 
         // actually, what we test here for is not that important, but it was implemented as a reference
@@ -570,6 +608,7 @@ class rContestTrack extends roomServer{
                 seriestrack: schemaSeriestrack,
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
+                aux: {type:"string"},
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -700,6 +739,7 @@ class rContestTrack extends roomServer{
         this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
         this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
+        this.validateAddUpdateResults = this.ajv.compile(schemaAddUpdateResults);
     }
 
     /**
@@ -977,7 +1017,7 @@ class rContestTrack extends roomServer{
             throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
         })*/
         await ssr.resultstrack.destroy().catch(err=>{
-            throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries})`}
+            throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
         })
         // remove locally
         ssr.set('resultstrack', null); // would it be possible to delete the result in one request instead of detroying the model and deleting the reference manually? setResultstrack(null) does not work at all. 
@@ -1030,7 +1070,7 @@ class rContestTrack extends roomServer{
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.result.xResult}.`}
         }
 
-        // NOTE: currently we do not check whether the given rank is reasonable. This is up to the client.
+        // NOTE: currently we do not check whether the given rank is reasonable. This is up to the client. This is eventually also "needed" to allow data from the timing be inserted out of the order.
         let resultData = {
             xResultTrack: data.xSeriesStart,
             time: data.time,
@@ -1134,6 +1174,116 @@ class rContestTrack extends roomServer{
         let ret = {
             isAchange: true, 
             doObj: {funcName: 'updateResult', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
+
+    }
+
+    // update "all" possible data of a heat in one function (excluding xSeries, xContest, xSite and number; those must stay the same; and changing id could be stupid in many cases!)
+    // the heat must exist, but the results can be add or update; however, they will NOT get deleted, except if the resultOverrule is changed to something >0
+    // this is mainly used by rTiming through rSite
+    async addUpdateResults(data){
+
+        if (!this.validateAddUpdateResults(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateAddUpdateResults.errors)}
+        }
+
+        // find the series
+        let series = this.data.series.find(s => s.xSeries == data.xSeries);
+        if (!series){
+            throw {code:22, message:`Could not find series ${data.xSeries}.`};
+        }
+
+        // some properties are NOT allowed to be changed through this function
+        if ('xContest' in data && data.xContest != series.xContest){
+            throw {code: 31, message: `rContestTrack.addUpdateResults: xContest is not allowed to change (${data.xContest}!=${series.xContest})`}
+        }
+        if ('xSite' in data && data.xSite != series.xSite){
+            throw {code: 32, message: `rContestTrack.addUpdateResults: xSite is not allowed to change (${data.xSite}!=${series.xSite})`}
+        }
+        if ('number' in data && data.number != series.number){
+            throw {code: 33, message: `rContestTrack.addUpdateResults: number is not allowed to change (${data.number}!=${series.number})`}
+        }
+
+        // check that all seriesstartsresults are part of this room and some more things
+        for (let ssrData of data.seriesstartsresults){
+            let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart == ssrData.xSeriesStart && s.xStartgroup==ssrData.xStartgroup && s.xSeries==ssrData.xSeries);
+            if (!ssr){
+                throw {code: 34, message: `rContestTrack.addUpdateResults: the seriesstartsresult with xSeriesStart=${ssrData.xSeriesStart} and xStartgroup=${ssrData.xStartgroup} does not exist.`}
+            }
+            // position and startConf are not allowed to change here
+            if ('position' in ssrData && ssr.position != ssrData.position){
+                throw {code: 35, message: `rContestTrack.addUpdateResults: position is not allowed to change (${ssrData.position}!=${ssr.position})`}
+            }
+            if ('startConf' in ssrData && ssr.startConf != ssrData.startConf){
+                throw {code: 36, message: `rContestTrack.addUpdateResults: startConf is not allowed to change (${ssrData.startConf}!=${ssr.startConf})`}
+            }
+
+            // if there is a resultstrack, make sure that xResultTrack references the right xSeriesStart
+            if (ssrData.resultstrack !==null && ssrData.resultstrack.xResultTrack != ssrData.xSeriesStart){
+                throw {code: 37, message: `rContestTrack.addUpdateResults: resultstrack.xResultTrack is different from the xSeriesStart (${ssrData.resultstrack.xResultTrack}!=${ssrData.xSeriesStart})`}
+            }
+
+        }
+
+        // create an object and copy all properties except the seriesstartsresults into it, to make sure they do not get updated in this first call.
+        let dataCopy = {};
+        Object.assign(dataCopy, data);
+        delete dataCopy.seriesstartsresults;
+
+        await series.update(dataCopy).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
+
+        // update all seriesstartsresults
+        for (let ssrData of data.seriesstartsresults){
+            // since we checked it above, the ssr will exist
+            let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart == ssrData.xSeriesStart && s.xStartgroup==ssrData.xStartgroup);
+
+            // create a copy of the ssr data and remove the resultstrack
+            let ssrCopy = {};
+            Object.assign(ssrCopy, ssrData);
+            delete ssrCopy.resultstrack;
+            await ssr.update(ssrCopy).catch(err=>{
+                throw {code: 24, message: `Could not update ssr ${ssr.xSeriesStart}: ${err}`};
+            })
+            
+            if (ssr.resultstrack != null){
+                if (ssrData.resultOverrule>0){
+                    // if resultOverrule>0: delete an existing result (if it exists)
+                    await ssr.resultstrack.destroy().catch(err=>{
+                        throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
+                    })
+                    // remove locally
+                    ssr.set('resultstrack', null); 
+
+                } else {
+                    // update the result
+                    await ssr.resultstrack.update(ssrData.resultstrack).catch(err=>{
+                        throw {code:25, message: `Could not update resultstrack of ssr ${ssr.xSeriesStart}: ${err}`};
+                    })
+                }
+            } else if ('resultstrack' in ssrData && ssrData.resultstrack != null){
+                // create result
+                let newRes = await this.models.resultstrack.create(ssrData.resultstrack).catch(err=>{throw {code: 26, message: `new resulttrack could not be created (most likely because the result already exists): ${err}`}});
+        
+                // add the result to the ssr
+                // Do not simply set resultstrack=result, since the JSON.stringify funciton would still send the old data, despite the changed data
+                ssr.set('resultstrack', newRes);
+            }
+
+        }
+
+        // notify site about changes
+        if (series.xSite != null){
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateSeries', data: data},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true

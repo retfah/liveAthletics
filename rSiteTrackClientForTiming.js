@@ -34,6 +34,20 @@ class rSiteTrackClientForTiming extends roomClient{
         this._addFunction('deleteResult', this.deleteResultExe);
     }
 
+    addUpdateResultsHeatInit(data, succCB=()=>{}, errCB=(code, msg)=>{}){
+
+        let opt = {
+            errorHandling:[{
+                from:0,
+                to:100,
+                rule:'user',
+                userFunc: errCB,
+            }]
+        }
+        this.addToStack('addUpdateResultsHeat', data, succCB, ()=>{}, opt);
+    }
+    // there is on purpose no exe function for this function, since 
+
     /**
      * may be called when the heat is started
      * @param {DateTime} time the time in UTC when the race was started; if nto given, the time now is considered.

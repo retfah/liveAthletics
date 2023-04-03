@@ -151,10 +151,9 @@ export class rSiteTrack extends rSite{
         // Note: I think the heat-data-functions called through the event system are actually not needed as room functions; (they are always called this way and not through the side channel)  
         // however, the results functions must obviously exist, since the client will send those changes
         this.functionsWrite.addUpdateHeatAux = this.addUpdateHeatAux.bind(this);
-        this.functionsWrite.addUpdateResult = this.addUpdateResult.bind(this);
+        //this.functionsWrite.addUpdateResult = this.addUpdateResult.bind(this); // only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
         this.functionsWrite.addUpdateResultsHeat = this.addUpdateResultsHeat.bind(this);
-        this.functionsWrite.deleteResult = this.deleteResult.bind(this);
-        this.functionsWrite.deleteResultsHeat = this.deleteResultsHeat.bind(this);
+        //this.functionsWrite.deleteResult = this.deleteResult.bind(this);
 
         // sites/xSite@meetingShortname:...
         this.eH.eventSubscribe(`${this.name}:seriesAdded`, (data)=>{
@@ -176,45 +175,40 @@ export class rSiteTrack extends rSite{
             this.changeContest(contest);
         })
 
-        // do we really need all those functions? (especially the fact of re-ranking costs some effort!); it would be less effort if we simply used seriesChanged; However, the drawback is that if times are created by the timing, we get only the full series object on the server and somehow need to find out what has changed to call the respective function in the right contest-room --> thus, I think I keep having that many functions.
+        // do we really need all the following functions? (especially the fact of re-ranking costs some effort!); it would be less effort if we simply used seriesChanged; However, the drawback is that if times are created by the timing, we get only the full series object on the server and somehow need to find out what has changed to call the respective function in the right contest-room --> thus, I think I keep having that many functions.
+        // TODO: the functions must somehow have two modes: one when the result arrives from the contest (broadcast to clients only) or when thr result arrives from a (timing-)client (broadcast to clients AND insert result in rContestTrack!!!)
         this.eH.eventSubscribe(`${this.name}:resultChanged`, (data)=>{
-
+        
             // data contains: xContest, xSeries, xSeriesStart, result
-            this.addUpdateResult(data).catch(err=>{
+            this.serverFuncWrite('addUpdateResult', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateResult in room ${this.name}: ${err}`);
             });
         })
 
         // probably not needed, since manual results come in one by one
         this.eH.eventSubscribe(`${this.name}:resultsHeatChanged`, (data)=>{
-            this.addUpdateResultsHeat(data).catch(err=>{
+            this.serverFuncWrite('addUpdateResultsHeat', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateResultsHeat in room ${this.name}: ${err}`);
             });
         })
 
         this.eH.eventSubscribe(`${this.name}:heatAuxChanged`, (data)=>{
-            this.addUpdateHeatAux(data).catch(err=>{
+            this.serverFuncWrite('addUpdateHeatAux', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateHeatAux in room ${this.name}: ${err}`);
             });
         })
 
         this.eH.eventSubscribe(`${this.name}:resultDeleted`, (data)=>{
             // data contains: xContest, xSeries, xSeriesStart
-            this.deleteResult(data).catch(err=>{
+            this.serverFuncWrite('deleteResult', data).catch(err=>{
                 this.logger.log(10, `Error during deleteResult in room ${this.name}: ${err}`);
             });
         })
 
-        this.eH.eventSubscribe(`${this.name}:resultsHeatDeleted`, (data)=>{
-            this.deleteResultsHeat(data).catch(err=>{
-                this.logger.log(10, `Error during deleteResultsHeat in room ${this.name}: ${err}`);
-            });
-        })
-
-
 
     }
 
+    // IMPORTANT: only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
     async addUpdateResult(data){
         // data contains: xContest, xSeries, xSeriesStart, result
         // add or update a single result
@@ -272,22 +266,38 @@ export class rSiteTrack extends rSite{
 
         // nothing to save here, since rSite is a dynamically created room
 
-        // notify the clients
-        const doObj = {
-            funcName:'addUpdateResult',
-            data,
-        } 
-        const undoObj = {
-            funcName:'TODO',
-            data: null,
-        }
-        this.processChange(doObj, undoObj)
+        // return a regular "return-object" as for room functions; if the function was called through the event system on this 
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'addUpdateResult', data: data},
+            undoObj: {funcName: 'TODO', data: null},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+        return ret;
 
     }
 
     async addUpdateResultsHeat(data){
         // add or update the results of a heat, including aux data of the heat
 
+        // call addUpdateResults in the respective contest// try to get the contest
+        let rContest =await findSubroom(this.rContests, data.xContest.toString(), this.logger, true)
+        if (!rContest){
+            throw {code:22, message: `Contest ${data.xContest} could not be found.`}
+        }
+        // return the result of the call to addUpdateResults (typically true; or an error)
+        // the actual change in the rSite data is made through the seriesCHanged-event that is raised 
+        let response = await rContest.addUpdateResults(data);
+
+        let ret = {
+            isAchange: false, 
+            doObj: {funcName: 'addUpdateResultsHeat', data},
+            undoObj: {funcName: 'TODO', data: null},
+            response, 
+            preventBroadcastToCaller: true
+        };
+        return ret;
     }
 
     async addUpdateHeatAux(data){
@@ -295,6 +305,7 @@ export class rSiteTrack extends rSite{
         // this also somehow includes delete, since the data is an object anyway, wich can simply be "{}" for deleting.
     }
 
+    // IMPORTANT: only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
     async deleteResult(data){
         // data contains: xContest, xSeries, xSeriesStart
 
@@ -331,20 +342,15 @@ export class rSiteTrack extends rSite{
 
         // nothing to save here, since rSite is a dynamically created room
 
-        // notify the clients
-        const doObj = {
-            funcName:'deleteResult',
-            data,
-        } 
-        const undoObj = {
-            funcName:'TODO',
-            data: null,
-        }
-        this.processChange(doObj, undoObj)
-
-    }
-
-    async deleteResultsHeat(data){
+        // return a regular "return-object" as for room functions; if the function was called through the event system on this 
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'deleteResult', data},
+            undoObj: {funcName: 'TODO', data: null},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+        return ret;
 
     }
 
@@ -469,6 +475,7 @@ export class rSiteTrack extends rSite{
             datetime: series.datetime,
             id: series.id,
             xContest: series.xContest,
+            aux: JSON.parse(series.aux), // in rContest this is a JSON-string, here it shall be a regular object
         }
     }
 
