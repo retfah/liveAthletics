@@ -65,6 +65,15 @@ export class rTimingClient extends roomClient{
     resultsToLASingleInit(xContest, xSeries, includeReaction){
         this.addToStack('resultsToLASingle', {xContest, xSeries, includeReaction}, ()=>{});
     }
+    pushHeatsInit(){
+        this.addToStack('pushHeats', null, ()=>{});
+    }
+    pullResultsInit(){
+        this.addToStack('pullResults', null, ()=>{});
+    }
+    pullReactionInit(){
+        this.addToStack('pullReaction', null, ()=>{});
+    }
 
     // provide the possibility to call onResponse-function when the response has arrived. Used if timers and auto are changed at the same time
     updateAutoInit(auto, onResponse=null){

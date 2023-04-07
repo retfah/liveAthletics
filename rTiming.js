@@ -17,7 +17,7 @@ import resultstrack from "./modelsMeetingDefine/resultstrack.js";
  */
 export default class rTiming extends roomServer{
     
-    constructor(wsManagerOld, timingName, eventHandler, mongoDb, logger, heatsPushable=false, reactionPullable=false, resultsPullable=false){
+    constructor(wsManagerOld, timingName, eventHandler, mongoDb, logger, heatsPushable=false, resultsPullable=false, reactionPullable=false){
         
         // initialize the room
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTickets=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true, keepWritingTicket=true)
@@ -215,6 +215,9 @@ export default class rTiming extends roomServer{
         this.functionsReadOnly.heatsToTiming = this.heatsToTiming.bind(this);
         this.functionsReadOnly.resultsToLA = this.resultsToLA.bind(this);
         this.functionsReadOnly.resultsToLASingle = this.resultsToLASingle.bind(this);
+        this.functionsReadOnly.pullReaction = this.pullReaction.bind(this);
+        this.functionsReadOnly.pullResults = this.pullResults.bind(this);
+        this.functionsReadOnly.pushHeats = this.pushHeats.bind(this);
 
         const schemaHeatToTiming = {
             type:'object',
@@ -483,7 +486,8 @@ export default class rTiming extends roomServer{
         this.eH.eventSubscribe(`TabIdSet/${this.conn.tabId}`, connectRoom, this.name); // we use the shortname of the meeting as an identifier for the eventHandler 
 
         this.eH.eventSubscribe(`wsError/${this.conn.tabId}`, (err)=>{
-
+            this.infos.lastSiteServerConnectionError = err.toString();
+            this.broadcastInf();
         }, this.name); 
 
         // not needed, since the TabIdSet-event is enough.
@@ -994,10 +998,10 @@ export default class rTiming extends roomServer{
     /**
      * Provide the general function to handle incoming results. This function is called by a timing-specific push- or pull-results-function. The function shall be able to handle new and updated results and/or aux data! The function will update the results in timing and (if requested for the present state) transfer the result to the site/live athletics
      * @param {object} result the object with all results and backgrounddata that are to be transferred. The object has the same structure as a series, but only a part is mandatory:
-     * mandatory: xContest (integer), xSeries (integer), 
+     * mandatory: xContest (integer), oneOf [xSeries (integer), id (string)] 
      * optional: aux, SSRs (array of SSR); everything else will simply be neglected
      * SSR: 
-     * mandatory: xSeriesStart
+     * mandatory: oneOf [xSeriesStart, bib]
      * optional: resultstrack (object of resultstrack), resultOverrule;everything else will simply be neglected
      * resultstrack: 
      * mandatory: official (boolean), time (integer>0)
@@ -1015,7 +1019,12 @@ export default class rTiming extends roomServer{
             this.logger.log(10, `Contest ${result.xContest} does not exist rTiming.`);
             return;
         }
-        const s = c.series.find(s=>s.xSeries == result.xSeries)
+        let s;
+        if ('xSeries' in result){
+            s = c.series.find(s=>s.xSeries == result.xSeries)
+        } else {
+            s = c.series.find(s=>s.id == result.id)
+        }
         if (!s){
             this.logger.log(10, `Series ${result.xSeries} does not exist in rTiming, contest ${result.xContest}`);
             return;
@@ -1035,9 +1044,6 @@ export default class rTiming extends roomServer{
                     }
                     if (!('timeRounded' in ssr.resultstrack)){
                         ssr.resultstrack.timeRounded = Math.ceil(ssr.resultstrack.time/100)*100; // 1/1000s, as allowed to consider for the ranking/progress to next round
-                    }
-                    if (!('xResultTrack' in ssr.resultstrack)){
-                        ssr.resultstrack.xResultTrack = ssr.xSeriesStart;
                     }
                 };
                 if ('resultOverrule' in ssr && ssr.resultOverrule>0){
@@ -1062,13 +1068,27 @@ export default class rTiming extends roomServer{
 
         if ('SSRs' in result){
             for (let ssrNew of result.SSRs){
-                let ssrCurrent = s.SSRs.find(x=>x.xSeriesStart == ssrNew.xSeriesStart);
-                if (!ssrCurrent){
-                    this.logger.log(10, `SeriesStart ${ssrNew.xSeriesStart} does not exist in rTiming, series ${result.xSeries}, contest ${result.xContest}`);
+                let ssrCurrent;
+                if ('xSeriesStart' in ssrNew){
+                    ssrCurrent = s.SSRs.find(x=>x.xSeriesStart == ssrNew.xSeriesStart);
+                    if (!ssrCurrent){
+                        this.logger.log(10, `SeriesStart ${ssrNew.xSeriesStart} does not exist in rTiming, series ${result.xSeries}, contest ${result.xContest}`);
+                        continue;
+                    } 
+                } else {
+                    ssrCurrent = s.SSRs.find(x=>x.bib == ssrNew.bib);
+                    if (!ssrCurrent){
+                        this.logger.log(10, `SeriesStart ${ssrNew.bib} does not exist in rTiming, series ${result.xSeries}, contest ${result.xContest}`);
+                        continue;
+                    }
                 }
                 if ('resultOverrule' in ssrNew && ssrNew.resultOverrule!=ssrCurrent.resultOverrule){
                     changed = true;
                     ssrCurrent.resultOverrule = ssrNew.resultOverrule;
+                }
+                // the following "check" could not be done above, since ssrNew.xSeriesStart is not necessarily given before
+                if (ssrNew.resultstrack !== null && !('xResultTrack' in ssrNew.resultstrack)){
+                    ssrNew.resultstrack.xResultTrack = ssrCurrent.xSeriesStart;
                 }
                 if ('resultstrack' in ssrNew && !this.objectsEqual(ssrNew.resultstrack, ssrCurrent.resultstrack, false, false)){
                     changed = true;
@@ -1313,6 +1333,11 @@ export default class rTiming extends roomServer{
     // to be implemented by the timing specific class; will be called in the given timer interval
     async pullReaction(){
     
+    }
+
+    // to be implemented by the timing specific class
+    async pushHeats(){
+
     }
 
     async updateAuto(auto){
@@ -1593,7 +1618,8 @@ export class rTimingAlge extends rTiming {
     
     constructor (wsManager, timingName, eventHandler, mongoDb, logger){
 
-        super(wsManager, timingName, eventHandler, mongoDb, logger, true, true, true)
+        // (wsManagerOld, timingName, eventHandler, mongoDb, logger, heatsPushable=false, resultsPullable=false, reactionPullable=false)
+        super(wsManager, timingName, eventHandler, mongoDb, logger, true, true, false)
         
         // own properties:
         this.tcpConn = null;
@@ -1701,12 +1727,58 @@ export class rTimingAlge extends rTiming {
             this.broadcastInf();
         }
 
-        const onData = (data)=>{
-            console.log(`timing data: ${data}`)
+        const onData = async (data)=>{
+            this.logger.log(90, `ALGE versatile data: ${data}`); // TODO: change later to level 99
             // TODO: provess the data according to the options !!!
             // HeatResult: the reserved field is not available!
             // if "SendResultlistWhenHeatDataChanged" is set to true in the ALGE-Versatile settings, a heatresult is sent whenever a time is entered; 
             // the competitorEvaluated is not used when a time is entered. Probably this only works when the time was set defined through the image.  
+            
+            // parse the xml
+            const xml = await parseStringPromise(data, {explicitArray:true, attrValueProcessors:[xmlProcessors.parseBooleans, xmlProcessors.parseNumbers]});
+
+            // differentiate the different data
+            if ('HeatResult' in xml){
+                // finished evaluation; the processing should be the same as when data is read from file
+                // results are offical
+
+                // NOTE: currently (2023-04-04), Reserved1 does not exist in Versatile data. Thus, use bib instead (or we simply wait until they provide this data). processXmlHeatResult should be able to handle both options.
+                // as soon as both (versatile and file) should be the same, we split the xml-processing part from readHeatResults and call it from here as well.
+
+                // TODO: this does not work yet for multiple reasons:
+                // - Reserved1 does not exist in versatile (solved)
+                // - the structure is <HeatResult><Result> in Versatile and <HeatResult><Results><Competitor> in file
+                // heat number: Nr (file) vs HeatId (versatile)
+
+                //this.processXmlHeatResult(xml);
+
+            } else if ('HeatStart' in xml){
+                // heat started
+                let falseStart = false;
+                if ('IsFalseStart' in xml.HeatStart.$){
+                    falseStart = xml.HeatStart.$.IsFalseStart;
+                }
+                let xContest = xml.HeatStart.$.EventId; //
+                let seriesId = xml.HeatStart.$.HeatId; // UUID
+                let time;
+                if ('Time' in xml.HeatStart.$){
+                    // time is time of day, e.g. ”12:30:22.2124”
+                    let parts = xml.HeatStart.$.Time.split(/[.:]/);
+                    let today = new Date();
+                    time = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]), parseInt(parts[3].slice(0,3)))// Date constructor is in local time
+                } else {
+                    time = new Date();
+                }
+
+                // TODO
+
+            } else if ('HeatFinish' in xml){
+                // heat finished (photocell); inofficial finish time 
+
+            } else if ('CompetitorEvaluated' in xml){
+                // mark the result as inofficial so far and do not process the rank
+
+            } 
 
         }
 
@@ -1871,15 +1943,18 @@ export class rTimingAlge extends rTiming {
             this.writeInput().catch(err=>this.logger.log(1, `Error in rTimingAlge during writeInput: ${err}`));
         }
     }
-
-    // implement here all ALGE specific stuff (connection to timing) while the general stuff (connection to rSite via rSiteClient, etc) shall be handled in the parent class
-
-    // may be called (1) after a change (when the automatic is on) or (2) after the user requested to take over a heat, contest or everything or (3) when the timing pulls the heats (to be implemented in the timing-specific part, i.e. in this class)
-    // called sendHeats and not pushHeats, since it is also used for pull
-    sendHeats(){
-        // implement here the serializer, creating the input file from the local rTiming data and write this file
-
-        this.data.infos.lastHeatPushFailed = false; // TODO: set accordingly
+    
+    // push heats to timing; here: write the file
+    // report errors
+    async pushHeats(){
+        await this.writeInput().catch(err=>{
+            this.data.infos.lastHeatPushFailed = true;
+            this.broadcastInf();
+            throw err;
+        });
+        
+        this.data.infos.lastHeatPushFailed = false;
+        this.broadcastInf();
     }
 
     /**
@@ -1911,7 +1986,9 @@ export class rTimingAlge extends rTiming {
             throw `XML-Parsing of heat result file ${ff[0]} failed: ${err}`;
         })
 
-        const auxData = {};
+        this.processXmlHeatResult(xml);
+
+        /*const auxData = {};
         const SSRs = [];
 
         if ('Wind' in xml.HeatResult.$){
@@ -1970,15 +2047,95 @@ export class rTimingAlge extends rTiming {
         }
 
         // send the heat to heatResultsIncoming. rsultsIncoming will then check if the data actually has changed or not.
+        this.heatResultsIncoming(heatResults);*/
+    }
+
+    processXmlHeatResult(xml){
+        
+        const auxData = {};
+        const SSRs = [];
+
+        let xContest = xml.HeatResult.$.EventId;
+        let heatId = xml.HeatResult.$.Id
+
+        if ('Wind' in xml.HeatResult.$){
+            auxData.wind = xml.HeatResult.$.Wind;
+        }
+
+        // loop over every result in the list
+        for (let competitor of xml.HeatResult.Results[0].Competitor){
+
+            let resultOverrule = 0;
+            if (competitor.$.State == "DNS"){
+                resultOverrule = 5;
+            } else if(competitor.$.State == "DNF"){
+                resultOverrule = 3;
+            } else if (competitor.$.State == "DSQ"){
+                resultOverrule = 6;
+            } else if (competitor.$.State == "CAN" || competitor.$.State == "SUR" || competitor.$.State == "FAL"){
+                // withdrawal
+                resultOverrule = 4;
+            }
+
+            // create a fake "discipline" object with the relevant information for the automatic processing to a value
+            let discipline = {baseConfiguration:JSON.stringify({distance: xml.HeatResult.$.DistanceMeters})}
+
+            let resultstrack = null;
+            if (resultOverrule==0){
+                // process the time (since it is given as a string)
+                let time = disciplineValidators[3](competitor.$.RuntimeFullPrecision.toString(), discipline).value; // toString is needed since values with just seconds and smaller are processed to float; but the function needs strings
+
+                let reactionTime = null;
+                if ("Reaction" in competitor.$){
+                    reactionTime = competitor.$.reaction;
+                }
+
+                resultstrack = { 
+                    time, 
+                    rank: competitor.$.Rank,
+                    official: true, // at that point in time always true
+                    reactionTime, // optional
+                }
+            }
+
+            if ('Reserved1' in competitor.$){
+                // is the case for the file variant, and should be the case in the future (>2023-04) also for versatile
+                SSRs.push({
+                    xSeriesStart: competitor.$.Reserved1, 
+                    resultOverrule, // optional
+                    resultstrack, // optional
+                })
+            } else {
+                // evaluate the bib
+                SSRs.push({
+                    bib: competitor.$.Bib, 
+                    resultOverrule, // optional
+                    resultstrack, // optional
+                })
+                
+            }
+
+        }
+
+        // create the data structure needed by heatResultsIncoming
+        let heatResults = {
+            xContest: xContest,
+            id: heatId,
+            aux: auxData, // optional
+            SSRs: SSRs, // optional
+        }
+
+        // send the heat to heatResultsIncoming. rsultsIncoming will then check if the data actually has changed or not.
         this.heatResultsIncoming(heatResults);
     }
 
     async pullResults(){
-        this.logger.log(99, 'pull results done now');
         
         // get the results from file
         // NOTE: it is expected that the heats can be identified by the unique ID (UUID), which must be the last part in the filename before the .heatsresultxml ending. The filename must look as follows:
         // Heat{whatever you want here}{36 letters of UUID}.heatresultxml
+
+        this.logger.log(98, 'Start pulling results.')
         
         // get a list of all files in the exchange folder (this is not actually necessary since the readHeatResults would check for the file itself; however, especially when only a few heats are finished it might be more efficient to not try to find each file from thre file system, but to create a list first and then only check within this list)
         let fileNames = await fs.readdir(this.data.timingOptions.xmlHeatsFolder);
