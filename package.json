@@ -1,14 +1,16 @@
 {
   "name": "liveathletics",
-  "description": "live broadcasting athletics results",
+  "description": "Live management and result broadcasting for athletics competitions",
   "keywords": [
     "liveAthletics",
     "live",
     "broadcast",
     "athletics",
+    "track and field",
+    "competition management",
     "results"
   ],
-  "license": "LGPL-3.0-or-later",
+  "license": "AGPL-3.0-or-later",
   "author": {
     "name": "Reto Fahrni",
     "email": "retofahrni@bluewin.ch"
