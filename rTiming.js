@@ -904,6 +904,7 @@ export default class rTiming extends roomServer{
         if (!this.validateHeatsToTiming(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateHeatsToTiming.errors)}
         }
+        // TODO
 
     }
     heatToTiming(data){
@@ -1063,6 +1064,7 @@ export default class rTiming extends roomServer{
 
         if ('aux' in result && !this.objectsEqual(result.aux, s.aux, false, false)){
             changed = true;
+            // TODO: how to allow only for pyrtial change of aux data, e.g. adding a new start, without needing that the calling funciton already needs to evaluate the series to get the previous aux data object?
             s.aux = result.aux;
         }
 
@@ -1101,12 +1103,21 @@ export default class rTiming extends roomServer{
             }
         }
 
-        // save the changed rTiming data
-        this._storeData().catch(err=>this.logger.log(10, `${this.name}: Could not store data to mongo: ${err}`)); // async
+        if (changed){
+            // save the changed rTiming data
+            this._storeData().catch(err=>this.logger.log(10, `${this.name}: Could not store data to mongo: ${err}`)); // async
+    
+            // notify the clients about the changed data
+            let doObj = {
+                funcName: 'changeSeriesTiming', 
+                data: s,
+            };
+            this.processChange(doObj, {})
+    
+            // let the following funciton decide based on the auto-setting whether the change is sent to the site-->contest or not 
+            this.addUpdateResults(s);    
 
-        // let the following funciton decide based on the auto-setting whether the change is sent to the site-->contest or not 
-        this.addUpdateResults(s);
-        
+        }
     }
 
     /**
@@ -1729,6 +1740,7 @@ export class rTimingAlge extends rTiming {
 
         const onData = async (data)=>{
             this.logger.log(90, `ALGE versatile data: ${data}`); // TODO: change later to level 99
+
             // TODO: provess the data according to the options !!!
             // HeatResult: the reserved field is not available!
             // if "SendResultlistWhenHeatDataChanged" is set to true in the ALGE-Versatile settings, a heatresult is sent whenever a time is entered; 
@@ -1739,6 +1751,16 @@ export class rTimingAlge extends rTiming {
 
             // differentiate the different data
             if ('HeatResult' in xml){
+
+                // until ALGE has updated their interface, we simply read the file when the data arrives.
+                let xContest = xml.HeatResult.$.EventId; //
+                let seriesId = xml.HeatResult.$.Id; // UUID
+                let c = this.data.data.find(c=> c.xContest==xContest)
+                if (!c) return;
+                let s = c.series.find(s=>s.id == seriesId);
+                if (!s) return;
+                this.readHeatResults(s);
+
                 // finished evaluation; the processing should be the same as when data is read from file
                 // results are offical
 
@@ -1759,7 +1781,7 @@ export class rTimingAlge extends rTiming {
                     falseStart = xml.HeatStart.$.IsFalseStart;
                 }
                 let xContest = xml.HeatStart.$.EventId; //
-                let seriesId = xml.HeatStart.$.HeatId; // UUID
+                let seriesId = xml.HeatStart.$.Id; // UUID
                 let time;
                 if ('Time' in xml.HeatStart.$){
                     // time is time of day, e.g. ”12:30:22.2124”
@@ -2068,11 +2090,11 @@ export class rTimingAlge extends rTiming {
             let resultOverrule = 0;
             if (competitor.$.State == "DNS"){
                 resultOverrule = 5;
-            } else if(competitor.$.State == "DNF"){
+            } else if(competitor.$.State == "DNF" || competitor.$.State == "SUR"){
                 resultOverrule = 3;
             } else if (competitor.$.State == "DSQ"){
                 resultOverrule = 6;
-            } else if (competitor.$.State == "CAN" || competitor.$.State == "SUR" || competitor.$.State == "FAL"){
+            } else if (competitor.$.State == "CAN" || competitor.$.State == "FAL"){
                 // withdrawal
                 resultOverrule = 4;
             }
@@ -2082,6 +2104,12 @@ export class rTimingAlge extends rTiming {
 
             let resultstrack = null;
             if (resultOverrule==0){
+
+                if (!('RuntimeFullPrecision' in competitor.$)){
+                    // no result yet. Do not process this person.
+                    continue;
+                }
+
                 // process the time (since it is given as a string)
                 let time = disciplineValidators[3](competitor.$.RuntimeFullPrecision.toString(), discipline).value; // toString is needed since values with just seconds and smaller are processed to float; but the function needs strings
 
