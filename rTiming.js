@@ -1000,15 +1000,27 @@ export default class rTiming extends roomServer{
      * Provide the general function to handle incoming results. This function is called by a timing-specific push- or pull-results-function. The function shall be able to handle new and updated results and/or aux data! The function will update the results in timing and (if requested for the present state) transfer the result to the site/live athletics
      * @param {object} result the object with all results and backgrounddata that are to be transferred. The object has the same structure as a series, but only a part is mandatory:
      * mandatory: xContest (integer), oneOf [xSeries (integer), id (string)] 
-     * optional: aux, SSRs (array of SSR); everything else will simply be neglected
+     * optional: aux*, SSRs (array of SSR); everything else will simply be neglected
      * SSR: 
      * mandatory: oneOf [xSeriesStart, bib]
      * optional: resultstrack (object of resultstrack), resultOverrule;everything else will simply be neglected
      * resultstrack: 
      * mandatory: official (boolean), time (integer>0)
      * optional: rank, reactionTime; everything else will simply be neglected 
+     * *ATTENTION: properties given in aux will overwrite the same properties (if already available)! Properties that are not given, will not be deleted. (See roomServer.propertyTransfer for details).
+     * TODO: describe the additional aux properties
+     * @param {object} obj.newStart start-object as defined by rContestTrack,
+     * @param {string} obj.newStart.starttime UTC string; mandatory
+     * @param {boolean} obj.newStart.isFalseStart mandatory
+     * @param {object} obj.newStart.reactionTimes (see newReactonTimes for properties); optional
+     * @param {object} obj.newSplittime start-object as defined by rContestTrack,
+     * @param {string} obj.newSplittime.splittime UTC string; mandatory
+     * @param {integer} obj.newSplittime.distance distance in m; optional
+     * @param {array} obj.newReactionTimes reactiontime array as defined by rContestTrack; see below for properties of single objects:
+     * @param {integer} reactionTime.lane the lane of the reaction time
+     * @param {reactionTime} reactionTime.reactionTime the actual reaction time in ms
      */
-    heatResultsIncoming(result){
+    heatResultsIncoming(result, {newStart=null, newSplittime=null, newReactionTimes=null}={}){
         // if the data changed, it will call "addUpdateResults" in rContestTrack. After that, the data in rSite will get updated.
 
         // set to true when the data was an actual change; then, call the function to potentially send the respective request to rSite/rContestTrack
@@ -1064,8 +1076,39 @@ export default class rTiming extends roomServer{
 
         if ('aux' in result && !this.objectsEqual(result.aux, s.aux, false, false)){
             changed = true;
-            // TODO: how to allow only for pyrtial change of aux data, e.g. adding a new start, without needing that the calling funciton already needs to evaluate the series to get the previous aux data object?
-            s.aux = result.aux;
+            // only do updates!
+            this.propertyTransfer(result.aux, s.aux, true);
+        }
+        if (newStart){
+            changed = true;
+            s.aux.starttime = newStart.starttime;
+            s.aux.isFalseStart = newStart.isFalseStart;
+            
+            // check if the item in aux.starts was already created by another signal source (e.g. direct signal from the automatic starting system or by a former startsignal, when it was still considered that it is nto a false start)
+            let start = s.aux.starts.find(s2=>s2.starttime==newStart.starttime);
+            if (start){
+                this.propertyTransfer(newStart, start, true);
+            } else {
+                aux.starts.push(newStart);
+            }
+
+        }
+        if (newSplittime){
+            changed = true;
+
+            s.aux.splittimes.push(newSplittime);
+
+        }
+        if (newReactionTimes){
+
+            // note: we simply add the reaction time to the last start we have recorded.
+            if (s.aux.starts.length==0){
+                this.logger.log(30, `Could not add reaction times (xSeries: ${s.xSeries}, xContest:${s.xContest}), since no start was recorded before. Make sure that a start is stored before any reaction times are created. `);
+            } else {
+                changed = true;
+                s.aux.starts[s.aux.starts.length].reactionTimes = newReactionTimes;
+            }
+
         }
 
         if ('SSRs' in result){
@@ -1792,7 +1835,17 @@ export class rTimingAlge extends rTiming {
                     time = new Date();
                 }
 
-                // TODO
+                let result = {
+                    xContest,
+                    id:seriesId,
+                }
+                let newStart = {
+                    isFalseStart:falseStart,
+                    starttime:time,
+                    // reactionTimes are currently (2023-04-13) not provided with the HeatStart
+                }
+
+                this.heatResultsIncoming(result, {newStart});
 
             } else if ('HeatFinish' in xml){
                 // heat finished (photocell); inofficial finish time 

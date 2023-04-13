@@ -517,11 +517,61 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
-                aux: {type:"string"},
+                aux: {type:"string"}, // JSON string; see schemaAuxSql
             },
             required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
             // neither required nor additional propertzies are defined herein
+        }
+
+        // the aux data is actually sent and stored as JSON/text with the series in the SQL DB; however, to check it, we define the structure here.
+        const schemaAuxSql = {
+            type: "object",
+            properties:{
+                wind: {type: 'number'},
+                starttime: {type: 'string', format: 'date-time'}, // the latest starttime, i..e the one, which was finally run; ISO8601, UTC
+                finishtime: {type: 'integer'}, // the duration in the usual unit of 1/100000
+                isFalseStart: {type:'boolean'}, // the latest start was a false start or not; the same data will be stored in the starts-array
+                starts: {
+                    type:'array',
+                    items:{
+                        type:'object',
+                        properties:{
+                            starttime: {type: 'string', format: 'date-time'}, // should be the same as the
+                            isFalseStart: {type:"boolean"},
+                            reactionTimes: {
+                                type:'array',
+                                items:{
+                                    type:'object',
+                                    properties:{
+                                        lane: {type:'integer'},
+                                        reactionTime: {type: 'integer'},
+                                    },
+                                    required:['lane', 'reactionTime'], // in ms
+                                    additionalProperties: false,
+                                }
+                            },
+                            
+                        },
+                        required: ['starttime', 'isFalseStart'],
+                        additionalProperties: false,
+                    }
+                },
+                splittimes: {
+                    type:'array',
+                    items:{
+                        type:'object',
+                        properties:{
+                            splittime: {type: 'integer'},
+                            distance: {type: 'integer'}, 
+                        },
+                        required:['splittime'],
+                        additionalProperties: false,
+                    }
+                }
+            },
+            required: [], // none required
+            additionalProperties:false,
         }
 
         const schemaUpdateSeries = {
@@ -740,6 +790,7 @@ class rContestTrack extends roomServer{
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
         this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
         this.validateAddUpdateResults = this.ajv.compile(schemaAddUpdateResults);
+        this.validateAuxSql = this.ajv.compile(schemaAuxSql);
     }
 
     /**
