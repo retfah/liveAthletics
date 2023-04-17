@@ -16,8 +16,9 @@ export default class tcpClientAutoReconnect {
      * @param {function} onData callback(data) called for every datapackage, separated by the endCharacter. I.e. data is not equivalent the chunks that arrive. This class will put together all chunks until the endCharacter is found and will send all text up to the endCharacter as data to the callback.   
      * @param {string} endCharacter The endCharacter(s) separating one message form the next. Default: CR carriage return (ASCII 13)
      * @param {integer} retryInterval After which timeout (in ms) it should be tried again to establish a connection. Default: 5000 ms.
+     * @param {logger} logger a logger object, with a .log(code, msg) function; by default logs everything to command line
      */
-    constructor(connectionOptions, onError, onClose, onConnect, onData, endCharacter='\r', retryInterval=5000){
+    constructor(connectionOptions, onError, onClose, onConnect, onData, endCharacter='\r', retryInterval=5000, logger={log:(code, msg)=>{console.log(msg)}}){
 
         this.connectionOptions = connectionOptions;
         this.onError = onError;
@@ -26,6 +27,7 @@ export default class tcpClientAutoReconnect {
         this.onData = onData;
         this.endCharacter = endCharacter; // default carriage return /ASCII 13
         this.retryInterval = retryInterval; // in ms
+        this.logger = logger;
 
         // arrived data:; temporary storage, if data arirves in multiple chunks
         this.tempData = '';
@@ -38,12 +40,20 @@ export default class tcpClientAutoReconnect {
 
     startConnection(){
         // create a new connection and set the connect event handler (NOTE: the "ready" event is useless since it is anyway called right after the "connect" event)
-        this.connection = Net.createConnection(this.connectionOptions, ()=>{this.onConnect()});
+        this.connection = Net.createConnection(this.connectionOptions, ()=>{
+            let prom = this.onConnect();
+            if (prom instanceof Promise){
+                prom.catch((err)=>{this.logger.log(20, `Error in "onConnect" function in tcpClientAutoConntect: ${err}`)});
+            }
+        });
         this.connection.setEncoding('utf8'); // make sure strings are returned and not buffers (this should be fine for the small portions of text that are arriving)
 
         this.connection.on('close', (hadError)=>{
-            this.onClose(hadError);
-
+            let prom = this.onClose(hadError);
+            if (prom instanceof Promise){
+                prom.catch((err)=>{this.logger.log(20, `Error in "onClose" function in tcpClientAutoConntect: ${err}`)});
+            }
+            
             // try to recreate the connection (the timeout was already started, if there was an error previously)
             if (!hadError && !this.ending){
                 setTimeout(this.startConnection.bind(this), this.retryInterval);
@@ -59,7 +69,10 @@ export default class tcpClientAutoReconnect {
             const processTempData = ()=>{
                 let endCharPos = this.tempData.search(this.endCharacter);
                 if (endCharPos>=0){
-                    this.onData(this.tempData.slice(0,endCharPos));
+                    let prom = this.onData(this.tempData.slice(0,endCharPos));
+                    if (prom instanceof Promise){
+                        prom.catch((err)=>{this.logger.log(20, `Error in "onData" function in tcpClientAutoConntect: ${err}`)});
+                    }
                     this.tempData = this.tempData.slice(endCharPos + this.endCharacter.length);
                     if (this.tempData.length>0){
                         // recursively check if there is more data in the tempData
@@ -78,7 +91,10 @@ export default class tcpClientAutoReconnect {
 
         this.connection.on('error', (err)=>{
             // called right before close is called
-            this.onError(err);
+            let prom = this.onError(err);
+            if (prom instanceof Promise){
+                prom.catch((err)=>{this.logger.log(20, `Error in "onError" function in tcpClientAutoConntect: ${err}`)});
+            }
 
             // try to recreate the connection
             setTimeout(this.startConnection.bind(this), this.retryInterval);
