@@ -209,6 +209,24 @@ export class rContestTrackClient extends roomClient{
         if (!ssr){
             this.logger.log(10, `Could not find the xSeriesStart with xSeriesStart=${data.xResult}.`)
         }
+        this.deleteResultSub(ssr, series);
+        /*let rankDeleted = ssr.resultstrack.rank;
+        ssr.resultstrack = null;
+
+        for (let ssr2 of series.seriesstartsresults){
+            if (ssr2.resultstrack !== null){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                }
+            }
+        }*/
+
+    }
+
+    // sub function to delete a result (since this part is used in updateSSR as well as in deleteResult)
+    // ssr of the result to delete
+    // series, where the ssr is part of (not checked here if this is true!)
+    deleteResultSub(ssr, series){
         let rankDeleted = ssr.resultstrack.rank;
         ssr.resultstrack = null;
 
@@ -219,7 +237,6 @@ export class rContestTrackClient extends roomClient{
                 }
             }
         }
-
     }
 
     deleteResultInit(xSeries, xSeriesStart){
@@ -228,7 +245,8 @@ export class rContestTrackClient extends roomClient{
         // find the result in the results array
         let series = this.data.series.find(s=>s.xSeries == xSeries);
         let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart == xSeriesStart);
-        let rankDeleted = ssr.resultstrack.rank;
+        this.deleteResultSub(ssr, series);
+        /*let rankDeleted = ssr.resultstrack.rank;
         ssr.resultstrack = null;
 
         for (let ssr2 of series.seriesstartsresults){
@@ -237,7 +255,7 @@ export class rContestTrackClient extends roomClient{
                     ssr2.resultstrack.rank--;
                 }
             }
-        }
+        }*/
         
         let change = ()=>{
             return {
@@ -498,6 +516,10 @@ export class rContestTrackClient extends roomClient{
             this.logger.log(10, `Could not find the seriesstartresult ${data.xSeriesStart}`);
             return;
         }
+        // if the participationState is changed from 0 to something else and if a result exists, delete the result and change the rank of all other persons that had a higher rank by one.
+        if (data.resultOverrule>0 && ssr.resultOverrule==0 && ssr.resultstrack !==null){
+            this.deleteResultSub(ssr, series);
+        }
 
         this.propertyTransfer(data, ssr, true);
 
@@ -516,6 +538,11 @@ export class rContestTrackClient extends roomClient{
         if (!ssrOriginal){
             console.log(`Could not find the seriesstartresult ${ssr.xSeriesStart}`);
             return;
+        }
+
+        // if the participationState is changed from 0 to something else and if a result exists, delete the result and change the rank of all other persons that had a higher rank by one.
+        if (ssr.resultOverrule>0 && ssrOriginal.resultOverrule==0 && ssrOriginal.resultstrack !==null){
+            this.deleteResultSub(ssrOriginal, series);
         }
 
         // manual property transfer to prevent that the vue "successfully" changes properties that actually cannot be changed

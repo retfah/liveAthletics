@@ -723,7 +723,7 @@ class rContestTrack extends roomServer{
                 // timeRounded will be calculated here
                 rank: {type:"integer"},
                 official: {type:"boolean"},
-                reactionTime : {type:"integer"}, // in ms
+                reactionTime : {type:["integer", "null"]}, // in ms
             },
             required: ["xSeriesStart", "xSeries", "time", "rank", "official"], // 
             additionalProperties: false,
@@ -1060,13 +1060,13 @@ class rContestTrack extends roomServer{
             throw {code:23, message: `Could not find the xSeriesStart with xSeriesStart=${data.xSeriesStart}.`}
         }
 
-        let rankDeleted = ssr.resultstrack.rank;
+        /*let rankDeleted = ssr.resultstrack.rank;
 
         // try to delete the result
         // the following does not work; so we need to do it manually in two steps
         /*await ssr.setResultstrack(null).catch(err=>{
             throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
-        })*/
+        })
         await ssr.resultstrack.destroy().catch(err=>{
             throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
         })
@@ -1083,7 +1083,8 @@ class rContestTrack extends roomServer{
                     })
                 }
             }
-        }
+        }*/
+        await this.deleteResultSub(ssr, s);
 
         // notify the site
         if (s.xSite != null){
@@ -1100,6 +1101,36 @@ class rContestTrack extends roomServer{
 
         return ret;
 
+    }
+
+    // sub function to delete a result (since this part is used in updateSSR as well as in deleteResult)
+    // ssr of the result to delete
+    // s is the series, where the ssr is part of (not checked here if this is true!)
+    async deleteResultSub(ssr, s){
+        let rankDeleted = ssr.resultstrack.rank;
+
+        // try to delete the result
+        // the following does not work; so we need to do it manually in two steps
+        /*await ssr.setResultstrack(null).catch(err=>{
+            throw {code: 25, message: `Could not delete the result (xSeriesStart=${data.xSeriesStart}, xSeries=${data.xSeries}): ${err}`}
+        })*/
+        await ssr.resultstrack.destroy().catch(err=>{
+            throw {code: 25, message: `Could not delete the result (xSeriesStart=${ssr.xSeriesStart}, xSeries=${ssr.xSeries}): ${err}`}
+        })
+        // remove locally
+        ssr.set('resultstrack', null); // would it be possible to delete the result in one request instead of detroying the model and deleting the reference manually? setResultstrack(null) does not work at all. 
+
+        // decrease the rank of all other SSRs in the same heat
+        for (let ssr2 of s.seriesstartsresults){
+            if (ssr2.resultstrack !== null){
+                if (ssr2.resultstrack.rank > rankDeleted){
+                    ssr2.resultstrack.rank--;
+                    await ssr2.resultstrack.save().catch(err=>{
+                        throw {code: 26, message: `Could not update the rank of xSeriesStart=${ssr.xSeriesStart}, xSeries=${ssr.xSeries}). This error should not be possible. The data might be inconsistent now. ${err}`}
+                    })
+                }
+            }
+        }
     }
 
     async addResult(data){
@@ -1128,7 +1159,7 @@ class rContestTrack extends roomServer{
             timeRounded: Math.ceil(data.time/100)*100, // 1/1000s, as allowed to consider for the ranking/progress to next round
             rank: data.rank,
             official: data.official,
-            reactionTime: null,
+            reactionTime: data.reactionTime ?? null, // if reactionTime is null, it will still take the second argeument, but it does not matter here
         }
 
         // add the result
@@ -1242,6 +1273,12 @@ class rContestTrack extends roomServer{
         if (!this.validateAddUpdateResults(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateAddUpdateResults.errors)}
         }
+        // additionally check the aux data
+        if ('aux' in data){
+            if (!this.validateAuxSql(JSON.parse(data.aux))){
+                throw {code:38, message: this.ajv.errorsText(this.validateAuxSql.errors)}
+            }
+        }
 
         // find the series
         let series = this.data.series.find(s => s.xSeries == data.xSeries);
@@ -1278,7 +1315,6 @@ class rContestTrack extends roomServer{
             if (ssrData.resultstrack !==null && ssrData.resultstrack.xResultTrack != ssrData.xSeriesStart){
                 throw {code: 37, message: `rContestTrack.addUpdateResults: resultstrack.xResultTrack is different from the xSeriesStart (${ssrData.resultstrack.xResultTrack}!=${ssrData.xSeriesStart})`}
             }
-
         }
 
         // create an object and copy all properties except the seriesstartsresults into it, to make sure they do not get updated in this first call.
@@ -1363,6 +1399,11 @@ class rContestTrack extends roomServer{
         let ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart==data.xSeriesStart);
         if (!ssr){
             throw {code:22, message:`seriesstartresult ${data.xSeriesStart} was not found in the respective series. series start result cannot be changed.`}
+        }
+
+        // if the participationState is changed from 0 to something else and if a result exists, delete the result and change the rank of all other persons that had a higher rank by one.
+        if (data.resultOverrule>0 && ssr.resultOverrule==0 && ssr.resultstrack !==null){
+            await this.deleteResultSub(ssr, series);
         }
 
         // make sure that position and startConf are not changed!
