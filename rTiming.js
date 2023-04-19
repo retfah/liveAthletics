@@ -6,7 +6,6 @@ import wsManagerClass from './wsServer2Server.js';
 import {parseStringPromise, processors as xmlProcessors} from 'xml2js';
 import path from 'path';
 import {disciplineValidators, } from './static/performanceProcessing.js';
-import resultstrack from "./modelsMeetingDefine/resultstrack.js";
 
 /**
  * IDEAS: 
@@ -1018,9 +1017,10 @@ export default class rTiming extends roomServer{
      * @param {integer} obj.newSplittime.distance distance in m; optional
      * @param {array} obj.newReactionTimes reactiontime array as defined by rContestTrack; see below for properties of single objects:
      * @param {integer} reactionTime.lane the lane of the reaction time
-     * @param {reactionTime} reactionTime.reactionTime the actual reaction time in ms
+     * @param {integer} reactionTime.reactionTime the actual reaction time in ms
+     * @param {string} newFinishTime UTC string; the runtime will then be calculated here.  
      */
-    heatResultsIncoming(result, {newStart=null, newSplittime=null, newReactionTimes=null}={}){
+    heatResultsIncoming(result, {newStart=null, newSplittime=null, newReactionTimes=null, newFinishTime=null}={}){
         // if the data changed, it will call "addUpdateResults" in rContestTrack. After that, the data in rSite will get updated.
 
         // set to true when the data was an actual change; then, call the function to potentially send the respective request to rSite/rContestTrack
@@ -1083,6 +1083,7 @@ export default class rTiming extends roomServer{
             changed = true;
             s.aux.starttime = newStart.starttime;
             s.aux.isFalseStart = newStart.isFalseStart;
+            s.aux.finishtime = null;
             
             // check if the item in aux.starts was already created by another signal source (e.g. direct signal from the automatic starting system or by a former startsignal, when it was still considered that it is nto a false start)
             let start = s.aux.starts.find(s2=>s2.starttime==newStart.starttime);
@@ -1108,6 +1109,17 @@ export default class rTiming extends roomServer{
                 changed = true;
                 s.aux.starts[s.aux.starts.length].reactionTimes = newReactionTimes;
             }
+
+        }
+        if (newFinishTime){
+            // calculate the runtime based on the starttime and the finishtime
+            if (!s.aux.starttime){
+                this.logger.log(30, `Cannot record finish time, since there is no starttime.`);
+            }
+            let dStart = new Date(s.aux.starttime);
+            let dFinish = new Date(newFinishTime);
+            s.aux.finishtime = (dFinish-dStart)*100; // note: since dFinish and dStart are only precise to 1/1000 of a second, there might be small rounding differences between the time recorded here and the actually shown time in the stadium, when shown up to 1/1000. (If the finishtime is set directly through aux.finishtime, e.g. when the runtime (in 1/100000s) is known and not only the finish time of day, then this problem does not appear.)
+            changed = true;
 
         }
 
@@ -1157,10 +1169,112 @@ export default class rTiming extends roomServer{
             };
             this.processChange(doObj, {})
     
-            // let the following funciton decide based on the auto-setting whether the change is sent to the site-->contest or not 
+            // let the following function decide based on the auto-setting whether the change is sent to the site-->contest or not 
             this.addUpdateResults(s);    
 
         }
+    }
+
+    // single result incoming; the rank is automatically evaluated (if the rank is already known, use the heatResultsIncoming-function)
+    // use the same function as for full heat results to send the change to rSite/rContestTrack; 
+    // if result.xResultTrack (=xSeriesStart) is not given, the bib must be provided!
+    resultIncoming(xContest, result, resultOverrule=0, xSeries=null, id=undefined, bib=null){
+
+        // get the contest and heat
+        const c = this.data.data.find(c=>c.xContest==xContest);
+        if (!c){
+            this.logger.log(10, `Contest ${xContest} does not exist rTiming.`);
+            return;
+        }
+        let s;
+        if (xSeries){
+            s = c.series.find(s=>s.xSeries === xSeries)
+        } else {
+            s = c.series.find(s=>s.id === id)
+        }
+        if (!s){
+            this.logger.log(10, `Series with either xSeries=${xSeries} or id=${id} does not exist in rTiming, contest ${xContest}`);
+            return;
+        }
+        // get the seriesStart
+        let SSR
+        if (result!==null && 'xResultTrack' in result){
+            SSR = s.SSRs.find(ssr=>ssr.xResultTrack == result.xResultTrack);
+        } else if(bib!==null) {
+            SSR = s.SSRs.find(ssr=>ssr.bib == bib);
+            result.xResultTrack = SSR.xSeriesStart;
+        }
+        if (!SSR){
+            this.logger.log(10, `SSR with either bib=${bib} or xSeriesStart=${result.xResultTrack} does not exist in rTiming, contest ${result.xContest}, series ${s.xSeries}. Cannot add a result.`);
+            return;
+        }
+
+        if (resultOverrule>0){
+            // if there was previously a result, we need to delete it AND to rerank all other results
+            if (SSR.resultstrack !== null){
+                let rankDeleted = SSR.resultstrack.rank;
+                SSR.resultstrack = null;
+
+                // decrease the rank of all other SSRs in the same heat
+                for (let ssr2 of s.seriesstartsresults){
+                    if (ssr2.resultstrack !== null){
+                        if (ssr2.resultstrack.rank > rankDeleted){
+                            ssr2.resultstrack.rank--;
+                        }
+                    }
+                }
+            }
+        } else {
+            // regular result; or delete result (i.e. result==null)
+
+            if (result !== null){
+                if (!result.time){
+                    this.logger.log(10, `Result ${result} must have a time property or be null.`)
+                    return;
+                }
+    
+                // make sure that the result is complete apart of the rank
+                result.timeRounded = result.timeRounded ?? Math.ceil(result.time/100)*100; // 1/1000s, as allowed to consider for the ranking/progress to next round
+                result.official = result.official ?? true;
+                result.reactionTime = result.reactionTime ?? null;
+
+            }
+
+            // is there already a result?
+            let rankBefore = SSR.resultstrack?.rank ?? 9999999;
+
+            // ranking of the new result and reranking of all others is done in analogy to ranking in rContestTrack
+            // find the rank
+            let rank = 1;
+            let currentResults = s.SSRs.filter(ssr2=>ssr2.resultstrack!==null && ssr2.xSeriesStart != SSR.xSeriesStart);
+            for (let ssr2 of currentResults){
+                if (result!==null && ssr2.resultstrack.timeRounded<result.timeRounded){
+                    rank++;
+                }
+                
+                if (ssr2.resultstrack.rank > rankBefore && (result===null || ssr2.resultstrack.timeRounded < result.timeRounded)){
+                    // lower the rank by one if the changed/new time is now worse then the investigated one
+                    ssr2.resultstrack.rank--;
+                } else if (result!==null && ssr2.resultstrack.rank <= rankBefore && ssr2.resultstrack.timeRounded > result.timeRounded){
+                    // the rank of the changed result was increased
+                    ssr2.resultstrack.rank++;
+                }
+            }
+
+            if (result !== null){    
+                result.rank = rank;
+            }
+            
+            SSR.resultstrack = result;
+
+        }
+        SSR.resultOverrule = resultOverrule;
+
+        // store the data
+        this._storeData().catch(err=>this.logger.log(10, `${this.name}: Could not store data to mongo: ${err}`)); // async
+
+        // let the following function decide based on the auto-setting whether the change is sent to the site-->contest or not 
+        this.addUpdateResults(s);
     }
 
     /**
@@ -1656,14 +1770,19 @@ export default class rTiming extends roomServer{
 
 export class rTimingAlge extends rTiming {
 
-    /**  ALGE can push the following messages: 
+    /** ALGE Timing  
+     * The ALGE timing data transfers basically uses files for exchange. Optionally, the main software knows the tcp-based versatile exchange protocol sending some information live and the the StartJudge sends reaction time through tcp as well.  
+     * 
+     * ALGE can push the following messages: 
      * - HeatStart, when heat is started: IsFalseStart, EventId, HeatId, Time (in UTC?)
      * - HeatFinish, when first person crosses the line: EventId, HeatId, Time (in UTC?), Runtime
-     * - CompetitorEvaluated, when the time of one competitor was set: Bib, Rank (attention: this might be temporary only!), Time (UTC?), Runtime, RuntimeFullPrecision, Lane, Disqualification (as text), DifferenceToWinner, DifferernceToPrevious --> this info seems to lack the event ! --> TODO: store the last event coming in via HeatStart or HeatFinish
+     * - CompetitorEvaluated, when the time of one competitor was set: Bib, Rank (attention: this might be temporary only!), Time (UTC?), Runtime, RuntimeFullPrecision, Lane, Disqualification (as text), DifferenceToWinner, DifferernceToPrevious, State --> this info seems to lack the event ! --> TODO: store the last event coming in via HeatStart or HeatFinish
      * - HeatResult/Result, when the heat-results are confirmed: 
      *      - HeatResult: SessionId, EventId, HeatId, Starttime, Finishtime, Runtime, Wind, WindUnit, DistanceMeters
      *      - Result: see CompetitorEvaluated 
      * - Time has the format HH:MM:SS.1234
+     * 
+     * The startjudge can send HeatReactiontimes. 
      * 
      * eventually provide timing-specific options to (de-) activate every single push-reaction
      * 
@@ -1677,7 +1796,7 @@ export class rTimingAlge extends rTiming {
         
         // own properties:
         this.tcpConn = null;
-
+        this.tcpConnSJ = null; // start judge
 
         this.defaultTimingOptions = {
             xmlHeatsFolder: '', // path
@@ -1686,14 +1805,17 @@ export class rTimingAlge extends rTiming {
             handlePushCompetitorEvaluated: true, // automatically get results of one cometitor when evaluated (marked inofficial)
             competitorEvaluatedWithRank: false, // also import the rank. This should be set to false, when the times are not strictly evalauted 
             handlePushHeatResult: true, // automatically get the results of one heat when official
-            host: '192.168.99.99', // the IP (or any other identifier of the timing)
-            port: 4446, // same default as Seltec
-
+            hostMain: '', // the IP (or any other identifier of the timing)
+            portMain: 4446, // same default as Seltec
+            hostStartjudge: '',
+            portStartjudge: 1111,
         }
 
         this.data.infos.timing = {
-            tcpConnected: false,
-            tcpErrorLast: '', // the last tcp error. Include the time in the string!
+            tcpConnectedMain: false,
+            tcpErrorLastMain: '', // the last tcp error. Include the time in the string!
+            tcpConnectedStartjudge: false,
+            tcpErrorLastStartjudge: '', // the last tcp error. Include the time in the string!
             xmlHeatErrorLast: '', // the last error during xml-heat writing
             xmlResultErrorLast: '', // the last error during xml-results read
         };
@@ -1707,10 +1829,12 @@ export class rTimingAlge extends rTiming {
                 handlePushCompetitorEvaluated: {type:"boolean"},
                 competitorEvaluatedWithRank: {type:"boolean"},
                 handlePushHeatResult: {type:"boolean"},
-                host: {type:"string"},
-                port: {type:"integer", minimum:1, maximum:65535},
+                hostMain: {type:"string"},
+                portMain: {type:"integer", minimum:1, maximum:65535},
+                hostStartjudge: {type:"string"},
+                portStartjudge: {type:"integer", minimum:1, maximum:65535},
             },
-            required:['xmlHeatsFolder', 'xmlResultsFolder', 'handlePushHeatStartFinish', 'handlePushCompetitorEvaluated', 'competitorEvaluatedWithRank', 'handlePushHeatResult', 'host', 'port'],
+            required:['xmlHeatsFolder', 'xmlResultsFolder', 'handlePushHeatStartFinish', 'handlePushCompetitorEvaluated', 'competitorEvaluatedWithRank', 'handlePushHeatResult', 'hostMain', 'portMain', 'hostStartjudge', 'portStartjudge'],
             additionalProperties: false,
         }
 
@@ -1735,7 +1859,9 @@ export class rTimingAlge extends rTiming {
             await this._storeTimingOptions();
         }
 
+        // they will not get started when the string is empty
         this.startTcpVersatileExchange();
+        this.startTcpStartjudge();
 
     }
 
@@ -1749,51 +1875,140 @@ export class rTimingAlge extends rTiming {
         // TODO: delete all files from the exchange, e.g. heats and results
     }
 
-    // also works for restart
-    startTcpVersatileExchange(){
-        if (this.tcpConn !=null){
+    startTcpStartjudge(){
+        if (this.tcpConnSJ !=null){
             // stop the previous connection
-            this.tcpConn.tcpConn()
-            this.tcpConn = null;
+            this.tcpConnSJ.close();
+            this.tcpConnSJ = null;
+        }
+        if (this.data.timingOptions.hostStartjudge==''){
+            // empty string = not configured.
+            return;
         }
 
         // connection options (see nodejs Net.Client for documentation): 
-        const optVersatileExchange = {
-            port: this.data.timingOptions.port,
-            host: this.data.timingOptions.host,
+        const optSJ = {
+            port: this.data.timingOptions.portStartjudge,
+            host: this.data.timingOptions.hostStartjudge,
             keepAlive: true,
             keepAliveInitialDelay: 2000,
         }
 
         const onError = (err)=>{
             let d = new Date().toLocaleTimeString();
-            this.data.infos.timing.tcpErrorLast = `${d}: ${err}`;
+            this.data.infos.timing.tcpErrorLastStartjudge = `${d}: ${err}`;
             this.broadcastInf();
         }
 
         const onClose = () =>{
-            this.data.infos.timing.tcpConnected = false;
+            this.data.infos.timing.tcpConnectedStartjudge = false;
             this.broadcastInf();
         }
 
         const onConnect = ()=> {
-            this.data.infos.timing.tcpConnected = true;
+            this.data.infos.timing.tcpConnectedStartjudge = true;
+            this.broadcastInf();
+        }
+
+        const onData = async (data)=>{
+            this.logger.log(90, `ALGE StartJudge2 data: ${data}`); // TODO: change later to level 99
+
+            // parse the xml
+            const xml = await parseStringPromise(data, {explicitArray:true, attrValueProcessors:[xmlProcessors.parseBooleans, xmlProcessors.parseNumbers]});
+
+            if ('HeatReactiontimes' in xml){
+
+                let result = {};
+
+                result.id = xml.HeatReactiontimes.$.Id;
+
+                // unfortunately, the contest (liveAthleztics) / event (alge) is probably not given here; thus, we need to search for the correct contest...
+                for (let iC=0; iC++; iC<this.data.data){
+                    let c = this.data.data[iC];
+                    let s = c.series.find(s=>s.id === result.id);
+                    if (s){
+                        result.xContest = s.xContest;
+                        break;
+                    }
+                }
+                if (!s){
+                    this.logger.log(20, `Could not find contest for heat-id ${result.id}. Thus, reaction times (${xml}) cannot be imported.`);
+                    return
+                }
+
+                let newReactionTimes = [];
+                if ('Reactiontimes' in xml.HeatReactiontimes && 'Competitor' in xml.HeatReactiontimes.Reactiontimes[0]){
+                    for (let competitor of xml.HeatReactiontimes.Reactiontimes[0].Competitor){
+
+                        // the reactiontime is a string; 
+                        let reactionTime = parseFloat(competitor.$.Reactiontime);
+                        if (!isNaN(reactionTime)){
+                            newReactionTimes.push({
+                                lane: competitor.$.Lane,
+                                reactionTime,
+                            })
+                        }
+                    }
+                }
+                if (newReactionTimes.length>0){
+                    this.heatResultsIncoming(result, {newReactionTimes})
+                }
+
+            }
+
+        }
+
+        this.tcpConnSJ = new tcpClientAutoReconnect(optSJ, onError, onClose, onConnect, onData)
+    }
+
+    // also works for restart
+    startTcpVersatileExchange(){
+        if (this.tcpConn !=null){
+            // stop the previous connection
+            this.tcpConn.close(); 
+            this.tcpConn = null;
+        }
+        if (this.data.timingOptions.hostMain==''){
+            // empty string = not configured.
+            return;
+        }
+
+        // connection options (see nodejs Net.Client for documentation): 
+        const optVersatileExchange = {
+            port: this.data.timingOptions.portMain,
+            host: this.data.timingOptions.hostMain,
+            keepAlive: true,
+            keepAliveInitialDelay: 2000,
+        }
+
+        const onError = (err)=>{
+            let d = new Date().toLocaleTimeString();
+            this.data.infos.timing.tcpErrorLastMain = `${d}: ${err}`;
+            this.broadcastInf();
+        }
+
+        const onClose = () =>{
+            this.data.infos.timing.tcpConnectedMain = false;
+            this.broadcastInf();
+        }
+
+        const onConnect = ()=> {
+            this.data.infos.timing.tcpConnectedMain = true;
             this.broadcastInf();
         }
 
         const onData = async (data)=>{
             this.logger.log(90, `ALGE versatile data: ${data}`); // TODO: change later to level 99
 
-            // TODO: provess the data according to the options !!!
             // HeatResult: the reserved field is not available!
             // if "SendResultlistWhenHeatDataChanged" is set to true in the ALGE-Versatile settings, a heatresult is sent whenever a time is entered; 
-            // the competitorEvaluated is not used when a time is entered. Probably this only works when the time was set defined through the image.  
+            // CompetitorEvaluated cannot be used yet, since the fragment does nto contain all necessary data needed (except if we want to search for the athlete in all heats...)
             
             // parse the xml
             const xml = await parseStringPromise(data, {explicitArray:true, attrValueProcessors:[xmlProcessors.parseBooleans, xmlProcessors.parseNumbers]});
 
             // differentiate the different data
-            if ('HeatResult' in xml){
+            if (this.data.timingOptions.handlePushHeatResult && 'HeatResult' in xml){
 
                 // until ALGE has updated their interface, we simply read the file when the data arrives.
                 let xContest = xml.HeatResult.$.EventId; //
@@ -1817,7 +2032,7 @@ export class rTimingAlge extends rTiming {
 
                 //this.processXmlHeatResult(xml);
 
-            } else if ('HeatStart' in xml){
+            } else if ( this.data.timingOptions.handlePushHeatStartFinish && 'HeatStart' in xml){
                 // heat started
                 let falseStart = false;
                 if ('IsFalseStart' in xml.HeatStart.$){
@@ -1847,11 +2062,63 @@ export class rTimingAlge extends rTiming {
 
                 this.heatResultsIncoming(result, {newStart});
 
-            } else if ('HeatFinish' in xml){
+            } else if (this.data.timingOptions.handlePushHeatStartFinish &&  'HeatFinish' in xml){
                 // heat finished (photocell); inofficial finish time 
+                let xContest = xml.HeatFinish.$.EventId; //
+                let seriesId = xml.HeatFinish.$.Id; // UUID
 
-            } else if ('CompetitorEvaluated' in xml){
+                if ('Time' in xml.HeatFinish.$){
+                    // time is time of day, e.g. ”12:30:22.2124”
+                    let parts = xml.HeatFinish.$.Time.split(/[.:]/);
+                    let today = new Date();
+                    time = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]), parseInt(parts[3].slice(0,3)))// Date constructor is in local time
+                } else {
+                    time = new Date();
+                }
+
+                let result = {
+                    xContest,
+                    id:seriesId,
+                }
+                let newFinishTime = time
+
+                this.heatResultsIncoming(result, {newFinishTime});
+
+            } else if ( this.data.timingOptions.handlePushCompetitorEvaluated && 'CompetitorEvaluated' in xml){
+
+                // currently, xSeries and xContest are not given in this transmission!
+                this.logger.log(90, `Competitor evaluated; but canot be processed lacking xSeries and xContest: ${xml.CompetitorEvaluated}`)
+                return;
+
+                // TODO: xContest and id (or xSeries)
+
+                const competitor = xml.CompetitorEvaluated
                 // mark the result as inofficial so far and do not process the rank
+
+                // rank is not considered, even if present
+
+                // also works when State is undefined
+                let resultOverrule = this.stateToResultOverrule(competitor.$.State);
+                let result = null;
+                if (resultOverrule==0){
+                    // regular result
+                    // process the time (since it is given as a string)
+                    let time = disciplineValidators[3](competitor.$.RuntimeFullPrecision.toString(), discipline).value; // toString is needed since values with just seconds and smaller are processed to float; but the function needs strings
+
+                    result = {
+                        official: false,
+                        time: time,
+                        reactionTime,
+                        // timeRounded will be calculated
+                        // rank will be calculated
+                    }
+
+                }
+
+                // the athlete currently is identified by the bib; if Reserved1 is tranferred in the future as well, change to this.;
+                let bib = competitor.$.Bib;
+
+                this.resultIncoming(xContest, result, resultOverrule=resultOverrule, id=id, bib=bib)
 
             } 
 
@@ -1873,9 +2140,13 @@ export class rTimingAlge extends rTiming {
 
         
         // if host or port have changed, change the tcp connection
-        if (oldTimingOptions.port != timingOptions.port || oldTimingOptions.host != timingOptions.host){
+        if (oldTimingOptions.portMain != timingOptions.portMain || oldTimingOptions.hostMain != timingOptions.hostMain){
             // restart tcp connection
             this.startTcpVersatileExchange();
+        }
+        if (oldTimingOptions.portStartjudge != timingOptions.portStartjudge || oldTimingOptions.hostStartjudge != timingOptions.hostStartjudge){
+            // restart tcp connection
+            this.startTcpStartjudge();
         }
 
         // if any path has changed, rewrite the xml.
@@ -2125,6 +2396,22 @@ export class rTimingAlge extends rTiming {
         this.heatResultsIncoming(heatResults);*/
     }
 
+    // returns the resultOverrule-number for an ALGE-state
+    stateToResultOverrule(state){
+        let resultOverrule=0; // regular
+        if (state == "DNS"){
+            resultOverrule = 5;
+        } else if(state == "DNF" || state == "SUR"){
+            resultOverrule = 3;
+        } else if (state == "DSQ"){
+            resultOverrule = 6;
+        } else if (state == "CAN" || state == "FAL"){
+            // withdrawal
+            resultOverrule = 4;
+        }
+        return resultOverrule
+    }
+
     processXmlHeatResult(xml){
         
         const auxData = {};
@@ -2140,8 +2427,8 @@ export class rTimingAlge extends rTiming {
         // loop over every result in the list
         for (let competitor of xml.HeatResult.Results[0].Competitor){
 
-            let resultOverrule = 0;
-            if (competitor.$.State == "DNS"){
+            let resultOverrule = this.stateToResultOverrule(competitor.$.State);
+            /*if (competitor.$.State == "DNS"){
                 resultOverrule = 5;
             } else if(competitor.$.State == "DNF" || competitor.$.State == "SUR"){
                 resultOverrule = 3;
@@ -2150,7 +2437,7 @@ export class rTimingAlge extends rTiming {
             } else if (competitor.$.State == "CAN" || competitor.$.State == "FAL"){
                 // withdrawal
                 resultOverrule = 4;
-            }
+            }*/
 
             // create a fake "discipline" object with the relevant information for the automatic processing to a value
             let discipline = {baseConfiguration:JSON.stringify({distance: xml.HeatResult.$.DistanceMeters})}

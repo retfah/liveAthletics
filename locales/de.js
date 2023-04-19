@@ -650,5 +650,9 @@
 	"Send heats": "Send heats",
 	"Get results": "Get results",
 	"Get reaction times": "Get reaction times",
-	"Show information": "Show information"
+	"Show information": "Show information",
+	"StartJudge2": "StartJudge2",
+	"The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.": "The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.",
+	"ALGE Startjudge2 connected": "ALGE Startjudge2 connected",
+	"ALGE Startjudge2 disconnected": "ALGE Startjudge2 disconnected"
 }

@@ -801,7 +801,7 @@
                 <h1><%= __("Timing") %> {{timingName}}</h1>
                 <h3><%= __("Status") %></h3>
                 <!-- provide some information about the status etc 
-                 "lastHeatPushFailed": false, "siteServerConnected": true, "lastSiteServerConnectionError": "", "siteRoomConnected": true, "lastSiteRoomConnectionError": "", "timing": { "tcpConnected": true, "tcpErrorLast": "16:18:48: Error: connect ECONNREFUSED 127.0.0.1:4446", "xmlHeatErrorLast": "", "xmlResultErrorLast": "" } }-->
+                 "lastHeatPushFailed": false, "siteServerConnected": true, "lastSiteServerConnectionError": "", "siteRoomConnected": true, "lastSiteRoomConnectionError": "", "timing": { "tcpConnectedMain": true, "tcpErrorLastMain": "16:18:48: Error: connect ECONNREFUSED 127.0.0.1:4446", "xmlHeatErrorLast": "", "xmlResultErrorLast": "" } }-->
                 <div style="margin:3px 0;">
                     <%= __("General status information") %>:
                     <div class="statusEl" v-bind:title="`Last site server connection error: ${infos.lastSiteServerConnectionError}`" v-bind:class="{connected: infos.siteServerConnected, disconnected: !infos.siteServerConnected}">
@@ -832,12 +832,20 @@
                 <!--  further add all timing specific variables; TODO: include this from a timing-specific file! The following is for ALGE-->
                 <div style="margin:3px 0;" v-if="infos.timing && Object.keys(infos.timing).length>0"> <!-- not before the data is initially loaded -->
                     <%= __("Timing specific status information") %>:
-                    <div class="statusEl" v-bind:title="`Last tcp connection error: ${infos.timing.tcpErrorLast}`" v-bind:class="{connected: infos.timing.tcpConnected, disconnected:!infos.timing.tcpConnected}">
-                        <div v-if="infos.timing.tcpConnected">
+                    <div class="statusEl" v-if="timingOptions.hostMain != ''" v-bind:title="`Last tcp connection error: ${infos.timing.tcpErrorLastMain}`" v-bind:class="{connected: infos.timing.tcpConnectedMain, disconnected:!infos.timing.tcpConnectedMain}">
+                        <div v-if="infos.timing.tcpConnectedMain">
                             <%= __("ALGE Versatile Exchange connected") %>
                         </div>
                         <div v-else>
                             <%= __("ALGE Versatile Exchange disconnected") %>
+                        </div>
+                    </div>
+                    <div class="statusEl" v-if="timingOptions.hostStartjudge != ''" v-bind:title="`Last tcp connection error: ${infos.timing.tcpErrorLastStartjudge}`" v-bind:class="{connected: infos.timing.tcpConnectedStartjudge, disconnected:!infos.timing.tcpConnectedStartjudge}">
+                        <div v-if="infos.timing.tcpConnectedStartjudge">
+                            <%= __("ALGE Startjudge2 connected") %>
+                        </div>
+                        <div v-else>
+                            <%= __("ALGE Startjudge2 disconnected") %>
                         </div>
                     </div>
                     <div class="statusEl">
@@ -1277,29 +1285,40 @@
                                 <h4><%= __("Settings are only required when any of the checkboxes is selected") %></h4>
                                 <label>
                                     <%= __("Host") %>
-                                    <input class="formCtrl" type="text"  v-model="timingOptionsCopy.host">
+                                    <input class="formCtrl" type="text"  v-model="timingOptionsCopy.hostMain">
                                 </label>
                                 <label>
                                     <%= __("Port") %>
-                                    <input class="formCtrl" type="number"  v-model.number="timingOptionsCopy.port" min="1" max="65535">
+                                    <input class="formCtrl" type="number"  v-model.number="timingOptionsCopy.portMain" min="1" max="65535">
                                 </label>
                                 <label>
                                     <%= __("Relay start and finish signal from ALGE to live athletics") %>
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushHeatStartFinish">
                                 </label>
                                 <label>
-                                    <%= __("Get inofficial results during evaluation") %>
+                                    <%= __("Get inofficial results during evaluation") %> DOES NOT WORK YET
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushCompetitorEvaluated">
                                 </label>
-                                <div v-if="timingOptionsCopy.handlePushCompetitorEvaluated==true" style="padding-left: 15px;">
+                                <!--<div v-if="timingOptionsCopy.handlePushCompetitorEvaluated==true" style="padding-left: 15px;">
                                     <label >
                                         <%= __("Also get the inofficial rank") %><button type="button" class="information" v-on:click="overlayInfo('<%= __(`Inofficial rank`) %>', '<%= __(`Only set this to true when the timing crew always evaluates the times in the order of the placing, and e.g. not in the order of the lanes. Otherwise, the temporary ranks are wrong.`) %>');"><%= __('i') %></button>
                                         <input type="checkbox"  v-model="timingOptionsCopy.competitorEvaluatedWithRank">
                                     </label>
-                                </div>                                
+                                </div>   -->                             
                                 <label>
                                     <%= __("Instantly import results when official") %>
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushHeatResult">
+                                </label>
+                            </fieldset>
+                            <fieldset>
+                                <legend><%= __("StartJudge2") %><button type="button" class="information" v-on:click="overlayInfo('ALGE StartJudge2 Link', '<%= __(`The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.`) %>');"><%= __('i') %></button></legend>
+                                <label>
+                                    <%= __("Host") %>
+                                    <input class="formCtrl" type="text"  v-model="timingOptionsCopy.hostStartjudge">
+                                </label>
+                                <label>
+                                    <%= __("Port") %>
+                                    <input class="formCtrl" type="number"  v-model.number="timingOptionsCopy.portStartjudge" min="1" max="65535">
                                 </label>
                             </fieldset>
 
