@@ -654,5 +654,9 @@
 	"StartJudge2": "StartJudge2",
 	"The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.": "The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.",
 	"ALGE Startjudge2 connected": "ALGE Startjudge2 connected",
-	"ALGE Startjudge2 disconnected": "ALGE Startjudge2 disconnected"
+	"ALGE Startjudge2 disconnected": "ALGE Startjudge2 disconnected",
+	"Automatically set heat status": "Automatically set heat status",
+	"Transfer using the following actions": "Transfer using the following actions",
+	"Update existing results": "Update existing results",
+	"Delete results (when deleted in timing)": "Delete results (when deleted in timing)"
 }

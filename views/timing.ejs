@@ -137,7 +137,7 @@
                             disciplines: [], // stays constant
                             meeting: {}, // stays constant
 
-                            overlay: null, // null, siteConf, timingOptions, conf (auto + timers), 
+                            overlay: null, // null, siteConf, timingOptions, conf (auto + timers), transfer
 
                             // copy for mod:
                             siteConfCopy: {}, 
@@ -167,12 +167,17 @@
                             },
                             transferToLA: {
                                 add: true,
-                                update: false,
-                                includeReaction: true,
+                                update: true,
+                                delete: true,
+                                xContest: null,
+                                xSeries: null,
                             },
 
+                            // temporary variable to be resetted after the change
+                            originalStatus: 0, 
+
                             // for testing only
-                            auto2: {10:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 70:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 130:{heatAud:'au', heatD:true, heatPreventOnResult:true, resultAud: ''}, 150:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 180:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 200:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}},
+                            //auto2: {10:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 70:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 130:{heatAud:'au', heatD:true, heatPreventOnResult:true, resultAud: ''}, 150:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 180:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 200:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}},
                         }
                     },
                     methods:{
@@ -196,19 +201,26 @@
                         heatToTiming(xContest, xSeries){
                             rTiming.room.heatToTimingInit(xContest, xSeries);
                         },
-                        showResultsToLA(){
+                        showResultsToLA(xContest=null, xSeries=null){
                             this.transferToLA.add = true;
-                            this.transferToLA.update = false;
-                            this.transferToLA.includeReaction = true;
+                            this.transferToLA.update = true;
+                            this.transferToLA.delete = true;
+                            this.transferToLA.xContest = xContest;
+                            this.transferToLA.xSeries = xSeries;
                             this.overlay = 'resultsToLA';
                         },
+                        /*showResultsToLASingle(xContest, xSeries){
+                            this.transferToLA.add = true;
+                            this.transferToLA.update = true;
+                            this.transferToLA.delete = true;
+                            this.transferToLA.xContest = xContest;
+                            this.transferToLA.xSeries = xSeries;
+                            this.overlay = 'resultsToLA';
+                        },*/
                         applyResultsToLA(){
                             // send "note" (actually a request where we do not care about the answer) to server
-                            rTiming.room.resultsToLAInit(this.transferToLA.add, this.transferToLA.update, this.transferToLA.includeReaction);
+                            rTiming.room.resultsToLAInit(this.transferToLA.add, this.transferToLA.update, this.transferToLA.delete, this.transferToLA.xContest, this.transferToLA.xSeries);
                             this.overlay = null;
-                        },
-                        resultsToLASingle(xContest, xSeries, includeReaction){
-                            rTiming.room.resultsToLASingleInit(xContest, xSeries, includeReaction);
                         },
                         formatDate(dateString, noDate=false){
                             // first, get the first and last date of the competition (consider start, call and appealtime) 
@@ -583,6 +595,24 @@
                         pullReactionTimes(){
                             rTiming.room.pullReactionInit();
                         },
+                        seriesStateChanged(contest, heat, evt){
+                            // abort the change (since the data shall not yet be changed, but we only send a signal to the server to change it and the data here will be changed as soon as the status was changed on the liveAthletics server (i.e. the request gow from rTimingClient to rTiming to rSite to rContest and back...))
+                            
+                            rTiming.room.changeStatusInit(contest.xContest, heat.xSeries, parseInt(evt.target.value));
+
+                            // reset the status ("abort the change"); This was the best method I found...
+                            heat.site.status = this.originalStatus;
+
+                            // TODO: the following works, but is not nice at all!!! How can we make sure that the value does not get changed actually?
+                            // using v-model does not work either, since it automatically changes the value, which we dont want. Or is it possible somehow to abort the change? ask google.
+                            
+                            /*let currentStatus = heat.site.status;
+                            heat.site.status = 0;
+                            setTimeout(()=>{
+                                heat.site.status = currentStatus;
+                            },100);*/
+                            
+                        },
                     },
                     computed:{
                         /**
@@ -887,7 +917,7 @@
                             </div>
                             <div style="border:1px solid black; grid-column: buttons / span 1;">
                                 <button type="button" class="btn" v-on:click="showHeatsToTiming">⇨ <%= __("Heats to timing") %> ⇨</button>
-                                <button type="button" class="btn" v-on:click="showResultsToLA">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
+                                <button type="button" class="btn" v-on:click="showResultsToLA(contest.xContest)">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
                             </div>
                             <div style="border:1px solid black; grid-column: timing / span 1; ">
                                 <div v-if="contest.timing" >
@@ -905,9 +935,16 @@
                                 <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }"> <!--  -->
                                     <div v-bind:style="{ 'background-color': statusBackgroundColor(heat.site.status, seriesStates), '--backColorHover': statusBackgroundColorHover(heat.site.status, seriesStates), color: statusTextColor(heat.site.status, seriesStates) }">
                                         {{formatDate(heat.site.datetime, false)}} - <%= __("Heat") %> {{heat.number}} {{heat.site.name}}
-                                        {{statusText(heat.site.status, seriesStates)}} 
+                                        <!--{{statusText(heat.site.status, seriesStates)}}--> 
+                                        <!-- allow to change the status-->
+                                        <!-- 
+                                        v-model="heat.site.status"  -->
+                                        <select style="padding-left: 5px;" class="content dropdown" v-on:focus="originalStatus=heat.site.status" v-on:change="seriesStateChanged(contest, heat, $event);" v-model="heat.site.status" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(heat.site.status, seriesStates), '--backColorHover': statusBackgroundColorHover(heat.site.status, seriesStates), color: statusTextColor(heat.site.status, seriesStates) }">
+                                            <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
+                                                {{option.text}}
+                                            </option> <!-- v-bind:selected="heat.site.status == option.value" -->
+                                        </select>
                                         <br>{{heat.site.id}}
-                                        <!-- TODO: allow to change the status! -->
                                     </div>
                                 </div>
                                 <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1;" v-bind:style="{'grid-row-start': heat.number*2+1}">
@@ -940,8 +977,7 @@
                                 <!--<div v-else style="border:1px solid black; grid-column: site / span 1; "></div>--> <!-- since there is no content, we do not need to show the div -->
                                 <div style="border:1px solid black; grid-column: buttons / span 1; grid-row-end: span 2;" v-bind:style="{'grid-row-start': heat.number*2}">
                                     <button type="button" class="btn" v-on:click="heatToTiming(contest.xContest, heat.xSeries)" v-bind:disabled="!heat.heatToTiming">⇨ <%= __("Heat to timing") %> ⇨</button>
-                                    <button type="button" class="btn" v-on:click="resultsToLASingle(contest.xContest, heat.xSeries, false)" v-bind:disabled="!heat.resultsToSite">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
-                                    <button type="button" class="btn" v-on:click="resultsToLASingle(contest.xContest, heat.xSeries, true)" v-bind:disabled="!heat.resultsToSite">⇦ <%= __("Results and reaction times to liveAthletics") %> ⇦</button>
+                                    <button type="button" class="btn" v-on:click="showResultsToLA(contest.xContest, heat.xSeries)" v-bind:disabled="!heat.resultsToSite">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
                                 </div>
                                 <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }">
                                     xSeries (timing): {{heat.timing.xSeries}}<br>
@@ -1251,11 +1287,11 @@
                             </label>
                             <label>
                                 <input type="checkbox"  v-model="transferToLA.update">
-                                <%= __("Update results") %>
+                                <%= __("Update existing results") %>
                             </label>
                             <label>
-                                <input type="checkbox"  v-model="transferToLA.includeReaction">
-                                <%= __("include reaction times (if available)") %>
+                                <input type="checkbox"  v-model="transferToLA.delete">
+                                <%= __("Delete results (when deleted in timing)") %>
                             </label>
                             <button type="button" class="btn btnRed" v-on:click="overlay = null"><%= __("Close") %></button>
                             <button type="button" class="btn btnGreen" v-on:click="applyResultsToLA"><%= __("Apply") %></button>
@@ -1295,10 +1331,17 @@
                                     <%= __("Relay start and finish signal from ALGE to live athletics") %>
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushHeatStartFinish">
                                 </label>
-                                <label>
-                                    <%= __("Get inofficial results during evaluation") %> DOES NOT WORK YET
-                                    <input type="checkbox"  v-model="timingOptionsCopy.handlePushCompetitorEvaluated">
-                                </label>
+                                <div v-if="timingOptionsCopy.handlePushHeatStartFinish==true" style="padding-left: 15px;">
+                                    <label>
+                                        <%= __("Automatically set heat status") %>
+                                        <input type="checkbox"  v-model="timingOptionsCopy.autoStatus">
+                                    </label>
+                                    <!-- This is only possible when start/finish signals are handled, since the incoming results do not have the constest and series information; thus, we need to know which was the last started heat -->
+                                    <label>
+                                        <%= __("Get inofficial results during evaluation") %>
+                                        <input type="checkbox"  v-model="timingOptionsCopy.handlePushCompetitorEvaluated">
+                                    </label>
+                                </div>
                                 <!--<div v-if="timingOptionsCopy.handlePushCompetitorEvaluated==true" style="padding-left: 15px;">
                                     <label >
                                         <%= __("Also get the inofficial rank") %><button type="button" class="information" v-on:click="overlayInfo('<%= __(`Inofficial rank`) %>', '<%= __(`Only set this to true when the timing crew always evaluates the times in the order of the placing, and e.g. not in the order of the lanes. Otherwise, the temporary ranks are wrong.`) %>');"><%= __('i') %></button>

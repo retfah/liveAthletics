@@ -592,6 +592,7 @@ class rContestTrack extends roomServer{
             additionalProperties: false,
         }
 
+        // can be used to update (part of) the series as well!
         const schemaAddUpdateResults = {
             type:"object",
             properties: {

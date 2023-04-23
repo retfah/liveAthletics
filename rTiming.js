@@ -213,11 +213,23 @@ export default class rTiming extends roomServer{
         this.functionsReadOnly.heatToTiming = this.heatToTiming.bind(this);
         this.functionsReadOnly.heatsToTiming = this.heatsToTiming.bind(this);
         this.functionsReadOnly.resultsToLA = this.resultsToLA.bind(this);
-        this.functionsReadOnly.resultsToLASingle = this.resultsToLASingle.bind(this);
+        //this.functionsReadOnly.resultsToLASingle = this.resultsToLASingle.bind(this);
         this.functionsReadOnly.pullReaction = this.pullReaction.bind(this);
         this.functionsReadOnly.pullResults = this.pullResults.bind(this);
         this.functionsReadOnly.pushHeats = this.pushHeats.bind(this);
+        this.functionsReadOnly.changeStatus = this.changeStatus.bind(this);
 
+
+        const schemaChangeStatus = {
+            type:'object',
+            properties: {
+                xContest: {type:'integer'},
+                xSeries: {type:'integer'},
+                status: {type:'integer'},
+            },
+            required:['xContest', 'xSeries'],
+            additionalProperties: false,
+        };
         const schemaHeatToTiming = {
             type:'object',
             properties: {
@@ -238,26 +250,28 @@ export default class rTiming extends roomServer{
             required:['add', 'update', 'delete', 'updateContest'],
             additionalProperties: false,
         }
-        const schemaResultsToLASingle = {
+        const schemaResultsToLA = {
             type:'object',
             properties: {
-                xContest: {type:'integer'},
-                xSeries: {type:'integer'},
-                includeReaction: {type:'boolean'},
+                xContest: {type:['integer', "null"]}, // optional; acts as a filter if given
+                xSeries: {type:['integer', "null"]}, // optional; acts as a filter if given
+                add: {type:'boolean'},
+                update: {type:'boolean'},
+                delete: {type:'boolean'},
             },
-            required:['xContest', 'xSeries', 'includeReaction'],
+            required:['add', 'update', 'delete'],
             additionalProperties: false,
         }
-        const schemaResultsToLA = {
+        /*const schemaResultsToLA = {
             type:'object',
             properties: {
                 add: {type:'boolean'},
                 update: {type:'boolean'},
-                includeReaction: {type:'boolean'},
+                delete: {type:'boolean'},
             },
-            required:['add', 'update', 'includeReaction'],
+            required:['add', 'update', 'delete'],
             additionalProperties: false,
-        }
+        }*/
         const schemaTimers = {
             type:'object',
             properties: {
@@ -317,8 +331,8 @@ export default class rTiming extends roomServer{
         this.validateHeatsToTiming = this.ajv.compile(schemaHeatsToTiming);
         this.validateHeatToTiming = this.ajv.compile(schemaHeatToTiming);
         this.validateResultsToLA = this.ajv.compile(schemaResultsToLA);
-        this.validateResultsToLASingle = this.ajv.compile(schemaResultsToLASingle);
-
+        //this.validateResultsToLASingle = this.ajv.compile(schemaResultsToLASingle);
+        this.validateChangeStatus = this.ajv.compile(schemaChangeStatus);
     }
 
     /**
@@ -899,6 +913,23 @@ export default class rTiming extends roomServer{
 
     }
 
+    async changeStatus(data){
+        if (!this.validateChangeStatus(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateChangeStatus.errors)}
+        }
+        // use the regular heatresultsincoming to send the change
+        let result = {
+            xContest: data.xContest,
+            xSeries: data.xSeries,
+            status: data.status,
+        }   
+
+        this.heatResultsIncoming(result);
+
+        // actually nothing to return
+        return true;
+    }
+
     heatsToTiming(data){
         if (!this.validateHeatsToTiming(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateHeatsToTiming.errors)}
@@ -906,7 +937,7 @@ export default class rTiming extends roomServer{
         // TODO
 
     }
-    heatToTiming(data){
+    async heatToTiming(data){
         if (!this.validateHeatToTiming(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateHeatToTiming.errors)}
         }
@@ -954,24 +985,78 @@ export default class rTiming extends roomServer{
         
     }
 
-    // called by the client to move all results from timing to rSite
-    resultsToLA(data){
+    // called by the client to move results from timing to rSite.
+    // if xContest and/or xSeries are defined, use this as a filter
+    async resultsToLA(data){
         if (!this.validateResultsToLA(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateResultsToLA.errors)}
         }
-        // TODO
+        
+        let override='';
+        if (data.add){
+            override +='a';
+        }
+        if (data.update){
+            override += 'u';
+        }
+        if (data.delete){
+            override += 'd';
+        }
 
+        let contests = this.data.data;
+        if (data.xContest != null){
+            contests = this.data.data.filter(c=>c.xContest == data.xContest);
+        }
 
+        // loop over all contests and heats
+        for (let c of contests){
+            let series = c.series;
+            if (data.xSeries != null){
+                series = c.series.filter(s=>s.xSeries==data.xSeries);
+            }
+            for (let s of series){
+                this.addUpdateResults(s, override); 
+            }
+        }
 
+        // actually nothing to return
+        return true
     }
-    // called by the client to move a certain result from timing to rSite
-    resultsToLASingle(data){
+
+    // called by the client to move the results of a certain heat from timing to rSite
+    /*resultsToLASingle(data){
         if (!this.validateResultsToLASingle(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateResultsToLASingle.errors)}
         }
-        // TODO
+
+        // get the contest
+        const c = this.data.data.find(c2=>c2.xContest == data.xContest);
+        if (!c){
+            this.logger.log(10, `Contest ${data.xContest} does not exist rTiming.`);
+            return;
+        }
+        const s = c.series.find(s=>s.xSeries == data.xSeries)
+        if (!s){
+            this.logger.log(10, `Series ${data.xSeries} does not exist in rTiming, contest ${data.xContest}`);
+            return;
+        }
+
+        let override='';
+        if (data.add){
+            override +='a';
+        }
+        if (data.update){
+            override += 'u';
+        }
+        if (data.delete){
+            override += 'd';
+        }
         
-    }
+        this.addUpdateResults(s, override); 
+        
+        // actually nothing to return
+        return true;
+    }*/
 
     // the name is on purpose not "info" since this is already in use in the room.
     broadcastInf(){
@@ -999,7 +1084,7 @@ export default class rTiming extends roomServer{
      * Provide the general function to handle incoming results. This function is called by a timing-specific push- or pull-results-function. The function shall be able to handle new and updated results and/or aux data! The function will update the results in timing and (if requested for the present state) transfer the result to the site/live athletics
      * @param {object} result the object with all results and backgrounddata that are to be transferred. The object has the same structure as a series, but only a part is mandatory:
      * mandatory: xContest (integer), oneOf [xSeries (integer), id (string)] 
-     * optional: aux*, SSRs (array of SSR); everything else will simply be neglected
+     * optional: aux*, status, SSRs (array of SSR); everything else will simply be neglected
      * SSR: 
      * mandatory: oneOf [xSeriesStart, bib]
      * optional: resultstrack (object of resultstrack), resultOverrule;everything else will simply be neglected
@@ -1058,6 +1143,9 @@ export default class rTiming extends roomServer{
                     if (!('timeRounded' in ssr.resultstrack)){
                         ssr.resultstrack.timeRounded = Math.ceil(ssr.resultstrack.time/100)*100; // 1/1000s, as allowed to consider for the ranking/progress to next round
                     }
+                    if (!ssr.resultstrack.reactionTime){
+                        ssr.resultstrack.reactionTime = null; // make sure that the property exists
+                    }
                 };
                 if ('resultOverrule' in ssr && ssr.resultOverrule>0){
                     count++;
@@ -1078,6 +1166,10 @@ export default class rTiming extends roomServer{
             changed = true;
             // only do updates!
             this.propertyTransfer(result.aux, s.aux, true);
+        }
+        if ('status' in result && result.status != s.status){
+            changed = true;
+            s.status = result.status;
         }
         if (newStart){
             changed = true;
@@ -1280,9 +1372,9 @@ export default class rTiming extends roomServer{
     /**
      * Check if the changed series in timing (series-aux-data and/or actual results) shall be sent to rSite --> rContest and if yes, send it
      * @param {object} seriesT the series object of rTiming that was changed
-     * @param {boolean} override even send the change to the server when the automatic-send-option would say no
+     * @param {string} override default '', put 'a' for add, 'u' for update and 'd' for delete to even send the change to the server when the automatic-send-option would say no
      */
-    addUpdateResults(seriesT, override=false){
+    addUpdateResults(seriesT, override=''){
 
         // send the change to rSite, which will relay it to the respective room, which will raise an event captured by rSite, updating the data of rSite, which then arrives here...
         // this is quite a long path, but a reliable one and comparable easy to understand. If the data was directly added here to rSite, we would somehow have to make 100% sure that the change on rContest is actually made, since rSite shall NEVER be newer than rContest, since it is an artificial room without own data! (Therefore, rSite should only change the data when rCOntest already has processed it. Thus, we send the change via rSite to rContest. The actual request to rSite is not an actual change; the change of rSite data is caused by the event of rContest.)
@@ -1311,6 +1403,10 @@ export default class rTiming extends roomServer{
             changes = true;
             data.aux = JSON.stringify(seriesT.aux); // must be a string in rContest
         }
+        if (seriesT.status != seriesS.status){
+            changes = true;
+            data.status = seriesT.status;
+        }
 
         // remove all seriesstartsresults, to add them again (under the name seriesstartsresults ! (since rSite and rContest use this name differently)) if they shall be changed; 
         delete data.SSRs;
@@ -1333,7 +1429,7 @@ export default class rTiming extends roomServer{
             else if (!hasResultS && hasResultT){action='a'}
             else if (hasResultS && !hasResultT){action='d'}
 
-            if (override || this.evaluateAutoProcessResults(seriesS.status, action)){
+            if (override.search(action)>=0 || this.evaluateAutoProcessResults(seriesS.status, action)){
                 // do not send the full dataset, but only teh actual seriesstartsresults data (Note: in rSite and rTiming this is combined with startgroup-infos, e.g. name etc.)
                 data.seriesstartsresults.push({
                     xSeriesStart: ssrT.xSeriesStart,
@@ -1798,12 +1894,17 @@ export class rTimingAlge extends rTiming {
         this.tcpConn = null;
         this.tcpConnSJ = null; // start judge
 
+        // we need to keep track of the last started heat to know where to assign live-incoming results to.
+        this.lastHeatXContest = null;
+        this.lastHeatSeriesId = null;
+
         this.defaultTimingOptions = {
             xmlHeatsFolder: '', // path
             xmlResultsFolder: '', // path
             handlePushHeatStartFinish: true, 
             handlePushCompetitorEvaluated: true, // automatically get results of one cometitor when evaluated (marked inofficial)
-            competitorEvaluatedWithRank: false, // also import the rank. This should be set to false, when the times are not strictly evalauted 
+            competitorEvaluatedWithRank: false, // NOT USED AT THE MOMENT also import the rank. This should be set to false, when the times are not strictly evalauted
+            autoStatus: false, // set the status to "in progress" when the heat is started and to "finished" when the final, official results arrive. 
             handlePushHeatResult: true, // automatically get the results of one heat when official
             hostMain: '', // the IP (or any other identifier of the timing)
             portMain: 4446, // same default as Seltec
@@ -1828,13 +1929,14 @@ export class rTimingAlge extends rTiming {
                 handlePushHeatStartFinish: {type:"boolean"},
                 handlePushCompetitorEvaluated: {type:"boolean"},
                 competitorEvaluatedWithRank: {type:"boolean"},
+                autoStatus: {type:"boolean"},
                 handlePushHeatResult: {type:"boolean"},
                 hostMain: {type:"string"},
                 portMain: {type:"integer", minimum:1, maximum:65535},
                 hostStartjudge: {type:"string"},
                 portStartjudge: {type:"integer", minimum:1, maximum:65535},
             },
-            required:['xmlHeatsFolder', 'xmlResultsFolder', 'handlePushHeatStartFinish', 'handlePushCompetitorEvaluated', 'competitorEvaluatedWithRank', 'handlePushHeatResult', 'hostMain', 'portMain', 'hostStartjudge', 'portStartjudge'],
+            required:['xmlHeatsFolder', 'xmlResultsFolder', 'handlePushHeatStartFinish', 'handlePushCompetitorEvaluated', 'competitorEvaluatedWithRank', 'autoStatus', 'handlePushHeatResult', 'hostMain', 'portMain', 'hostStartjudge', 'portStartjudge'],
             additionalProperties: false,
         }
 
@@ -2017,7 +2119,10 @@ export class rTimingAlge extends rTiming {
                 if (!c) return;
                 let s = c.series.find(s=>s.id == seriesId);
                 if (!s) return;
-                this.readHeatResults(s);
+                setTimeout(()=>{
+                    this.readHeatResults(s).catch((code, msg)=>{this.logger.log(30, msg)});
+                }, 500);
+                
 
                 // finished evaluation; the processing should be the same as when data is read from file
                 // results are offical
@@ -2040,6 +2145,11 @@ export class rTimingAlge extends rTiming {
                 }
                 let xContest = xml.HeatStart.$.EventId; //
                 let seriesId = xml.HeatStart.$.Id; // UUID
+
+                // store the id and xContest of the last started heat
+                this.lastHeatXContest = xContest;
+                this.lastHeatSeriesId = seriesId;
+
                 let time;
                 if ('Time' in xml.HeatStart.$){
                     // time is time of day, e.g. ”12:30:22.2124”
@@ -2054,6 +2164,12 @@ export class rTimingAlge extends rTiming {
                     xContest,
                     id:seriesId,
                 }
+                
+                if (this.data.timingOptions.autoStatus){
+                    // change the status of the heat to in progress
+                    result.status = 150;
+                }
+
                 let newStart = {
                     isFalseStart:falseStart,
                     starttime:time,
@@ -2080,17 +2196,21 @@ export class rTimingAlge extends rTiming {
                     xContest,
                     id:seriesId,
                 }
+
+                if (this.data.timingOptions.autoStatus){
+                    // change the status of the heat to finished
+                    result.status = 180;
+                }
+
                 let newFinishTime = time
 
                 this.heatResultsIncoming(result, {newFinishTime});
 
             } else if ( this.data.timingOptions.handlePushCompetitorEvaluated && 'CompetitorEvaluated' in xml){
 
-                // currently, xSeries and xContest are not given in this transmission!
-                this.logger.log(90, `Competitor evaluated; but canot be processed lacking xSeries and xContest: ${xml.CompetitorEvaluated}`)
-                return;
-
-                // TODO: xContest and id (or xSeries)
+                // xContest and xSeries are not transmitted with the 'CompetitorEvaluated' signal; thus, we simply assume that the last started heat is the right one. If this does not match, resultIncoming will simply do nothing and log the "error"
+                //this.lastHeatSeriesId
+                //this.lastHeatXContest
 
                 const competitor = xml.CompetitorEvaluated
                 // mark the result as inofficial so far and do not process the rank
@@ -2108,7 +2228,7 @@ export class rTimingAlge extends rTiming {
                     result = {
                         official: false,
                         time: time,
-                        reactionTime,
+                        reactionTime: null, // according to the documentation, the reactiontime is currently not transferred
                         // timeRounded will be calculated
                         // rank will be calculated
                     }
@@ -2118,7 +2238,7 @@ export class rTimingAlge extends rTiming {
                 // the athlete currently is identified by the bib; if Reserved1 is tranferred in the future as well, change to this.;
                 let bib = competitor.$.Bib;
 
-                this.resultIncoming(xContest, result, resultOverrule=resultOverrule, id=id, bib=bib)
+                this.resultIncoming(this.lastHeatXContest, result, resultOverrule=resultOverrule, id=this.lastHeatSeriesId, bib=bib)
 
             } 
 
