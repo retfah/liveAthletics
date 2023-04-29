@@ -830,7 +830,7 @@ summary {
     border-radius: .25rem;
     transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out
 }
-.information{
+.information, .informationGreen{
     /* information shortcut */
     background-color: #3b8de6;
     display: inline-block;
@@ -844,6 +844,11 @@ summary {
     height:1.5rem;
     color: white;
     cursor: pointer;
+}
+
+.informationGreen{
+    background-color:rgb(88, 212, 49) !important;
+    border: 0px solid rgb(88, 212, 49) !important;
 }
 
 .overlay{

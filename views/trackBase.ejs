@@ -126,6 +126,8 @@
                     list1:[1,2,3],
                     list2:[4,5,6],
 
+                    timers:{}, // currently running times; identified by xSeries
+
                     dragged:null, // note which element is currently dragged
 
                     sites:[],
@@ -174,10 +176,10 @@
                     yesNoTitle: '',
                     yesNoFunction:()=>{},
 
+                    showWindAlways: true, // generally, it would only be shown when the discipline needs the wind, i.e. outdoors and typically not for the youngest categories
                     showReactionTimes: true,
                     showBib: false, // currently only for live results
                     showPBSB: false, // currently only for live results, where this option is important for speakers to also have this info when the contest is in progress
-
 
                     contest:{ // to be overridden as soon as the room-data arrives
                         status: 10,
@@ -694,23 +696,48 @@
                 },
                 siteChanged(series2, evt){
                     // attention: series2 is not the actual series object!
-                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
+                    //let series = this.series.find(s=>s.xSeries==series2.xSeries);
                     // called e.g. when the time or the site was changed
                     if (evt.target.value===null || evt.target.value=='null'){
-                        rCTrack.room.updateSeriesInit(series, 'xSite', null);
+                        rCTrack.room.updateSeriesInit(series2, 'xSite', null);
                     } else {
-                        rCTrack.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+                        rCTrack.room.updateSeriesInit(series2, 'xSite', parseInt(evt.target.value));
                     }
                 },
                 dateChanged(series2, evt){
                     // attention: series2 is not the actual series object!
-                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
-                    rCTrack.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+                    //let series = this.series.find(s=>s.xSeries==series2.xSeries);
+                    rCTrack.room.updateSeriesInit(series2, 'datetime', (new Date(evt.target.value).toISOString()));
                 },
                 seriesStateChanged(series2, evt){
                     // attention: series2 is not the actual series object!
-                    let series = this.series.find(s=>s.xSeries==series2.xSeries);
-                    rCTrack.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
+                    //let series = this.series.find(s=>s.xSeries==series2.xSeries);
+                    rCTrack.room.updateSeriesInit(series2, 'status', parseInt(evt.target.value));
+                },
+                windChanged(series, evt){
+
+                    // first, create a copy of the current aux object, then modifiy/add the wind, then stringify it again
+                    let aux = JSON.parse(series.aux);
+                    if (aux==null){ // when there is no data yet, the aux-object is null
+                        aux = {};
+                    }
+
+                    let wind = undefined; // by default, delete the wind (JSON.stringify deleted properties that are undefined)
+                    if (evt.target.wind!=''){
+                        wind = parseFloat(evt.target.value);
+                        if (isNaN(wind)){
+                            alert('<%= __("The entered wind is not a valid number.") %>')
+                            // we need to reset the value manually
+                            evt.target.value = aux.wind;
+                            return;
+                        }
+                    }
+
+                    aux.wind = wind;
+                    // TODO: remove, for testing only
+                    //aux.starttime = new Date();
+                    aux.finishTime = 1354300;
+                    rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
                 },
                 initSeriesChanged(evt){
                     // make sure that again the number of the series as well as the default times are correct
@@ -785,13 +812,6 @@
                     if(this.series.length==0){
                         this.showInitialSeriesAssignment();
                     }
-                },
-                formatPerf(heightInDB){
-                    if (heightInDB){
-                        return window.disciplineFormatters[3](heightInDB, this.discipline, true);
-                    }
-
-                    return "";
                 },
                 formatTime(time, dateIfNeeded=true, secondsIfNeeded=true){
                     // return a formatted time value.
@@ -1307,9 +1327,11 @@
                 /**
                  * format the given integer-value for the presentation to the user
                  * @param {integer} value The integer value to format
+                 * @param {boolean} showUnit
+                 * @param {boolean} showMillis
                  **/
-                formatValue(value){
-                    return window.disciplineFormatters[this.discipline.type](value, this.discipline, true, true); // including milliseconds
+                formatValue(value, showUnit=true, showMillis=true){
+                    return window.disciplineFormatters[this.discipline.type](value, this.discipline, showUnit, showMillis); 
                 },
 
                 validateInput(value){
@@ -1554,6 +1576,10 @@
 
                 seriesAsStartgroups: function(){
                     // "copy" the series and its seriesstartsresults (as startgroup)
+                    // also creates some additional info:
+                    // - min/max times per series and Overall
+                    // - JSON.parse of the aux data
+                    // - liveTime (i.e. the time when the race is run)
 
                     // TODO: eventually we need to make sure that the data is only recomputed when there is no change on results ongoing; otherwise it would happen that the present change is deleted. This might happen regularly, e.g. when another client changes data or when the timing sends new results!
 
@@ -1589,6 +1615,33 @@
                         // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
                         let seriesCopy = {};
                         propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
+
+                        // add the parsed aux data (e.g. with wind, starttime, inofficial finish time, )
+                        seriesCopy.auxParsed = null;
+                        if (this.series[i].aux){
+                            seriesCopy.auxParsed = JSON.parse(this.series[i].aux);
+                        }
+                        seriesCopy.liveTime = null; // not currently running OR no starttime available
+                        // eventually handle here any live running time as well!
+                        if (seriesCopy.auxParsed?.starttime){
+                            if (seriesCopy.auxParsed.finishTime){
+                                // stop the automatic updateTimeout if it is still running
+                                if (seriesCopy.xSeries in this.timers){
+                                    clearInterval(this.timers[seriesCopy.xSeries]);
+                                    delete this.timers[seriesCopy.xSeries];
+                                    seriesCopy.liveTime = null;
+                                }
+                            } else {
+                                // start the automatic updateTimeout if it is not yet running
+                                this.timers[seriesCopy.xSeries] = setInterval(()=>{
+                                    // calculate the time and use the offset as we do in rContestTechHigh
+                                    let timeValue = (new Date() - new Date(seriesCopy.auxParsed.starttime) + this.timeOffset)*100 // in 1/100000s
+                                    seriesCopy.liveTime = this.formatValue(timeValue, false, false)
+                                    //this.$forceUpdate(); // TODO: avoid this by not having the liveTime in the computed object!
+                                }, 80); // do not use 100, since it would look strange if the shown 1/100s would never change. Test what is a number that looks good but works.
+
+                            }
+                        }
 
                         // get the startgroup for every seriesstartsresult
                         let SSRs = [];

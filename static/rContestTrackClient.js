@@ -124,7 +124,12 @@ export class rContestTrackClient extends roomClient{
         }
     }
 
-    updateSeriesInit(series, prop, val){
+    updateSeriesInit(series2, prop, val){
+        // series2 does not need to be the actual series object, but it shall cpontain all its properties
+        let series = this.data.series.find(s=>s.xSeries==series2.xSeries);
+        if (!series){
+            return;
+        }
 
         let change = ()=>{
             // do not send the ssr array; therefore, copy the data
@@ -137,6 +142,7 @@ export class rContestTrackClient extends roomClient{
                 name: series.name,
                 datetime: series.datetime,
                 id: series.id,
+                aux: series.aux,
             };
             o[prop] = val;
             return o;

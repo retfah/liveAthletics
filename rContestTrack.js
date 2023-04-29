@@ -528,7 +528,7 @@ class rContestTrack extends roomServer{
         const schemaAuxSql = {
             type: "object",
             properties:{
-                wind: {type: 'number'},
+                wind: {type: 'number'}, // does not exist, when the wind is not (yet) defined
                 starttime: {type: 'string', format: 'date-time'}, // the latest starttime, i..e the one, which was finally run; ISO8601, UTC
                 finishtime: {type: 'integer'}, // the duration in the usual unit of 1/100000
                 isFalseStart: {type:'boolean'}, // the latest start was a false start or not; the same data will be stored in the starts-array
@@ -546,6 +546,7 @@ class rContestTrack extends roomServer{
                                     properties:{
                                         lane: {type:'integer'},
                                         reactionTime: {type: 'integer'},
+                                        //card: {type:'integer'}, // define who got disqualified; eventually as string and/or add another property with the rule leading to the disqualification
                                     },
                                     required:['lane', 'reactionTime'], // in ms
                                     additionalProperties: false,

@@ -658,5 +658,10 @@
 	"Automatically set heat status": "Automatically set heat status",
 	"Transfer using the following actions": "Transfer using the following actions",
 	"Update existing results": "Update existing results",
-	"Delete results (when deleted in timing)": "Delete results (when deleted in timing)"
+	"Delete results (when deleted in timing)": "Delete results (when deleted in timing)",
+	"Wind": "Wind",
+	"Inofficial time": "Inofficial time",
+	"Current run time": "Current run time",
+	"The entered wind is not a valid number.": "The entered wind is not a valid number.",
+	"Always show wind field": "Always show wind field"
 }

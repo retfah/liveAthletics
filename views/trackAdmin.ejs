@@ -433,7 +433,7 @@
             </div>
     
             <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
-    
+            <!-- during competition -->
     
                 <div v-if="show=='settings' && disciplineConfiguration.crouchStart" id="settings" style="width:100%">
                      <!-- remove the crouchStart-condition as soon as we have another setting apart of this; the actual crouchStart setting already has the condition -->
@@ -450,6 +450,14 @@
                             </label>
                         </div>    
                     </div>
+                    <%= __("Always show wind field") %>:
+                    <div class="onoffswitch">
+                        <input type="checkbox" v-model="showWindAlways" class="onoffswitch-checkbox" id="autoAdvanceSwitch">
+                        <label class="onoffswitch-label" for="autoAdvanceSwitch">
+                            <span class="onoffswitch-inner"></span>
+                            <span class="onoffswitch-switch"></span>
+                        </label>
+                    </div>    
                     
                 </div>
                 
@@ -467,8 +475,18 @@
                             <div v-for="(series2, index) in seriesAsStartgroups">
                                 <div class="heat">
                                     <div style="display:flex">
-                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div>
+                                        <div style="flex-grow:1"></div>
                                         <div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
+                                        <div style="flex-grow:1"></div>
+                                        <div style="padding-top:7px" v-if="showWindAlways || auxParsed.wind || disciplineConfiguration.wind">
+                                            <%= __('Wind') %>: 
+                                            <input  class="" type="text" v-bind:value="series2.auxParsed?.wind" v-on:change="windChanged(series2, $event)" size="5"></input>
+                                        </div>
+                                        <!--<div v-if="series2.auxParsed?.wind" style="padding-top:7px"><%= __("Wind") %>: {{series2.auxParsed.wind}} m/s</div>-->
+                                        <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                        <div v-else-if="series2?.liveTime" style="padding-top:7px"><%= __("Current run time") %>: {{series2.liveTime}}</div>
+                                        <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click=""><%= __('i') %></button>
                                         <div style="flex-grow:1"></div>
                                         <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                             
@@ -1176,6 +1194,17 @@
     
             <div class="overlay"  v-bind:class="{shown: overlay}">
                 <div class="overlayContainer">
+
+                    <div v-if="overlay=='HeatInfo'">
+                        <!-- Show here all auximlary information of a heat, e.g. all (fals)starts, reaction times, wind, finishtime -->
+                        <!-- title -->
+                        <h2><%= __("SeriesSingular") %> {{heatInfo.number}} {{formatTime(heatInfo.datetime, false)}}</h2>
+                        <!-- show first the general information as in the main window: wind, current time or runTime -->
+
+                        <!-- show all (false-)starts with reaction times -->
+                        for ()
+
+                    </div>
     
                     <div v-if="overlay=='automaticSeriesAssignment'">
                         <form>
