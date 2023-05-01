@@ -663,5 +663,7 @@
 	"Inofficial time": "Inofficial time",
 	"Current run time": "Current run time",
 	"The entered wind is not a valid number.": "The entered wind is not a valid number.",
-	"Always show wind field": "Always show wind field"
+	"Always show wind field": "Always show wind field",
+	"Start attempts": "Start attempts",
+	"False start": "False start"
 }

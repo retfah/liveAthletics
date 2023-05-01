@@ -126,7 +126,8 @@
                     list1:[1,2,3],
                     list2:[4,5,6],
 
-                    timers:{}, // currently running times; identified by xSeries
+                    timers:{}, // currently running intervals to shwo the time; identified by xSeries
+                    liveTimes:{}, // currently running times; identified by xSeries
 
                     dragged:null, // note which element is currently dragged
 
@@ -143,6 +144,8 @@
                     // there will be no waiting page, but a limit to one client and this will be the first offline working page.
                     burgerChecked: false, // burger menu activated
 
+                    heatInfo:undefined, // keeps the seriesAsStartgroup object of the currently shown heatInfo-series
+
                     onSeriesChangeCalcNextAth: true,
 
                     // show a clock on some screens (e.g. live screen); 
@@ -154,7 +157,6 @@
                     timeInterval: null, // the function to stop the interval
 
                     // the data is split into three parts, to be able to reuse the seriesAdmin parts
-                    // TODO: also split computed properties, watchers and methods!
 
                     /* !!! data for SERIES CREATION and COMPETITION !!! */
                     categories:[],
@@ -735,8 +737,11 @@
 
                     aux.wind = wind;
                     // TODO: remove, for testing only
-                    //aux.starttime = new Date();
-                    aux.finishTime = 1354300;
+                    /*if (wind>0){
+                        aux.starttime = new Date();
+                    } else {
+                        aux.finishTime = 1354300;
+                    }*/
                     rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
                 },
                 initSeriesChanged(evt){
@@ -1141,9 +1146,11 @@
                         this.sortAthletes(i);
                     }
                 },
-                
+                showHeatInfo(series){
+                    this.heatInfo = series;
+                    this.overlay='HeatInfo';
+                },
 
-                
                 
                 replaceXResult(xSeriesStart, oldKey, newKey){
                     alert('TODO')
@@ -1166,7 +1173,7 @@
                         return '';
                     }
                     // time is in ms
-                    let timeStr = (time/1000).toLocaleString(undefined, {minimumFractionDigits:3});
+                    let timeStr = (time/1000).toFixed(3);//toLocaleString(undefined, {minimumFractionDigits:3});
                     return `${timeStr} s`;
                 },
                 reactionTimeChanged(ssrCopy){
@@ -1630,14 +1637,17 @@
                                     clearInterval(this.timers[seriesCopy.xSeries]);
                                     delete this.timers[seriesCopy.xSeries];
                                     seriesCopy.liveTime = null;
+                                    delete this.liveTimes[seriesCopy.xSeries];
                                 }
                             } else {
+                                // first make sure that no other timing is currently running; otherwise stop it
+                                clearInterval(this.timers[seriesCopy.xSeries]);
                                 // start the automatic updateTimeout if it is not yet running
                                 this.timers[seriesCopy.xSeries] = setInterval(()=>{
                                     // calculate the time and use the offset as we do in rContestTechHigh
                                     let timeValue = (new Date() - new Date(seriesCopy.auxParsed.starttime) + this.timeOffset)*100 // in 1/100000s
-                                    seriesCopy.liveTime = this.formatValue(timeValue, false, false)
-                                    //this.$forceUpdate(); // TODO: avoid this by not having the liveTime in the computed object!
+                                    // we cannot add the liveTime to the computed property we generate here, since it would not be updated. (computed properties are only updated when the data they are based on is changed; which makes sense.)
+                                    this.liveTimes[seriesCopy.xSeries] = this.formatValue(timeValue, false, false)
                                 }, 80); // do not use 100, since it would look strange if the shown 1/100s would never change. Test what is a number that looks good but works.
 
                             }
