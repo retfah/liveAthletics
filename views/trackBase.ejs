@@ -178,7 +178,7 @@
                     yesNoTitle: '',
                     yesNoFunction:()=>{},
 
-                    showWindAlways: true, // generally, it would only be shown when the discipline needs the wind, i.e. outdoors and typically not for the youngest categories
+                    showWindAlways: false, // generally, it would only be shown when the discipline needs the wind, i.e. outdoors and typically not for the youngest categories
                     showReactionTimes: true,
                     showBib: false, // currently only for live results
                     showPBSB: false, // currently only for live results, where this option is important for speakers to also have this info when the contest is in progress
@@ -740,7 +740,7 @@
                     /*if (wind>0){
                         aux.starttime = new Date();
                     } else {
-                        aux.finishTime = 1354300;
+                        aux.finishTime = 28754300;
                     }*/
                     rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
                 },
