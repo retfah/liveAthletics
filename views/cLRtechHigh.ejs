@@ -247,6 +247,7 @@ const cLRtechHigh = {
         categories:{required:true, type:Array},
         roomAuxData:{required:true, type:Object},
         readOnly: {required: true, type:Boolean},
+        timeOffset: {required: true, type:Number},
     },
 
     // all code below copied from techHighBase; 
@@ -375,7 +376,7 @@ const cLRtechHigh = {
             sortValue2: 1, // default by order (do not choose rank, since it does not work before we have results)
             fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
             temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
-            timeOffset: 0,
+            //timeOffset: 0,
             /*roomAuxData:{
                 // uses xSeries to reference objects storing the following information:
                 // positionNext:[],

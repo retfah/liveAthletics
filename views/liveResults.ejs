@@ -108,6 +108,7 @@ for contest in selectedContests:
                         meeting:{}, 
                         categories:[], 
                         roomAuxData:{},
+                        timeOffset:0,
                     },
 
                 }
@@ -235,6 +236,7 @@ for contest in selectedContests:
                                 meeting:{}, 
                                 categories:[], 
                                 roomAuxData:{},
+                                timeOffset:0,
                             }
                             
                             // we must create the reactive object here and then only reference the reactive property and not the original object since room!= this.contestRooms[co.xContest]
@@ -253,6 +255,7 @@ for contest in selectedContests:
                                 relatedGroups:[],
                                 series:[],
                                 startgroups:[],
+                                timeOffset:0,
                             }
                             // we must create the reactive object here and then only reference the reactive property and not the original object since room!= this.contestRooms[co.xContest]
                             this.contestRooms[co.xContest] = room;
@@ -477,11 +480,11 @@ for contest in selectedContests:
         <div v-for="(co, index) of selectedContests" class="contestContainer">
             <button type="button" v-on:click="unpinContest(index)" class="close btn">X</button>
             <template v-if="contestType(co)==1">
-                <tech-high-live :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups" :related-groups="contestRooms[co.xContest].data.relatedGroups" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :categories="contestRooms[co.xContest].data.categories" :room-aux-data="contestRooms[co.xContest].data.roomAuxData" :contest="contestRooms[co.xContest].data.contest" :read-only="true">
+                <tech-high-live :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups" :related-groups="contestRooms[co.xContest].data.relatedGroups" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :categories="contestRooms[co.xContest].data.categories" :room-aux-data="contestRooms[co.xContest].data.roomAuxData" :contest="contestRooms[co.xContest].data.contest" :read-only="true" :time-offset="contestRooms[co.xContest].data.timeOffset">
                 </tech-high-live>
             </template>
             <template v-if="contestType(co)==3">
-                <track-live :categories="contestRooms[co.xContest].data.categories" :contest="contestRooms[co.xContest].data.contest" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :related-groups="contestRooms[co.xContest].data.relatedGroups" :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups"   :read-only="true">
+                <track-live :categories="contestRooms[co.xContest].data.categories" :contest="contestRooms[co.xContest].data.contest" :disciplines="contestRooms[co.xContest].data.disciplines" :meeting="contestRooms[co.xContest].data.meeting" :related-groups="contestRooms[co.xContest].data.relatedGroups" :series="contestRooms[co.xContest].data.series" :startgroups="contestRooms[co.xContest].data.startgroups"   :read-only="true" :time-offset="contestRooms[co.xContest].data.timeOffset">
                 </track-live>
             </template>
         </div>

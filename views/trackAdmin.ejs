@@ -656,41 +656,40 @@
                     <!-- show all participants as in roll call -->
                     <h3><%= __("Startlist") %></h3>
                     <v-table :data="startgroups" > <!-- :filters="filters"-->
-                    <template #head> <!-- # head is a shorthand for v-slot:head-->
-                        <thead>
-                            <tr>
-                                <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
-                                <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
-                                <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
-                                <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
-                                <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
-                                <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
-                                <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
-                                <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
-                                <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
-                            </tr>
-                        </thead>
-                    </template>
-                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                        <tbody>
-                            <tr v-for="row in displayData" :key="row.xInscription">
-                                <td>{{ row.bib }}</td>
-                                <td>{{ row.athleteName }}</td>
-                                <td>{{ row.athleteForename }}</td>
-                                <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
-                                <!--<td>{{ row.sex }}</td>-->
-                                <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
-                                <td>{{ row.clubName }}</td>
-                                <!--<td>{{ row.country }}</td>-->
-                                <td>{{formatValue(row.bestPerfLast)}}</td>
-                                <td>{{formatValue(row.bestPerf)}}</td>
-                            </tr>
-                        </tbody>
-                    </template>
-
-                </v-table>
-                </div>
+                        <template #head> <!-- # head is a shorthand for v-slot:head-->
+                            <thead>
+                                <tr>
+                                    <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                                    <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
+                                    <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                                    <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                                    <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
+                                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                                    <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                                    <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                                    <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                                    <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                                </tr>
+                            </thead>
+                        </template>
+                        <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                            <tbody>
+                                <tr v-for="row in displayData" :key="row.xInscription">
+                                    <td>{{ row.bib }}</td>
+                                    <td>{{ row.athleteName }}</td>
+                                    <td>{{ row.athleteForename }}</td>
+                                    <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                                    <!--<td>{{ row.sex }}</td>-->
+                                    <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
+                                    <td>{{ row.clubName }}</td>
+                                    <!--<td>{{ row.country }}</td>-->
+                                    <td>{{formatValue(row.bestPerfLast)}}</td>
+                                    <td>{{formatValue(row.bestPerf)}}</td>
+                                </tr>
+                            </tbody>
+                        </template>
+                    </v-table>
+                </div> <!-- roll call view -->
                 <div id="heatsView2" v-if="contest.status>=90 && contest.status<140">
                     <!-- show heats with PB / SB and the position/lane -->
                     <template v-if="conf.startInLanes">
@@ -1033,7 +1032,7 @@
                             </template>
                         </v-table>
                     </div>
-                </div>
+                </div>  <!-- end results -->
             </div>
     
             <!-- Overlay for the initial series assignment: -->

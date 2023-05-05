@@ -980,7 +980,7 @@
                             <%= __("Number of groups") %>:<!--TODO: add here a hint what it means--> 
                             <input v-model.number="newNumGroups" type="number"  value=1>
                         </label>
-                        <%= __("Groups:") %>                        <div>
+                        <%= __("Groups") %>:                        <div>
                             <div v-for="g in newGroups" style="border:1px solid black; margin: 2px">
                                 {{g.number}}  <input v-model="g.name" type="text" style="display:inline;"><!-- add a dropdown with contests; add a button to create a new corresponding contest-->
                             </div>

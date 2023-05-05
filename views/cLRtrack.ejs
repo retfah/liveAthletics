@@ -7,45 +7,47 @@ const cLRtrack = {
     
 <div id="vueSeriesAdminTrack">
     <h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h2>
+
+
     <div id="rollCallView2" v-if="contest.status<90">
         <!-- show all participants as in roll call -->
         <h3><%= __("Startlist") %></h3>
         <v-table :data="startgroups" > <!-- :filters="filters"-->
-        <template #head> <!-- # head is a shorthand for v-slot:head-->
-            <thead>
-                <tr>
-                    <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
-                    <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
-                    <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
-                    <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
-                    <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
-                    <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
-                    <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                    <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
-                    <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
-                    <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
-                </tr>
-            </thead>
-        </template>
-        <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-            <tbody>
-                <tr v-for="row in displayData" :key="row.xInscription">
-                    <td>{{ row.bib }}</td>
-                    <td>{{ row.athleteName }}</td>
-                    <td>{{ row.athleteForename }}</td>
-                    <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
-                    <!--<td>{{ row.sex }}</td>-->
-                    <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
-                    <td>{{ row.clubName }}</td>
-                    <!--<td>{{ row.country }}</td>-->
-                    <td>{{formatValue(row.bestPerfLast)}}</td>
-                    <td>{{formatValue(row.bestPerf)}}</td>
-                </tr>
-            </tbody>
-        </template>
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
+                        <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                        <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                        <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>  not so important actually -->
+                        <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
+                        <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                        <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                        <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                        <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xInscription">
+                        <td>{{ row.bib }}</td>
+                        <td>{{ row.athleteName }}</td>
+                        <td>{{ row.athleteForename }}</td>
+                        <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                        <!--<td>{{ row.sex }}</td>-->
+                        <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
+                        <td>{{ row.clubName }}</td>
+                        <!--<td>{{ row.country }}</td>-->
+                        <td>{{formatValue(row.bestPerfLast)}}</td>
+                        <td>{{formatValue(row.bestPerf)}}</td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+    </div> <!-- roll call view -->
 
-    </v-table>
-    </div>
     <div id="heatsView2" v-if="contest.status>=90 && contest.status<140">
         <!-- show heats with PB / SB and the position/lane -->
         <template v-if="conf.startInLanes">
@@ -173,6 +175,7 @@ const cLRtrack = {
             </div>
         </template>
     </div>
+
     <div id="resultsView2" v-if="contest.status>=140">
         <!-- show results including rank; do not show position for non-started in lanes -->
         <h3><%= __("Results") %></h3>
@@ -194,8 +197,20 @@ const cLRtrack = {
                     <div v-for="(series2, index) in seriesAsStartgroups">
                         <div class="heatContainer">
                             <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
-                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
-                                <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div>
+                                <div style="flex-grow:1"></div>
+                                <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
+                                <div style="flex-grow:1"></div>-->
+                                <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                    <%= __('Wind') %>: 
+                                    <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                    <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                    <div style="display: inline;" v-else ></div>
+                                </div>
+                                <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
+                                <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
+                                <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                 <div style="flex-grow:1"></div>
                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                     
@@ -208,7 +223,7 @@ const cLRtrack = {
                             <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                 <template v-slot:head>
                                     <thead>
-                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
                                         <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
                                         <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
                                         <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
@@ -258,8 +273,20 @@ const cLRtrack = {
                     <div v-for="(series2, index) in seriesAsStartgroups">
                         <div class="heatContainer">
                             <div class="heatHeader" style="display:flex" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
-                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div><div style="flex-grow:1"></div>
-                                <div style="padding-top:7px"><!--{{getSiteName(series2.xSite)}}--></div>
+                                <div style="padding-top:7px"><%= __("SeriesSingular") %> {{index+1}} {{formatTime(series2.datetime, false)}} </div>
+                                <div style="flex-grow:1"></div>
+                                <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
+                                <div style="flex-grow:1"></div>-->
+                                <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                    <%= __('Wind') %>: 
+                                    <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                    <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                    <div style="display: inline;" v-else ></div>
+                                </div>
+                                <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
+                                <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
+                                <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                 <div style="flex-grow:1"></div>
                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                     
@@ -271,7 +298,7 @@ const cLRtrack = {
                             <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                 <template v-slot:head>
                                     <thead>
-                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
                                         <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
                                         <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
                                         <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
@@ -317,7 +344,7 @@ const cLRtrack = {
             <v-table :data="overall" class="heatContent">
                 <template v-slot:head>
                     <thead>
-                        <th is="vue:v-th" sortkey="sortRankOverall" defaultsort="asc"><%= __("Rank") %></th>
+                        <th is="vue:v-th" sortkey="sortRankOverall" defaultSort="asc"><%= __("Rank") %></th>
 
                         <!--<th is="vue:v-th" sortkey="series.number"><%= __("Heat") %></th>
                         <th v-if="conf.startInLanes" is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
@@ -364,39 +391,57 @@ const cLRtrack = {
                 </template>
             </v-table>
         </div>
+    </div> <!-- end results -->
+
+    <div class="overlay"  v-bind:class="{shown: overlay}">
+        <div class="overlayContainer">
+
+            <div v-if="overlay=='HeatInfo'">
+                <!-- Show here all auximlary information of a heat, e.g. all (fals)starts, reaction times, wind, finishtime -->
+                <!-- title -->
+                <h2><%= __("SeriesSingular") %> {{heatInfo.number}} {{formatTime(heatInfo.datetime, false)}}</h2>
+                <!-- show first the general information as in the main window: wind, current time or runTime -->
+                <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.auxParsed?.wind || disciplineConfiguration.wind) ">
+                    <%= __('Wind') %>: {{heatInfo.auxParsed?.wind}}
+                </div>
+                <div v-if="heatInfo.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.auxParsed.finishTime, false, false)}}</div>
+                <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
+                
+                <!-- show all (false-)starts with reaction times -->
+                <h4 v-if="heatInfo.auxParsed?.starts && heatInfo.auxParsed?.starts.length>0"><%= __("Start attempts") %></h4>
+                <div v-for="(start, iStart) in heatInfo.auxParsed.starts" style="display:flex">
+                    <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
+                    <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
+                    <div v-if="start.reactionTimes">
+                        <v-table :data="start.reactionTimes">
+                            <template v-slot:head>
+                                <thead>
+                                    <th is="vue:v-th" sortkey="lane" defaultsort="asc"><%= __("Lane") %></th>
+                                    <th><%= __("Name") %></th>
+                                    <th is="vue:v-th" sortkey="reactionTime"><%= __("Reaction time") %></th>
+                                </thead>
+                            </template>
+                            <template v-slot:body="{displayData}">
+                                <tbody>
+                                    <tr v-for="row in displayData" :key="row.lane">
+                                        <td>{{row.lane}}</td>
+                                        <td>{{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteName}} {{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteForename}}</td>
+                                        <td v-bind:class="{reactionTimeInvalid: row.reactionTime<0.1}">{{row.reactionTime}}</td>
+                                    </tr>
+                                </tbody>
+                            </template>
+                        </v-table>
+                    </div>
+                </div>
+                
+                <br>
+                <button type="button" class="btn" v-on:click="overlay=undefined"><%= __("Close") %></button>
+            </div>
+        </div>
     </div>
 
 </div>
     `, 
-    // things to change:
-    /**
-     * sortHeightsAddOrder: new: computed property called sortedHeights
-     * createAllHeights --> computed property of allHeights now; seems to work so far
-     * evaluateHeightDeletable -> cannot siply be computed property since the "deletable" is added to the series.heights.height . --> create a computed property "usedHeights" instead of adding to another object
-     * sortSeries --> implemented in rTechHighClient now
-     * timeUpdateInterval --> kept as it is, but called from the new timeManager 
-     * updateShownTime --> kept as it is, but called from the new timeManager
-     * timeOffset --> keep eventually as it is
-     * calculateTemporaryRankingData DONE
-     * calculateNextAthlete DONE
-     * autoManageAuxData: --> done. Moved mostly into the room (not in vue anymore.)
-     * showAuto --> via watcher on series  (called at the first load, when all data has arrived; eventually do this when the room-id is not '' anymore)
-     * transferAuxData: -->replaced by computed properties
-     * 
-     * --> eventually we simply make a proeprty of the room-id, at chich change all those properties will be changed.
-     * 
-     * 
-     * difference between dataArrived and afterFullReload:
-     * - afterFulLReload sets timeOffset
-     * - afterFullReload handles the timeRunning--> timeUpdateInterval stuff
-     * - dataArrived calls showAuto at the end
-     * 
-     * different between dataArrived and onChange
-     * - a lot...
-     * - onChange handles the timeRunning--> timeUpdateInterval stuff
-     * - auxData transfer handling (inclucing positionNext, calculateNextAthlete, calculateTemporaryRankingData, autoManageAuxData) only in onChange --> can eventually be moved to a watcher
-     * - createAllHeights, evaluateHeightDeleted, sortSeries
-     */
 
     props: {
         // define here all properties needed as an input
@@ -408,16 +453,19 @@ const cLRtrack = {
         relatedGroups:{required:true, type:Array},
         series:{required:true, type:Array},
         startgroups:{required:true, type:Array},
+        timeOffset: {required:true, type:Number},
     },
 
     // all code below copied from trackBase; 
     // the only change thing is the deletion of props from data
-
     data(){
         return {
 
             list1:[1,2,3],
             list2:[4,5,6],
+
+            timers:{}, // currently running intervals to shwo the time; identified by xSeries
+            liveTimes:{}, // currently running times; identified by xSeries
 
             dragged:null, // note which element is currently dragged
 
@@ -434,6 +482,8 @@ const cLRtrack = {
             // there will be no waiting page, but a limit to one client and this will be the first offline working page.
             burgerChecked: false, // burger menu activated
 
+            heatInfo:undefined, // keeps the seriesAsStartgroup object of the currently shown heatInfo-series
+
             onSeriesChangeCalcNextAth: true,
 
             // show a clock on some screens (e.g. live screen); 
@@ -445,7 +495,6 @@ const cLRtrack = {
             timeInterval: null, // the function to stop the interval
 
             // the data is split into three parts, to be able to reuse the seriesAdmin parts
-            // TODO: also split computed properties, watchers and methods!
 
             /* !!! data for SERIES CREATION and COMPETITION !!! */
             //categories:[],
@@ -467,10 +516,10 @@ const cLRtrack = {
             yesNoTitle: '',
             yesNoFunction:()=>{},
 
+            showWindAlways: false, // generally, it would only be shown when the discipline needs the wind, i.e. outdoors and typically not for the youngest categories
             showReactionTimes: true,
             showBib: false, // currently only for live results
             showPBSB: false, // currently only for live results, where this option is important for speakers to also have this info when the contest is in progress
-
 
             /*contest:{ // to be overridden as soon as the room-data arrives
                 status: 10,
@@ -558,7 +607,7 @@ const cLRtrack = {
             sortValue2: 1, // default by rank
             fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
             temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
-            timeOffset: 0,
+            //timeOffset: 0,
             roomAuxData:{
                 // uses xSeries to reference objects storing the following information:
                 // positionNext:[],
@@ -987,23 +1036,51 @@ const cLRtrack = {
         },
         siteChanged(series2, evt){
             // attention: series2 is not the actual series object!
-            let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            //let series = this.series.find(s=>s.xSeries==series2.xSeries);
             // called e.g. when the time or the site was changed
             if (evt.target.value===null || evt.target.value=='null'){
-                rCTrack.room.updateSeriesInit(series, 'xSite', null);
+                rCTrack.room.updateSeriesInit(series2, 'xSite', null);
             } else {
-                rCTrack.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+                rCTrack.room.updateSeriesInit(series2, 'xSite', parseInt(evt.target.value));
             }
         },
         dateChanged(series2, evt){
             // attention: series2 is not the actual series object!
-            let series = this.series.find(s=>s.xSeries==series2.xSeries);
-            rCTrack.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+            //let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            rCTrack.room.updateSeriesInit(series2, 'datetime', (new Date(evt.target.value).toISOString()));
         },
         seriesStateChanged(series2, evt){
             // attention: series2 is not the actual series object!
-            let series = this.series.find(s=>s.xSeries==series2.xSeries);
-            rCTrack.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
+            //let series = this.series.find(s=>s.xSeries==series2.xSeries);
+            rCTrack.room.updateSeriesInit(series2, 'status', parseInt(evt.target.value));
+        },
+        windChanged(series, evt){
+
+            // first, create a copy of the current aux object, then modifiy/add the wind, then stringify it again
+            let aux = JSON.parse(series.aux);
+            if (aux==null){ // when there is no data yet, the aux-object is null
+                aux = {};
+            }
+
+            let wind = undefined; // by default, delete the wind (JSON.stringify deleted properties that are undefined)
+            if (evt.target.wind!=''){
+                wind = parseFloat(evt.target.value);
+                if (isNaN(wind)){
+                    alert('<%= __("The entered wind is not a valid number.") %>')
+                    // we need to reset the value manually
+                    evt.target.value = aux.wind;
+                    return;
+                }
+            }
+
+            aux.wind = wind;
+            // TODO: remove, for testing only
+            /*if (wind>0){
+                aux.starttime = new Date();
+            } else {
+                aux.finishTime = 28754300;
+            }*/
+            rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
         },
         initSeriesChanged(evt){
             // make sure that again the number of the series as well as the default times are correct
@@ -1078,13 +1155,6 @@ const cLRtrack = {
             if(this.series.length==0){
                 this.showInitialSeriesAssignment();
             }
-        },
-        formatPerf(heightInDB){
-            if (heightInDB){
-                return window.disciplineFormatters[3](heightInDB, this.discipline, true);
-            }
-
-            return "";
         },
         formatTime(time, dateIfNeeded=true, secondsIfNeeded=true){
             // return a formatted time value.
@@ -1414,9 +1484,11 @@ const cLRtrack = {
                 this.sortAthletes(i);
             }
         },
-        
+        showHeatInfo(series){
+            this.heatInfo = series;
+            this.overlay='HeatInfo';
+        },
 
-        
         
         replaceXResult(xSeriesStart, oldKey, newKey){
             alert('TODO')
@@ -1439,7 +1511,7 @@ const cLRtrack = {
                 return '';
             }
             // time is in ms
-            let timeStr = (time/1000).toLocaleString(undefined, {minimumFractionDigits:3});
+            let timeStr = (time/1000).toFixed(3);//toLocaleString(undefined, {minimumFractionDigits:3});
             return `${timeStr} s`;
         },
         reactionTimeChanged(ssrCopy){
@@ -1600,9 +1672,11 @@ const cLRtrack = {
         /**
          * format the given integer-value for the presentation to the user
          * @param {integer} value The integer value to format
+         * @param {boolean} showUnit
+         * @param {boolean} showMillis
          **/
-        formatValue(value){
-            return window.disciplineFormatters[this.discipline.type](value, this.discipline, true, true); // including milliseconds
+        formatValue(value, showUnit=true, showMillis=true){
+            return window.disciplineFormatters[this.discipline.type](value, this.discipline, showUnit, showMillis); 
         },
 
         validateInput(value){
@@ -1847,6 +1921,10 @@ const cLRtrack = {
 
         seriesAsStartgroups: function(){
             // "copy" the series and its seriesstartsresults (as startgroup)
+            // also creates some additional info:
+            // - min/max times per series and Overall
+            // - JSON.parse of the aux data
+            // - liveTime (i.e. the time when the race is run)
 
             // TODO: eventually we need to make sure that the data is only recomputed when there is no change on results ongoing; otherwise it would happen that the present change is deleted. This might happen regularly, e.g. when another client changes data or when the timing sends new results!
 
@@ -1882,6 +1960,36 @@ const cLRtrack = {
                 // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
                 let seriesCopy = {};
                 propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
+
+                // add the parsed aux data (e.g. with wind, starttime, inofficial finish time, )
+                seriesCopy.auxParsed = null;
+                if (this.series[i].aux){
+                    seriesCopy.auxParsed = JSON.parse(this.series[i].aux);
+                }
+                seriesCopy.liveTime = null; // not currently running OR no starttime available
+                // eventually handle here any live running time as well!
+                if (seriesCopy.auxParsed?.starttime){
+                    if (seriesCopy.auxParsed.finishTime){
+                        // stop the automatic updateTimeout if it is still running
+                        if (seriesCopy.xSeries in this.timers){
+                            clearInterval(this.timers[seriesCopy.xSeries]);
+                            delete this.timers[seriesCopy.xSeries];
+                            seriesCopy.liveTime = null;
+                            delete this.liveTimes[seriesCopy.xSeries];
+                        }
+                    } else {
+                        // first make sure that no other timing is currently running; otherwise stop it
+                        clearInterval(this.timers[seriesCopy.xSeries]);
+                        // start the automatic updateTimeout if it is not yet running
+                        this.timers[seriesCopy.xSeries] = setInterval(()=>{
+                            // calculate the time and use the offset as we do in rContestTechHigh
+                            let timeValue = (new Date() - new Date(seriesCopy.auxParsed.starttime) + this.timeOffset)*100 // in 1/100000s
+                            // we cannot add the liveTime to the computed property we generate here, since it would not be updated. (computed properties are only updated when the data they are based on is changed; which makes sense.)
+                            this.liveTimes[seriesCopy.xSeries] = this.formatValue(timeValue, false, false)
+                        }, 80); // do not use 100, since it would look strange if the shown 1/100s would never change. Test what is a number that looks good but works.
+
+                    }
+                }
 
                 // get the startgroup for every seriesstartsresult
                 let SSRs = [];

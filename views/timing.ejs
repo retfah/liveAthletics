@@ -1026,15 +1026,6 @@
                     <div style="border:1px solid black; grid-column: timing / span 1; height: 20px;"></div>-->
                 </div>
 
-                <!--<h3>All data of the room</h3>
-                TimingOptions: {{timingOptions}} <br>
-                SiteConf: {{siteConf}} <br>
-                Capabilities: {{capabilities}} <br>
-                Infos: {{infos}} <br>
-                Auto: {{auto}} <br>
-                Timers: {{timers}} <br>
-                Data: {{data}} <br>
-                Contests: {{contests}} <br>-->
                 <button class="btn" @click="showSiteConf"><%= __("Site connection setup") %></button>   
                 <button class="btn" @click="showTimingOptions"><%= __("Timing setup") %></button>
                 <button class="btn" @click="showConf"><%= __("Automatic transfer setup") %></button>
@@ -1106,18 +1097,18 @@
                 <div class="overlay" v-bind:class="{shown: overlay=='conf'}">
                     <div class="overlayContainerWide">
                         <h3><%= __("Automatic transfer") %></h3>
-                        <h5>Automatically transfer the following data between liveAthletics and timing:<button type="button" class="information" v-on:click="overlayInfo('<%= __('Description of the settings') %>:', '<%= __('General notes: there are two different types of heat deletion: (1) deletion due to the current state of the heat in live athletics and (2) deletion because the heat is in fact deleted in live athletics. heats to timing: What should be done to the heats in the timing when a heat in live athletics is changed? The reaction is set on the basis of the (new) state in live athletics. add/update will transfer the data to timing. Delete (=type 1) will delete the heat in timing. (Note: this is e.g. useful when heats that are finished shall be deleted from the timing.) propagate delete: delete (=type 2) a heat in the timing when it gets deleted in live athletics? This should eventually not be active when the heat is running currently. no change with results: prevent that results from timing are transferred to live athletics whenever there is already a result in live athletics. results to site: transfer (add/update/delete) results or not from timing to live athletics when the data changes in the timing.') %>')"><%= __('i') %></button></h5>
+                        <h5><%= __("Automatically transfer the following data between liveAthletics and timing") %>:<button type="button" class="information" v-on:click="overlayInfo('<%= __('Description of the settings') %>:', `<%= __('General notes: there are two different types of heat deletion: (1) deletion due to the current state of the heat in live athletics and (2) deletion because the heat is in fact deleted in live athletics. heats to timing: What should be done to the heats in the timing when a heat in live athletics is changed? The reaction is set on the basis of the (new) state in live athletics. add/update will transfer the data to timing. Delete (=type 1) will delete the heat in timing. (Note: this is e.g. useful when heats that are finished shall be deleted from the timing.) propagate delete: delete (=type 2) a heat in the timing when it gets deleted in live athletics? This should eventually not be active when the heat is running currently. no change with results: prevent that results from timing are transferred to live athletics whenever there is already a result in live athletics. results to site: transfer (add/update/delete) results or not from timing to live athletics when the data changes in the timing.') %>`)"><%= __('i') %></button></h5>
                         <form class="verticalForm" v-if="overlay=='conf'"><!-- the if is needed to prevent errors when autoCopy is not yet ready -->
                             <!-- New method -->
                             <div style="display:grid; justify-items: stretch; grid-template-columns: [status] auto [heatAUD] auto [heatD] auto [heatPreventOnResult] auto [resultAUD] auto;" v-bind:style="{'grid-template-rows': autoTransferGridRows}">
-                                <div style="grid-column: heatAUD / span 3; grid-row: header1">heats to timing</div>
-                                <div style="grid-column: resultAUD; grid-row: header1">results to site</div>
+                                <div style="grid-column: heatAUD / span 3; grid-row: header1"><%= __("heats to timing") %></div>
+                                <div style="grid-column: resultAUD; grid-row: header1"><%= __("results to site") %></div>
 
-                                <div style="grid-column: status; grid-row: header2;">Status</div>
-                                <div style="grid-column: heatAUD; grid-row: header2;">add update status-delete</div>
-                                <div style="grid-column: heatD; grid-row: header2;">propagate delete</div>
-                                <div style="grid-column: heatPreventOnResult; grid-row: header2;">no change with results</div>
-                                <div style="grid-column: resultAUD; grid-row: header2;">transfer results to site</div>
+                                <div style="grid-column: status; grid-row: header2;"><%= __("Status") %></div>
+                                <div style="grid-column: heatAUD; grid-row: header2;"><%= __("add update status-delete") %></div>
+                                <div style="grid-column: heatD; grid-row: header2;"><%= __("propagate delete") %></div>
+                                <div style="grid-column: heatPreventOnResult; grid-row: header2;"><%= __("no change with results") %></div>
+                                <div style="grid-column: resultAUD; grid-row: header2;"><%= __("transfer results to site") %></div>
                                 
                                 <!-- add here all states with the options -->
                                 <template v-for="status in seriesStates">
@@ -1127,10 +1118,10 @@
 
                                     <select v-model="autoCopy.seriesStateSetting[status.value].heatAud" class="formCtrl" style="grid-column: heatAUD;" v-bind:style="{'grid-row': `s${status.value}`}">
                                         <option value="">-</option>
-                                        <option value="a">add</option>
-                                        <option value="u">update</option>
-                                        <option value="au">add/update</option>
-                                        <option value="d">delete</option>
+                                        <option value="a"><%= __("add") %></option>
+                                        <option value="u"><%= __("update") %></option>
+                                        <option value="au"><%= __("add/update") %></option>
+                                        <option value="d"><%= __("delete") %></option>
                                     </select>
 
                                     <input type="checkbox" style="grid-column: heatD" v-model="autoCopy.seriesStateSetting[status.value].heatD">
@@ -1139,105 +1130,16 @@
 
                                     <select v-model="autoCopy.seriesStateSetting[status.value].resultAud" class="formCtrl" style="grid-column: resultAUD;" v-bind:style="{'grid-row': `s${status.value}`}">
                                         <option value="">-</option>
-                                        <option value="a">add</option>
-                                        <option value="u">update</option>
-                                        <option value="au">add/update</option>
-                                        <option value="audd">add/update/delete</option>
+                                        <option value="a"><%= __("add") %></option>
+                                        <option value="u"><%= __("update") %></option>
+                                        <option value="au"><%= __("add/update") %></option>
+                                        <option value="audd"><%= __("add/update/delete") %></option>
                                     </select>
 
                                 </template> 
                             </div>
 
-                            <!--
-                            <label>
-                                <%= __("Contest changed") %>
-                                <select class="formCtrl" v-model.number="autoCopy.changeContestAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeContestAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeContestAuto), color: statusTextColor(autoCopy.changeContestAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in contestStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &ge; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                            <label>
-                                <%= __("Series added") %>
-                                <select class="formCtrl" v-model.number="autoCopy.addSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addSeriesAuto), color: statusTextColor(autoCopy.addSeriesAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &ge; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                            <label>
-                                <%= __("Series changed") %> <button type="button" class="information" v-on:click="overlayInfo('<%= __('Note') %>:', '<%= __('If the status of the heat changes, the rules set for adding/deleting the heat are applied to determine whether the heat shall be added to/deleted from the timing automatically.') %>')"><%= __('i') %></button>
-                                <select class="formCtrl" v-model.number="autoCopy.changeSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.changeSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.changeSeriesAuto), color: statusTextColor(autoCopy.changeSeriesAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &ge; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                            <label>
-                                <%= __("Series deleted") %>
-                                <select class="formCtrl" v-model.number="autoCopy.deleteSeriesAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.deleteSeriesAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.deleteSeriesAuto), color: statusTextColor(autoCopy.deleteSeriesAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &ge; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-
-                            <h5>Automatically transfer the following new data in the timing to live athletics:</h5>
-                            <label>
-                                <%= __("Evaluated time of a person") %>
-                                <select class="formCtrl" v-model.number="autoCopy.addResultAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addResultAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addResultAuto), color: statusTextColor(autoCopy.addResultAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &le; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                            <label>
-                                <%= __("Evaluated times of a full heat") %>
-                                <select class="formCtrl" v-model.number="autoCopy.addResultHeatAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addResultHeatAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addResultHeatAuto), color: statusTextColor(autoCopy.addResultHeatAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &le; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                            <label>
-                                <%= __("Reaction times") %>
-                                <select class="formCtrl" v-model.number="autoCopy.addReactionTimeAuto" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(autoCopy.addReactionTimeAuto), '--backColorHover': statusBackgroundColorHover(autoCopy.addReactionTimeAuto), color: statusTextColor(autoCopy.addReactionTimeAuto) }">
-                                    <option value="-1"><%= __("Never") %></option>
-                                    <option value="-2"><%= __("Always") %></option>
-                                    <template v-for="status in seriesStates">
-                                        <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
-                                            <%= __("Status") %> &le; {{status.text}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </label>
-                        -->
-
-                            <h5>Check for results/reaction times in the timing software in the following interval (in seconds; 0=never):</h5>
+                            <h5><%= __("Check for results/reaction times in the timing software in the following interval (in seconds; 0=never)") %>:</h5>
                             <!-- data that must/can be pulled from the timing software -->
                             <label>
                                 <%= __("Results") %>
@@ -1316,7 +1218,7 @@
                             <fieldset>
                                 <legend>
                                     ALGE Versatile Exchange protocol
-                                    <button type="button" class="information" v-on:click="overlayInfo('ALGE Versatile exchange protocol', '<%= __(`The ALGE Versatile exchange protocol provides a push message for the following events: start (including false start), finish (with inofficial finish time), single results during evaluation, heat results when official. Go to "ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]" and set "Layer=Tcp Server" and "Tcp Server/Local Port" to e.g. 4446. Provide the same port number  together withh the host (IP or server name) in the settings here.`) %>');"><%= __('i') %></button>
+                                    <button type="button" class="information" v-on:click="overlayInfo('ALGE Versatile exchange protocol', '<%= __(`The ALGE Versatile exchange protocol provides a push message for the following events: start (including false start), finish (with inofficial finish time), single results during evaluation, heat results when official. Go to "ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]" and set "Layer=Tcp Server" and "Tcp Server/Local Port" to e.g. 4446. Provide the same port number together with the host (IP or server name) in the settings here.`) %>');"><%= __('i') %></button>
                                 </legend>
                                 <h4><%= __("Settings are only required when any of the checkboxes is selected") %></h4>
                                 <label>
@@ -1328,7 +1230,7 @@
                                     <input class="formCtrl" type="number"  v-model.number="timingOptionsCopy.portMain" min="1" max="65535">
                                 </label>
                                 <label>
-                                    <%= __("Relay start and finish signal from ALGE to live athletics") %>
+                                    <%= __("Use start and finish signals") %>
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushHeatStartFinish">
                                 </label>
                                 <div v-if="timingOptionsCopy.handlePushHeatStartFinish==true" style="padding-left: 15px;">
@@ -1341,20 +1243,14 @@
                                         <%= __("Get inofficial results during evaluation") %>
                                         <input type="checkbox"  v-model="timingOptionsCopy.handlePushCompetitorEvaluated">
                                     </label>
-                                </div>
-                                <!--<div v-if="timingOptionsCopy.handlePushCompetitorEvaluated==true" style="padding-left: 15px;">
-                                    <label >
-                                        <%= __("Also get the inofficial rank") %><button type="button" class="information" v-on:click="overlayInfo('<%= __(`Inofficial rank`) %>', '<%= __(`Only set this to true when the timing crew always evaluates the times in the order of the placing, and e.g. not in the order of the lanes. Otherwise, the temporary ranks are wrong.`) %>');"><%= __('i') %></button>
-                                        <input type="checkbox"  v-model="timingOptionsCopy.competitorEvaluatedWithRank">
-                                    </label>
-                                </div>   -->                             
+                                </div>                           
                                 <label>
                                     <%= __("Instantly import results when official") %>
                                     <input type="checkbox"  v-model="timingOptionsCopy.handlePushHeatResult">
                                 </label>
                             </fieldset>
                             <fieldset>
-                                <legend><%= __("StartJudge2") %><button type="button" class="information" v-on:click="overlayInfo('ALGE StartJudge2 Link', '<%= __(`The StartJudge2 provides the reactiontimes at every start through. If teh reaction times shall be grabbed, provide here the host and port of the StartJudge2.`) %>');"><%= __('i') %></button></legend>
+                                <legend><%= __("StartJudge2") %><button type="button" class="information" v-on:click="overlayInfo('ALGE StartJudge2 Link', '<%= __(`The StartJudge2 provides the reactiontimes at every start through tcp. If the reaction times shall be grabbed, provide here the host and port of the StartJudge2.`) %>');"><%= __('i') %></button></legend>
                                 <label>
                                     <%= __("Host") %>
                                     <input class="formCtrl" type="text"  v-model="timingOptionsCopy.hostStartjudge">
