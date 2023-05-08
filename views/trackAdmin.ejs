@@ -290,8 +290,8 @@
                                                             <td>{{element.startsingroup.athleteName}}</td>
                                                             <td>{{element.startsingroup.athleteForename}}</td>
                                                             <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                         </tr>
                                                     </template>
                                                 </tbody>
@@ -324,8 +324,8 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{formatPerf(element.bestPerf)}}</td>
-                                                    <td>{{formatPerf(element.bestPerfLast)}}</td>
+                                                    <td>{{formatValue(element.bestPerf)}}</td>
+                                                    <td>{{formatValue(element.bestPerfLast)}}</td>
                                                 </tr>
                                             </template>
                                         </tbody>   
@@ -377,8 +377,8 @@
                                                             <td>{{element.startsingroup.athleteName}}</td>
                                                             <td>{{element.startsingroup.athleteForename}}</td>
                                                             <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                         </tr>
                                                     </template>
                                                 </tbody>
@@ -411,8 +411,8 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{formatPerf(element.bestPerf)}}</td>
-                                                    <td>{{formatPerf(element.bestPerfLast)}}</td>
+                                                    <td>{{formatValue(element.bestPerf)}}</td>
+                                                    <td>{{formatValue(element.bestPerfLast)}}</td>
                                                 </tr>
                                             </template>
                                         </tbody>   
@@ -548,8 +548,8 @@
                                                             </option>
                                                         </select></td>
                                                         <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
-                                                        <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
+                                                        <!--<td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>-->
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -633,8 +633,8 @@
                                                             </option>
                                                         </select></td>
                                                         <td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>
-                                                        <!--<td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>-->
+                                                        <!--<td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>-->
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -741,8 +741,8 @@
                                                         <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>-->
                                                         <!--<td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>-->
                                                         <!--<td>{{element.resultRemark}}</td>-->
-                                                        <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -803,8 +803,8 @@
                                                             </option>
                                                         </select></td>-->
                                                         <!--<td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>-->
-                                                        <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                        <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -895,8 +895,8 @@
                                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
                                                             <td v-if="showReactionTimes && disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>
                                                             <td>{{element.resultRemark}}</td>
-                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                         </tr>
                                                         <tr v-else>
                                                         </tr>
@@ -966,8 +966,8 @@
                                                             <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
                                                             <td>{{element.resultRemark}}</td>
-                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                         </tr>
                                                         <tr v-else>
                                                         </tr>
@@ -1022,8 +1022,8 @@
                                             <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
                                             <td>{{element.resultRemark}}</td>
-                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                            <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                         </tr>
                                         <tr v-else>
                                         </tr>
@@ -1096,8 +1096,8 @@
                                                                 <td>{{element.startsingroup.athleteName}}</td>
                                                                 <td>{{element.startsingroup.athleteForename}}</td>
                                                                 <td>{{element.startsingroup.clubName}}</td>
-                                                                <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                                <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                                <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                                <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -1129,8 +1129,8 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{ formatPerf(element.bestPerf)}}</td>
-                                                    <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                                    <td>{{ formatValue(element.bestPerf)}}</td>
+                                                    <td>{{ formatValue(element.bestPerfLast)}}</td>
                                                 </tr>
                                             </template> 
                                         </template>
@@ -1177,8 +1177,8 @@
                                                                 <td>{{element?.startsingroup?.athleteName}}</td>
                                                                 <td>{{element?.startsingroup?.athleteForename}}</td>
                                                                 <td>{{element?.startsingroup?.clubName}}</td>
-                                                                <td>{{formatPerf(element?.startsingroup?.bestPerf)}}</td>
-                                                                <td>{{formatPerf(element?.startsingroup?.bestPerfLast)}}</td>
+                                                                <td>{{formatValue(element?.startsingroup?.bestPerf)}}</td>
+                                                                <td>{{formatValue(element?.startsingroup?.bestPerfLast)}}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -1209,8 +1209,8 @@
                                                         <td>{{ element.athleteName }}</td>
                                                         <td>{{ element.athleteForename }}</td>
                                                         <td>{{ element.clubName }}</td>
-                                                        <td>{{ formatPerf(element.bestPerf)}}</td>
-                                                        <td>{{ formatPerf(element.bestPerfLast)}}</td>
+                                                        <td>{{ formatValue(element.bestPerf)}}</td>
+                                                        <td>{{ formatValue(element.bestPerfLast)}}</td>
                                                     </tr>
                                                 </template>
                                             </draggable>
