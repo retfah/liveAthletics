@@ -593,7 +593,12 @@ export default class roomClient {
                     this.logger.log(5, `Full reload done in room ${this.name} due to unexpected error while processing an incoming change (${JSON.stringify(change)}): ${err}.`);
 
                     // full reload
-                    this.getFullData();
+                    this.getFullData(()=>{}, (msg, code)=>{
+                        if (code<20){
+                            // if it fails due to connection, simply try again after 5s
+                            setTimeout(this.getFullData, 5000);
+                        }
+                    });
                 }
 
 
@@ -605,7 +610,12 @@ export default class roomClient {
             this.logger.log(35, "Incoming change for function '" + change.funcName + "', which does not exist. Do full reload.")
 
             // full reload
-            this.getFullData();
+            this.getFullData(()=>{}, (msg, code)=>{
+                if (code<20){
+                    // if it fails due to connection, simply try again after 5s
+                    setTimeout(this.getFullData, 5000);
+                }
+            });
         }
     }
 
@@ -874,7 +884,12 @@ export default class roomClient {
                     }
 
                     this.fullStackRollback();
-                    this.getFullData();
+                    this.getFullData(()=>{}, (msg, code)=>{
+                        if (code<20){
+                            // if it fails due to connection, simply try again after 5s
+                            setTimeout(this.getFullData, 5000);
+                        }
+                    });
                 }
 
                 // there is one special case: errCode=13 means that the client is outdated and needs a fullReload. This ALWAYS results in a fullReload and a fullRollback
@@ -1019,7 +1034,12 @@ export default class roomClient {
                 el.funcRollback();
             } else {
                 this.logger.log(20, "At least one rollback-function on the stack to do a full rollback on is undefined, i.e. the full data must be reloaded.")
-                this.getFullData();
+                this.getFullData(()=>{}, (msg, code)=>{
+                    if (code<20){
+                        // if it fails due to connection, simply try again after 5s
+                        setTimeout(this.getFullData, 5000);
+                    }
+                });
                 break;
             }
             
