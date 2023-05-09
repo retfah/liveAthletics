@@ -466,11 +466,8 @@ export default class rTiming extends roomServer{
                 // on failure try again after a timeout:
                 setTimeout(connectRoom, 2000); // retry every 2 seconds
             }
-            let successCB = ()=>{
-                this.data.infos.siteRoomConnected = true;
-                this.data.infos.lastSiteRoomConnectionError = '';
-                this.broadcastInf();
 
+            let transferSiteData = ()=>{
                 // reference the rSite data in this room.
                 this.data.contests = this.rSiteClient.data.contests;
                 this.data.meeting = this.rSiteClient.data.meeting;
@@ -478,13 +475,33 @@ export default class rTiming extends roomServer{
                 // broadcast data
                 this.broadcastSiteData();
 
+            }
+
+            let successCB = ()=>{
+                this.data.infos.siteRoomConnected = true;
+                this.data.infos.lastSiteRoomConnectionError = '';
+                this.broadcastInf();
+
+                transferSiteData();
+
                 // now start the initial comparison between the timing data and the rSite data
                 this.fullUpdate();
             }
 
+
+            let fakeVue = {
+                onRoomLinked:()=>{}, // not needed
+                onWritingTicketChange:()=>{}, // not needed
+                afterFullreload:()=>{
+                    transferSiteData()
+                }, // 
+                onChange:()=>{}, // should already be handled 
+                dataArrived:()=>{}, // not needed
+            }
+
             // create the rSiteClient
             //wsHandler, eventHandler, roomName, successCB, failureCB, logger, rTiming
-            this.rSiteClient = new rSiteTrackClientForTiming(this.conn, this.eH, `sites/${this.data.siteConf.siteNumber}@${this.data.siteConf.shortname}`, successCB, failureCB, this.logger, this);
+            this.rSiteClient = new rSiteTrackClientForTiming(fakeVue, this.conn, this.eH, `sites/${this.data.siteConf.siteNumber}@${this.data.siteConf.shortname}`, successCB, failureCB, this.logger, this);
             
         }
 
@@ -1032,7 +1049,7 @@ export default class rTiming extends roomServer{
         // get the contest
         const c = this.data.data.find(c2=>c2.xContest == data.xContest);
         if (!c){
-            this.logger.log(10, `Contest ${data.xContest} does not exist rTiming.`);
+            this.logger.log(10, `Contest ${data.xContest} does not exist in rTiming.`);
             return;
         }
         const s = c.series.find(s=>s.xSeries == data.xSeries)
@@ -1114,7 +1131,7 @@ export default class rTiming extends roomServer{
         // get the contest and heat
         const c = this.data.data.find(c=>c.xContest==result.xContest);
         if (!c){
-            this.logger.log(10, `Contest ${result.xContest} does not exist rTiming.`);
+            this.logger.log(10, `Contest ${result.xContest} does not exist in rTiming.`);
             return;
         }
         let s;
@@ -1275,7 +1292,7 @@ export default class rTiming extends roomServer{
         // get the contest and heat
         const c = this.data.data.find(c=>c.xContest==xContest);
         if (!c){
-            this.logger.log(10, `Contest ${xContest} does not exist rTiming.`);
+            this.logger.log(10, `Contest ${xContest} does not exist in rTiming.`);
             return;
         }
         let s;

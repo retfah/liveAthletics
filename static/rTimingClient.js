@@ -35,6 +35,8 @@ export class rTimingClient extends roomClient{
         this._addFunction('deleteSeries', this.deleteSeriesExe);
         this._addFunction('changeSeries', this.changeSeriesExe);
         this._addFunction('changeContest', this.changeContestExe);
+        this._addFunction('addUpdateResult', this.addUpdateResultExe);
+        this._addFunction('deleteResult', this.deleteResultExe);
 
         // the "same" functions also exist for the rTiming data
         this._addFunction('addSeriesTiming', this.addSeriesTExe);

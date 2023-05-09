@@ -388,6 +388,7 @@ class rContestTrack extends roomServer{
         this.functionsWrite.addSeries = this.addSeries.bind(this);
         this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
         this.functionsWrite.allSeriesStatusChange = this.allSeriesStatusChange.bind(this);
+        this.functionsWrite.addUpdateResults = this.addUpdateResults.bind(this); // this is only used through rSite currently!
 
         // define, compile and store the schemas:
         // TODO: remove, since it is probably not needed for track. We store this information in MariaDB now!
@@ -517,7 +518,7 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
-                aux: {type:"string"}, // JSON string; see schemaAuxSql
+                aux: {type:["string", "null"]}, // JSON string; see schemaAuxSql
             },
             required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
@@ -587,7 +588,7 @@ class rContestTrack extends roomServer{
                 name: {type:"string", maxLength:50},
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
-                aux: {type:"string"},
+                aux: {type: ["string", "null"]},
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
@@ -615,7 +616,7 @@ class rContestTrack extends roomServer{
                         additionalProperties: false, 
                     }
                 },
-                aux: {type:"string"},
+                aux: {type:["string", "null"]},
             },
             required: ["xSeries"],
             additionalProperties: false, // very important: since we simply copy al data, we must amke sure that the restricted data are not chnaged.
@@ -660,7 +661,7 @@ class rContestTrack extends roomServer{
                 seriestrack: schemaSeriestrack,
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
-                aux: {type:"string"},
+                aux: {type:["string", "null"]},
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -1275,8 +1276,8 @@ class rContestTrack extends roomServer{
         if (!this.validateAddUpdateResults(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateAddUpdateResults.errors)}
         }
-        // additionally check the aux data
-        if ('aux' in data){
+        // additionally check the aux data, if not null
+        if (data.aux && data.aux!==null && data.aux!==''){
             if (!this.validateAuxSql(JSON.parse(data.aux))){
                 throw {code:38, message: this.ajv.errorsText(this.validateAuxSql.errors)}
             }
@@ -1370,9 +1371,10 @@ class rContestTrack extends roomServer{
             this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
         }
 
+        // use the regular updateSeries funciton to update the result; send the whole series
         let ret = {
             isAchange: true, 
-            doObj: {funcName: 'updateSeries', data: data},
+            doObj: {funcName: 'updateSeries', data: series.get({plain:true})},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true

@@ -148,12 +148,9 @@ export class rSiteTrack extends rSite{
         // add the functions to the respective object of the parent
         // the name of the functions must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
-        // Note: I think the heat-data-functions called through the event system are actually not needed as room functions; (they are always called this way and not through the side channel)  
-        // however, the results functions must obviously exist, since the client will send those changes
-        this.functionsWrite.addUpdateHeatAux = this.addUpdateHeatAux.bind(this);
-        //this.functionsWrite.addUpdateResult = this.addUpdateResult.bind(this); // only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
-        this.functionsWrite.addUpdateResultsHeat = this.addUpdateResultsHeat.bind(this);
-        //this.functionsWrite.deleteResult = this.deleteResult.bind(this);
+        this.functionsWrite.addUpdateResult = this.addUpdateResult.bind(this); // only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
+        this.functionsWrite.addUpdateResultsHeat = this.addUpdateResultsHeat.bind(this); // only funciton to be used by rSiteClient!
+        this.functionsWrite.deleteResult = this.deleteResult.bind(this); // only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
 
         // sites/xSite@meetingShortname:...
         this.eH.eventSubscribe(`${this.name}:seriesAdded`, (data)=>{
@@ -181,34 +178,34 @@ export class rSiteTrack extends rSite{
         
             // data contains: xContest, xSeries, xSeriesStart, result
             this.serverFuncWrite('addUpdateResult', data).catch(err=>{
-                this.logger.log(10, `Error during addUpdateResult in room ${this.name}: ${err}`);
+                this.logger.log(10, `Error during addUpdateResult in room ${this.name}: ${JSON.stringify(err)}`);
             });
         })
 
         // probably not needed, since manual results come in one by one
         this.eH.eventSubscribe(`${this.name}:resultsHeatChanged`, (data)=>{
             this.serverFuncWrite('addUpdateResultsHeat', data).catch(err=>{
-                this.logger.log(10, `Error during addUpdateResultsHeat in room ${this.name}: ${err}`);
+                this.logger.log(10, `Error during addUpdateResultsHeat in room ${this.name}: ${JSON.stringify(err)}`);
             });
         })
 
-        this.eH.eventSubscribe(`${this.name}:heatAuxChanged`, (data)=>{
+        /*this.eH.eventSubscribe(`${this.name}:heatAuxChanged`, (data)=>{
             this.serverFuncWrite('addUpdateHeatAux', data).catch(err=>{
-                this.logger.log(10, `Error during addUpdateHeatAux in room ${this.name}: ${err}`);
+                this.logger.log(10, `Error during addUpdateHeatAux in room ${this.name}: ${JSON.stringify(err)}`);
             });
-        })
+        })*/
 
         this.eH.eventSubscribe(`${this.name}:resultDeleted`, (data)=>{
             // data contains: xContest, xSeries, xSeriesStart
             this.serverFuncWrite('deleteResult', data).catch(err=>{
-                this.logger.log(10, `Error during deleteResult in room ${this.name}: ${err}`);
+                this.logger.log(10, `Error during deleteResult in room ${this.name}: ${JSON.stringify(err)}`);
             });
         })
 
 
     }
 
-    // IMPORTANT: only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
+    // IMPORTANT: only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
     async addUpdateResult(data){
         // data contains: xContest, xSeries, xSeriesStart, result
         // add or update a single result
@@ -286,9 +283,10 @@ export class rSiteTrack extends rSite{
         if (!rContest){
             throw {code:22, message: `Contest ${data.xContest} could not be found.`}
         }
-        // return the result of the call to addUpdateResults (typically true; or an error)
         // the actual change in the rSite data is made through the seriesCHanged-event that is raised 
-        let response = await rContest.addUpdateResults(data);
+        // important: We need to call addUpdateResults through roomServerFunc 
+        // return the result of the call to addUpdateResults (typically true; or an error)
+        let response = await rContest.serverFuncWrite("addUpdateResults", data);
 
         let ret = {
             isAchange: false, 
@@ -300,12 +298,12 @@ export class rSiteTrack extends rSite{
         return ret;
     }
 
-    async addUpdateHeatAux(data){
+    /*async addUpdateHeatAux(data){
         // add or update the aux data of a heat
         // this also somehow includes delete, since the data is an object anyway, wich can simply be "{}" for deleting.
-    }
+    }*/
 
-    // IMPORTANT: only to be used to insert results that already exist on the server! it will not send the changes to rContestTrack!
+    // IMPORTANT: only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
     async deleteResult(data){
         // data contains: xContest, xSeries, xSeriesStart
 
