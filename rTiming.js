@@ -1251,6 +1251,10 @@ export default class rTiming extends roomServer{
                 if ('resultOverrule' in ssrNew && ssrNew.resultOverrule!=ssrCurrent.resultOverrule){
                     changed = true;
                     ssrCurrent.resultOverrule = ssrNew.resultOverrule;
+                    if (ssrNew.resultOverrule !== 0){
+                        // make sure that if a result already existed it gets deleted
+                        ssrCurrent.resultstrack = null;
+                    }
                 }
                 // the following "check" could not be done above, since ssrNew.xSeriesStart is not necessarily given before
                 if (ssrNew.resultstrack !== null && !('xResultTrack' in ssrNew.resultstrack)){
@@ -1887,11 +1891,11 @@ export class rTimingAlge extends rTiming {
      * The ALGE timing data transfers basically uses files for exchange. Optionally, the main software knows the tcp-based versatile exchange protocol sending some information live and the the StartJudge sends reaction time through tcp as well.  
      * 
      * ALGE can push the following messages: 
-     * - HeatStart, when heat is started: IsFalseStart, EventId, HeatId, Time (in UTC?)
-     * - HeatFinish, when first person crosses the line: EventId, HeatId, Time (in UTC?), Runtime
+     * - HeatStart, when heat is started: IsFalseStart, Nr, HeatId, Time (in UTC?)
+     * - HeatFinish, when first person crosses the line: EventNr, HeatId, Time (in UTC?), Runtime
      * - CompetitorEvaluated, when the time of one competitor was set: Bib, Rank (attention: this might be temporary only!), Time (UTC?), Runtime, RuntimeFullPrecision, Lane, Disqualification (as text), DifferenceToWinner, DifferernceToPrevious, State --> this info seems to lack the event ! --> TODO: store the last event coming in via HeatStart or HeatFinish
      * - HeatResult/Result, when the heat-results are confirmed: 
-     *      - HeatResult: SessionId, EventId, HeatId, Starttime, Finishtime, Runtime, Wind, WindUnit, DistanceMeters
+     *      - HeatResult: SessionId, EventNr, HeatId, Starttime, Finishtime, Runtime, Wind, WindUnit, DistanceMeters
      *      - Result: see CompetitorEvaluated 
      * - Time has the format HH:MM:SS.1234
      * 
@@ -2130,12 +2134,18 @@ export class rTimingAlge extends rTiming {
             if (this.data.timingOptions.handlePushHeatResult && 'HeatResult' in xml){
 
                 // until ALGE has updated their interface, we simply read the file when the data arrives.
-                let xContest = xml.HeatResult.$.EventId; //
+                let xContest = xml.HeatResult.$.EventId; // this is NOT the ID from the input! Thus, this approach does not work currently! The EventNr as used when reading from file does not exist here!
                 let seriesId = xml.HeatResult.$.Id; // UUID
                 let c = this.data.data.find(c=> c.xContest==xContest)
-                if (!c) return;
+                if (!c) {
+                    this.logger.log(30, `Contest ${xContest} does not exist in rTiming.`)
+                    return;
+                }
                 let s = c.series.find(s=>s.id == seriesId);
-                if (!s) return;
+                if (!s) {
+                    this.logger.log(30, `Series ${seriesId} does not exist in contest ${xContest} in rTiming.`)
+                    return;
+                }
                 setTimeout(()=>{
                     this.readHeatResults(s).catch((code, msg)=>{this.logger.log(30, msg)});
                 }, 500);
@@ -2349,7 +2359,7 @@ export class rTimingAlge extends rTiming {
                 let cName = c.name.length==0 ? `${c.baseConfiguration.distance}m ${c.xContest}` : c.name; 
                 let cTime = (new Date(c.datetimeStart)).toISOString().split('T')[1].slice(0,8);
                 
-                await file.write(`\t\t<Event Name="${cName}" Id="${c.xContest}" Distance="${c.baseConfiguration.distance}" DistanceType="${c.baseConfiguration.type}" ScheduledStarttime="${cTime}">\r\n`) //distanceType (regular, hurdles, relay, steeplechase), windmeasurement "None", "5Seconds", "10Seconds", "13Seconds", "10SecondsWith10SecondsDelay"
+                await file.write(`\t\t<Event Name="${cName}" Nr="${c.xContest}" Id="${c.xContest}" Distance="${c.baseConfiguration.distance}" DistanceType="${c.baseConfiguration.type}" ScheduledStarttime="${cTime}">\r\n`) //distanceType (regular, hurdles, relay, steeplechase), windmeasurement "None", "5Seconds", "10Seconds", "13Seconds", "10SecondsWith10SecondsDelay"
                 // additionally available: Nr
                 
                 // insert heats
@@ -2554,7 +2564,8 @@ export class rTimingAlge extends rTiming {
         const auxData = {};
         const SSRs = [];
 
-        let xContest = xml.HeatResult.$.EventId;
+        // EventId is NOT the id from the input currently (2023-05)! (I dont know why)
+        let xContest = xml.HeatResult.$.EventNr; 
         let heatId = xml.HeatResult.$.Id
 
         if ('Wind' in xml.HeatResult.$){
