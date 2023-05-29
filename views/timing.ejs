@@ -898,7 +898,7 @@
                         <!-- this is the container per contest -->
                         <summary v-if="contest.site" style="padding-left:3px" v-bind:style="{ 'background-color': statusBackgroundColor(contest.site.status), '--backColorHover': statusBackgroundColorHover(contest.site.status), color: statusTextColor(contest.site.status) }">
                             <!-- header to expand the details; -->
-                            {{getContestTitle(contest)}} {{contest.site.xContest}} {{statusText(contest.site.status)}}<!-- TODO: remove the xContest in production -->
+                            {{getContestTitle(contest)}} {{statusText(contest.site.status)}} - {{contest.site.series.length}} <%= __("Heats") %> (xContest {{contest.site.xContest}})<!-- TODO: remove the xContest in production -->
                         </summary>
                         <summary v-else style="margin-left:3px" >
                             <!-- header to expand the details; -->
