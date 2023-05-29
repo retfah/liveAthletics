@@ -1252,6 +1252,7 @@ export class rContestTrackClient extends roomClient{
             seriesstartsresults: [],
             datetime: datetime.toISOString(),
             id: uuid,
+            aux: null,
         };
         let newSeriesServer = { // same, but without xSeries
             xContest: this.data.contest.xContest,
@@ -1264,6 +1265,7 @@ export class rContestTrackClient extends roomClient{
             seriesstartsresults: [],
             datetime: datetime.toISOString(),
             id: uuid,
+            aux: null,
         };
         let i = this.data.series.push(newSeries);
         newSeries = this.data.series[i-1]; // transfer back the proxied data
@@ -1386,6 +1388,7 @@ export class rContestTrackClient extends roomClient{
                 datetime: series.datetime.toISOString(),
                 id: this.uuidv4(),
                 seriesstartsresults: seriesstartsresults,
+                aux:null,
             })
 
             // create the local auxData for each series; the server will create the same there

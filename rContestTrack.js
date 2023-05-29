@@ -518,9 +518,9 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
-                aux: {type:["string", "null"]}, // JSON string; see schemaAuxSql
+                aux: {type:["string", "null"], default:null}, // JSON string; see schemaAuxSql
             },
-            required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
+            required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults", "aux"],
             additionalProperties: false,
             // neither required nor additional propertzies are defined herein
         }
@@ -660,8 +660,8 @@ class rContestTrack extends roomServer{
                 },
                 seriestrack: schemaSeriestrack,
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
-                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
-                aux: {type:["string", "null"]},
+                id: {type: ["null", "string"], format:"uuid", default:null}, // intended to be UUID, but might be anything else as well
+                aux: {type:["string", "null"], default:null},
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -1948,7 +1948,7 @@ class rContestTrack extends roomServer{
             }
         };
         if (series.xSite != null){
-            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest});
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: series.xSeries, xContest:series.xContest});
         }
 
         let ret = {
