@@ -3,10 +3,11 @@
  * CHANGES:
  * - move the height check into the children-loop of the parent
  * - async
+ * - 2023-05: in general: simplification+documentation; comments, removed unused showSeparatorHere in pageBreak, 
  */
 
 /**
- * This document presents classes to store the content of a document to be printed in a structured way. The idea is that the actual printer (e.g. to pdf) has a pendant to each of those classes and knows how to print them and where and how page breaks are allowed, optimizing to look of the page. 
+ * This document presents classes to store the content of a document to be printed in a structured way. The idea is that the actual printer (e.g. to pdf) has an equivalent to each of those classes and knows how to print them and where and how page breaks are allowed, optimizing to look of the page. 
  * PageBreaks can (by default) only occur between containers. (However, a class could implement a different print method allowing other page breaks as well.) 
  *  
  * Example ContestSheet (contestContainer<seriesContainer<athleteContainer):
@@ -28,32 +29,22 @@
  * Example of RankingList (rankingListContainer < ...*)
  * ...*everything below the rankinglistContainer depends on whether tha ranking list shall be event, eventGroup or contest centered. Also provide the option make this dependent on the baseDiscipline, e.g. track is eventGroup-based and tech is event-based
  * - some data about the competition (datefrom/dateTo, place, organizer, indoor/outdoor, etc)
- * 
- * TODO: 
- * - How to do translations?
- *   - ideally we also have a different setup based on the language... --> we must be able to provide the setup not just 
- *   - on the server prepare a special path that returns the translated printing configuration file (only the needed language, which will be "calculated" on the fly from the print configuration file on the server which stores all languages. ) Like this we can also have a default print-configuration-file for languages or even just parts of the configuration file where a spcidific language does not have its own definition.
- *   - on the client the import would be like <script type="text/javascript (or module)" src="/printConf<%- _lang %>.js" /> 
+ *  
+ * How translations work:
+ *   - on the server there is a special path that returns the translated printing configuration file confPrint.js (only the needed language, which will be "calculated" on the fly from the print configuration file on the server which stores all languages. ) Like this we can also have a default print-configuration-file for languages or even just parts of the configuration file where a specific language does not have its own definition.
+ *   - on the client the import is like <script type="text/javascript (or module)" src="/printConf<%- _lang %>.js" /> 
  *   - The server can simply work on the full configuration file
  *   - we cannot simply make this file ejs, because we cannot parse it for execution on the server; So, we must implement some translation function on our own. eventually we resign here from using i18n and create our own code; probably requiring that we man
- * 
- * - how to define some general print settings? (paper size, font size, font, page margins, header/footer content, table-layouts) --> regular (additional) static configuration file DOES NOT WORK, because it shall be language dependent (except when we always provide all configurations to the browser; but that might end up in an overly large file.), that will be included in the borwser's html (<script type="module" src="testfile1.js" />) and on the server 
- * - is it eventually helpful to have a general table-style syntax containing column sizes, column content types (allow line break yes/no or horizontalScaling yes/no/how, ...), font (includes bold and oblique=italic), border definitions, 
- * 
- * - PROBLEM: embedding custom fonts, images and other stuff is async for good reasons. If we would need to embed pictures during e.g. printContainerHeader and have the returned value be dependent on the async loaded stuff, also this function would need to be async. Since the height of a print-element is by default calculated with the regular print funciton, also the height-function would have to by async. This finally is a problem when it comes to calculating the childrens min/total heights, which is a getter, i.e. it cannot by async --> wrong --> the getter cannot be async, yes, but it still can return a promise! --> try to implement 
- * - Solutions approaches: 
- *   - keep printXY sync, but allow calls to async functions. Add a list to doc where we store all those promises, which we will make sure they are resolved when the document is saved. This approach has the drawback that the height required by a print funciton cannot be dependent on the async call. Ony major problem of this approach is that checking the textSize, which occurs regularly requires that the font is already loaded and not created async. It would make it necessary that such funciton only use already embedded fonts (or StandardFonts).  
- *   - do all async stuff during the creation of the print class (e.g. an instance would have to embed the stuff (font, images) already there and later only reference this.) If we have this approach alone, we would not be able to dynamically embed stuff. However, the approach should be comparably easy to implement. --> Try to implement this approach.
- *   - the two approaches before can also be combined basically.
- */
+ **/
 
-// why to keep track of the current positionY manually and not using the "tracking" by pdf-lib: for the case when pdf-lib once would have to be replaced
+// TODO: do we handle cases where it is not possible to fit the container on one page, but we do "not allow" page breaks?
+// i.e. even when we prefer to have a container start on the next page than beeing split, we still must be able to handle cases where the full container does not fit the page!
 
 /**
  * Procedure for printing:
  * prior:
  * 0) Create the data structure
- * During printing:
+ * During printing TODO revise with latest version!!!:
  * 1) the printed document will have the same logical structure as the data structure. Every printContainer shall be able to calculate its minimum required height (unbreakable height, i.e. prefer to start on the next page rather than showing only a small part) and eventually also height to fit the whole container (would allow for print optimization). 
  * 2) Settings for printing: 
  *    - It shall be defined for each kind of container, whether its children have to be plotted together or if and how they can be plotted separately (e.g. will a header be repeated?). For example it does not matter when series are plotted on different pages, but e.g. the series itself (i.e. the lanes) shall not be split (probably except if there are track races like marathon, where all participants would not fit one page; eventually calculate the minimum ).
@@ -76,22 +67,38 @@
  * if a container has to start on a new page, then optimizations on a higher level are unnecessary
  */
 
+/**
+ * printingGeneral:
+ * - provides a base class, from which every actual printing container implementation shall inherit and overwrite the print functions for the various parts of the container
+ * 
+ * every container may consist of the following printed parts, printed in the following order:
+ * - a container "header" (actually this is probably the main content), which is printed before the children
+ * - <child containers>
+ * - a separator between childs
+ * OLD:
+ * - <if a page break is needed between two childs>:
+ *   - a special separator between childs, when there will be a page break in between two childs
+ *   - pre-page-break content (e.g "continued on next page") 
+ *   - post-page-break content (e.g. in tables a repetition of the header row) 
+ *   - TODO: eventually it should be two separate pre/postPageBreaks: one, when the break is initiated by the container itself and one, when it is initiated within a child container.
+ * NEW: 
+ * - <if a page break is needed between two childs>:
+ *   - a special separator between childs, when there will be a page break in between two childs (printChildSeparatorPrePageBreak)
+ *   - a post-page-break separator (printChildSeparatorPostPageBreak)
+ * - <if a page break is needed within a child>:
+ *   - pre-page-break content (e.g "continued on next page")  (printPrePageBreak)
+ *   - post-page-break content (e.g. in tables a repetition of the header row) (printPostPageBreak)
+ * - a container "footer" 
+ * Note: the special child separator between two childs (childSeparatorPrePageBreak) can NOT be implemented in the pre-page-break content! The difference is that the prePageBreak stuff gets printed when the new page is added within one of our childs and not between two of our childs, while the childSeparatorPrePageBreak obviously is only printed when the new page is created by this container BETWEEN two childs.
+ * Note: if a container does not allow child break/must be printed as a whole, but also does not fit on one page, it will (1) begin on a new page and (2) will automatically split as soon as no further childs can be placed (TODO: check)
+ */
+
 // Try to create a base class for printing (no optimization done):
 export class printingGeneral {
     
-    // WRONG thought: with this schema the header and footer can be the top most container. By having hAvailAll=hAvailSplit this container might know that it does not have to call any parent anymore to draw a new page when needed 
-    // TODO: does not work, because the footer is simply mandatory stuff before page break, i.e. the first container within Header/Footer will also see hAvailAll=hAvailSplit.
+
     // heightAvailAll is given by the space of the previous container minus its mandatory stuff before AND after this container
     // heightAvailSplit is given by the space of the previous container minus its mandatory stuff before AND after this container AND minus the stuff that comes after when the child is split
-
-    // OLD test:
-    /*static async creator(){
-        let p = new this();
-
-        p.fakeDoc = await PDFLib.PDFDocument.create();
-
-        return p;
-    }*/
 
     /**
      * 
@@ -114,7 +121,7 @@ export class printingGeneral {
         // not implemented yet:
         this.allowPageBreakBeforeFooter = false; // allow to have a page break between the last child element and the container footer. 
 
-        // every print page will probably have the following parts: 
+        // every print page may have the following parts: 
         // - container header
         // - post-page-break container header (applied on every new page)
         // - pre-page-break container footer (applied before a new page is required to fit all childs)
@@ -134,7 +141,8 @@ export class printingGeneral {
 
     }
 
-    // attention: this return a promise!
+    // attention: this returns a promise!
+    // required e.g. to calculate the total height of a container by "printing" on a fake document with infinitely high paper (so that there is not page break) 
     get fakeDoc(){
         let ret = async ()=>{
             if (this._fakeDoc){
@@ -173,11 +181,11 @@ export class printingGeneral {
         return ret();
     }
 
+    // get a fake page geometry, with "infinity" space left and no space needed for prePageBreaks
     getFakePG(){
         return {
             positionY: 99999999999999, // not more than 15 digits! afterwards, the accuracy of number is less than 1; reduced to 14 digits, so that at least one number after the comma is accurate as well
-            hPrePageBreakAll: 0,
-            hPrePageBreakSplit: 0,
+            hPrePageBreak: 0,
         }
     }
 
@@ -185,90 +193,80 @@ export class printingGeneral {
      * @param {object} page The page to draw on. Also contains a reference to the doc (page.doc), which is needed e.g. to embed pictures.
      * @param {object} pG consists of page-geometry several properties, defining the setup for the currently printed page: 
      * @param {number} pG.positionY The current y-position where to draw
-     * @param {number} pG.hPrePageBreakAll The height needed to print all outer pre page break stuff, given this container needs no page break within it
-     * @param {number} pG.hPrePageBreakSplit The height needed to print all outer pre page break stuff, given this container will do a page break in it. (In that case, the outer containers might want to add stuff like "continued later", however, )
-     * @param {function} pageBreak Function to be called when a new page shall be created. Will print all "footers" (pre-page-break content), do the page break, print the post-page-break content (e.g. some repeated headers)
-     * @param {*} isNewPage isNewPage is set to true when either the container or the previous child added a new page at the end: TODO: is currently probably not implemented!
+     * @param {number} pG.hPrePageBreak The height needed to print all outer pre page break stuff, given this container will do a page break. (Since the number is not needed in cases where there is no page break within this container, the number might be too small otherwise)
+     * @param {function} pageBreak Function (page, pG) to be called when a new page shall be created. Will print all "footers" (pre-page-break content), do the page break, print the post-page-break content (e.g. some repeated headers)
      * @return {number} the new positionY
      */
-    async print(page, pG, pageBreak, isNewPage=false){
+    async print(page, pG, pageBreak){
 
-        // // remaining usable height if this container does NOT span multiple pages 
-        // let hAvailAll = pG.positionY - pG.hPrePageBreakAll;
-        // // remaining usable height if this container reaches multiple pages (containing the prePageBreakHeight of the parent and its parents etc)
-        // let hAvailSplit = pG.positionY - pG.hPrePageBreakSplit;
+        // for debugging only: 
+        let posYBefore = pG.positionY;
+
+        // when this function gets called, then it is already clear that its minimum height (i.e. at least the header and the minimum number of childs with seaprators in between and a separatorPageBreak at the end) can be printed on the current page, since this is checked in the parent!
 
         // print the header
         [page, pG] = await this.printContainerHeader(page, pG);
+
+        // get the prepagebreak heights, since this is used several times later
+        let pph = await this.prePageBreakHeight();
+        let csh = await this.childSeparatorHeight();
+        let cshpb = await this.childSeparatorPrePageBreakHeight();
+        let fh = await this.containerFooterHeight();
+
+        // let for debugging only
+        if (isNaN(pph) || isNaN(csh) || isNaN(cshpb) || isNaN(fh)){
+            return;
+        }
         
-        // print all children
+        // print all children and eventually create page breaks in between
         for (let i=0; i<this.children.length; i++){
-            
-            let child = this.children[i];
 
-            // check whether the child fits; otherwise add a page break before;
-            // the fit can either be: 
-            // - all remaining childs will fit on the current remaining page (no need to consider the prePageBreak stuff to check the residual height)
-            // - the minimum height of the current child fits the current remaining page (considering that there will be a page break after (--> requires space))
+            // the prePageBreakHeight for the child to be printed depends on whether there will be a split within the next child or not; if there is none, we actually do not need to specify the correct hPrePageBreak, since there is anyway no pageBreak. We simply keep the hPrePageBreak of the current container.
+            // if we would want to define it correctly, we would need to consider also whether the footer of this container will have to be printed afterwards or not and whether a regular separator or pageBreak separato will be printed
+            let childHPrePageBreak = pG.hPrePageBreak;
 
-            // calculate the space we still have for the remaining children
-            // NOTE: if all children fit, no further prePageBreakHeight must be considered; if they do not fit, we have to make sure that this is already considered
-            //let remainingHeightAssumingNoPageBreak = pG.positionY - pG.hPrePageBreakAll;
-            //let remainingHeightWithPageBreakNeededWithinContainer = pG.positionY - pG.hPrePageBreakSplit - this.prePageBreakHeight;
-            
-            // calculate the height that would be needed to fit all remaining (including the current one) children here
-            let hAll = 0;
-            for (let i2=i; i2<this.children.length; i2++){
-                hAll += (await this.minChildHeight)[i];
-                // no separator at the end
-                if(i2+1<this.children.length){
-                    hAll += await this.childSeparatorHeight();
-                }
-            }
+            // check if we can print the next child, including the childSeparator before and after, otherwise print the childSeparatorPrePageBreak (if i>0) and do a pageBreak
 
-            let fitsAll = pG.positionY - pG.hPrePageBreakAll - (await this.containerFooterHeight()) >= hAll;
-            
-            // do pageBreaks and separators
-            if (!fitsAll){
-                // check if a page break is needed right now (i.e. when the current child's min height does not fit)
-                if (pG.positionY - pG.hPrePageBreakSplit - (await this.minChildHeight)[i] < 0){
-                    // create a page break
+            // first check if we can fully fit childSeaprator (if this is not the first child) + full next child + the childSeparatorPrePageBreak + footer (if this is the last child AND allowPageBreakBeforeFooter=false) with the remaining space (position-hPrePageBreak)
+            if (pG.positionY - pG.hPrePageBreak - csh*(i>0) - (await this.totalChildHeight)[i] - cshpb*(i<this.children.length-1) - fh*((!this.allowPageBreakBeforeFooter) && i==this.children.length-1) < 0){
+                // the child will NOT fully fit
+                // thus, check if the page break may be done within the child; i.e. consider the pageBreakHeight of this container, but do not consider the separator
+                if (pG.positionY - pG.hPrePageBreak - csh*(i>0) - (await this.minChildHeight)[i] - pph > 0){
+                    // the min child height will fit, but not the total; thus, simply plot a separator and let the child do the page break
+                    [page, pG] = await this.printChildSeparator(page, pG);
+
+                    // define the hPrePageBreak to include the prepgaeBReak height of this container
+                    childHPrePageBreak += pph;
+
+                } else {
+                    // neither the min child nor the total child fits; create a page break now and continue
                     if (i>0){
                         [page, pG] = await this.printChildSeparatorPrePageBreak(page, pG);
                     }
+                    [page, pG] = await this._pageBreak(page, pG, pageBreak);
 
-                    [page, pG] = await this._pageBreak(page, pG, pageBreak)
-                } else {
-                    if (i>0){
-                        [page, pG] = await this.printChildSeparator(page, pG);
-                    }
+                    [page, pG] = await this.printChildSeparatorPostPageBreak(page, pG);
                 }
             } else {
+                // the child fully fits; so just print the regular separator, if i>0
                 if (i>0){
                     [page, pG] = await this.printChildSeparator(page, pG);
                 }
             }
 
+            // the pageGeometry must be copied; otherwise we would not keep the actual pG for this function 
+            let pGChild = copyObject(pG);
+            pGChild.hPrePageBreak = childHPrePageBreak;
+            
+            let child = this.children[i];
+
             // prepare the pageBreak function for the child
-            // TODO: I think the separator is actually not needed anymore
-            let pB = async (page, pG, showSeparatorHere=false)=>{
-                if (i==0){
-                    // never show the separator before the first child
-                    showSeparatorHere = false; 
-                }
-                return this._pageBreak(page, pG, pageBreak, showSeparatorHere=showSeparatorHere);
+            let pB = async (page, pG)=>{
+                return this._pageBreak(page, pG, pageBreak);
             };
 
-            // teh pageGeometry shall be able to hold any other optional properties; so the client shall basically get a copy of the stuff this 
-            let pGChild = copyObject(pG);
-
-            // calculate the prePageBreakHeight height that is available for the next child either when the full child is printed and if only a part of the child can be printed 
-            pGChild.positionY = pG.positionY;
-            pGChild.hPrePageBreakAll = (fitsAll ? pG.hPrePageBreakAll : pG.hPrePageBreakSplit) + (await this.containerFooterHeight());
-            pGChild.hPrePageBreakSplit = (fitsAll ? pG.hPrePageBreakAll : pG.hPrePageBreakSplit) + (await this.containerFooterHeight()) + (await this.prePageBreakHeight());
-
             // print the child
-            [page, pG] = await child.print(page, pGChild, pB)
+            [page, pG.positionY] = await child.print(page, pGChild, pB);
 
             // create a new page after n-children, but not at the beginning or at the end:
             if (i>0 && (i+1) % this.pageBreakAfterNChildren==0 && i+1<this.children.length){
@@ -279,11 +277,10 @@ export class printingGeneral {
         }
 
         // is there enough space for the footer? 
-        if (pG.positionY - pG.hPrePageBreakAll - (await this.containerFooterHeight())<0){
+        if (pG.positionY - pG.hPrePageBreak - (await this.containerFooterHeight())<0){
             // need a new page (no separators here)
             [page, pG] = await this._pageBreak(page, pG, pageBreak);
         }
-        
         
         [page, pG] = await this.printContainerFooter(page, pG);
 
@@ -291,83 +288,73 @@ export class printingGeneral {
             [page, pG] = await this._pageBreak(page, pG, pageBreak);
         }
 
-        // return the current position; actually the parent must also know whether a pageBreak was just done, but that info is given by child.pageBreakEnd
-        return [page, pG];
+        // return the current position; 
+        return [page, pG.positionY];
     }
 
-    // the total height only relates to the theoretical total height, not including any possibly needed page breaks (i.e. the height that it would take on an infinitely long paper)
-    // this is what is needed in the checks during print.
+    // the total height only relates to the theoretical total height, assuming an infinitely long sheet of paper and thus not considering any page breaks
     async getTotalHeight(){
-        // if not calculated yet, calculate it for every child.
-        /*if (this.children.length>0 && this.totalChildHeight.length==0){
-            this.totalChildHeight = this.children.map((c)=>c.getTotalHeight())
-        }*/
-        let sepHeight = 0
-        if (this.minimumChildrenPrint>1){
-            sepHeight += (this.minimumChildrenPrint-1)*(await this.childSeparatorHeight()) + sepHeight;
+
+        // get the heights, since this is used several times later
+        let csh = await this.childSeparatorHeight();
+        let fh = await this.containerFooterHeight();
+        
+        let sepHeight = 0;
+        if (this.children.length>1){
+            sepHeight = csh*(this.children.length-1);
         }
 
-        // TODO: do we need to include here the prePageBreakHeight, if we have a mandatory pageBreak at the end?
-        // I assume yes
-        return (await this.containerHeaderHeight()) + (await this.containerFooterHeight()) + (await this.totalChildHeight).reduce((tempSum, val)=>val+tempSum, 0) + sepHeight + this.pageBreakEnd*(await this.prePageBreakHeight());
+        return (await this.containerHeaderHeight()) + (await this.totalChildHeight).reduce((tempSum, val)=>val+tempSum, 0) + sepHeight + fh;
     }
 
     // might be overriden in a different way by the inheriting class
+    // returns the minimum required height to print this container. If breaks are allowed between children, this is the height of the container header, the minimum number of childs to print (including the separators) and the prePageBreakHeight. If all children must be printed it is the total height of the container.
     async getMinimumHeight(){
 
+        // get the heights, since this is used several times later
+        let csh = await this.childSeparatorHeight();
+        let fh = await this.containerFooterHeight();
+        let hh = await this.containerHeaderHeight();
+
         if (this.minimumChildrenPrint == null){
-            // all children must be fully printed, also the footer of this container is printed then, i.e. the minimum height is the total height
-            return this.getTotalHeight();
-
-        } else if (this.children.length==0){
-            // only the header of this container is mandatory
-            return this.containerHeaderHeight();
-
-        } else if (this.minimumChildrenPrint == 0){
-            // if miniumChildrenPrint == 0 then make sure that at least the minimum height of the first child (if present) can be printed!
-            let hMin = (await this.minChildHeight)[0];
+            // print all children
+            let sepHeight = 0;
+            if (this.children.length>1){
+                sepHeight = csh*(this.children.length-1);
+            }
+            // if no page break before the footer is allowed, then it is teh same as the total height
+            return hh + (await this.totalChildHeight).reduce((tempSum, val)=>val+tempSum, 0) + sepHeight + (!this.allowPageBreakBeforeFooter)*fh;
             
-            // in addition to the minimum height of the first child there are two possibilities:
-            // A) the totalHeight of the child would take less space than the the height of the prePageBreakHeight here, then let the child be fully printed
-            // B) otherwise add the prePageBreakHeight to the minimum height of the child-container
-            let hTotal = (await this.totalChildHeight)[0];
-            return (await this.containerHeaderHeight()) + Math.min(hMin+(await this.prePageBreakHeight()), hTotal);
+
+        } else if (this.children.length==0 || this.minimumChildrenPrint == 0){
+            // only the header of this container is mandatory, plus eventually the footer
+            return hh + (!this.allowPageBreakBeforeFooter)*fh;
+
+        } else {
+            // we have at least one children which must be printed
+            
+            let n = Math.min(this.children.length, this.minimumChildrenPrint);
+
+            // differentiate whether the footer needs to be printed as well or not
+            if (this.children.length<=this.minimumChildrenPrint && !this.allowPageBreakBeforeFooter){
+                // footer must be printed
+                return hh + (await this.totalChildHeight).slice(0, n).reduce((tempSum, val)=>val+tempSum, 0) + csh*(n-1) + fh;
+            } else {
+                // footer does not need to be printed
+                return hh + (await this.totalChildHeight).slice(0, n).reduce((tempSum, val)=>val+tempSum, 0) + csh*(n-1);
+            }
 
         }
-        // as of here, there is at least one child that must be printed:
 
-        // print at least the following children totally:
-        let nChildrenToPrint = Math.min(this.minimumChildrenPrint, this.children.length);
-        let hChildren = 0;
-        for (let i=0; i < nChildrenToPrint; i++){
-            hChildren += (await this.totalChildHeight)[i];
-        }
-        if (this.minimumChildrenPrint>1){
-            // separator only between the children
-            hChildren += (nChildrenToPrint-1)*(await this.childSeparatorHeight());
-        }
-    
-
-        // after the minimum number of children there are several possibilities: 
-        // A) the remaining children take less space than the prePageBreak would take
-        // B) the prePageBreak+separatorPageBreak takes less space than the remaining children (likely always the case) 
-        let hChildrenRemaining = 0; // TODO: this is wrong!!!
-        for (let i=nChildrenToPrint; i<this.children.length; i++){
-            // always also add a separator
-            hChildrenRemaining += await this.childSeparatorHeight();
-            hChildrenRemaining += (await this.totalChildHeight)[i];
-        }
-
-        let hRest = Math.min(hChildrenRemaining, (await this.prePageBreakHeight()) + (await this.childSeparatorPrePageBreakHeight())); 
-
-        return (await this.containerHeaderHeight()) + hChildren + hRest;
     }
 
+    // returns an array with the minimum child heights
+    // note that the minChildHeight considers the breakability of the childs! I.e. if a child-conteiner must be printed as a whole, the minChildHeight is the total height of this container! The word "min" should not be misunderstos as "breaked-height".
     // attention: returns a Promise!
     get minChildHeight(){
         let ret = async()=>{
             // if not calculated yet, calculate it for every child.
-            if (this.children.length>0 && this._minChildHeight.length==0){
+            if (this.children.length>0 && this.children.length != this._minChildHeight.length){
                 this._minChildHeight = await Promise.all(this.children.map(async (c)=> c.getMinimumHeight()))
             }
             return this._minChildHeight;
@@ -405,21 +392,6 @@ export class printingGeneral {
         return this.totalChildHeight[index];
     }*/
 
-    /**
-     * All printing functions:
-     */
-    // - DONE container header
-    // - DONE post-page-break container header (applied on every new page)
-    // - DONE pre-page-break container footer (applied before a new page is required to fit all childs)
-    // - pre-page-break
-    // - DONE container footer
-    // - REMOVED child header (always printed before a child; probably often not needed, since implemented in the child itself)
-    // - (child --> given in child)
-    // - DONE child separator (always printed between children; certainly needed, e.g. to create some space between series) 
-    // - REMOVED child footer (always printed after a child; probably often not needed, since implemented in the child itself)
-
-    // 
-
     // this will probably often be just some space
     async printChildSeparator(page, pG){
         return [page, pG];
@@ -434,7 +406,7 @@ export class printingGeneral {
         return posY0 - (await this.printChildSeparator(page, pG))[1].positionY;
     }
 
-    // the childSeparator before a page break
+    // implement what must be printed prior to pageBreak (e.g. "continued on next page"), if the break is done BETWEEN TWO CHILDS
     async printChildSeparatorPrePageBreak(page, pG){
         return [page, pG];
     }
@@ -445,7 +417,21 @@ export class printingGeneral {
         let page = (await this.fakeDoc).addPage(PDFLib.PageSizes.A4)
         let pG = this.getFakePG();
         let posY0 = pG.positionY;
-        return posY0 - (await this.printChildSeparator(page, pG))[1].positionY;
+        return posY0 - (await this.printChildSeparatorPrePageBreak(page, pG))[1].positionY;
+    }
+
+    // implement what must be printes after pageBreak (e.g. "continued from ..."), if the break was done BETWEEN TWO CHILDS
+    async printChildSeparatorPostPageBreak(page, pG){
+        return [page, pG];
+    }
+
+    async childSeparatorPostPageBreakHeight(){
+        // If it is not implemented by the client, return the height returned from actually drawing the footer
+        // provide a fakeDocument to the real printing function to find out how much vertical space it will use when there is no page break needed; the page size is actually lower, i.e. it would print below the paper after one page; that does not matter.
+        let page = (await this.fakeDoc).addPage(PDFLib.PageSizes.A4)
+        let pG = this.getFakePG();
+        let posY0 = pG.positionY;
+        return posY0 - (await this.printChildSeparatorPostPageBreak(page, pG))[1].positionY;
     }
 
     // returns the used height
@@ -467,6 +453,7 @@ export class printingGeneral {
 
     // returns the used height
     async printContainerFooter(page, pG){
+        // NOTE: do NOT implement here the spacing to the next container! this must be done in the childSeparator of the parent! (The difference is that the separator will not be printed after the last child, but the footer would be.)
         return [page, pG]
     }
 
@@ -482,7 +469,7 @@ export class printingGeneral {
         return posY0 - (await this.printContainerFooter(page, pG))[1].positionY;
     }
 
-    // implement what must be printed prior to pageBreak (e.g. "continued on next page")
+    // implement what must be printed prior to pageBreak (e.g. "continued on next page"), IF THE BREAK IS DONE WITHIN A CHILD
     async printPrePageBreak(page, pG){
         return [page, pG]; 
     }
@@ -518,19 +505,13 @@ export class printingGeneral {
 
 
     // The root printing class shall simply override this function
-    // showParentSeparator is true, when we do a page break at the beginning of this container, since then we might be/are between two children; TODO: how can we realize that we are not between two, but at the beginning? --> Handle that eventually in the pB function the child receives, where showParentSeparator can be fixed to false for the first item
-    // showSeparatorHere will be true when the function on the parent is called, where the separator actually shall be shown.
-    async _pageBreak(page, pG, pB, showParentSeparator=false, showSeparatorHere=false){
-
-        if (showSeparatorHere && this.childSeparatorBeforePageBreak){
-            [page, pG] = await this.printChildSeparator(page, pG);
-        }
+    async _pageBreak(page, pG, pB){
 
         // add whatever is needed from this container before the pageBreak
         [page, pG] = await this.printPrePageBreak(page, pG);
 
         // call the pageBreak function of the next outer container; it will return the new pageGeometry (containing positionY and the heights of the footers)
-        [page, pG] = await pB(page, pG, showSeparatorHere=showParentSeparator);
+        [page, pG] = await pB(page, pG);
 
         //let h = this.postPageBreakHeight(page, pG);
         //pG.positionY -= h;
@@ -574,11 +555,284 @@ export class printingGeneral {
     }
 
     /**
+    * print a single cell, following the extensive configuration in cellConf
+    * @param {object} cellConf The configuration for the cell centent. The actual text content is given by the concatenation of bare text ("t" or "text"), translated text ("tt" or "translatedText") and data property values ("p" or "prop"). All of them can be an array (also with empty items). The concatenation will be made like this: t[0]+tt[0]+p[0] + t[1]+tt[1]+p[1] + ...; if a property is not an array, it will be repeated in every loop (while the loop length is defined by the longest array). If one array is shorter than an other, the "missing" elements at the end are simply treated as empty. 
+    * Content is fitted as follows: 
+    * If a text is too long for the present space, fitting text works as follows:
+    * 1. reduce the margin down to maxHorizontalScale*margin (at max)
+    * 2. horizontally scale the text down to maxHorizontalScale (at max)
+    * 3. if both options did not lead to a fitting text, apply one of four strategies defined by noFitStrategy:
+    *    - cut (default): cut the text that does not fit and add a period at the end
+    *    - overrun: simply do not care and overrun the available space
+    *    - wordWrap: (attention: do not use when the height of the cell is predefined!) does word wrapping between words and at "-". If a single word does not fit the line, then it is automaticaly horizontally scaled to fit. (Margin and font size are not reduced since it would look overly ugly together with the other regular lines.)
+    *    - scale: scale the font-size to make it fit.
+    * @param {string / array} cellConf.t Untranslated text(s)
+    * @param {string / array} cellConf.text alias for cellConf.t
+    * @param {string / array} cellConf.tt Text(s) that will be translated before showing
+    * @param {string / array} cellConf.translatedText alias for cellConf.tt
+    * @param {string / array} cellConf.p The name(s) of proeprty/ies in the data object that shall be shown.
+    * @param {string / array} cellConf.prop alias for p
+    * @param {number} cellConf.ms maximum margin scale (<=1), default=1 (i.e. no scaling)
+    * @param {number} cellConf.maxMarginScale alias for ms
+    * @param {number} cellConf.hs maximum horizontal scaling (<=1), default=1 (i.e. no scaling)
+    * @param {number} cellConf.maxHorizontalScale alias for hs
+    * @param {number} cellConf.nf strategy when applying the margin and horiztontal scaling was not enough to fit the text. One of: "cut" (default), "overrun", "wordWrap", "scale" (see above for details)
+    * @param {string} cellConf.noFitStrategy alias for nf
+    * @param {string} cellConf.alignmentV vertical alignment. Only evaluated if rowHeight is not null. One of: "T" (top), "C" (center, default), "B" (bottom)
+    * @param {string} cellConf.alignmentH horizontal alignment. One of: "L" (left, default), "C" (center), "R" (right)
+    * @param {string} cellConf.font The name of the font. Default is Helvetica regular. See TODO for available fonts.
+    * @param {number} cellConf.size The font size. Default=12
+    * @param {number} cellConf.lineHeight the line height, as a multiplicator with size. Default=1.2. Only evaluated with wordWrap.
+    * @param {number} cellConf.opacity The opacity for the text. Default=1
+    * @param {number / array} conf.margin // analog css: either one value (all sides), two values (vertical, horizontal), three values (top, horizontal, bottom) or four values: (top, right, bottom, left)
+    * @param {object} data to be used if the text is given by p
+    * @param {object} page the page to print on
+    * @param {number} posX2 Left position of the cell
+    * @param {number} posY2 Top position of the cell
+    * @param {number} sizeX width of the cell
+    * @param {number} rowHeight the intended height of the row; if given, the text will be vertically aligned accordingly and the used height is equal to this number. Otherwise, word wrapping will automatically find out the required height and return the actually used height.
+    * @param {object} conf a general configuration e.g. used by an outer function such as "tabular row". Those values (e.g. for font, size, horizontal scaling, alignment etc) defined in conf will be used if there is nothing specified in cellConf. 
+    * @param {function} translate function that will be called to translate a text; by default returns the previous value
+    * @returns {number} height of the cell
+    */
+    async printCell(cellConf, data, page, posX2, posY2, sizeX, rowHeight, conf, translate=(untranslated)=>untranslated){
+        let ms = cellConf.maxMarginScale ?? (cellConf.ms ?? (conf.maxMarginScale ?? (conf.ms ?? 1)));
+        let hs = cellConf.maxHorizontalScale ?? (cellConf.hs ?? (conf.maxHorizontalScale ?? (conf.hs ?? 1)));
+        let nf = cellConf.noFitStrategy ?? (cellConf.nf ?? (conf.noFitStrategy ?? (conf.nf ?? 'cut')));
+        let alignmentV = cellConf.alignmentV ?? (conf.alignmentV ?? 'C');
+        let alignmentH = cellConf.alignmentH ?? (conf.alignmentH ?? 'L');
+        let size = cellConf.size ?? (conf.size ?? 12);
+        let lineHeight = cellConf.lineHeight ?? (conf.lineHeight ?? 1.2);
+        let opacity = cellConf.opacity ?? (conf.opacity ?? 1);
+        let margin = cellConf.margin ?? (conf.margin ?? 0);
+        // evaluate margin
+        let [marginTop, marginRight, marginBottom, marginLeft] = this.processMargin(margin);
+        
+        // create the text to show, which is a concatenation of eventually multiple parts of untranslated text, translated text and properties in data
+
+        // get the relevanet of the two possible names of the property
+        let t = cellConf.t ?? (cellConf.text ?? '');
+        let tt = cellConf.tt ?? (cellConf.translatedText ?? '');
+        let p = cellConf.p ?? (cellConf.prop ?? '');
+
+        let tArr = Array.isArray(t);
+        let ttArr = Array.isArray(tt);
+        let pArr = Array.isArray(p)
+
+        let totalLength = 1;
+        if (tArr){
+            totalLength = Math.max(t.length, totalLength);
+        }
+        if (ttArr){
+            totalLength = Math.max(tt.length, totalLength);
+        } else {
+            if (tt){
+                var staticTranslatedText = translate(tt)
+            } else {
+                var staticTranslatedText = '';
+            }
+        }
+        if (pArr){
+            totalLength = Math.max(p.length, totalLength);
+        }
+
+        // create the text as a combination of untranslated text, translated text and data values (in this order)
+        let text = '';
+        for (let i=0; i<totalLength; i++){
+            // combine the text:
+            // untranslated text 
+            if (tArr){
+                if (t.length>i){
+                    text += t[i] ?? '';
+                }
+            } else {
+                // just some text, repeated in every loop
+                text += t ?? '';
+            }
+            // translated text 
+            if (ttArr){
+                if (tt.length>i){
+                    text += translate(tt[i] ?? '');
+                }
+            } else {
+                // just some text, repeated in every loop
+                text += staticTranslatedText;
+            }
+            // property values
+            if (pArr){
+                if (p.length>i){
+                    text += data[p[i]] ?? '';
+                }
+            } else {
+                // just some text, repeated in every loop
+                text += data[p] ?? '';
+            }
+        }
+
+        // prepare the options object for drawText
+        let opts = {
+            size: size,
+            lineHeight: lineHeight,
+            opacity: opacity,
+            // ...
+        };
+        let f;
+        if (cellConf.font){
+            f = await page.doc.getFont(cellConf.font);
+        } else if (conf.font){
+            f = await page.doc.getFont(conf.font);
+        } else {
+            f = await page.doc.getFont('Helvetica');
+        }
+        opts.font = f;
+
+        // vertical position (will be adapted for each line on word wrap):
+        if (rowHeight){
+            // apply the alignment
+            if (alignmentV.toUpperCase() == 'C'){
+                opts.y = posY2 - (rowHeight-size)/2 - size;
+            } else if (alignmentV.toUpperCase() == 'T'){
+                opts.y = posY2 - marginTop - size;
+            } else {
+                opts.y = posY2-rowHeight+marginBottom;
+            }
+        } else {
+            opts.y = posY2 - marginTop - size; // negative since the origin is on the bottom
+        }
+
+        // the text is printed now
+        // check if the text fits the space without any change
+        let widthUnscaled = f.widthOfTextAtSize(text, size);
+        let marginScaleApplied = 1;
+
+        // actually available space for the text, i.e. the total size minus the margins (will be updated if the margins are reduced)
+        let sizeX2 = sizeX - marginLeft - marginRight;
+
+        if (ms<1 && widthUnscaled > sizeX2 ){
+            // apply the margin scaling to the extent that is allowed
+            // calculate how much the margin would have to be scaled to make it fit (can get negative) and then limit
+            // sizeX - scale*(marginLeft+marginRight) = widthUnscaled
+            let scale = (sizeX-widthUnscaled)/(marginLeft+marginRight);
+            marginScaleApplied = Math.max(ms, scale);
+
+            // alignment does not matter, since it is filled anyway: 
+            opts.x = posX2 + marginLeft*marginScaleApplied;
+
+            // calculate the new actually available space for the text
+            sizeX2 = sizeX - (marginLeft + marginRight)*marginScaleApplied;
+        } else {
+            // apply the alignment
+            if (alignmentH.toUpperCase() == 'C'){
+                opts.x = posX2 + marginLeft + (sizeX2 - widthUnscaled)/2;
+            } else if (alignmentH.toUpperCase() == 'R'){
+                opts.x = posX2 + sizeX - marginRight - widthUnscaled;
+            } else {
+                opts.x = posX2 + marginLeft;
+            }
+        }
+
+        let textScaleApplied = 1;
+        if (hs<1 && widthUnscaled > sizeX2){
+            // apply the horizontal scaling
+            // scale*widthUnscaled = sizeX - marginScaleApplied*(marginLeft+marginRight) = sizeX2
+            let scale = sizeX2/widthUnscaled;
+            textScaleApplied = Math.max(scale, hs);
+            opts.horizontalScale = textScaleApplied *100; // in %
+        }
+
+        // in general it will take only one line, but we might need word wrap
+        let lines = 1;
+
+        if (widthUnscaled*textScaleApplied > sizeX - marginScaleApplied*(marginLeft+marginRight)){
+            // still no fit... apply one of the four strategies
+            if (nf == 'overrun'){
+                // simply plot the text and do not care about the overrun
+                page.drawText(text, opts);
+
+            } else if (nf == "wordWrap") {
+                // do some word wrapping!
+
+                // since we count the lines as we write them, we have to start counting at zero
+                lines = 0;
+
+                // split after every " " and "-" 
+                let re = /([ -])/; // split at any of the elements within [] (e.g. " " and "-") and keep the elements in the results as well (parantheses)
+                let textParts = text.split(re);
+
+                // now try to combine as many parts as possible and print them
+                let start = 0;
+                let end = 1;
+                let textMergedBefore = '';
+                for (end; end<=textParts.length; end++){
+                    let textMerged = textParts.slice(start, end).join('').trim(); // trim makes sure that a space at the end/beginning is not considered
+                    if (f.widthOfTextAtSize(textMerged, size)*textScaleApplied > sizeX2) {
+                        // current part does not fit...
+                        lines += 1;
+                        opts.y = posY2 - marginTop - size*(1 + (lines-1)*lineHeight);
+                        if (start+1==end){
+                            // if we only have one element, then we have to plot it anyway, and simply do some (eventually additional) horzontal scaling to make that single word fit
+                            let origScale = opts.horizontalScale; // since we change the original opts object, we have to reset the value later!
+                            opts.horizontalScale *= sizeX2/(f.widthOfTextAtSize(textMerged, size)*textScaleApplied); // scale
+                            page.drawText(textMerged, opts);
+                            opts.horizontalScale = origScale; // reset to actual scaling
+                            start = end;
+                        } else {
+                            // print without the current, but the previous parts
+                            page.drawText(textMergedBefore, opts);
+                            start = end-1;
+                        }
+                    }
+                    textMergedBefore = textMerged;
+                }
+                // at the end, print the rest, if it is not yet printed (it is already printed if the last textPart does not fit and then start==end)
+                if (start<end){
+                    lines += 1;
+                    opts.y = posY2 - marginTop - size*(1 + (lines-1)*lineHeight);
+                    page.drawText(textParts.slice(start, end).join('').trim(), opts);
+                    lines += 1;
+                }
+
+            } else if ( nf == "scale"){
+                // scale the font size
+                opts.size = opts.size*(sizeX - marginScaleApplied*(marginLeft+marginRight))/(widthUnscaled*textScaleApplied);
+                page.drawText(text, opts);
+
+            } else {
+                // "cut" and any invalid noFit names lead here
+                // cut the text and add a period at the end
+                for (let l=text.length; l>0; l--){
+                    // check whether it fits already
+                    let t2 = text.slice(0,l)+".";
+                    if (f.widthOfTextAtSize(t2, size)*textScaleApplied < sizeX - marginScaleApplied*(marginLeft+marginRight)){
+                        page.drawText(t2, opts);
+                        break;
+                    }
+                }
+
+            }
+
+        } else {
+            // it fits with the given margin and horizontal scalings
+            page.drawText(text, opts);
+        }
+
+        // return the required height for this cell
+        if (rowHeight){
+            return rowHeight;
+        } else {
+            return opts.size*(1 + (lines-1)*opts.lineHeight) + marginTop + marginBottom; 
+        }
+        
+
+    } // end printCell
+
+    /**
      * Draw a row of a general table based on the setting given in conf. Note that all options (except the content-properties) that can be specified for each cell can also be specified here as a general definition. A setting on cell level has priority. 
      * TODO: take "printCell" out of this function; this requries that the values used in there have to be merged oiutside the function. For this purpose create a function that combine two object with each other, where te properties of one would always have priority over the other's properties, if they existed. 
      * @param {object} conf The configuration for the table:
      * @param {number / array} conf.margin // analog css: either one value (all sides), two values (vertical, horizontal), three values (top, horizontal, bottom) or four values: (top, right, bottom, left)
-     * @param {array} conf.columns // define the column sizes in points
+     * @param {array} conf.columns // define the column width in points --> if totalWidth is given, the columns will be scaled to match the totalWidth
+     * @param {number} conf.totalWidth (default: null) if totalWidth is given, the columns will be scaled to match the totalWidth
      * @param {array} conf.linesVertical // define the vertical line widths; The lines are drawn at the exact positions between the columns, i.e. half of the line-width will be plotted on the left and half on the right. Make sure that the margin is large enough so that the content does not touch the line. must have one element more than columns
      * @param {array} conf.linesHorizontal // two entries: [topWidth, bottomWidth]. See also comment at linesVertical.
      * @param {number} conf.rowHeight the height of the row; null (default) if it shall be calculated automatically
@@ -599,6 +853,11 @@ export class printingGeneral {
         let rowHeight = conf.rowHeight ?? null;
         let linesHorizontal = conf.linesHorizontal ?? [0,0];
         let linesVertical = conf.linesVertical ?? new Array(conf.columns.length+1).fill(0);
+        let fitWidth = conf.totalWidth ?? null;
+        
+        let originalColWidth = conf.columns.reduce((val, valOld)=>val+valOld, 0);
+        let totalWidth = fitWidth ?? originalColWidth;
+        let colScaleFactor = totalWidth / originalColWidth;
 
         // TODO: translating function
         let translate = (untranslated)=>{
@@ -640,7 +899,7 @@ export class printingGeneral {
             * @param {number} sizeX width of the cell
             * @returns {number} height of the cell
             */
-        let printCell = async (cellConf, posX2, posY2, sizeX, rowHeight)=>{
+        /*let printCell = async (cellConf, posX2, posY2, sizeX, rowHeight)=>{
             let ms = cellConf.maxMarginScale ?? (cellConf.ms ?? (conf.maxMarginScale ?? (conf.ms ?? 1)));
             let hs = cellConf.maxHorizontalScale ?? (cellConf.hs ?? (conf.maxHorizontalScale ?? (conf.hs ?? 1)));
             let nf = cellConf.noFitStrategy ?? (cellConf.nf ?? (conf.noFitStrategy ?? (conf.nf ?? 'cut')));
@@ -866,7 +1125,7 @@ export class printingGeneral {
             }
             
 
-        } // end printCell
+        }*/ // end printCell
         
         // print content=cells
         let totalHeight = 0;
@@ -875,13 +1134,12 @@ export class printingGeneral {
             let cell = conf.cells[i];
             if (cell){
                 // print single cell
-                let posX2 = posX + conf.columns.slice(0,i).reduce((val, oldVal)=>val+oldVal, 0); 
-                totalHeight = Math.max(totalHeight, (await printCell(cell, posX2, posY, conf.columns[i], rowHeight)));
+                let posX2 = posX + conf.columns.slice(0,i).reduce((val, oldVal)=>val+oldVal, 0)*colScaleFactor; 
+                totalHeight = Math.max(totalHeight, (await this.printCell(cell, data, page, posX2, posY, conf.columns[i]*colScaleFactor, rowHeight, conf, translate)));
             }
         }
 
         // draw horizontal lines
-        let totalWidth = conf.columns.reduce((val, valOld)=>val+valOld, 0);
         if (linesHorizontal[0]>0){
             // top line
             let opt = {
@@ -905,7 +1163,7 @@ export class printingGeneral {
         for (let i=0; i<linesVertical.length; i++){
             let thickness = linesVertical[i];
             if (thickness>0){
-                let posX2 = posX + conf.columns.slice(0,i).reduce((val, valOld)=>val+valOld, 0);
+                let posX2 = posX + conf.columns.slice(0,i).reduce((val, valOld)=>val+valOld, 0)*colScaleFactor;
                 let opt = {
                     start: {x:posX2, y:posY},
                     end: {x:posX2, y:posY-totalHeight},
@@ -1115,14 +1373,13 @@ export class printer extends printingGeneral {
           );
     }
 
-    addPage(){
+    addPage(hPrePageBreak=0){
         // TODO: get page size from the (translated) configuration file
         let p = this.doc.addPage(PDFLib.PageSizes.A4)
         this.pages.push(p);
         let pG = {
             positionY: PDFLib.PageSizes.A4[1], // TODO: get from pageSize[1]
-            hPrePageBreakAll: 0,
-            hPrePageBreakSplit: 0,
+            hPrePageBreak: hPrePageBreak, // for the very first page it will be 0, but it must keep the value of the container initiating the page break afterwards
         }
         return [p, pG];
     }
@@ -1135,7 +1392,7 @@ export class printer extends printingGeneral {
 
     // overwrite the pageBreak-stuff to actually create the pageBreak
     async _pageBreak(page, pG){
-        return this.addPage();
+        return this.addPage(pG.hPrePageBreak);
     }
 }
 
@@ -1679,6 +1936,9 @@ export class dContainer {
         // keep a list of all child elements
         this.children = [];
 
+        // keep a reference to the parent; this is useful e.g. to set some properties on the parent instead of in all children as well, e.g. set which columns to show on the table container including the header, but not on the single line-containers.
+        this.parent = null;
+
         // the content of this container shall be implemented as properties directly
 
     }
@@ -1701,10 +1961,15 @@ export class dContainer {
         })
     }
 
+    addChild(child){
+        this.children.push(child);
+        child.parent = this;
+    }
+
     // provide some functions for date formatting
     _dateTime(dateString){
         let d = new Date(dateString);
-        return `${d.getDate().toString().padStart(2,'0')}.${d.getMonth().toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
+        return `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
     }
     _time(dateString){
         let d = new Date(dateString);
@@ -1757,6 +2022,7 @@ export class dPerson extends dContainer {
      * Return the age this person has today. (Attention: this is not related to the day of the competition, but to the date of using this function  )
      */
     get ageToday(){
+        if (!this.birthdate) return '';
         let d1 = new Date(this.birthdate);
         let d2 = new Date();
 
@@ -1771,10 +2037,12 @@ export class dPerson extends dContainer {
     }
 
     get year2(){
+        if (!this.birthdate) return '';
         return this.birthdate.slice(2,4);
     }
 
     get year4(){
+        if (!this.birthdate) return '';
         return this.birthdate.slice(0,4);
     }
 }
@@ -1898,6 +2166,7 @@ export class dContest extends dContainer{
 
     addSeries(series){
         this.children.push(series);
+        series.parent = this;
     }
 
     sortSeries(property, inverse=false){
