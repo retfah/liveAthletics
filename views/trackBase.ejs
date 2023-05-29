@@ -287,8 +287,13 @@
                     attemptTimeSetting: "00:30",
                     shownTime: "0:00", // shall be string
                     timeUpdateInterval: undefined,
-                    last15: false, // last 15 s
                     //currentResultRegistered: false,
+
+                    printReactionTimeCol: false,
+                    printRankCol: false,
+                    printResultCol: true,
+                    printId: false,
+                    printEmptyLanes: true,
                 }
             },
             methods:{
@@ -1393,6 +1398,11 @@
 
                     
                 },
+                printContest(){
+                    // call the same function outside of vue, with the respective parameters
+                    printContest(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes);
+                },
+
             },
             watch:{
                 series: {
@@ -2002,7 +2012,7 @@
 <script type="module">
     // MODULE stuff for printing
     // TODO: modify for track disciplines
-    import {dContestSheet, dSeriesSheetHigh, dPersonContestSheet, dHeaderFooter, printer, pPersonContestSheetHigh, pSeriesContestSheetHigh, pContestSheetHigh, pHeaderFooter} from "/static/printDocumentStructure.js";
+    import {dContestSheetTrack, dSeriesSheetTrack, dPersonContestSheetTrack, dHeaderFooter, printer, pPersonContestSheetTrack, pSeriesContestSheetTrack, pContestSheetTrack, pHeaderFooter} from "/static/printDocumentStructure.js";
 
 
     /**
@@ -2010,27 +2020,72 @@
      * @param {object} contest The contest object of the room
      * @param {array} series Array storing all series 
      * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
+     * @param {array} categories
+     * @param {array} disciplines
+     * @param {array} relatedGroups
+     * @param {array} sites all sites
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
-     * @returns dContest instance with all series/persons as childs
      */
-    function createDataStructure(contest, series, startgroups, categories, heights, disciplines, relatedGroups, xSeries=null){
+    function createDataStructure(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printReactionTimeCol=false, printResultCol=false, printRankCol=false, printId=false, printEmptyLanes=false){
 
-        // get the name of the discipline
-        let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
+        // get the (base)discipline
+        const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
+        const disciplineConfiguration = JSON.parse(discipline.baseConfiguration);
 
-        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, discName, relatedGroups, categories);
+        let cName = discipline.name;
+        // if it is a hurdles competition, add the heights of the hurdles in the name of the contest 
+        let heights = [];
+        let discConfs = []; // only used for hurdles to indicate the heights and distances
+        if (disciplineConfiguration.type=='hurdles'){
+            for (let rg of relatedGroups){
+                let disc = disciplines.find(d=>d.xDiscipline == rg.round.eventgroup.xDiscipline);
+                let discConf = JSON.parse(disc.configuration);
+                discConf.xDiscipline = rg.round.eventgroup.xDiscipline; // needed to show this information next to the groups
+                if (heights.indexOf(discConf.height)){
+                    heights.push(discConf.height);
+                    discConfs.push(discConf);
+                }
+            }
+            heights.sort(); // smallest first
+            discConfs.sort((a,b)=>a.height-b.height)
+            cName += ' ' + heights.join (' / ');
+        }
+
+        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, cName, relatedGroups, categories, discConfs, true, disciplineConfiguration.type=='hurdles');
 
         // create each series-container and add it to the contest
         for (let s of series){
             if (xSeries==null || s.xSeries == xSeries){
 
-                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, s.xSite, s.seriesstartsresults, heights);
+                // get the name of the site
+                let siteName = '';
+                if (s.xSite !== null){
+                    const site = sites.find(si=>si.xSite == s.xSite);
+                    if (site){
+                        siteName = site.name;
+                    }
+                }
+
+                // (xSeries, status, number, name, siteName, SSR, datetime, id, requiresWind, showLane=true, showPosition=true, showReactiontime=false, showHurdleHeightCol=false, hurdles=false)
+                let cSeries = new dSeriesSheetTrack(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, s.datetime, s.id, disciplineConfiguration.wind, conf.startInLanes, !disciplineConfiguration.finishInLanes, printReactionTimeCol, printId, heights.length>1, disciplineConfiguration.type=='hurdles', printRankCol, printResultCol); // note: startInLanes can be specified per contest, differently than defined by the discipline!
+                
+                // sort the ssr by position to be able to add posInLane
+                s.seriesstartsresults.sort((a,b)=>a.position-b.position);
 
                 // add each person in this series. Get the necessary information from the startgroup
+                let lastLane = 0;
+                let posInLane = 0;
                 for (let ssr of s.seriesstartsresults){
                     // try to find the startgroup corresponding to SSR
                     let startGroup = startgroups.find(sg=>sg.xStartgroup==ssr.xStartgroup)
                     if (startGroup){
+
+                        if (ssr.startConf != lastLane){
+                            lastLane = ssr.startConf;
+                            posInLane = 1;
+                        } else {
+                            posInLane++;
+                        }
 
                         // get the category name
                         let cat = categories.find(c=> c.xCategory==startGroup.xCategory);
@@ -2039,9 +2094,22 @@
                             catName = cat.shortname;
                         }
 
-                        let p = new dPersonContestSheet(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, heights, ssr.startConf)
+                        // if it is a hurdle competition, note down the height
+                        let hurdle='';
+                        if (disciplineConfiguration.type=='hurdles'){
+                            let rg=relatedGroups.find(rg=>rg.xRound==startGroup.xRound);
+                            hurdle = discConfs.find(x=>x.xDiscipline==rg.round.eventgroup.xDiscipline)?.height;
+                        }
 
-                        cSeries.children.push(p);
+                        // if we (can) have more than one person per lane, add the position in the lane, e.g. 1.2
+                        let lane = lastLane;
+                        if (printEmptyLanes && conf.groupSize>1){
+                            lane = `${lastLane}.${posInLane}`;
+                        }
+
+                        let p = new dPersonContestSheetTrack(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, hurdle, lane)
+
+                        cSeries.addChild(p);
                     } else {
                         // TODO: replace by correct logging!
                         console.log(`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`)
@@ -2049,32 +2117,57 @@
                     }
                 }
 
-                // sort the persons by their position
-                cSeries.sortChildren('position');
+                if (printEmptyLanes && conf.startInLanes){
+                    // note: positions are simply numbered from 1 to the end; this is NOT the position in the lane!
+                    // use the xDiscipline of the first relatedGroup
+                    let xD = relatedGroups[0].round.eventgroup.xDiscipline ?? 0;
+                    let lastPos = s.seriesstartsresults.length;
+                    for (let lane=1; lane<=conf.lanes; lane++){
+                        // get all persons on that lane
+                        let ssrsOnLane = s.seriesstartsresults.filter(ssr=>ssr.startConf==lane);
+                        // get the last position of the persons on that lane, to be able to assign slightly higher positions for the empty lanes, so that sort later works
+                        let maxPos = ssrsOnLane.reduce((max, x)=>Math.max(max, x.position), 0);
+                        for (let i=1; i<=conf.groupSize-ssrsOnLane.length; i++){
+                            // add lanes + positions without names etc for the unused lanes
+                            let pos = ++lastPos;
+                            
+                            // if we (can) have more than one person per lane, add the position in the lane, e.g. 1.2
+                            let lane2 = lane;
+                            if (printEmptyLanes && conf.groupSize>1){
+                                lane2 = `${lane}.${ssrsOnLane.length+i}`;
+                            }
+                            let p = new dPersonContestSheetTrack('', '', '', '', '', '', '', '', xD, pos, '', '', lane2);
+                            cSeries.addChild(p);
+                        }
+                    }
+                    // sort the persons by their lane; (competitions that are not run in lanes should have the startConf=position, since they are not run in lanes)
+                    cSeries.sortChildren('startConf');
+                }
 
                 cContest.addSeries(cSeries);
             }
         }
-        cContest.sortSeries('number')
-        return cContest
+        cContest.sortSeries('number');
+        return cContest;
     }
 
-    async function printContest(){
+    async function printContest(printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes){
 
         // dynamically get the print configuration for the current language
         let lang = getLanguage();
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.allHeights, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups,null);
+        // (contest, series, startgroups, categories, disciplines, relatedGroups, sites, xSeries=null)
+        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups, vueSeriesAdminTrack.sites, vueSeriesAdminTrack.conf, null, printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTrack.meeting);
 
         // define the translations from dataContainers to prtContainers
         const dataToPrint = {
             dHeaderFooter: pHeaderFooter,
-            dContestSheet: pContestSheetHigh,
-            dSeriesSheetHigh: pSeriesContestSheetHigh,
-            dPersonContestSheet: pPersonContestSheetHigh
+            dContestSheetTrack: pContestSheetTrack,
+            dSeriesSheetTrack: pSeriesContestSheetTrack,
+            dPersonContestSheetTrack: pPersonContestSheetTrack
         }
 
         let p = await printer.create([hf], dataToPrint, conf, true)

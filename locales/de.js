@@ -588,7 +588,7 @@
 	"Heat": "Serie",
 	"Note": "Bemerkung",
 	"If the status of the heat changes, the rules set for adding/deleting the heat are applied to determine whether the heat shall be added to/deleted from the timing automatically.": "Wenn der Serienstatus ändert wird automatisch die gewählte Aktion (Serie hinzufügen/aktualisieren/löschen) ausgeführt.",
-	"Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests": "Aktualisiere Anmeldungsinformationen (Nname, Geburtsdatum, Startnummer, PB, SB, ...) in allen all contests",
+	"Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests": "Aktualisiere Anmeldungsinformationen (Name, Geburtsdatum, Startnummer, PB, SB, ...) in allen all contests",
 	"Renew": "Aktualisieren",
 	"Show reaction times": "Reaktionszeiten anzeigen",
 	"Reaction time": "Reaktionszeit",
@@ -651,5 +651,13 @@
 	"delete": "löschen",
 	"add/update/delete": "hinzufügen/aktualisieren/löschen",
 	"Check for results/reaction times in the timing software in the following interval (in seconds; 0=never)": "Suche nach neuen Resultaten und Reaktionszeiten in folgendem Intervall (in Sekunden; 0=nie)",
-	"The ALGE Versatile exchange protocol provides a push message for the following events: start (including false start), finish (with inofficial finish time), single results during evaluation, heat results when official. Go to \"ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]\" and set \"Layer=Tcp Server\" and \"Tcp Server/Local Port\" to e.g. 4446. Provide the same port number together with the host (IP or server name) in the settings here.": "Das ALGE Versatile exchange protocol sendet eine Push-Benachrichtigung für folgende Events: Start (inklusive Fehlstart), Zieleinlauf (mit der inoffiziellen Laufzeit), einzelne Resultate während der Auswertung, Resultate einer Serie sobald offiziell. Gehe zu \"ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]\" und definiere  \"Layer=Tcp Server\" und \"Tcp Server/Local Port\" z.B. =4446. Derselbe Port muss zusammen mit der Hostadresse (IP oder Servername) der Zeitmessung hier in den Einstellungen angegeben werden."
+	"The ALGE Versatile exchange protocol provides a push message for the following events: start (including false start), finish (with inofficial finish time), single results during evaluation, heat results when official. Go to \"ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]\" and set \"Layer=Tcp Server\" and \"Tcp Server/Local Port\" to e.g. 4446. Provide the same port number together with the host (IP or server name) in the settings here.": "Das ALGE Versatile exchange protocol sendet eine Push-Benachrichtigung für folgende Events: Start (inklusive Fehlstart), Zieleinlauf (mit der inoffiziellen Laufzeit), einzelne Resultate während der Auswertung, Resultate einer Serie sobald offiziell. Gehe zu \"ATL exchange settings/AlgeVersatileExchangeProtocolOutput/Ports/[0]\" und definiere  \"Layer=Tcp Server\" und \"Tcp Server/Local Port\" z.B. =4446. Derselbe Port muss zusammen mit der Hostadresse (IP oder Servername) der Zeitmessung hier in den Einstellungen angegeben werden.",
+	"Print reaction time column": "Drucke Reaktionszeitspalte",
+	"Print result column": "Drucke Resultatspalte",
+	"Print rank column": "Drucke Rangspalte",
+	"Print heat ID": "Drucke Lauf ID",
+	"Print empty lanes": "Drucke leere Bahnen",
+	"Custom": "Benutzerdefiniert",
+	"Custom sort logic": "Benutzerdefinierte Sortierung",
+	"Note down the lane numbers in the order of assignment, separated with a \";\". The first lane will be assigned to the person with the best peformance, etc. Lanes separated with a \",\" instead of a \";\" will be shuffled before assignment. Example: \"2,3 ; 4 ; 1\" = the two fastest are randomly assigned lanes 2 or 3, the third fastest is on lane 4 and the last is on lane 1. Whitespace is neglected.": "Notiere die Bahnnummer in der Reihenfolge der Zuweisung, getrennt mit \";\". Die erste Bahn wird an die Person mit der besten Leistung vergeben, usw. Bahnen welche mit \",\" statt \";\" getrennt sind, werden zuerst zufällig sortiert. Beispiel: \"2,3 ; 4 ; 1\" = die schnellsten zwei Personen werden auf die Bahnen 2 und 3 gelost, die dritschnellste erhält Bahn 4 und Bahn 1 geht an die langsamste Person. Leerzeichen werden vernachlässigt."
 }

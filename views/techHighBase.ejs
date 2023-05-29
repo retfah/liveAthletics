@@ -3333,10 +3333,15 @@
      * @param {object} contest The contest object of the room
      * @param {array} series Array storing all series 
      * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
+     * @param {array} categories
+     * @param {array} heights
+     * @param {array} disciplines
+     * @param {array} relatedGroups
+     * @param {array} sites all sites
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
      * @returns dContest instance with all series/persons as childs
      */
-    function createDataStructure(contest, series, startgroups, categories, heights, disciplines, relatedGroups, xSeries=null){
+    function createDataStructure(contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, xSeries=null){
 
         // get the name of the discipline
         let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
@@ -3346,8 +3351,17 @@
         // create each series-container and add it to the contest
         for (let s of series){
             if (xSeries==null || s.xSeries == xSeries){
+                
+                // get the name of the site
+                let siteName = '';
+                if (s.xSite !== null){
+                    const site = sites.find(si=>si.xSite == s.xSite);
+                    if (site){
+                        siteName = site.name;
+                    }
+                }
 
-                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, s.xSite, s.seriesstartsresults, heights);
+                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, heights, s.datetime);
 
                 // add each person in this series. Get the necessary information from the startgroup
                 for (let ssr of s.seriesstartsresults){
@@ -3362,7 +3376,7 @@
                             catName = cat.shortname;
                         }
 
-                        let p = new dPersonContestSheet(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, heights, ssr.startConf)
+                        let p = new dPersonContestSheetHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, heights, ssr.startConf)
 
                         cSeries.children.push(p);
                     } else {
@@ -3389,7 +3403,7 @@
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructure(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups,null);
+        let cContest = createDataStructure(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, null);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
 
         // define the translations from dataContainers to prtContainers
@@ -3397,7 +3411,7 @@
             dHeaderFooter: pHeaderFooter,
             dContestSheet: pContestSheetHigh,
             dSeriesSheetHigh: pSeriesContestSheetHigh,
-            dPersonContestSheet: pPersonContestSheetHigh
+            dPersonContestSheetHigh: pPersonContestSheetHigh
         }
 
         let p = await printer.create([hf], dataToPrint, conf, true)

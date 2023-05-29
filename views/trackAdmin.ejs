@@ -139,7 +139,29 @@
                 </table>
 
                 <h3><%= __("Print") %></h3>
-                <button type="button" class="btn" onclick="printSeriesTrack()"><%= __("Print series")%></button>
+                <form class="verticalForm">
+                    <label>
+                        <input type="checkbox" v-model="printEmptyLanes">
+                        <%= __('Print empty lanes') %>
+                    </label>
+                    <label>
+                        <input type="checkbox" v-model="printReactionTimeCol">
+                        <%= __('Print reaction time column') %>
+                    </label>
+                    <label>
+                        <input type="checkbox" v-model="printResultCol">
+                        <%= __('Print result column') %>
+                    </label>
+                    <label>
+                        <input type="checkbox" v-model="printRankCol">
+                        <%= __('Print rank column') %>
+                    </label>
+                    <label>
+                        <input type="checkbox" v-model="printId">
+                        <%= __('Print heat ID') %>
+                    </label>
+                    <button type="button" class="btn" v-on:click="printContest"><%= __("Print series")%></button>
+                </form>
 
                 <h3><%= __("Links") %></h3>
                 <!--<div><%= __("Live results") %>: TODO</div>-->

@@ -126,10 +126,78 @@ export const confPrint={
                     {p:'clubName', alignmentH:'L'}
                 ],
             },
+            strSeries: 'Series',
             strResults: 'Results',
             strHeights: 'Heights',
             strFurtherSeries: 'See next page for further series.',
             strHelp: 'O: valid trial, X: failed trial, -: passed trial, r: retired from competition, DNS: did not start, NM: no valid trial recorded, DQ: disqualified',
+            strAppeal: 'Appeal',
+            strCall: 'Call',
+        },
+        // TODO: copied from techHigh -> delete properties that are not needed anymore 
+        contestSheetTrack: {
+            resRowHeight: 20, // result row height
+            font:'Helvetica',
+            fontSeries: 'HelveticaBold',
+            fontContestHeader: 'HelveticaBold',
+            size: 10,
+            sizeContestHeader: 12,
+            sizeContestInfo: 8, // for ID
+            sizeHeightBackground: 10,
+            opacityWindBackground: 0.2,
+            showHeightBackground: true, // shows the heights in the background of every cell with a certain opacity
+            numEmptyHeights: 3, // keep some height-fields always empty for the judges to use for special heights; the others will be filled with heights if present
+            spaceBetweenHeats: 20, 
+            sizeSeries: 12,
+            marginRight: 3, // margin to the right of "Results" and "Heights"
+            athleteColumns: {
+                // NOTE: the columns for lane, position, result, rank, reactionTime will be activated/deactivated based on the setting by the user
+                // the athletes "header"
+                totalWidth: 515, // scale columns to this width
+                margin:3,
+                rowHeight: 22,
+                rowHeightHeader: 15,
+                columns:[30, 30, 30, 180, 30, 30, 180, 35, 50, 70, 35], // order see cells below
+                linesVertical: [1,0,0,0,0,0,0,0,1,1,1,1],
+                linesHorizontal: [0,1],
+                font:'Helvetica',
+                fontHeader: 'HelveticaBold', // use for the header
+                size: 10,
+                alignmentH: 'L',
+                maxMarginScale: 0.5,
+                cells:[
+                    {p: 'startConf', headerTextProp: 'strLane'}, // lane
+                    {p: 'position', headerTextProp: 'strPos'},
+                    {p:'bib', headerTextProp: 'strBib'},
+                    {p:['lastname', 'firstname'], t:[,' ']},
+                    {p:'year2'},
+                    {p:'country'},
+                    {p:'clubName'},
+                    // do not remove/change the identifier when translating!!!
+                    {p:'hurdle', identifier:'hurdles', nf:'scale', hs:0.75},
+                    {t:'', identifier:'reaction', nf:'scale', hs:0.75}, // placeholder for reactiontime
+                    {t:'', identifier:'result', nf:'scale', hs:0.75}, // placeholder for result
+                    {t:'', identifier:'rank', nf:'scale', hs:0.75}, // placeholder for rank
+                ],
+                cellsHeader:[ // use for the header
+                    {t: 'Lane', nf:'scale', hs:0.75}, // lane
+                    {t: 'Pos.'},
+                    {t:'Bib'},
+                    {t:'Name'},
+                    {t:'Year', nf:'scale', hs:0.75},
+                    {t:'Country', nf:'scale', hs:0.75},
+                    {t:'Club'},
+                    {t:'Hurdles', nf:'scale', hs:0.75},
+                    {t:'Reac.T.', nf:'scale', hs:0.75}, 
+                    {t:'Result', nf:'scale', hs:0.75}, 
+                    {t:'Rank', nf:'scale', hs:0.75}, 
+                ],
+            },
+            strHeat: 'Heat',
+            strOf: 'of',
+            strWind: 'Wind m/s',
+            strResults: 'Results',
+            strFurtherSeries: 'See next page for further series.',
             strAppeal: 'Appeal',
             strCall: 'Call',
         },
@@ -177,6 +245,7 @@ export const confPrint={
         },
 
         contestSheetHigh:{
+            strSeries: 'Serie',
             strResults: 'Resultate',
             strHeights: 'Höhen',
             strFurtherSeries: 'Weitere Serien auf der nächsten Seite.',
@@ -184,6 +253,31 @@ export const confPrint={
             strAppeal: 'Appell',
             strCall: 'Stellzeit',
         },
+
+        contestSheetTrack:{
+            athleteColumns: {
+                cellsHeader:[
+                    {t: 'Bahn', nf:'scale', hs:0.75}, // lane
+                    {t: 'Pos.'},
+                    {t:'Stnr'},
+                    {t:'Name'},
+                    {t:'JG'},
+                    {t:'Land', nf:'scale', hs:0.75},
+                    {t:'Verein'},
+                    {t:'Hürden'},
+                    {t:'Reak.z.'}, 
+                    {t:'Resultat'}, 
+                    {t:'Rang'}, 
+                ]
+            },
+            strHeat: 'Lauf',
+            strOf: 'von',
+            strWind: 'Wind m/s',
+            strResults: 'Resultate',
+            strFurtherSeries: 'Weitere Serien auf der nächsten Seite.',
+            strAppeal: 'Appell',
+            strCall: 'Stellzeit',
+        }
     }
 
 }
