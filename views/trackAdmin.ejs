@@ -160,6 +160,10 @@
                         <input type="checkbox" v-model="printId">
                         <%= __('Print heat ID') %>
                     </label>
+                    <label>
+                        <%= __("Maximum number of heats per page") %>
+                        <input type="number" v-model="printMaxSeries" min="0">
+                    </label>
                     <button type="button" class="btn" v-on:click="printContest"><%= __("Print series")%></button>
                 </form>
 

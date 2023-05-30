@@ -219,6 +219,7 @@ export class printingGeneral {
         }
         
         // print all children and eventually create page breaks in between
+        let childsOnThisPage = 0;
         for (let i=0; i<this.children.length; i++){
 
             // the prePageBreakHeight for the child to be printed depends on whether there will be a split within the next child or not; if there is none, we actually do not need to specify the correct hPrePageBreak, since there is anyway no pageBreak. We simply keep the hPrePageBreak of the current container.
@@ -246,6 +247,8 @@ export class printingGeneral {
                     [page, pG] = await this._pageBreak(page, pG, pageBreak);
 
                     [page, pG] = await this.printChildSeparatorPostPageBreak(page, pG);
+                    
+                    childsOnThisPage = 0;
                 }
             } else {
                 // the child fully fits; so just print the regular separator, if i>0
@@ -262,14 +265,16 @@ export class printingGeneral {
 
             // prepare the pageBreak function for the child
             let pB = async (page, pG)=>{
+                childsOnThisPage = 0;
                 return this._pageBreak(page, pG, pageBreak);
             };
 
             // print the child
             [page, pG.positionY] = await child.print(page, pGChild, pB);
+            childsOnThisPage++;
 
-            // create a new page after n-children, but not at the beginning or at the end:
-            if (i>0 && (i+1) % this.pageBreakAfterNChildren==0 && i+1<this.children.length){
+            // create a new page after n-children, but not at the end:
+            if (childsOnThisPage % this.pageBreakAfterNChildren==0 && i+1<this.children.length){
                 [page, pG] = await this.printChildSeparatorPrePageBreak(page, pG);
                 [page, pG] = await this._pageBreak(page, pG, pageBreak);
             }
@@ -1296,7 +1301,13 @@ export class printer extends printingGeneral {
                 }
 
                 // TODO: eventually change this to allow async calls in the "creator" (instead of constructor) functions. 
-                let pc = new dataToPrint[dc.constructor.name](conf, dc)
+                let pc = new dataToPrint[dc.constructor.name](conf, dc);
+
+                // copy the printConf overrides to the objects
+                for (let prop in dc.printConf){
+                    pc[prop] = dc.printConf[prop];
+                }
+
                 // recursively translate the children's data into print instances
                 pc.children = loadPrintContainers(dc.children);
     
@@ -2339,16 +2350,19 @@ export class pPersonContestSheetTrack extends pPerson {
 
 /**
  * dContainer: general container keeping data-content and childs structured
+ * There is one special property: printConf (object), whose properties will be copied to the printing class, allowing to change its setting, e.g. limiting the number of children per page or adding pageBreaks  before/after. 
  */
 export class dContainer {
     
-    constructor(){
+    constructor(printConf={}){
         
         // keep a list of all child elements
         this.children = [];
 
         // keep a reference to the parent; this is useful e.g. to set some properties on the parent instead of in all children as well, e.g. set which columns to show on the table container including the header, but not on the single line-containers.
         this.parent = null;
+
+        this.printConf = printConf;
 
         // the content of this container shall be implemented as properties directly
 
@@ -2601,9 +2615,9 @@ export class dContest extends dContainer{
         return cContest
     }*/
 
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups=[], categories){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups=[], categories, printConf={}){
 
-        super()
+        super(printConf)
         // content obviously similar to the contest table in the DB
 
         this.datetimeAppeal= datetimeAppeal;
@@ -2657,9 +2671,9 @@ export class dContest extends dContainer{
  * Provide information about the competition to be printed
  */
  export class dContestSheet extends dContest {
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, showRelatedGroups=false){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, printConf={}, showRelatedGroups=false, ){
 
-        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories)
+        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories, printConf)
         // content obviously similar to the contest table in the DB
 
         this.showRelatedGroups = showRelatedGroups;
@@ -2669,9 +2683,9 @@ export class dContest extends dContainer{
 }
 
 export class dContestSheetTrack extends dContestSheet {
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, discConf=[], showRelatedGroups, hurdles=false){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, discConf=[], showRelatedGroups, hurdles=false, printConf={}){
 
-        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories, showRelatedGroups)
+        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories, printConf, showRelatedGroups)
         // content obviously similar to the contest table in the DB
 
         // store a list of the discipline configurations that are involved; this is mainly useful for hurdles, where the discipline-configuratio contains "height" and distances d1, d2, d3.

@@ -294,6 +294,7 @@
                     printResultCol: true,
                     printId: false,
                     printEmptyLanes: true,
+                    printMaxSeries: 0, // 0=all
                 }
             },
             methods:{
@@ -1400,7 +1401,7 @@
                 },
                 printContest(){
                     // call the same function outside of vue, with the respective parameters
-                    printContest(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes);
+                    printContest(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes, this.printMaxSeries);
                 },
 
             },
@@ -2026,7 +2027,7 @@
      * @param {array} sites all sites
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
      */
-    function createDataStructure(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printReactionTimeCol=false, printResultCol=false, printRankCol=false, printId=false, printEmptyLanes=false){
+    function createDataStructure(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printReactionTimeCol=false, printResultCol=false, printRankCol=false, printId=false, printEmptyLanes=false, maxSeries=null){
 
         // get the (base)discipline
         const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
@@ -2051,7 +2052,11 @@
             cName += ' ' + heights.join (' / ');
         }
 
-        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, cName, relatedGroups, categories, discConfs, true, disciplineConfiguration.type=='hurdles');
+        let contestPrintConf = {
+            pageBreakAfterNChildren: maxSeries,
+        }
+
+        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, cName, relatedGroups, categories, discConfs, true, disciplineConfiguration.type=='hurdles', contestPrintConf);
 
         // create each series-container and add it to the contest
         for (let s of series){
@@ -2151,7 +2156,7 @@
         return cContest;
     }
 
-    async function printContest(printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes){
+    async function printContest(printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries){
 
         // dynamically get the print configuration for the current language
         let lang = getLanguage();
@@ -2159,7 +2164,7 @@
         const conf = confPrint;
 
         // (contest, series, startgroups, categories, disciplines, relatedGroups, sites, xSeries=null)
-        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups, vueSeriesAdminTrack.sites, vueSeriesAdminTrack.conf, null, printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes);
+        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups, vueSeriesAdminTrack.sites, vueSeriesAdminTrack.conf, null, printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTrack.meeting);
 
         // define the translations from dataContainers to prtContainers
