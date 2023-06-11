@@ -319,6 +319,10 @@
             <input type="text" v-model="meetingWorkCopy.location" maxlength="100" v-bind:disabled="mode!=1">
         </label>
         <label>
+            <%= __("Stadium") %>: 
+            <input type="text" v-model="meetingWorkCopy.stadium" maxlength="100" v-bind:disabled="mode!=1">
+        </label>
+        <label>
             <%= __("Date from") %>:
             <input v-model="meetingWorkCopy.dateFromFormatted" type="date" v-bind:disabled="mode!=1">
         </label>
@@ -510,6 +514,10 @@
                 <label>
                     <%= __("Location") %>: 
                     <input type="text" v-model="meetingWorkCopy.location" maxlength="100" v-bind:disabled="mode!=1">
+                </label>
+                <label>
+                    <%= __("Stadium") %>: 
+                    <input type="text" v-model="meetingWorkCopy.stadium" maxlength="100" v-bind:disabled="mode!=1">
                 </label>
                 <label>
                     <%= __("Date from") %>:

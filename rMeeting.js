@@ -77,6 +77,7 @@ class rMeeting extends roomServer{
         this.defaultData = {
             name:this.meeting.name,
             location: '',
+            stadium: '',
             organizer: '',
             dateFrom: defaultDate.toJSON(),
             dateTo: defaultDate.toJSON(),
@@ -132,6 +133,7 @@ class rMeeting extends roomServer{
             properties:{
                 name: {type:"string"},
                 location: {type:"string"},
+                stadium: {type:"string", default:''}, // TODO: remove the default as soon as all meetings have a value (probably as of 2024)
                 organizer: {type:"string"},
                 dateFrom: {type:["string"], format:"date-time"},
                 dateTo: {type:["string"], format:"date-time"},
@@ -172,6 +174,7 @@ class rMeeting extends roomServer{
                 baseSettings: {type:'object'},
             },
             required:['name', 'location', 'organizer', 'dateFrom', 'dateTo', 'isIndoor', 'feeModel',  'feeOptions'],
+            required:['name', 'location', 'stadium', 'organizer', 'dateFrom', 'dateTo', 'isIndoor', 'feeModel',  'feeOptions'],
             additionalProperties:false ,
         }
 
