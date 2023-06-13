@@ -10,4 +10,4 @@ console.log(`Worker thread started`); // :${xmlString.slice(0,1000)} avoid showi
 parseString(xmlString, {explicitArray:false,}, (err, result)=> {
     console.log(`Parsed successfully in worker thread`);
     parentPort.postMessage(result);
-})
+}) 

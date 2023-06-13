@@ -38,37 +38,47 @@ export default class moduleLinkSUI extends nationalBodyLink {
         debug: true, // stores the baseData locally as a file (DOES NOT WORK YET)
         fileNameBaseData: "StammdatenNode.gz", // only used when debug=true
 
-        // TODO: create a list matching the alabus discipline numbers and the local dicipline numbers; including indoor/outdoor
-        // TODO: the current system cannot differentiate between indoor and outdoor !!!
-        // TODO: create here two lists, one indoor and outdoor and take the correct list during the import.
-        disciplineTranslationTable: {
+        // define a list matching the alabus discipline numbers and the local dicipline numbers; including indoor/outdoor
+        // alabus does not differentiate indoor outdoor; thus, we need two lists
+        disciplineTranslationTableOutdoor: {
             // liveAthletics:Alabus
-            // outdoor: 
-            //207:310, // high jump
-            //206:320, // PV
-
-            // indoor: 
-            1: 30, // 60m
-            2: 50, // 200m
-            3: 70, // 400m
-            4: 80, // 600m
-            5: 90, // 800m
-            6: 100, // 1000m
-            7: 110, // 1500m
-            8: 140, // 3000m
-            9: 252, // 60mH 106.7
-            10: 253, // 60mH 99
-            11: 254, // 60mH 91
-            12: 255, // 60mH 84
-            13: 256, // 60mH 76 8.5
-            14: 258, // 60mH 76 8.0
-            15: -1, // 60mH 76 7.5
-            16: -1, // 60mH 68
-            208: 320, // PV
-            209: 310, // HJ
+            // see Excel "Kategorien Disziplinen SVM" to copy data from
+            207:310,
+            206:320,
 
         },
-        disciplineTranslationTableInv: {
+        disciplineTranslationTableIndoor: {
+            // liveAthletics:Alabus
+            // see Excel "Kategorien Disziplinen SVM" to copy data from
+            
+            1:30,
+            2:50,
+            3:70,
+            4:80,
+            5:90,
+            6:100,
+            7:110,
+            8:140,
+            9:252,
+            10:253,
+            11:254,
+            12:255,
+            13:256,
+            209:310,
+            208:320,
+            16:257,
+            14:275,
+            14:276,
+
+        },
+        disciplineTranslationTable: {
+            // a merge of above tables, since the association from liveathletics to alabus is unique
+            // will be created below
+        },
+        disciplineTranslationTableOutdoorInv: {
+            // the backtranslation table is created below
+        },
+        disciplineTranslationTableIndoorInv: {
             // the backtranslation table is created below
         }
 
@@ -171,10 +181,16 @@ export default class moduleLinkSUI extends nationalBodyLink {
         this.conf = this.constructor.conf;
 
         // create the inverse disciplineTranslationTable
-        for (const [o,v] of Object.entries(this.conf.disciplineTranslationTable)){
-            this.conf.disciplineTranslationTableInv[v]=parseInt(o);
+        for (const [o,v] of Object.entries(this.conf.disciplineTranslationTableOutdoor)){
+            this.conf.disciplineTranslationTableOutdoorInv[v]=parseInt(o);
+        }
+        for (const [o,v] of Object.entries(this.conf.disciplineTranslationTableIndoor)){
+            this.conf.disciplineTranslationTableIndoorInv[v]=parseInt(o);
         }
 
+        // create a merged table, since the translation from liveathletics to alabus is unique, but not the otrher way around.
+        this.conf.disciplineTranslationTable = JSON.parse(JSON.stringify(this.conf.disciplineTranslationTableIndoor)); // create a copy, before assigning the other properties
+        Object.assign(this.conf.disciplineTranslationTable, this.conf.disciplineTranslationTableOutdoor);
 
     }
 
@@ -384,7 +400,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     
                         // probably fastest approach to insert the data: create a raw insert script and insert all data at the same time. --> problem: currently the data delivered by Alabus contains multiple identical entries! --> first try to insert all in one query and if this fails, do separate inserts of the athletes in a second insert. Do the same for the performances. 
                         let athleteInsertQuery = 'insert into athletes (license, licensePaid, licenseCategory, lastname, firstname, sex, nationality, clubCode, birthdate)\n values \n';
-                        let performanceInsertQuery = "insert into performances (license, discipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ";
+                        let performanceInsertQuery = "insert into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ";
     
                         // do a first loop where we try to run two big sql queries for the inserts
                         for (let athlete of xml.watDataset.athletes.athlete){
@@ -401,7 +417,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     
                             athleteInsertQuery += `("${license}", ${athlete.$.licensePaid=='0' ? false : true}, "${athlete.$.licenseCat}", "${athlete.lastName}", "${athlete.firstName}", "${sex}", "${athlete.nationality}", "${athlete.accountCode}", "${birthdate}"),`;
     
-                            // TODO: performances
+                            // performances
                             if ((typeof(athlete.performances))=='object' && 'performance' in athlete.performances){
                                 let perfs = athlete.performances.performance;
                                 // if there is only one entry, then it is not in array form yet
@@ -434,8 +450,12 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                         notificationEffort = perf.notificationEffort._;
                                         notificationEffortEvent = perf.notificationEffort.$.event.replace(/"/g,'\\"').replace(/'/g, "\\'");
                                     }
-        
-                                    performanceInsertQuery += `("${license}", ${parseInt(perf.$.sportDiscipline)}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O"),\n`;
+                                    
+                                    // try to get the xDiscipline
+                                    let discipline = parseInt(perf.$.sportDiscipline)
+                                    let xDiscipline = this.conf.disciplineTranslationTableOutdoorInv[discipline] ?? 0;
+
+                                    performanceInsertQuery += `("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O"),\n`;
     
                                     /*let insertP = {
                                         license,
@@ -488,8 +508,12 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                         notificationEffort = perf.notificationEffort._;
                                         notificationEffortEvent = perf.notificationEffort.$.event.replace(/"/g,'\\"').replace(/'/g, "\\'");
                                     }
+
+                                    // try to get the xDiscipline
+                                    let discipline = parseInt(perf.$.sportDiscipline)
+                                    let xDiscipline = this.conf.disciplineTranslationTableIndoorInv[discipline] ?? 0;
         
-                                    performanceInsertQuery += `("${license}", ${parseInt(perf.$.sportDiscipline)}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I"),\n`;
+                                    performanceInsertQuery += `("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I"),\n`;
     
                                     /*let insertP = {
                                         license,
@@ -615,8 +639,12 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                                 notificationEffort = perf.notificationEffort._;
                                                 notificationEffortEvent = perf.notificationEffort.$.event.replace(/"/g,'\\"').replace(/'/g, "\\'");
                                             }
+
+                                            // try to get the xDiscipline
+                                            let discipline = parseInt(perf.$.sportDiscipline)
+                                            let xDiscipline = this.conf.disciplineTranslationTableOutdoorInv[discipline] ?? 0;
                 
-                                            let query = `insert into performances (license, discipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ("${license}", ${parseInt(perf.$.sportDiscipline)}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O");`;
+                                            let query = `insert into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O");`;
     
                                             await this.sequelize.query(query, {logging:false}).then(()=>{}).catch(err=>{
                                                 //fail++; 
@@ -658,8 +686,12 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                                 notificationEffort = perf.notificationEffort._;
                                                 notificationEffortEvent = perf.notificationEffort.$.event.replace(/"/g,'\\"').replace(/'/g, "\\'");
                                             }
+
+                                            // try to get the xDiscipline
+                                            let discipline = parseInt(perf.$.sportDiscipline)
+                                            let xDiscipline = this.conf.disciplineTranslationTableIndoorInv[discipline] ?? 0;
                 
-                                            let query = `insert into performances (license, discipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ("${license}", ${parseInt(perf.$.sportDiscipline)}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I");`;
+                                            let query = `insert into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I");`;
     
                                             await this.sequelize.query(query, {logging:false}).then(()=>{}).catch(err=>{
                                                 //fail++; 
@@ -1016,7 +1048,17 @@ export default class moduleLinkSUI extends nationalBodyLink {
                             // import "discipline" into events 
 
                             // translate the discipline numbers!
-                            const xDiscipline = this.conf.disciplineTranslationTableInv[parseInt(disc.$.disCode)];
+
+                            // we need to know whether this is an indoor competition or outdoor and then take the correct translation table
+                            // unfortunately this information is NOT given in the import data; instead, we need to use the data set for the existing meeting.
+                            let disciplineTranslationTableInv;
+                            if (meetingRooms.meeting.data.isIndoor){
+                                disciplineTranslationTableInv = this.conf.disciplineTranslationTableIndoorInv;
+                            } else {
+                                disciplineTranslationTableInv = this.conf.disciplineTranslationTableOutdoorInv;
+                            }
+
+                            const xDiscipline = disciplineTranslationTableInv[parseInt(disc.$.disCode)];
                             
                             // if the discipline could not be translated, it could not be imported
                             if (xDiscipline==undefined){
@@ -1289,10 +1331,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     async getPerformance(identification, xDiscipline, type=null){
         // since all best results are in one row in the DB, we always return all three values
 
-        const xDisciplineAlabus = this.conf.disciplineTranslationTable[xDiscipline];
-
-
-        let perf = await this.models.performances.findOne({where:{license:identification, discipline: xDisciplineAlabus}, logging:false,});
+        let perf = await this.models.performances.findOne({where:{license:identification, xDiscipline: xDiscipline}, logging:false,});
 
         if (perf){
 
@@ -1318,7 +1357,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     }
 
     /**
-     * Get all performance (ll disciplines) in the base DB for a person
+     * Get all performance (all disciplines) in the base DB for a person
      * @param {string} identification The identification of the athlete in the DB. (Typically the license number. ) We provide it as a string because there might be non-numeric identifiers. The only limitation is that the identifier is unique per athlete
      * @param {string} type what type of performance is requested; either null (=all), "notification", "season", "best"; default=null
      * @return {array of object} {notification: 123, season: 123, best: 123} values that were not requested are undefined/not given. Optional: notificationEvent, notificationDate, ...
@@ -1334,14 +1373,13 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
             for (let perf of perfs){
 
-                const xDiscipline = this.conf.disciplineTranslationTableInv[perf.discipline];
-                if (!xDiscipline){
+                if (perf.xDiscipline==0){
                     // discipline not existing in liveAthletics
                     continue;
                 }
 
                 ret.push({
-                    xDiscipline: xDiscipline,
+                    xDiscipline: perf.xDiscipline,
                     notification: this.perfAlabus2LA(perf.notificationEffort, xDiscipline),
                     notificationEvent: perf.notificationEffortEvent,
                     notificationDate: perf.notificationEffortDate,

@@ -66,6 +66,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `performances` (
   `license` INT UNSIGNED NOT NULL,
   `discipline` INT UNSIGNED NOT NULL COMMENT 'ATTENTION: this is not the same ID as in the competition DB. There will have to be a translation function for baseDisciplineIDs to liveAthleteicsIDs',
+  `xDiscipline` INT UNSIGNED NOT NULL COMMENT 'the xDiscipline as used in the competition',
   `bestEffort` VARCHAR(15) NOT NULL DEFAULT '' COMMENT 'personal best\ntranslation to the internal datatype will be done on request. This is probably more efficient then translating during baseDataUpdates, since most of the base data will never be used until it is updated again.',
   `bestEffortDate` DATE NOT NULL DEFAULT '1900-01-01',
   `bestEffortEvent` VARCHAR(100) NOT NULL DEFAULT '',
