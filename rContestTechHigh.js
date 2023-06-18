@@ -209,7 +209,7 @@ class rContestTechHigh extends roomServer{
                 if (index>=0){
 
                     // unregister from the athlete change event
-                    this.eH.eventUnsubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${this.data.startgroups[i].xInscription}`, this.name)
+                    this.eH.eventUnsubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${this.data.startgroups[index].xInscription}`, this.name)
                     
                     this.data.startgroups.splice(index, 1);
 

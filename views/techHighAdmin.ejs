@@ -39,6 +39,9 @@
             <a class="navItem" v-on:click="show='contestInfo'; burgerChecked=false" v-bind:class="{active: show=='contestInfo'}">
                 <%= __('Contest info') %>
             </a>
+            <a class="navItem" v-on:click="show='settings'; burgerChecked=false" v-bind:class="{active: show=='settings'}">
+                <%= __('Settings') %>
+            </a>
             <!-- Roll call: -->
             <div v-if="contest.status<39">
                 <a class="navItem" v-on:click="show='rollCall'; burgerChecked=false" v-bind:class="{active: show=='rollCall'}">
@@ -55,9 +58,6 @@
 
             <!-- Competition: -->
             <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
-                <a class="navItem" v-on:click="show='settings'; burgerChecked=false" v-bind:class="{active: show=='settings'}">
-                    <%= __('Settings') %>
-                </a>
                 <a class="navItem" v-on:click="show='startheights'; burgerChecked=false" v-bind:class="{active: show=='startheights'}">
                     <%= __('Startheights') %>
                 </a>
