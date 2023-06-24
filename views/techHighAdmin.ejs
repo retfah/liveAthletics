@@ -70,6 +70,8 @@
                 <a class="navItem" v-on:click="show='resMod'; burgerChecked=false" v-bind:class="{active: show=='resMod'}">
                     <%= __('Change results') %>
                 </a>
+            </div>
+            <div v-if="contest.status>=95 && series.length>0">
                 <a class="navItem" v-on:click="show='resShow'; burgerChecked=false" v-bind:class="{active: show=='resShow'}">
                     <%= __('Show results') %>
                 </a>
@@ -308,7 +310,7 @@
 
             </div>
     
-            <div v-if="contest.status>=95 && contest.status<=180 && series.length>0">
+            <div v-if="contest.status>=95 && series.length>0"><!-- && contest.status<=180 -->
     
     
                 <div v-if="show=='settings'" id="settings" style="width:100%">

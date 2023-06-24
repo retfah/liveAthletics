@@ -76,7 +76,7 @@
 
                     developMode:false,
                     //showContestInfo: false,
-                    show:'none', // TODO: automatically show most reasonable thing at startup
+                    show:'none', // will automatically show most reasonable thing at startup
                     overlay: undefined, // either undefined or 'createSeries' or 'config'
                     overlay2: undefined, // createSeries or undefined
                     // there will be no waiting page, but a limit to one client and this will be the first offline working page.
@@ -253,6 +253,8 @@
                         } else {
                             this.show = 'competition';
                         }
+                    } else if (this.contest.status>180){
+                        this.show = 'resShow';
                     }
                 },
 
