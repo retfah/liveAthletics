@@ -3327,7 +3327,7 @@
 </script>
 <script type="module">
     // MODULE stuff for printing
-    import {dContestSheet, dSeriesSheetHigh, dPersonContestSheetHigh, dHeaderFooter, printer, pPersonContestSheetHigh, pSeriesContestSheetHigh, pContestSheetHigh, pHeaderFooter} from "/static/printDocumentStructure.js";
+    import {dContestSheet, dSeriesSheetHigh, dPersonContestSheetHigh, dPersonContestResultHigh, dHeaderFooter, printer, pPersonContestSheetHigh, pSeriesContestSheetHigh, pContestSheetHigh, pHeaderFooter, pPersonContestResultHigh, pSeriesContestResultsHigh, pContestResultsHigh} from "/static/printDocumentStructure.js";
 
 
     /**
@@ -3343,7 +3343,7 @@
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
      * @returns dContest instance with all series/persons as childs
      */
-    function createDataStructure(contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, xSeries=null){
+    function createDataStructureSeries(contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, xSeries=null){
 
         // get the name of the discipline
         let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
@@ -3398,6 +3398,133 @@
         return cContest
     }
 
+    /**
+     * Create the data structure for printing
+     * @param {object} contest The contest object of the room
+     * @param {array} series Array storing all series 
+     * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
+     * @param {array} categories
+     * @param {array} heights
+     * @param {array} disciplines
+     * @param {array} relatedGroups
+     * @param {array} sites all sites
+     * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
+     * @returns dContest instance with all series/persons as childs
+     */
+    function createDataStructureResults (contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, tempRankingData, conf, xSeries=null){
+        // TODO: currently this is just copied from createDataStructureSeries!
+
+
+        // get the name of the discipline
+        let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
+
+        // dContest sheet is the same (pContestSheet will be different) 
+        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, discName, relatedGroups, categories, {}, false);
+
+        // create each series-container and add it to the contest
+        for (let s of series){
+            if (xSeries==null || s.xSeries == xSeries){
+                
+                // get the name of the site
+                let siteName = '';
+                if (s.xSite !== null){
+                    const site = sites.find(si=>si.xSite == s.xSite);
+                    if (site){
+                        siteName = site.name;
+                    }
+                }
+
+                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, heights, s.datetime, series.length>1); // only show the series line when there is more than one series
+
+                // add each person in this series. Get the necessary information from the startgroup
+                for (let ssr of s.seriesstartsresults){
+                    // try to find the startgroup corresponding to SSR
+                    let startGroup = startgroups.find(sg=>sg.xStartgroup==ssr.xStartgroup)
+                    if (startGroup){
+
+                        // get the category name
+                        let cat = categories.find(c=> c.xCategory==startGroup.xCategory);
+                        let catName;
+                        if (cat){
+                            catName = cat.shortname;
+                        }
+
+                        // get the temporary ranking data
+                        let trd = tempRankingData[ssr.xSeriesStart];
+
+                        // create an array with all results, where each result looks like: [3.50, 'XO', 0] // 0 denotes the jumpoffOrder
+                        let results = [];
+                        for (let res of ssr.resultshigh){
+                            // find the height
+                            let h = s.heights.find(h=>h.xHeight == res.xHeight);
+                            // create the string
+                            let resultStr ='';
+                            resultStr += 'X'.repeat(res.resultsHighFailedAttempts);
+                            if (res.resultsHighValid){
+                                resultStr += 'O';
+                            }
+                            if (res.resultsHighPassed){
+                                resultStr += '-';
+                            }
+                            results.push({
+                                height: h.height/100,
+                                resultStr,
+                                jumpoffOrder: h.jumpoffOrder,
+                            })
+                        }
+                        // sort the results (should typically be sorted already; however, we never know...)
+                        results.sort((a,b)=>{
+                            if (a.jumpoffOrder != b.jumpoffOrder){
+                                return a.jumpoffOrder - b.jumpoffOrder;
+                            }
+                            return a.height - b.height;
+                        })
+
+                        let p = new dPersonContestResultHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, trd.rank, trd.lastValidHeight, results, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, true);
+
+                        cSeries.children.push(p);
+                    } else {
+                        // TODO: replace by correct logging!
+                        console.log(`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`)
+                        throw {code:5, message:`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`}
+                    }
+                }
+
+                // sort the persons by their rank
+                cSeries.sortChildren(['resultOverruleSorting', 'rankSorting']);
+
+                cContest.addSeries(cSeries);
+            }
+        }
+        cContest.sortSeries('number')
+        return cContest
+    }
+
+    async function printResultsTechHigh(){
+        // dynamically get the print configuration for the current language
+        let lang = getLanguage();
+        const {confPrint} = await import(`/${lang}/confPrint`);
+        const conf = confPrint;
+
+        let cContest = createDataStructureResults(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, vueSeriesAdminTech.tempRankingData, conf, null);
+        let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
+        
+        // define the translations from dataContainers to prtContainers
+        const dataToPrint = {
+            dHeaderFooter: pHeaderFooter,
+            dContestSheet: pContestResultsHigh, 
+            dSeriesSheetHigh: pSeriesContestResultsHigh, 
+            dPersonContestResultHigh: pPersonContestResultHigh
+        }
+
+        let p = await printer.create([hf], dataToPrint, conf, true)
+
+        p.showNewTab()
+
+        return p;
+
+    }
+
     async function printSeriesTechHigh(){
 
         // dynamically get the print configuration for the current language
@@ -3405,7 +3532,7 @@
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructure(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, null);
+        let cContest = createDataStructureSeries(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, null);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
 
         // define the translations from dataContainers to prtContainers
@@ -3450,6 +3577,7 @@
 
     // make sure the pritnContest function is visible/accessible to all other rooms.
     window.printSeriesTechHigh = printSeriesTechHigh;
+    window.printResultsTechHigh = printResultsTechHigh;
 </script>
 <!-- up to here, content of techHighBase; all subsequent stuff (i.e. how the data is shown) is defined separately. -->
 <%- content %>

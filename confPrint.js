@@ -1,4 +1,10 @@
 
+
+/** TODO
+ * - all strings that may appear multiple times should not be in a sub-object per print-class, but in "static translations"! Move all that stuff as soon as possible. 
+ * - ...
+ */
+
 export const confPrint={
 
     // EN = DEFAULT:
@@ -21,6 +27,24 @@ export const confPrint={
         producer: 'liveAthletics',
         creator: 'liveAthletics',
         keywords: ['liveAthletics', 'athletics', 'track and field'],
+
+        staticTranslations:{
+            DNS: 'DNS',
+            NM: 'NM',
+            retiredAbbreviation: 'r.',
+            DNF: 'DNF',
+            'disq.': 'disq.',
+            withdrawal: 'withdrawal',
+        },
+        // TODO: remove
+        specialResult:{
+            DNS: 'DNS',
+            NM: 'NM',
+            retired: 'r.',
+            DNF: 'DNF',
+            disqualified: 'disq.',
+            withdrawal: 'withdrawal',
+        },
 
         headerFooter: {
 
@@ -88,6 +112,69 @@ export const confPrint={
             },
         },
 
+        contestResultsHigh: {
+            font:'Helvetica',
+            fontSeries: 'HelveticaBold',
+            fontContestHeader: 'HelveticaBold',
+            size: 10,
+            sizeContestHeader: 12,
+            sizeContestInfo: 10,
+            sizeHeightBackground: 10,
+            spaceBetweenAthletes: 3,
+            spaceAfter: 5,
+            sizeSeries: 12,
+            marginTopSeries: 3,
+            marginBottomSeries: 3,
+            marginRight: 3, // margin to the right of "Results" and "Heights"
+            athleteColumns: {
+                // the athletes "header"
+                margin:[3,2,2,0],
+                columns:[25, 180, 20, 30, 150, 35, 75], // bib, name, cat, birthyear, country, club
+                font:'Helvetica',
+                fontHeader: 'HelveticaBold',
+                size: 10,
+                alignmentH: 'C',
+                hs: 0.75, // horizontal scaling
+                cells:[
+                    {p:'rankFormatted', alignmentH:'R', },
+                    {p:['lastname', 'firstname'], t:[,' '], alignmentH:'L'}, // font:"HelveticaBold"
+                    {p:'year2'},
+                    //{p:'categoryName'},
+                    {p:'country'},
+                    {p:'clubName', alignmentH:'L'},
+                    {pt:'resultFormatted', alignmentH:'L'},
+                    {p:'resultRemark', alignmentH:'L'},
+                ],
+                cellsHeader:[
+                    {t:'Rank', alignmentH:'R', nf:'scale'},
+                    {t: 'Name', alignmentH:'L'},
+                    {t: 'Year', nf:'scale'},
+                    //{t: 'Category'},
+                    {t:'Country', nf:'scale'},
+                    {t:'Club', alignmentH:'L', nf:'scale'},
+                    {t:'Result', alignmentH:'L', nf:'scale'},
+                    {t:'Remark', alignmentH:'L', nf:'scale'},
+                ]
+            },
+            resultsRow:{ // configuration for printCell
+                p:'resultsStr',
+                nf: 'wordWrap',
+                size:8,
+                font:'Helvetica',
+                alignmentH: 'L',
+            },
+            resultsMaxWidth: 515, // potentially end the results string line before the end of the page to avoid that it looks ugly
+            strAttempts: 'Attempts',
+            strJumpoffPrefix: 'J',
+            strSeries: 'Series',
+            strResults: 'Results',
+            strHeights: 'Heights',
+            strFurtherSeries: 'See next page for further series.',
+            strHelp: 'O: valid trial, X: failed trial, -: passed trial, r: retired from competition, DNS: did not start, NM: no valid trial recorded, DQ: disqualified',
+            strAppeal: 'Appeal',
+            strCall: 'Call',
+        },
+
         // will be used both in series (for the header) and in person (for the content)
         contestSheetHigh: {
             resColumns: 14, // number of result columns
@@ -134,6 +221,7 @@ export const confPrint={
             strAppeal: 'Appeal',
             strCall: 'Call',
         },
+
         // TODO: copied from techHigh -> delete properties that are not needed anymore 
         contestSheetTrack: {
             resRowHeight: 20, // result row height
@@ -145,8 +233,6 @@ export const confPrint={
             sizeContestInfo: 8, // for ID
             sizeHeightBackground: 10,
             opacityWindBackground: 0.2,
-            showHeightBackground: true, // shows the heights in the background of every cell with a certain opacity
-            numEmptyHeights: 3, // keep some height-fields always empty for the judges to use for special heights; the others will be filled with heights if present
             spaceBetweenHeats: 20, 
             sizeSeries: 12,
             marginRight: 3, // margin to the right of "Results" and "Heights"
@@ -238,11 +324,40 @@ export const confPrint={
     // DE
     de: {
 
+        staticTranslations:{
+            DNS: 'n.a.',
+            NM: 'o.g.V.',
+            retired: 'verz.',
+            DNF: 'aufg.',
+            disqualified: 'disq.',
+            withdrawal: 'ab.',
+        },
+
         headerFooter: {
             footerTable:{
                 cells:[{},{},{t:['Seite ', , ' von '],}]
             }
         },
+        contestResultsHigh:{
+            athleteColumns: {
+                cellsHeader:[
+                    {t:'Rang', alignmentH:'R', nf:'scale'}, // why is the left alignment wrong? It should not overrun!
+                    {t: 'Name', alignmentH:'L'},
+                    {t: 'Jg', nf:'scale'},
+                    //{t: 'Category'},
+                    {t:'Land', nf:'scale'},
+                    {t:'Verein', alignmentH:'L', nf:'scale'},
+                    {t:'Resultat', alignmentH:'L', nf:'scale'},
+                    {t:'Bemerkung', alignmentH:'L', nf:'scale'},
+                ]
+            },
+            strAttempts: 'Versuche',
+            strJumpoffPrefix: 'J',
+            strSeries: 'Serie',
+            strResults: 'Resultate',
+            strFurtherSeries: 'Weitere Serien auf der nächsten Seite.',
+        },
+        
 
         contestSheetHigh:{
             strSeries: 'Serie',
@@ -261,7 +376,7 @@ export const confPrint={
                     {t: 'Pos.'},
                     {t:'Stnr'},
                     {t:'Name'},
-                    {t:'JG'},
+                    {t:'Jg'},
                     {t:'Land', nf:'scale', hs:0.75},
                     {t:'Verein'},
                     {t:'Hürden'},

@@ -34,7 +34,7 @@
  *   - on the server there is a special path that returns the translated printing configuration file confPrint.js (only the needed language, which will be "calculated" on the fly from the print configuration file on the server which stores all languages. ) Like this we can also have a default print-configuration-file for languages or even just parts of the configuration file where a specific language does not have its own definition.
  *   - on the client the import is like <script type="text/javascript (or module)" src="/printConf<%- _lang %>.js" /> 
  *   - The server can simply work on the full configuration file
- *   - we cannot simply make this file ejs, because we cannot parse it for execution on the server; So, we must implement some translation function on our own. eventually we resign here from using i18n and create our own code; probably requiring that we man
+ *   - we cannot simply make this file ejs, because we cannot parse it for execution on the server; So, we must implement some translation function on our own. 
  **/
 
 // TODO: do we handle cases where it is not possible to fit the container on one page, but we do "not allow" page breaks?
@@ -561,7 +561,7 @@ export class printingGeneral {
 
     /**
     * print a single cell, following the extensive configuration in cellConf
-    * @param {object} cellConf The configuration for the cell centent. The actual text content is given by the concatenation of bare text ("t" or "text"), translated text ("tt" or "translatedText") and data property values ("p" or "prop"). All of them can be an array (also with empty items). The concatenation will be made like this: t[0]+tt[0]+p[0] + t[1]+tt[1]+p[1] + ...; if a property is not an array, it will be repeated in every loop (while the loop length is defined by the longest array). If one array is shorter than an other, the "missing" elements at the end are simply treated as empty. 
+    * @param {object} cellConf The configuration for the cell centent. The actual text content is given by the concatenation of bare text ("t" or "text"), translated property values ("pt" or "translatedProperty") and data property values ("p" or "prop"). All of them can be an array (also with empty items). The concatenation will be made like this: t[0]+pt[0]+p[0] + t[1]+pt[1]+p[1] + ...; if a property is not an array, it will be repeated in every loop (while the loop length is defined by the longest array). If one array is shorter than an other, the "missing" elements at the end are simply treated as empty. 
     * Content is fitted as follows: 
     * If a text is too long for the present space, fitting text works as follows:
     * 1. reduce the margin down to maxHorizontalScale*margin (at max)
@@ -571,10 +571,10 @@ export class printingGeneral {
     *    - overrun: simply do not care and overrun the available space
     *    - wordWrap: (attention: do not use when the height of the cell is predefined!) does word wrapping between words and at "-". If a single word does not fit the line, then it is automaticaly horizontally scaled to fit. (Margin and font size are not reduced since it would look overly ugly together with the other regular lines.)
     *    - scale: scale the font-size to make it fit.
-    * @param {string / array} cellConf.t Untranslated text(s)
+    * @param {string / array} cellConf.t text(s)
     * @param {string / array} cellConf.text alias for cellConf.t
-    * @param {string / array} cellConf.tt Text(s) that will be translated before showing
-    * @param {string / array} cellConf.translatedText alias for cellConf.tt
+    * @param {string / array} cellConf.pt name of a property, which value will be translated
+    * @param {string / array} cellConf.translatedProperty alias for cellConf.pt
     * @param {string / array} cellConf.p The name(s) of proeprty/ies in the data object that shall be shown.
     * @param {string / array} cellConf.prop alias for p
     * @param {number} cellConf.ms maximum margin scale (<=1), default=1 (i.e. no scaling)
@@ -600,7 +600,7 @@ export class printingGeneral {
     * @param {function} translate function that will be called to translate a text; by default returns the previous value
     * @returns {number} height of the cell
     */
-    async printCell(cellConf, data, page, posX2, posY2, sizeX, rowHeight, conf, translate=(untranslated)=>untranslated){
+    async printCell(cellConf, data, page, posX2, posY2, sizeX, rowHeight, conf={}, translate=(untranslated)=>untranslated){
         let ms = cellConf.maxMarginScale ?? (cellConf.ms ?? (conf.maxMarginScale ?? (conf.ms ?? 1)));
         let hs = cellConf.maxHorizontalScale ?? (cellConf.hs ?? (conf.maxHorizontalScale ?? (conf.hs ?? 1)));
         let nf = cellConf.noFitStrategy ?? (cellConf.nf ?? (conf.noFitStrategy ?? (conf.nf ?? 'cut')));
@@ -617,22 +617,22 @@ export class printingGeneral {
 
         // get the relevanet of the two possible names of the property
         let t = cellConf.t ?? (cellConf.text ?? '');
-        let tt = cellConf.tt ?? (cellConf.translatedText ?? '');
+        let pt = cellConf.pt ?? (cellConf.translatedProperty ?? '');
         let p = cellConf.p ?? (cellConf.prop ?? '');
 
         let tArr = Array.isArray(t);
-        let ttArr = Array.isArray(tt);
+        let ptArr = Array.isArray(pt);
         let pArr = Array.isArray(p)
 
         let totalLength = 1;
         if (tArr){
             totalLength = Math.max(t.length, totalLength);
         }
-        if (ttArr){
-            totalLength = Math.max(tt.length, totalLength);
+        if (ptArr){
+            totalLength = Math.max(pt.length, totalLength);
         } else {
-            if (tt){
-                var staticTranslatedText = translate(tt)
+            if (pt){
+                var staticTranslatedText = translate(this.data[pt]);
             } else {
                 var staticTranslatedText = '';
             }
@@ -655,9 +655,11 @@ export class printingGeneral {
                 text += t ?? '';
             }
             // translated text 
-            if (ttArr){
-                if (tt.length>i){
-                    text += translate(tt[i] ?? '');
+            if (ptArr){
+                if (pt.length>i){
+                    if (pt[i] && this.data[pt[i]]){
+                        text += translate(this.data[pt[i]]);
+                    }
                 }
             } else {
                 // just some text, repeated in every loop
@@ -730,7 +732,8 @@ export class printingGeneral {
             if (alignmentH.toUpperCase() == 'C'){
                 opts.x = posX2 + marginLeft + (sizeX2 - widthUnscaled)/2;
             } else if (alignmentH.toUpperCase() == 'R'){
-                opts.x = posX2 + sizeX - marginRight - widthUnscaled;
+                // since the text is not scaled yet, make sure that it does not project too far to the left
+                opts.x = Math.max(posX2 + sizeX - marginRight - widthUnscaled, posX2 + marginLeft);
             } else {
                 opts.x = posX2 + marginLeft;
             }
@@ -845,9 +848,10 @@ export class printingGeneral {
      * @param {PDFPage} page The page to print on
      * @param {number} posY The y-position where to start drawing (i.e. the upper (!) end of the drawing)
      * @param {number} posX The x-position where to start drawing (i.e. the left end of the drawing)
+     * @param {function} translator the translator function for printCell (untranslated)=>{return translated}; by default, returns the untranslated text
      * @return {number} height of the row
      */
-    async printTabularRow(conf, data, page, posX, posY){
+    async printTabularRow(conf, data, page, posX, posY, translator=(x)=>x){
 
         let margin = conf.margin ?? 0;
 
@@ -862,274 +866,6 @@ export class printingGeneral {
         let originalColWidth = conf.columns.reduce((val, valOld)=>val+valOld, 0);
         let totalWidth = fitWidth ?? originalColWidth;
         let colScaleFactor = totalWidth / originalColWidth;
-
-        // TODO: translating function
-        let translate = (untranslated)=>{
-            return untranslated;
-        }
-
-        /**
-            * print a single cell, following the extensive configuration in cellConf
-            * @param {object} cellConf The configuration for the cell centent. The actual text content is given by the concatenation of bare text ("t" or "text"), translated text ("tt" or "translatedText") and data property values ("p" or "prop"). All of them can be an array (also with empty items). The concatenation will be made like this: t[0]+tt[0]+p[0] + t[1]+tt[1]+p[1] + ...; if a property is not an array, it will be repeated in every loop (while the loop length is defined by the longest array). If one array is shorter than an other, the "missing" elements at the end are simply treated as empty. 
-            * Content is fitted as follows: 
-            * If a text is too long for the present space, fitting text works as follows:
-            * 1. reduce the margin down to maxHorizontalScale*margin (at max)
-            * 2. horizontally scale the text down to maxHorizontalScale (at max)
-            * 3. if both options did not lead to a fitting text, apply one of four strategies defined by noFitStrategy:
-            *    - cut (default): cut the text that does not fit and add a period at the end
-            *    - overrun: simply do not care and overrun the available space
-            *    - wordWrap: (attention: do not use when the height of the cell is predefined!) does word wrapping between words and at "-". If a single word does not fit the line, then it is automaticaly horizontally scaled to fit. (Margin and font size are not reduced since it would look overly ugly together with the other regular lines.)
-            *    - scale: scale the font-size to make it fit.
-            * @param {string / array} cellConf.t Untranslated text(s)
-            * @param {string / array} cellConf.text alias for cellConf.t
-            * @param {string / array} cellConf.tt Text(s) that will be translated before showing
-            * @param {string / array} cellConf.translatedText alias for cellConf.tt
-            * @param {string / array} cellConf.p The name(s) of proeprty/ies in the data object that shall be shown.
-            * @param {string / array} cellConf.prop alias for p
-            * @param {number} cellConf.ms maximum margin scale (<=1), default=1 (i.e. no scaling)
-            * @param {number} cellConf.maxMarginScale alias for ms
-            * @param {number} cellConf.hs maximum horizontal scaling (<=1), default=1 (i.e. no scaling)
-            * @param {number} cellConf.maxHorizontalScale alias for hs
-            * @param {number} cellConf.nf strategy when applying the margin and horiztontal scaling was not enough to fit the text. One of: "cut" (default), "overrun", "wordWrap", "scale" (see above for details)
-            * @param {string} cellConf.noFitStrategy alias for nf
-            * @param {string} cellConf.alignmentV vertical alignment. Only evaluated if rowHeight is not null. One of: "T" (top), "C" (center, default), "B" (bottom)
-            * @param {string} cellConf.alignmentH horizontal alignment. One of: "L" (left, default), "C" (center), "R" (right)
-            * @param {string} cellConf.font The name of the font. Default is Helvetica regular. See TODO for available fonts.
-            * @param {number} cellConf.size The font size. Default=12
-            * @param {number} cellConf.lineHeight the line height, as a multiplicator with size. Default=1.2. Only evaluated with wordWrap.
-            * @param {number} cellConf.opacity The opacity for the text. Default=1
-            * @param {number} posX2 Left position of the cell
-            * @param {number} posY2 Top position of the cell
-            * @param {number} sizeX width of the cell
-            * @returns {number} height of the cell
-            */
-        /*let printCell = async (cellConf, posX2, posY2, sizeX, rowHeight)=>{
-            let ms = cellConf.maxMarginScale ?? (cellConf.ms ?? (conf.maxMarginScale ?? (conf.ms ?? 1)));
-            let hs = cellConf.maxHorizontalScale ?? (cellConf.hs ?? (conf.maxHorizontalScale ?? (conf.hs ?? 1)));
-            let nf = cellConf.noFitStrategy ?? (cellConf.nf ?? (conf.noFitStrategy ?? (conf.nf ?? 'cut')));
-            let alignmentV = cellConf.alignmentV ?? (conf.alignmentV ?? 'C');
-            let alignmentH = cellConf.alignmentH ?? (conf.alignmentH ?? 'L');
-            let size = cellConf.size ?? (conf.size ?? 12);
-            let lineHeight = cellConf.lineHeight ?? (conf.lineHeight ?? 1.2);
-            let opacity = cellConf.opacity ?? (conf.opacity ?? 1);
-            
-            // create the text to show, which is a concatenation of eventually multiple parts of untranslated text, translated text and properties in data
-
-            // get the relevanet of the two possible names of the property
-            let t = cellConf.t ?? (cellConf.text ?? '');
-            let tt = cellConf.tt ?? (cellConf.translatedText ?? '');
-            let p = cellConf.p ?? (cellConf.prop ?? '');
-
-            let tArr = Array.isArray(t);
-            let ttArr = Array.isArray(tt);
-            let pArr = Array.isArray(p)
-
-            let totalLength = 1;
-            if (tArr){
-                totalLength = Math.max(t.length, totalLength);
-            }
-            if (ttArr){
-                totalLength = Math.max(tt.length, totalLength);
-            } else {
-                if (tt){
-                    var staticTranslatedText = translate(tt)
-                } else {
-                    var staticTranslatedText = '';
-                }
-            }
-            if (pArr){
-                totalLength = Math.max(p.length, totalLength);
-            }
-
-            // create the text as a combination of untranslated text, translated text and data values (in this order)
-            let text = '';
-            for (let i=0; i<totalLength; i++){
-                // combine the text:
-                // untranslated text 
-                if (tArr){
-                    if (t.length>i){
-                        text += t[i] ?? '';
-                    }
-                } else {
-                    // just some text, repeated in every loop
-                    text += t ?? '';
-                }
-                // translated text 
-                if (ttArr){
-                    if (tt.length>i){
-                        text += translate(tt[i] ?? '');
-                    }
-                } else {
-                    // just some text, repeated in every loop
-                    text += staticTranslatedText;
-                }
-                // property values
-                if (pArr){
-                    if (p.length>i){
-                        text += data[p[i]] ?? '';
-                    }
-                } else {
-                    // just some text, repeated in every loop
-                    text += data[p] ?? '';
-                }
-            }
-
-            // prepare the options object for drawText
-            let opts = {
-                size: size,
-                lineHeight: lineHeight,
-                opacity: opacity,
-                // ...
-            };
-            let f;
-            if (cellConf.font){
-                f = await page.doc.getFont(cellConf.font);
-            } else if (conf.font){
-                f = await page.doc.getFont(conf.font);
-            } else {
-                f = await page.doc.getFont('Helvetica');
-            }
-            opts.font = f;
-
-            // vertical position (will be adapted for each line on word wrap):
-            if (rowHeight){
-                // apply the alignment
-                if (alignmentV.toUpperCase() == 'C'){
-                    opts.y = posY2 - (rowHeight-size)/2 - size;
-                } else if (alignmentV.toUpperCase() == 'T'){
-                    opts.y = posY2 - marginTop - size;
-                } else {
-                    opts.y = posY2-rowHeight+marginBottom;
-                }
-            } else {
-                opts.y = posY2 - marginTop - size; // negative since the origin is on the bottom
-            }
-
-            // the text is printed now
-            // check if the text fits the space without any change
-            let widthUnscaled = f.widthOfTextAtSize(text, size);
-            let marginScaleApplied = 1;
-
-            // actually available space for the text, i.e. the total size minus the margins (will be updated if the margins are reduced)
-            let sizeX2 = sizeX - marginLeft - marginRight;
-
-            if (ms<1 && widthUnscaled > sizeX2 ){
-                // apply the margin scaling to the extent that is allowed
-                // calculate how much the margin would have to be scaled to make it fit (can get negative) and then limit
-                // sizeX - scale*(marginLeft+marginRight) = widthUnscaled
-                let scale = (sizeX-widthUnscaled)/(marginLeft+marginRight);
-                marginScaleApplied = Math.max(ms, scale);
-
-                // alignment does not matter, since it is filled anyway: 
-                opts.x = posX2 + marginLeft*marginScaleApplied;
-
-                // calculate the new actually available space for the text
-                sizeX2 = sizeX - (marginLeft + marginRight)*marginScaleApplied;
-            } else {
-                // apply the alignment
-                if (alignmentH.toUpperCase() == 'C'){
-                    opts.x = posX2 + marginLeft + (sizeX2 - widthUnscaled)/2;
-                } else if (alignmentH.toUpperCase() == 'R'){
-                    opts.x = posX2 + sizeX - marginRight - widthUnscaled;
-                } else {
-                    opts.x = posX2 + marginLeft;
-                }
-            }
-
-            let textScaleApplied = 1;
-            if (hs<1 && widthUnscaled > sizeX2){
-                // apply the horizontal scaling
-                // scale*widthUnscaled = sizeX - marginScaleApplied*(marginLeft+marginRight) = sizeX2
-                let scale = sizeX2/widthUnscaled;
-                textScaleApplied = Math.max(scale, hs);
-                opts.horizontalScale = textScaleApplied *100; // in %
-            }
-
-            // in general it will take only one line, but we might need word wrap
-            let lines = 1;
-
-            if (widthUnscaled*textScaleApplied > sizeX - marginScaleApplied*(marginLeft+marginRight)){
-                // still no fit... apply one of the four strategies
-                if (nf == 'overrun'){
-                    // simply plot the text and do not care about the overrun
-                    page.drawText(text, opts);
-
-                } else if (nf == "wordWrap") {
-                    // do some word wrapping!
-
-                    // since we count the lines as we write them, we have to start counting at zero
-                    lines = 0;
-
-                    // split after every " " and "-" 
-                    let re = /([ -])/; // split at any of the elements within [] (e.g. " " and "-") and keep the elements in the results as well (parantheses)
-                    let textParts = text.split(re);
-
-                    // now try to combine as many parts as possible and print them
-                    let start = 0;
-                    let end = 1;
-                    let textMergedBefore = '';
-                    for (end; end<=textParts.length; end++){
-                        let textMerged = textParts.slice(start, end).join('').trim(); // trim makes sure that a space at the end/beginning is not considered
-                        if (f.widthOfTextAtSize(textMerged, size)*textScaleApplied > sizeX2) {
-                            // current part does not fit...
-                            lines += 1;
-                            opts.y = posY2 - marginTop - size*(1 + (lines-1)*lineHeight);
-                            if (start+1==end){
-                                // if we only have one element, then we have to plot it anyway, and simply do some (eventually additional) horzontal scaling to make that single word fit
-                                let origScale = opts.horizontalScale; // since we change the original opts object, we have to reset the value later!
-                                opts.horizontalScale *= sizeX2/(f.widthOfTextAtSize(textMerged, size)*textScaleApplied); // scale
-                                page.drawText(textMerged, opts);
-                                opts.horizontalScale = origScale; // reset to actual scaling
-                                start = end;
-                            } else {
-                                // print without the current, but the previous parts
-                                page.drawText(textMergedBefore, opts);
-                                start = end-1;
-                            }
-                        }
-                        textMergedBefore = textMerged;
-                    }
-                    // at the end, print the rest, if it is not yet printed (it is already printed if the last textPart does not fit and then start==end)
-                    if (start<end){
-                        lines += 1;
-                        opts.y = posY2 - marginTop - size*(1 + (lines-1)*lineHeight);
-                        page.drawText(textParts.slice(start, end).join('').trim(), opts);
-                        lines += 1;
-                    }
-
-                } else if ( nf == "scale"){
-                    // scale the font size
-                    opts.size = opts.size*(sizeX + marginScaleApplied*(marginLeft+marginRight))/(widthUnscaled*textScaleApplied);
-                    page.drawText(text, opts);
-
-                } else {
-                    // "cut" and any invalid noFit names lead here
-                    // cut the text and add a period at the end
-                    for (let l=text.length; l>0; l--){
-                        // check whether it fits already
-                        let t2 = text.slice(0,l)+".";
-                        if (f.widthOfTextAtSize(t2, size)*textScaleApplied < sizeX - marginScaleApplied*(marginLeft+marginRight)){
-                            page.drawText(t2, opts);
-                            break;
-                        }
-                    }
-
-                }
-
-            } else {
-                // it fits with the given margin and horizontal scalings
-                page.drawText(text, opts);
-            }
-
-            // return the required height for this cell
-            if (rowHeight){
-                return rowHeight;
-            } else {
-                return opts.size*(1 + (lines-1)*opts.lineHeight) + marginTop + marginBottom; 
-            }
-            
-
-        }*/ // end printCell
         
         // print content=cells
         let totalHeight = 0;
@@ -1139,7 +875,7 @@ export class printingGeneral {
             if (cell){
                 // print single cell
                 let posX2 = posX + conf.columns.slice(0,i).reduce((val, oldVal)=>val+oldVal, 0)*colScaleFactor; 
-                totalHeight = Math.max(totalHeight, (await this.printCell(cell, data, page, posX2, posY, conf.columns[i]*colScaleFactor, rowHeight, conf, translate)));
+                totalHeight = Math.max(totalHeight, (await this.printCell(cell, data, page, posX2, posY, conf.columns[i]*colScaleFactor, rowHeight, conf, translator)));
             }
         }
 
@@ -1518,6 +1254,104 @@ export class pHeaderFooter extends printingGeneral{
     }
 }
 
+export class pContestResultsHigh extends printingGeneral {
+    
+    constructor (conf, data){
+        super(conf, data)
+
+    }
+
+    async printContainerHeader(page, pG){
+
+        let conf = this.conf.contestResultsHigh;
+        //let fontHeader = await page.doc.getFont(conf.fontContestHeader);
+        let fontName = this.conf.font ?? 'Helvetica';
+
+        // create a string with all involved categories. Make sure no category is appearing twice.
+        let categories = [];
+        this.data.relatedGroups.forEach(group=>{
+            group.round.eventgroup.events.forEach(e=>{
+                if (categories.indexOf(e.xCategory)==-1){
+                    categories.push(e.xCategory);
+                }
+            })
+        })
+
+        // sort all categories, translate them to strings and combine them
+        categories.sort((a,b)=>{
+            return this.data.categories.find(el=>el.xCategory==a)?.sortorder - this.data.categories.find(el=>el.xCategory==b)?.sortorder;
+        })
+
+        let categoriesText = categories.map((el)=>{
+            return this.data.categories.find(cat=>cat.xCategory==el)?.shortname;
+        })
+
+        let categoriesStr = categoriesText.join(', ');
+
+        // print contest name, time, category etc
+        // the name does not exist yet in the data!
+        //page.drawText(this.data.baseDiscipline, {font:fontHeader, size: conf.sizeContestHeader, x:this.conf.marginLeft, y:pG.positionY-20})
+        let usableWidth = this.conf.pageSize[0]-this.conf.marginLeft-this.conf.marginRight;
+        let tabConf = {
+            font:conf.fontContestHeader, 
+            size: conf.sizeContestHeader, 
+            cells:[
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr]},
+                {p: 'datetimeStartDateTime', alignmentH:'R'},
+            ], 
+            columns:[usableWidth*0.7, usableWidth*.3],
+        };
+        pG.positionY -= await this.printTabularRow(tabConf, this.data, page, this.conf.marginLeft, pG.positionY);
+
+        let groupLines = 0;
+        if (this.data.showRelatedGroups){
+            let font = await page.doc.getFont(fontName);
+            for (let rg of this.data.relatedGroups){
+                groupLines++;
+                // create the string: round name, event group name, ev. hurdle height, categories (from events), group name
+                // additionally we could include the event info field
+
+                // get all categories
+                let xCats = rg.round.eventgroup.events.map(e=>e.xCategory);
+                let cats = this.data.categories.filter(c=>xCats.includes(c.xCategory));
+                cats.sort((a,b)=>a.sortorder - b.sortorder);
+
+                // avoid unnecessary space after the round name, if the round name is empty
+                let s = `${rg.round.name ? `rg.round.name ` : ''}${rg.round.eventgroup.name} ${cats.map(c=>c.shortname).join('/')}`;
+                // include group name only when there is more than one group
+                if (rg.round.numGroups>1){
+                    s += ` ${rg.name}`;
+                }
+
+                // print!
+                page.drawText(s, {font:font, size: conf.sizeContestInfo, x:this.conf.marginLeft, y:pG.positionY-conf.sizeContestInfo*1.2*groupLines})
+            }
+        }
+
+        pG.positionY -= conf.sizeContestInfo*1.2*groupLines;
+
+        pG.positionY -= conf.spaceAfter;
+
+        return [page, pG];
+    }
+
+
+    async printChildSeparatorPrePageBreak(page, pG){
+
+        let conf = this.conf.contestSheetHigh;
+        let font = await page.doc.getFont(conf.fontSeries);
+        page.drawText(conf.strFurtherSeries, {x:this.conf.marginLeft, y: pG.positionY - conf.marginTopSeries - conf.size, size:conf.size, font: font})
+        pG.positionY -= conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+
+        return [page, pG];
+    }
+
+    async childSeparatorPrePageBreakHeight(){
+        let conf = this.conf.contestSheetHigh;
+        return conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+    }
+}
+
 export class pContestSheetHigh extends printingGeneral {
     
     constructor (conf, data){
@@ -1529,7 +1363,7 @@ export class pContestSheetHigh extends printingGeneral {
 
         // TODO: eventually include here begin/end times of the series
 
-        let conf = this.conf.contestSheetTech;
+        let conf = this.conf.contestSheetHigh;
         //let fontHeader = await page.doc.getFont(conf.fontContestHeader);
         //let font = await page.doc.getFont(conf.font);
         let font = this.conf.font ?? 'Helvetica';
@@ -1636,6 +1470,7 @@ export class pContestSheetHigh extends printingGeneral {
         return conf.marginTopSeries + conf.size + conf.marginBottomSeries;
     }
 }
+
 export class pContestSheetTrack extends printingGeneral {
     
     constructor (conf, data){
@@ -1836,6 +1671,107 @@ export class pSeries extends printingGeneral {
     }
 }
 
+export class pSeriesContestResultsHigh extends printingGeneral{
+
+    constructor (conf, data){
+        super(conf, data)
+
+        // at least 2 children shall be printed on one page; otherwise, add a page break before
+        this.minimumChildrenPrint = 3;
+    }
+
+    async printContainerHeader(page, pG){
+        // draw the name+number of the series, eventually how many athletes on this page
+
+        let globalConf = this.conf;
+        let conf = globalConf.contestResultsHigh;
+
+        let fontSeries = await page.doc.getFont(conf.fontSeries);
+
+        // draw the series name
+        if (this.data.showSeriesLine){
+            let text = '';
+            if (this.data.name){
+                text = conf.strSeries+ ' '+this.data.name;
+            } else {
+                text = conf.strSeries+ ' '+ this.data.number;
+            }
+            page.drawText(text, {x:globalConf.marginLeft, y: pG.positionY-conf.marginTopSeries-conf.sizeSeries, size:conf.sizeSeries, font:fontSeries});
+    
+            pG.positionY -= conf.sizeSeries + conf.marginBottomSeries + conf.marginTopSeries;
+        }
+
+        // show the table header
+        // code originally copied from contest heats for track
+        // the actual column widths will be calculated by printTabularRow
+
+        // TODO: 
+
+        let colConf = JSON.parse(JSON.stringify(conf.athleteColumns)); // copy is needed to not delete the data in the original configuration
+        
+        // replace the cell defintion and font header
+        colConf.font = colConf.fontHeader;
+
+        // delete the columns that are not selected
+        /*if (!this.data.showHurdleHeightCol){
+            let i = colConf.cells.findIndex(x=>x.identifier=="hurdles");
+            colConf.cells.splice(i,1);
+            colConf.cellsHeader.splice(i,1);
+            colConf.columns.splice(i,1);
+            colConf.linesVertical.splice(i,1);
+        }*/
+        
+        colConf.cells = colConf.cellsHeader;
+
+        let height = await this.printTabularRow(colConf, this.data, page, globalConf.marginLeft, pG.positionY);
+
+        pG.positionY -= height;
+
+
+        return [page, pG]
+    }
+
+     // we have a fixed height, so we avoid calculating the height by defining this function
+    /*containerHeaderHeight(){
+        return 30; 
+    }*/
+    
+    printContainerFooter(page, pG){
+        // just add some space
+        pG.positionY -= 15;
+        return [page, pG]
+    }
+
+    containerFooterHeight(){
+        return 15;
+    }
+
+    printPostPageBreak(page, pG){
+        // just repeat the regular header stuff
+        return this.printContainerHeader(page, pG);
+    }
+
+    postPageBreakHeight(){
+        // just repeat the regular header stuff
+        return this.containerHeaderHeight();
+    }
+
+    async printChildSeparator(page, pG){
+        // just add some extra space
+        pG.positionY -= this.conf.contestResultsHigh.spaceBetweenAthletes;
+        return [page, pG];
+    }
+
+    async childSeparatorHeight(){
+        return this.conf.contestResultsHigh.spaceBetweenAthletes;
+    }
+
+    printChildSeparatorPrePageBreak(page, pG){
+        // if the series would be breakable, we would implement here a text like "series continues on next page"
+        return [page, pG];
+    }
+}
+
 export class pSeriesContestSheetHigh extends printingGeneral{
 
     constructor (conf, data){
@@ -1962,6 +1898,7 @@ export class pSeriesContestSheetHigh extends printingGeneral{
         return [page, pG];
     }
 }
+
 export class pSeriesContestSheetTrack extends printingGeneral{
 
     constructor (conf, data){
@@ -2159,6 +2096,60 @@ export class pPerson extends printingGeneral {
     }
 }
 
+export class pPersonContestResultHigh extends pPerson {
+    
+    constructor(conf, data){
+        super(conf, data);
+    }
+
+    async printContainerHeader(page, pG){
+        // TODO: everything; differentiate whether the details shall be shown or not; 
+
+        let globalConf = this.conf;
+
+        let conf = globalConf.contestResultsHigh;
+
+        // we need to translate the result if it is an resultoverrule: 
+        const translator = (result)=>{
+            if (result in this.conf.staticTranslations){
+                return this.conf.staticTranslations[result];
+            }
+            return result;
+        }
+
+        // draw the athletes header
+        pG.positionY -= await this.printTabularRow(conf.athleteColumns, this.data, page, globalConf.marginLeft, pG.positionY,translator) 
+
+        // draw the second line of the results
+        if (this.data.showDetail){
+            // create the string
+            let resultsStr = `${conf.strAttempts}: `;
+            for (let res of this.data.results){
+                if (res.jumpoffOrder>0){
+                    resultsStr += strJumpoffPrefix;
+                }
+                resultsStr += `${res.height.toFixed(2)} ${res.resultStr}`;
+                if (res != this.data.results[this.data.results.length-1]){
+                    // there will be one more result
+                    resultsStr += ' / ';
+                } else {
+                    // is the last entry; if the person retired, add here the respective flag
+                    if (this.data.resultOverrule==1){
+                        resultsStr += this.conf.staticTranslations["retiredAbbreviation"];
+                    }
+                }
+            }
+
+            // it is one big cell with automatic line break
+            pG.positionY -= await this.printCell(conf.resultsRow, {resultsStr}, page, globalConf.marginLeft + conf.athleteColumns.columns[0], pG.positionY, conf.resultsMaxWidth)
+
+        }
+
+        return [page, pG];
+    }
+
+}
+
 export class pPersonContestSheetHigh extends pPerson {
     
     constructor(conf, data){
@@ -2274,6 +2265,7 @@ export class pPersonContestSheetHigh extends pPerson {
     }
 
 }
+
 export class pPersonContestSheetTrack extends pPerson {
     
     constructor(conf, data){
@@ -2370,19 +2362,29 @@ export class dContainer {
 
     /**
      * method to sort the children of the container by a certain property
-     * @param {string} property The property in the content of each child to be sorted by.
-     * @param {boolean} inverse set to true for DSC sorting, false is the standard ASC sorting
+     * @param {array/string} property The property in the content of each child to be sorted by. If an array, it will be sorted in the order of the array; try the first option first, then teh second etc.
+     * @param {array/boolean} inverse set to true for DSC sorting, false is the standard ASC sorting
      */
     sortChildren(property, inverse=false){
+
+        if (typeof(property)=='string'){
+            property = [property];
+        }
+        if (typeof(inverse)=='boolean'){
+            inverse = new Array(property.length).fill(inverse);
+        }
+
         this.children.sort((a,b)=>{
-            let i = inverse ? -1 : 1;
-            if (a[property] > b[property]){
-                return 1*i;
-            }
-            if (a[property] < b[property]){
-                return -1*i;
-            }
-            return 0;
+            for (let j=0;j<property.length; j++){
+                let i = inverse[j] ? -1 : 1;
+                if (a[property[j]] > b[property[j]]){
+                    return 1*i;
+                }
+                if (a[property[j]] < b[property[j]]){
+                    return -1*i;
+                }
+            } 
+            return 0
         })
     }
 
@@ -2416,14 +2418,6 @@ export class dHeaderFooter extends dContainer {
 }
 
 export class dPerson extends dContainer {
-
-    /**
-     * Create a person object just from the information given in the startgroup
-     * @param {object} startGroup The startgroup object containing all information (name, firstname, club, etc) for each seriesStartResult in one object
-     */
-    static of (startGroup){
-        return new dPerson(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline)
-    }
     
     constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, catName){
         super()
@@ -2473,18 +2467,9 @@ export class dPerson extends dContainer {
 }
 
 /**
- * Extends the pPerson class by the properties needed to print a contestSheet for TECH HIGH. 
+ * Extends the dPerson class by the properties needed to print a contestSheet for TECH HIGH. 
  */
 export class dPersonContestSheetHigh extends dPerson {
-
-    /**
-     * Create a personContestSheer object just from the information given in the startgroup and in the seriesstartresult
-     * @param {object} startGroup The startgroup object containing all information (name, firstname, club, etc) for each seriesStartResult in one object
-     * @param {object} ssr The seriesStartResult object, containing position and lane (=startConf)
-     */
-    /*static of (startGroup, ssr){
-        return new dPersonContestSheet(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, ssr.startConf)
-    }*/
 
     constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, heights, startConf=null){
         super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
@@ -2495,18 +2480,68 @@ export class dPersonContestSheetHigh extends dPerson {
 }
 
 /**
- * Extends the pPerson class by the properties needed to print a contestSheet (should work for track, techLong and techHigh)
+ * Extends the dPerson class by the properties needed to print a contestSheet for TECH HIGH. 
+ */
+export class dPersonContestResultHigh extends dPerson {
+
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, results=[], startConf=null, resultOverrule=0, resultRemark, showDetail=false){
+        super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
+        this.position = position;
+        this.startConf = startConf;
+        this.rank = rank;
+        this.result = result; // the last valid height
+        this.results = results; // array of object with {height, resultStr, jumpffOrder}, e.g. {height:3.50, resultStr:'XO', jumpoffOrder:0}
+        this.resultOverrule = resultOverrule;
+        this.showDetail = showDetail; 
+        this.resultRemark = resultRemark;
+    }
+
+    // those texts are later translated by the static translations
+    get resultFormatted(){
+        if (this.resultOverrule<=1){
+            // including retired
+            if (this.result>0){
+                return (this.result/100).toFixed(2);
+            } else {
+                return 'NM';
+            }
+        } else if (this.resultOverrule==1){
+            return 'retiredAbbreviation';
+        } else if (this.resultOverrule==3){
+            return 'DNF'
+        } else if (this.resultOverrule==4){
+            return 'withdrawal';
+        } else if (this.resultOverrule==5){
+            return 'DNS';
+        } else if (this.resultOverrule==6){
+            return 'disq.';
+        }
+        
+    }
+
+    get rankFormatted(){
+        return this.rank>0 ? `${this.rank}.` : '';
+    }
+
+    get rankSorting(){
+        // the rank is zero when there is no rank, which is wrong for sorting
+        return this.rank>0 ? this.rank : 999999;
+    }
+
+    get resultOverruleSorting(){
+        // we must treat retired the same as regular!
+        if (this.resultOverrule==1){
+            return 0;
+        } else {
+            return this.resultOverrule;
+        }
+    }
+}
+
+/**
+ * Extends the dPerson class by the properties needed to print a contestSheet (should work for track, techLong and techHigh)
  */
 export class dPersonContestSheetTrack extends dPerson {
-
-    /**
-     * Create a personContestSheer object just from the information given in the startgroup and in the seriesstartresult
-     * @param {object} startGroup The startgroup object containing all information (name, firstname, club, etc) for each seriesStartResult in one object
-     * @param {object} ssr The seriesStartResult object, containing position and lane (=startConf)
-     */
-    /*static of (startGroup, ssr){
-        return new dPersonContestSheet(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, ssr.startConf)
-    }*/
 
     constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, hurdle, startConf=null){
         super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
@@ -2518,29 +2553,6 @@ export class dPersonContestSheetTrack extends dPerson {
 
 
 export class dSeries extends dContainer {
-
-    /*static of(series, startgroups){
-        let cSeries = new dSeries(series.xSeries, series.status, series.number, series.name, series.heights, "siteName", series.seriesstartsresults);
-
-        // add each person in this series. Get the necessary information from the startgroup
-        for (let ssr of series.seriesstartsresults){
-            // try to find the startgroup corresponding to SSR
-            let SG = startgroups.find(sg=>sg.xStartgroup==ssr.xStartgroup)
-            if (SG){
-                let p = dPersonContestSheet.of(SG, ssr)
-                cSeries.children.push(p);
-            } else {
-                // TODO: replace by correct logging!
-                console.log(`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`)
-                throw {code:5, message:`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`}
-            }
-        }
-
-        // sort the persons by their position
-        cSeries.sortChildren('position');
-
-        return cSeries;
-    }*/
 
     constructor(xSeries, status, number, name, siteName, SSR, datetime){
 
@@ -2563,10 +2575,12 @@ export class dSeries extends dContainer {
 
 export class dSeriesSheetHigh extends dSeries {
     
-    constructor(xSeries, status, number, name, siteName, SSR, heights, datetime){
+    constructor(xSeries, status, number, name, siteName, SSR, heights, datetime, showSeriesLine=true){
         
         super(xSeries, status, number, name, siteName, SSR, datetime);
         this.heights = heights;
+        this.showSeriesLine = showSeriesLine; // show a separate header of the series; for tech this might be set to false when there is only one series
+        // the children are the single persons
     }
 }
 
@@ -2593,27 +2607,6 @@ export class dSeriesSheetTrack extends dSeries {
  * class to store the information about a contest; childs can be e,g. the series
  */
 export class dContest extends dContainer{
-
-    /**
-     * Create a contest object from the data present in any contest
-     * @param {object} contest The contest object including all series etc.
-     * @param {array} series Array storing all series 
-     * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
-     * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
-     */
-    /*static of(contest, series, startgroups, xSeries=null){
-        let cContest =  new dContest(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf);
-
-        // create each series-container and add it to the contest
-        for (let s of series){
-            if (xSeries==null || s.xSeries == xSeries){
-                let s2 = dSeries.of(s, startgroups);
-                cContest.addSeries(s2);
-            }
-        }
-        cContest.sortSeries('number')
-        return cContest
-    }*/
 
     constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups=[], categories, printConf={}){
 
@@ -2695,47 +2688,3 @@ export class dContestSheetTrack extends dContestSheet {
         // the children are the series
     };
 }
-
-// unused!
-async function printContest(){
-
-    let cContest = dContest.of(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, null)
-    let hf = new dHeaderFooter([cContest]);
-    let p = await printer.create([hf], true)
-    //let p = new printer([hf], true)
-
-    // add the page number in a rather strange way, by directly replacing a placeholder in the content stream as a hex word. Please note that with that approach the text will not be aligned correctly when the alignment is not left, since the original alignment done in some function was based on the placeholder and not the replaced string.
-    // To increase speed, we could not try to replace a part of a string (which requires searching all strings for the given needle), but instead simply replace a shole string, which only requires the comparison of full strings and a replacement whenever needed. 
-
-    // encode the string to be replaced 
-    let placeholder = p.fonts.Helvetica.encodeText('{The number of pages}')
-
-    // encode replacement string 
-    let replacer = p.fonts.Helvetica.encodeText('Page X of Y')
-
-    for (let iO of p.doc.context.indirectObjects.values()){ // indirectObjects is a MAP
-        // only further consider PDF content streams and Tj operators
-        if (iO.constructor.name == 'PDFContentStream'){
-            for (let oP of iO.operators){
-                if (oP.name==='Tj'){
-                    // this is a text operator
-                    // now search for the encoded text and replace it
-                    // args of Tj have always only one element
-                    oP.args[0].value = oP.args[0].value.replace(placeholder.value, replacer.value);
-                }
-            }
-        }
-    } 
-    // Tested. Works. (But this is certainly not the best approach.)
-
-    p.showNewTab()
-
-    return p
-}
-
-// printing a contest
-// create the data-container for the contest
-//const cContest = dContest.of(contest, series, startgroups, null)
-
-// now print it
-//p = new printer(cContest)
