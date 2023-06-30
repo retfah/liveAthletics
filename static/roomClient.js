@@ -933,7 +933,7 @@ class roomClient {
                         // the data is still on the stack and will stay there.
                         // if this rule is applied when the connection was lost, sync will not be executed until the connection is back (inlc TabID reported) anyway:
 
-                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send teh request again. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
+                        this.logger.log(8, `Error while sending request "${JSON.stringify(this.stack[0].info)}" to server. Code: ${errCode}, Msg: ${errMsg}. Try to send the request again. (Room: ${this.name}, request content: ${JSON.stringify(request)})`);
 
                         // notify user
                         if ("createErrMsg" in ruleObj ? ruleObj.createErrMsg : true){
