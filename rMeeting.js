@@ -63,11 +63,11 @@ class rMeeting extends roomServer{
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateMeeting = this.updateMeeting.bind(this);
-        this.functionsReadOnly.baseGetCompetitions = this.baseGetCompetitions.bind(this);
-        this.functionsWrite.baseImportCompetition = this.baseImportCompetition.bind(this); 
-        this.functionsReadOnly.baseLastUpdate = this.baseLastUpdate.bind(this);
-        this.functionsWrite.baseUpdate = this.baseUpdate.bind(this);
         this.functionsReadOnly.renewStartgroups = this.renewStartgroups.bind(this); // renew all startgroups in all rooms
+
+        // 2023-06: moved all base stuff in one general function, to allow for any kind of module; 
+        // use "functionsWrite", since this makes sense at least when importing a competition
+        this.functionsWrite.baseFunction = this.baseFunction.bind(this);
 
         // first create the date of today (UTC):
         let now = new Date();
@@ -111,7 +111,6 @@ class rMeeting extends roomServer{
             required:['onlineId'],
             additionalProperties: false,
         }
-
 
 
         /*const schemaServerReferencing = {
@@ -173,57 +172,27 @@ class rMeeting extends roomServer{
                 feeOptions:{type:'object'}, // in a separate object to make it replaceable e.g. for different countries
                 baseSettings: {type:'object'},
             },
-            required:['name', 'location', 'organizer', 'dateFrom', 'dateTo', 'isIndoor', 'feeModel',  'feeOptions'],
             required:['name', 'location', 'stadium', 'organizer', 'dateFrom', 'dateTo', 'isIndoor', 'feeModel',  'feeOptions'],
             additionalProperties:false ,
         }
 
-        const schemaBaseImportCompetition = {
-            type: 'object',
-            properties: {
-                baseName: {type:"string"},
-                identifier: {type:'string'},
-                opts: {type:'object'}, // the exact properties opts should have is probably specified by the actual base implementation 
-            },
-            additionalProperties:false ,
-            required: ['baseName', 'identifier', 'opts'],
-        }
-
-        const schemaBaseGetCompetitions = {
-            type: 'object',
-            properties: {
-                baseName: {type:"string"},
-                opts: {type:'object'}, // the exact properties opts should have is probably specified by the actual base implementation (e.g. password and username)
-            },
-            additionalProperties:false ,
-            required: ['baseName', 'opts'],
-        }
-        
-        const schemaBaseUpdate = {
+        const schemaBaseFunction = {
             type:'object',
             properties: {
                 baseName: {type:"string"},
-                opts: {type:'object'}, // the exact properties opts should have is probably specified by the actual base implementation (e.g. password and username)
+                functionName: {type:"string"},
+                data: {default:null},
             },
-            additionalProperties:false ,
-            required: ['baseName', 'opts'],
-        }
-
-        const schemaBaseLastUpdate = {
-            type:'object',
-            properties: {
-                baseName: {type:"string"},
-            },
-            additionalProperties:false ,
-            required: ['baseName'],
+            additionalProperties: false,
+            required: ['baseName', 'functionName', 'data'],
         }
         
         // this will actually be overriden when the mongo-data was read and the schemaMeeting is extended with the fee and the importExportModel schemas.
         this.validateMeetingNoOptions = this.ajv.compile(this.schemaMeeting);
-        this.validateBaseGetCompetitions = this.ajv.compile(schemaBaseGetCompetitions);
-        this.validateBaseImportCompetition = this.ajv.compile(schemaBaseImportCompetition);
-        this.validateBaseUpdate = this.ajv.compile(schemaBaseUpdate);
-        this.validateBaseLastUpdate = this.ajv.compile(schemaBaseLastUpdate);
+        this.validateBaseFunction = this.ajv.compile(schemaBaseFunction);
+
+        
+        this.ready = true; // lets the onRoomReady being run, at least as soon as mongoReady
 
     }
 
@@ -231,7 +200,7 @@ class rMeeting extends roomServer{
      * Called as soon this.collection is set, i.e. when the collection of this room is ready.
      * Overrides the empty parent
      */
-    async onMongoConnected(){
+    async onRoomReady(){
         
         // try to get the meeting document:
         let data = {};
@@ -260,8 +229,6 @@ class rMeeting extends roomServer{
         // define the new validation:
         this.validateMeeting = this.createValidator(data);
 
-        this.ready = true;
-
     }
 
     /**
@@ -285,8 +252,41 @@ class rMeeting extends roomServer{
         return this.ajv.compile(this.schemaMeeting);
     }
 
+    async baseFunction(data){
+        if (!this.validateBaseFunction(data)){
+            throw {code: 21, message: `The sent data is not valid : ${this.ajv.errorsText(this.validateBaseFunction.errors)}.`}
+        }
+
+        if (!(data.baseName in this.baseModules)){
+            throw {code:22, message:`Module ${data.baseName} does not exist.`}
+        }
+
+        const base = this.baseModules[data.baseName];
+
+        // The function shall NOT return the regular room function return object, since this MUST be done here! (We shall not have to trust a module to return the right object with the correct doObj:{funcName: baseFunction}...!)
+
+        // the function should return an object:{isAchange, response} or throw an error with codes >=30
+        let res =  await base.baseFunction(data.functionName, data.data, this);
+
+        let ret = {            
+            isAchange: res.isAchange ?? false, 
+            doObj: {funcName: 'baseFunction', data},
+            //undoObj: {funcName: '', data: oldData, ID: this.ID},
+            response: res.response, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
+
+        // TODO: eventually we need to implement here to stop and start the meeting before/after doing the change! However, we could only do this here, when this info is transmited by the client, which is not a good idea. The server funciton should decide about it!
+
+    }
+
     // notify all rooms to renew the startgroups; this is needed e.g. when the base data were updated in another meeting, since the automatucally raised event is only received in this room 
     renewStartgroups(data){
+
+        // TODO: first, update the performances from the base data
+
         // make sure that all contests recreate their startgroups !
         this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
         return true;
@@ -329,180 +329,6 @@ class rMeeting extends roomServer{
             undoObj: {funcName: 'updateMeeting', data: oldData, ID: this.ID},
             response: data, 
             preventBroadcastToCaller: true
-        };
-
-        return ret;
-
-    }
-    
-    async baseGetCompetitions(data){
-        if (!this.validateBaseGetCompetitions(data)){
-            throw {code: 21, message: `The sent data is not valid: ${this.ajv.errorsText(this.validateBaseGetCompetitions.errors)}.`}
-        }
-
-        if (!(data.baseName in this.baseModules)){
-            throw {code:22, message:`Module ${data.baseName} does not exist.`}
-        }
-
-        const response = {
-            err:0, 
-        };
-
-        const base = this.baseModules[data.baseName];
-        response.competitions = await base.getCompetitions(data.opts).catch((errObj)=>{
-            if (errObj.code==1){
-                // connection error
-                response.err = 2;
-
-            } else if (errObj.code==2) {
-                // error during processing of the server's answer
-                throw {code:23, message:`There was an error on the server while processing the received list of meetings: ${JSON.stringify(errObj)}`}
-
-            } else if (errObj.code==3) {
-                // no meetings
-                response.err = 1;
-            } else if(errObj.code==4){
-                // login credentials wrong
-                response.err=3;
-            }
-        });
-
-        // return
-        return response;
-
-    }
-
-    async baseImportCompetition(data){
-
-        if (!this.validateBaseImportCompetition(data)){
-            throw {code: 21, message: `The sent data is not valid: ${this.ajv.errorsText(this.validateBaseImportCompetition.errors)}.`}
-        }
-
-        if (!(data.baseName in this.baseModules)){
-            throw {code:22, message:`Module ${data.baseName} does not exist.`}
-        }
-
-        const response = {
-            err:0, 
-            notes:'',
-            hello:123,
-        };
-
-        // reference to the rooms of this meeting
-        const roomRef = this.rMeetings.activeMeetings[this.meeting.shortname].rooms;
-
-        const base = this.baseModules[data.baseName];
-        const importResult = await base.importCompetition(data.identifier, roomRef, data.opts).catch((errObj)=>{
-            if (errObj?.code==1){
-                // connection error
-                response.err = 2;
-
-            } else if (errObj?.code==2) {
-                // error during processing of the server's answer
-                throw {code:23, message:`There was an error on the server while processing the competition: ${JSON.stringify(errObj)}`}
-
-            } else if (errObj?.code==3) {
-                // meeting does not exist
-                response.err = 1;
-            } else if(errObj?.code==4){
-                // login credentials wrong
-                response.err=3;
-            } else {
-                throw {code:25, message:`Error occured during processing: ${JSON.stringify(errObj)}`};
-            }
-        });
-
-        if (response.err==0){
-            // store the information about the import
-            this.data.baseSettings['SUI'] = importResult.baseSettings;
-
-            // store this data to DB
-            try {
-                await this.collection.updateOne({type:'meeting'}, {$set:{meeting: this.data}})
-            } catch (e){
-                this.logger.log(20, `Could not update meeting in MongoDB: ${e}`)
-                throw {code: 24, message: `Could not update meeting in MongoDB: ${e}`};
-            }
-
-            response.notes = importResult.statsForClient.notes;
-            response.failCount = importResult.statsForClient.failCount;
-            response.newCount = importResult.statsForClient.newCount;
-            response.updateCount = importResult.statsForClient.updateCount;
-            
-        }
-
-        // return
-        let ret = {            
-            isAchange: false, 
-            doObj: {funcName: 'updateMeeting', data: this.data},
-            //undoObj: {funcName: '', data: oldData, ID: this.ID},
-            response: response, 
-            preventBroadcastToCaller: true
-        };
-
-        return ret;
-    }
-
-    async baseLastUpdate(data){
-        if(!this.validateBaseLastUpdate(data)){
-            throw{code:21, message:`The sent data is not valid: ${this.ajv.errorsText(this.validateBaseLastUpdate.errors)}.`}
-        }
-
-        if (!(data.baseName in this.baseModules)){
-            throw {code:22, message:`Module ${data.baseName} does not exist.`}
-        }
-
-        const response = {
-            err:0, 
-            lastUpdate: this.baseModules[data.baseName].lastBaseUpdateDate,
-        };
-
-        // return
-        return response;
-        
-    }
-
-    async baseUpdate(data){
-        if(!this.validateBaseUpdate(data)){
-            throw{code:21, message:`The sent data is not valid: ${this.ajv.errorsText(this.validateBaseUpdate.errors)}.`}
-        }
-
-        if (!(data.baseName in this.baseModules)){
-            throw {code:22, message:`Module ${data.baseName} does not exist.`}
-        }
-
-        const response = {
-            err:0, 
-        };
-
-        const base = this.baseModules[data.baseName];
-        response.notes = await base.updateBaseData(data.opts).catch((errObj)=>{
-            if (errObj.code==1){
-                // connection error
-                response.err = 2;
-
-            } else if (errObj.code==2) {
-                // error during processing of the server's answer
-                throw {code:23, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
-
-            } else if(errObj.code==4){
-                // login credentials wrong
-                response.err=3;
-            } else {
-                throw {code:24, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
-            }
-        });
-
-        // make sure that all contests recreate their startgroups !
-        this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
-
-        // return
-        let ret = {
-            isAchange: false, 
-            //doObj: {funcName: '', data: data},
-            //undoObj: {funcName: '', data: oldData, ID: this.ID},
-            response: response, 
-            //preventBroadcastToCaller: true
         };
 
         return ret;

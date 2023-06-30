@@ -7,14 +7,16 @@ import conf from './conf.js';
 import Sequelize  from 'sequelize';
 import { streamToString } from './common.js';
 const Op = Sequelize.Op;
+const QueryTypes = Sequelize.QueryTypes;
 import {Worker, isMainThread, parentPort, workerData} from  'node:worker_threads';
 
 /*import {promisify}  from 'util';
 const readFileAsync = promisify( fs.readFile);*/
 import {readFile} from 'node:fs/promises';
+import {writeFile} from 'node:fs/promises';
 
 import initModels from "./modelsBaseSUI/init-models.js"; // es6 with define syntax (based on modified sequelize-auto functions, run as es5 but creating es6-import with define)
-import nationalBodyLink from "./nationalBodyLink.js"
+import nationalBodyLink from "./nationalBodyLink.js";
 
 // link to alabus
 export default class moduleLinkSUI extends nationalBodyLink {
@@ -23,8 +25,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
         pathEmptyDb: './emptyDbBaseSui.sql',
 
-        host: 'alabus.swiss-athletics.ch', // live server
-        //host: 'alabustest.swiss-athletics.ch', // test server
+        //host: 'alabus.swiss-athletics.ch', // live server
+        host: 'alabustest.swiss-athletics.ch', // test server
         port: 443,
         pathBaseData: '/rest/License/Athletica/ExportStammDataFull',
         pathCompetitionList: "/rest/Event/Athletica/ExportMeetingList",
@@ -137,6 +139,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
             dialect: 'mariadb', // mariadb, mysql
             dialectOptions: {
                 timezone: 'local',
+                connectTimeout: 10000, //ms
+                acquireTimeout: 30000, //ms
                 // multipleStatements: true, //would be needed if the admin-table creation was done through sequelize; however, it is dangerous as it allows SQL-injections!
             },
             host: conf.database.host,
@@ -192,6 +196,134 @@ export default class moduleLinkSUI extends nationalBodyLink {
         this.conf.disciplineTranslationTable = JSON.parse(JSON.stringify(this.conf.disciplineTranslationTableIndoor)); // create a copy, before assigning the other properties
         Object.assign(this.conf.disciplineTranslationTable, this.conf.disciplineTranslationTableOutdoor);
 
+
+    }
+
+    /**
+     * This function is the general entry point for requests. All requests shall (later) be processed through this function. This allows maximum flexibility for (base-)modules. 
+     * It is NOT possible to call the functions directly from rMeeting for security reasons, since it would allow to call ALL module functions, which might be much more than should be allowed.
+     * THe inheriting class shall override this function
+     * @param {string} functionName The name of the function to call
+     * @param {*} data The data for this function
+     * @param {object} meeting The meeting room.
+     * @return {object} o.response
+     * @return {object} o.isAchange (defaults to false)
+     * or throw an error with code >=30
+     */
+    async baseFunction(functionName, data, meeting){
+
+        if (functionName=='uploadResults'){
+            return this.uploadResults(meeting, data);
+        } else if (functionName=='baseLastUpdate'){
+            return {isAchange: false, response:{lastUpdate:this.lastBaseUpdateDate}};
+        } else if (functionName=='baseUpdate') {
+            let response = {err:0};
+            response.notes = await this.updateBaseData(data).catch((errObj)=>{
+                if (errObj.code==1){
+                    // connection error
+                    response.err = 2;
+    
+                } else if (errObj.code==2) {
+                    // error during processing of the server's answer
+                    throw {code:23, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
+    
+                } else if(errObj.code==4){
+                    // login credentials wrong
+                    response.err=3;
+                } else {
+                    throw {code:24, message:`There was an error on the server while processing the update: ${JSON.stringify(errObj)}`}
+                }
+            });
+
+            return {response, isAchange:false};
+
+        } else if (functionName=='getCompetitions'){
+            const response = {
+                err:0, 
+            };
+    
+            response.competitions = await this.getCompetitions(data).catch((errObj)=>{
+                if (errObj.code==1){
+                    // connection error
+                    response.err = 2;
+    
+                } else if (errObj.code==2) {
+                    // error during processing of the server's answer
+                    throw {code:23, message:`There was an error on the server while processing the received list of meetings: ${JSON.stringify(errObj)}`}
+    
+                } else if (errObj.code==3) {
+                    // no meetings
+                    response.err = 1;
+                } else if(errObj.code==4){
+                    // login credentials wrong
+                    response.err=3;
+                }
+
+            });
+
+            return {response, isAchange:false}
+
+        } else if (functionName=='importCompetition') {
+            
+            const response = {
+                err:0, 
+                notes:'',
+            };
+    
+            // reference to the rooms of this meeting
+            const roomRef = meeting.rMeetings.activeMeetings[meeting.meeting.shortname].rooms;
+    
+            const importResult = await this.importCompetition(roomRef, data).catch((errObj)=>{
+                if (errObj?.code==1){
+                    // connection error
+                    response.err = 2;
+    
+                } else if (errObj?.code==2) {
+                    // error during processing of the server's answer
+                    throw {code:23, message:`There was an error on the server while processing the competition: ${JSON.stringify(errObj)}`}
+    
+                } else if (errObj?.code==3) {
+                    // meeting does not exist
+                    response.err = 1;
+                } else if(errObj?.code==4){
+                    // login credentials wrong
+                    response.err=3;
+                } else {
+                    throw {code:25, message:`Error occured during processing: ${JSON.stringify(errObj)}`};
+                }
+            });
+    
+            if (response.err==0){
+                // store the information about the import
+                meeting.data.baseSettings['SUI'] = importResult.baseSettings;
+    
+                // store this data to DB
+                try {
+                    await meeting.collection.updateOne({type:'meeting'}, {$set:{meeting: meeting.data}})
+                } catch (e){
+                    this.logger.log(20, `Could not update meeting in MongoDB: ${e}`)
+                    throw {code: 24, message: `Could not update meeting in MongoDB: ${e}`};
+                }
+    
+                response.notes = importResult.statsForClient.notes;
+                response.failCount = importResult.statsForClient.failCount;
+                response.newCount = importResult.statsForClient.newCount;
+                response.updateCount = importResult.statsForClient.updateCount;
+                
+            }
+    
+            // return
+            let ret = {            
+                isAchange: false, 
+                response,
+            };
+    
+            return ret;
+            
+        } else {
+            throw {code:23, message: `Function ${functionName} does not exist in module baseSui.`};
+        }
+
     }
 
     /**
@@ -222,29 +354,1040 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * @return {numeric} integer or whatever is correct for liveAthletics
      */
     perfAlabus2LA(perf, xDiscipline){
-        if (xDiscipline>=206 && xDiscipline<=207){
-            // PV and HJ: '000002.05', in m
-
-            const val = parseFloat(perf);
-            if (isNaN(val)){
-                return ''; // not zero, but emtpy string!
-            } else {
-                return val*100; // to cm.
+        // the xDiscipline is useless, since the interpretation is fully dependent on the alabus type, and not xDiscipline of live athletics. However, for alabus it is simple: there are just two formats: one for tech, one for track; they can easily be differentiated
+        if (perf.indexOf(';')>=0){
+            // is a time
+            // according to the an interface definition, the times should look as follows: HH:MM:SS.ZZZ
+            // in fact, it looks like times are HH:MM:SS:ZZZ
+            // make sure it would work with both
+            const parts = perf.split(/[:,.]/);
+            if (parts.length==4){
+                // should actually always be the case
+                return ((3600*parseInt(parts[0])+60*parseInt(parts[1])+parseInt(parts[2]))*1000+parseInt(parts[3]))*100; // in 1/100000s
             }
-
-        } else {
+            return 0;
+        } else if (perf.indexOf('.')>=0){
+            const parts = perf.split(/[.]/);
+            if (parts.length==2){
+                // should actually always be the case
+                return 100*parseInt(parts[0]) + parseInt(parts[1]); // in cm
+            }
             return 0;
         }
+        // should never happen, except when empty
+        return 0;
     }
 
     /**
      * Translate the performance value from liveAthletics to Alabus. 
      * @param {string} perf The performance as given by liveAthletics
-     * @param {integer} xDiscipline xDiscipline of liveAthletics
+     * @param {integer} discType disciplineType of liveAthletics
      */
-    perfLA2Alabus(perf, xDiscipline){
-        // TODO
+    perfLA2Alabus(perf, discType){
+        if (discType==3){
+            // track
+            // remove the 1/100000s
+            let millis = Math.ceil((perf % 100000)/100);
+            let allSeconds = (perf - (perf % 100000))/100000;
+            let hours = Math.floor(allSeconds/3600);
+            let minutes = Math.floor((allSeconds-3600*hours)/60);
+            let seconds = allSeconds-3600*hours-60*minutes;
+            // format: HH:MM:SS.zzz // note: here, alabus uses . after the second, but in the base data it is : ...?
+            return `${hours.toString().padStart(2,0)}:${minutes.toString().padStart(2,0)}:${seconds.toString().padStart(2,0)}.${millis.toString().padStart(3,0)}`;
+
+        } else if (discType==2 || discType==1){
+            // tech
+            // as float in m with two digits after the period and 6 digits before; fill up with 0
+            return (perf/100).toFixed(2).padStart(9,0);
+        } else {
+            return 0;
+        }
     }
+
+    // TODO: move this to either the base class or even another file, which is also used by the listPrinter
+    /**
+     * Upload the results of a meeting to the national body. Get the data from the DB here (might be changed later on to the "generic lists processor"); but let the results get processed by the discpipline-type specific function. 
+     * @param {object} meeting The meeting-object to get the results from; should containa  reference 
+     * @param {object} opts Object with the options required to get the data; e.g. login credentials to the central database of the national body.
+     */
+    async uploadResults(meeting, opts){
+
+        if (!('password' in opts) || !('username' in opts)){
+            throw {code:30, message: 'username or password missing'};
+        }
+
+        // first, make sure this competition can be uploaded to swiss athletics:
+        if (!('SUI' in meeting?.baseModules)){
+            this.logger.log(20, `Cannot upload meeting ${meeting.name} to swiss-athletics since it was not downloaded from there / there is no event number.`);
+            return;
+        }
+
+        // for the track disciplines, we need to know how many rounds there are to define the kindOfLap (e.g. V, Z, F, 0, D, ...)
+        // TODO: 'D' (for Mehrkampf) is not used yet!
+        let queryNumRounds = `SELECT xEventGroup, count(xRound) as numRounds FROM rounds group by xEventGroup`;
+        const numRounds = await meeting.seq.query(queryNumRounds, { type: QueryTypes.SELECT });
+        // create an object from the result
+        const numRoundsEG = {};
+        for (let eg of numRounds){
+            numRoundsEG[eg.xEventGroup] = eg.numRounds;
+        }
+
+        let query = `Select
+        seriesstartsresults.position,
+        seriesstartsresults.resultOverrule,
+        seriesstartsresults.resultRemark,
+        seriesstartsresults.startConf,
+        seriesstartsresults.xSeriesStart,
+        series.status as seriesStatus,
+        series.name as seriesName,
+        series.datetime,
+        series.aux,
+        series.number,
+        series.xSeries,
+        regions.country,
+        regions.regionShortname,
+        contests.name as contestName,
+        contests.status as contestStatus,
+        contests.conf as contestConf,
+        contests.xContest,
+        resultstrack.time,
+        resultstrack.timeRounded,
+        resultstrack.rank,
+        resultstrack.reactionTime,
+        resultstech.result,
+        resultstech.attempt,
+        resultstech.wind,
+        heights.height,
+        heights.jumpoffOrder,
+        resultshigh.resultsHighFailedAttempts,
+        resultshigh.resultsHighValid,
+        resultshigh.resultsHighPassed,
+        startsingroup.number As groupNumber,
+        athletes.lastname,
+        athletes.forename,
+        athletes.birthdate,
+        athletes.sex,
+        athletes.identifier,
+        athletes.nationalBody as athleteNationalBody,
+        clubs.name As clubName,
+        clubs.usercode as usercode,
+        inscriptions.number As bib,
+        starts.bestPerf,
+        starts.bestPerfLast,
+        groups.name As groupName,
+        rounds.xRound,
+        rounds.order,
+        eventgroups.xEventGroup,
+        bdlC.shortname as bdlCShortname,
+        bdlC.name As bdlCName,
+        basedisciplinesC.shortnameStd as bdCShortnameStd,
+        basedisciplinesC.nameStd as bdCNameStd,
+        basedisciplinesC.type as bdCType,
+        CAST(basedisciplinesC.indoor as INTEGER) as bdCIndoor,
+        basedisciplinesC.baseConfiguration As bdCBaseConfiguration,
+        basedisciplinesC.xBaseDiscipline as bdCXBaseDiscipline,
+        events.onlineId,
+        events.info as eventInfo,
+        events.date,
+        events.nationalBody as eventNationalBody,
+        events.xEvent,
+        categories.shortname As catShortname,
+        categories.name As catName,
+        categories.sortorder as catSortorder,
+        categories.xCategory,
+        categories.code, -- the SUI code
+        disciplines.configuration,
+        disciplines.info as disciplineInfo,
+        disciplines.sortorder as disciplineSortorder,
+        disciplines.xDiscipline,
+        bdlE.name As bdlEName,
+        bdlE.shortname As bdlEShortname,
+        basedisciplinesE.nameStd As bdENameStd,
+        basedisciplinesE.shortnameStd As bdEShortnameStd,
+        basedisciplinesE.type As bdEType,
+        CAST(basedisciplinesE.indoor as INTEGER) As bdEIndoor,
+        basedisciplinesE.baseConfiguration As bdEBaseConfiguration,
+        basedisciplinesE.xBaseDiscipline as bdEXDiscipline
+    From
+        seriesstartsresults Inner Join
+        series On seriesstartsresults.xSeries = series.xSeries Inner Join
+        startsingroup On seriesstartsresults.xStartgroup = startsingroup.xStartgroup
+        left Join
+        starts On startsingroup.xStart = starts.xStart left Join
+        inscriptions On starts.xInscription = inscriptions.xInscription left Join
+        athletes On athletes.xInscription = inscriptions.xInscription Left Join
+        regions On athletes.xRegion = regions.xRegion Left Join
+        contests On series.xContest = contests.xContest left Join
+        resultshigh On resultshigh.xResult = seriesstartsresults.xSeriesStart Left Join
+        resultstech On resultstech.xResultTech = seriesstartsresults.xSeriesStart Left Join
+        resultstrack On resultstrack.xResultTrack = seriesstartsresults.xSeriesStart Left Join
+        heights On resultshigh.xHeight = heights.xHeight Left Join
+        clubs On athletes.xClub = clubs.xClub Left Join
+        groups On groups.xContest = contests.xContest Left Join
+        rounds On groups.xRound = rounds.xRound Left Join
+        eventgroups On rounds.xEventGroup = eventgroups.xEventGroup Left Join
+        basedisciplines basedisciplinesC On contests.xBaseDiscipline = basedisciplinesC.xBaseDiscipline
+        Left Join (select shortname, name, xBaseDiscipline from basedisciplinelocalizations where language='de') bdlC
+        On bdlC.xBaseDiscipline =
+                basedisciplinesC.xBaseDiscipline Left Join
+        events On starts.xEvent = events.xEvent Left Join
+        categories On events.xCategory = categories.xCategory Left Join
+        disciplines On events.xDiscipline = disciplines.xDiscipline Left Join
+        basedisciplines basedisciplinesE On disciplines.xBaseDiscipline =
+                basedisciplinesE.xBaseDiscipline Left Join
+        (select shortname, name, xBaseDiscipline from basedisciplinelocalizations where language='de') bdlE On bdlE.xBaseDiscipline =
+                basedisciplinesE.xBaseDiscipline
+    Where
+        seriesstartsresults.resultOverrule<=1 AND -- only regular and "retired" results
+        -- athletes.nationalBody='SUI' AND -- do NOT only get swiss-people, sicne we need all other persons for ranking as well!
+        contests.status>=180 -- TODO: only competitions that are at least finished!
+
+    order by
+        eventgroups.xEventGroup, -- must be ordered by eventGroup, round, group and series first to make the ranking-stuff work
+        rounds.order,
+        groups.number,
+        series.number,
+        heights.jumpoffOrder, -- sort the results
+        heights.height,
+        resultstech.attempt`;  
+
+        const results = await meeting.seq.query(query, { type: QueryTypes.SELECT });
+        // bundle the results, i.e. 
+        // 1. bundle all results (all attempts, all heights) of the same round (with regard to a person this is equivalent to all results in the same series) to one entry
+        const resBundledPerson = this.bundleResults(results);
+
+        // 2. bundle all results into the grouping that shall be used for ranking and apply the ranks at the same time
+        // the ranking shall always be over the whole round
+        const conf = {grouping:'xRound', sorting:'xRound', ranking:true};
+        const resBundledStructured = this.bundlingAndRanking(conf, resBundledPerson);
+        // note: the structure is just one level here, since there 
+
+        // note: the rank within a heat (for track only) already exists on the basis of the timing. the actual upload function may decide whether the rank within the heat or the time-based rank over the whole round shall be used.
+
+        // create the xml and send it.
+        // change the sorting again; for alabus, it seems like the results do not need to be structured as the results actually are (event/round/contest); instead, every round seems to be a separate <discipline sportDiscipline="30" licenseCategory="MAN_">, where an athlete obviously only has one result entry (excepr eventually for tech with wind, where there might be a regular and a non-regular result)
+        // thus, sort by xEvent (for the category) and xRound
+
+        // the data is in resBundledStructured as [round1, round2, ...] where each round has a data property with the actual data
+        // merge all data together, in order to be able to sort differently for alabus/swiss-athletics
+        const allResults=resBundledStructured.flatMap(round=>round.data);
+
+        // filter non-SUI-base athletes and no-ranks
+        const resultsFiltered= allResults.filter(r=>r.athleteNationalBody=='SUI' && r.ranking.xRound>0);
+
+        if (resultsFiltered.length==0){
+            this.logger.log(20, `No results to upload to swiss-athletics in meeting ${meeting.name}.`);
+            return;
+        }
+
+        // sort the results as discussed above
+        resultsFiltered.sort((a,b)=>{
+            if (a.xEvent != b.xEvent){
+                return a.xEvent - b.xEvent;
+            }
+            return a.xRound - b.xRound;
+        })
+
+        let today = new Date();
+        let xmlStr = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<watDataset version="${today.toISOString().slice(2,4)+today.toISOString().slice(4,10)}">
+    <event>
+        <eventNumber>${meeting.data.baseSettings.SUI.approval}</eventNumber>
+        <name>${meeting.data.name}</name>
+        <eventStart>${meeting.data.dateFrom.slice(0,10)}</eventStart>
+        <eventEnd>${meeting.data.dateTo.slice(0,10)}</eventEnd>
+        <location>${meeting.data.location}</location>
+        <stadium>${meeting.data.stadium}</stadium>
+        <amountSpectators></amountSpectators>
+        <accounts>
+        </accounts>
+        <disciplines>`;
+
+        // add all "disciplines" (actually a round of an event)
+        // probably it would work differently too, but we do it as athletica did it.
+        let lastXRound = resultsFiltered[0].xRound;
+        // start the first discipline
+
+        let xDiscipline = this.conf.disciplineTranslationTable[resultsFiltered[0].xDiscipline];
+        let catCode = resultsFiltered[0].code;
+
+        xmlStr+= `
+            <discipline sportDiscipline="${xDiscipline}" licenseCategory="${catCode}">
+                <athletes>`;
+        for (let i=0; i<resultsFiltered.length; i++){
+            let res = resultsFiltered[i];
+
+            // create the date of the event
+            // - basically, sequelize will return a date object; however, if the bundling process uses JSON.parse/strignify to creae a clone, then the date will be a string afterwards
+            // - simply taking the first letters of toISOString() does not work, since there is a one day offset from swiss time zone to UTC (e.g. when for switzerland we store 2023-02-03 T00:00:00, the it is 2023-02-02 T23:00:00 in UTC!)
+            // note the following procedure only works when the upload is done during the same timezone difference as the record was stored.
+            let date;
+            // consider timezoneOffset (integer in minutes) given in meeting.data 
+            if (typeof(res.date)=='string'){
+                let d = new Date(res.date);
+                date = new Date(d.valueOf() + meeting.data.timezoneOffset*60*1000);
+            } else {
+                // is already a date
+                date = new Date(res.date.valueOf() + meeting.data.timezoneOffset*60*1000);
+            }
+
+            // write the athlete's result
+
+            let indoor = res.bdEIndoor;
+            let relevant = 1; // currently we do not use this field; this should be set to 0 if women run in a mens heat
+
+            // differentiate the different types of disciplines!
+            if (res.bdEType==1){
+                // tech vertical
+                // lapkind is always 0 for tech
+
+                xmlStr += `
+                    <athlete license="${res.identifier}" licensePaid="1" licenseCat="" inMasterData="1">
+                        <efforts>
+                            <effort>
+                                <DateOfEffort>${date.toISOString().slice(0,10)}</DateOfEffort>
+                                <distanceResult>${this.perfLA2Alabus(res.rankingData.lastValidHeight, 1)}</distanceResult>
+                                <wind></wind>
+                                <kindOfLap>0</kindOfLap>
+                                <lap />
+                                <place>${res.ranking.xRound}</place>
+                                <placeAddon></placeAddon>
+                                <indoor>${indoor}</indoor>
+                                <relevant>${relevant}</relevant>
+                                <effortDetails></effortDetails>
+                                <accountinfo></accountinfo>
+                                <homologate>1</homologate>
+                            </effort>
+                        </efforts>
+                    </athlete>`;
+
+
+            } else if (res.bdEType==2){
+
+                // TODO: check that everything is correct! (since this could not be tested before)
+                // all the rest until here for type2 is also still untested!
+
+                // tech horizontal
+                // lapkind is always 0 for tech
+
+                // if there is a wind measurement, send the best results with valid wind as well as the best result overall, if they are not the same
+
+                // first, write the best result independent of the wind
+                /*let wind = res.rankingData.bestResultWind===null ? '' : res.rankingData.bestResultWind;
+                xmlStr += `
+                <athlete license="${res.identifier}" licensePaid="1" licenseCat="" inMasterData="1">
+                    <efforts>
+                        <effort>
+                            <DateOfEffort>${date.toISOString().slice(0,10)}</DateOfEffort>
+                            <distanceResult>${this.perfLA2Alabus(res.rankingData.bestResult, 2)}</distanceResult>
+                            <wind>${wind}</wind>
+                            <kindOfLap>0</kindOfLap>
+                            <lap />
+                            <place>${res.ranking.xRound}</place>
+                            <placeAddon></placeAddon>
+                            <indoor>${indoor}</indoor>
+                            <relevant>${relevant}</relevant>
+                            <effortDetails></effortDetails>
+                            <accountinfo></accountinfo>
+                            <homologate>1</homologate>
+                        </effort>`;
+
+                // if needed, add an additional effort with correct wind.
+                if (res.rankingData.bestResultWindValid != res.rankingData.bestResult){
+                    wind = res.rankingData.bestResultWindValidWind===null ? '' : res.rankingData.bestResultWindValidWind;
+                    xmlStr += `
+                        <effort>
+                            <DateOfEffort>${date.toISOString().slice(0,10)}</DateOfEffort>
+                            <distanceResult>${this.perfLA2Alabus(res.rankingData.bestResultWindValid, 2)}</distanceResult>
+                            <wind>${wind}</wind>
+                            <kindOfLap>0</kindOfLap>
+                            <lap />
+                            <place>${res.ranking.xRound}</place>
+                            <placeAddon></placeAddon>
+                            <indoor>${indoor}</indoor>
+                            <relevant>${relevant}</relevant>
+                            <effortDetails></effortDetails>
+                            <accountinfo></accountinfo>
+                            <homologate>1</homologate>
+                        </effort>`
+                }
+
+                // end the block
+                xmlStr +=`
+                    </efforts>
+                </athlete>`;*/
+
+
+            } else if (res.bdEType==3){
+                // track
+
+                let resStr = this.perfLA2Alabus(res.time, 3); // must be hh:mm:ss.ttt
+                // process the aux data to get the wind
+                let aux = JSON.parse(res.aux);
+                let wind = ''; // empty if no wind; normally +A.B or -A.B
+                if ('wind' in aux){
+                    wind = Math.ceil(aux.wind*10)/10;
+                    if (wind>0){
+                        wind = "+"+wind.toString();
+                    } else {
+                        wind = wind.toString();
+                    }
+                }
+                
+                let lap = res.number.toString().padStart(2,'0').slice(-2); // must be two letter code (alabus cannot handle heat-number >=100); always take the last two digits
+
+                // for the lap kind, we must differentiate between the rounds;
+                let lapKind = 'V'; // F (Final) X (Halbfinal) D (Mehrkampf; not used) Q (Qualifikation; not used) S (Serie) V (Vorlauf) Z (Zwischenlauf) 0 (für tech)
+                if (numRoundsEG[res.xEventGroup]==1){
+                    lapKind = 'S';
+                } else if (numRoundsEG[res.xEventGroup]==2){
+                    if (res.order==2){
+                        lapKind = 'F';
+                    }
+                } else {
+                    if (res.order==numRoundsEG[res.xEventGroup]){
+                        lapKind = 'F';
+                    } else if (res.order==numRoundsEG[res.xEventGroup]-1){
+                        lapKind = 'X';
+                    } else if (res.order>1){
+                        lapKind = 'Z';
+                    }
+                }
+                // for the final round (i.e. the last round when there is more than 1)
+                if (res.order==numRoundsEG[res.xEventGroup] && numRoundsEG[res.xEventGroup]>1){
+                    // overwrite the default numbers by letters; the last final heat is A_, second last B_, ... 
+                    const letters=['A_', 'B_', 'C_', 'D_', 'E_'];
+                    // TODO: we need to know how many heats we had...
+                    let sql = `select count(*) as numHeats from series where xContest=${res.xContest}`;
+                    const numHeatsRow = await meeting.seq.query(sql, { type: QueryTypes.SELECT });
+                    const numHeats = numHeatsRow[0].numHeats;
+                    
+                    lap = letters[Math.min(4,res.number-numHeats)];
+                }
+
+                // NOTE: placeAddon (e.g. for markers for competition >1000m over sealevel), effortDetails,a ccountInfo and homologate are currently not used, since it seems like athleteica also did not use it.
+                xmlStr += `
+                    <athlete license="${res.identifier}" licensePaid="1" licenseCat="" inMasterData="1">
+                        <efforts>
+                            <effort>
+                                <DateOfEffort>${date.toISOString().slice(0,10)}</DateOfEffort>
+                                <timeResult>${resStr}</timeResult>
+                                <wind>${wind}</wind>
+                                <kindOfLap>${lapKind}</kindOfLap>
+                                <lap>${lap}</lap>
+                                <place>${res.rank}</place>
+                                <placeAddon></placeAddon>
+                                <indoor>${indoor}</indoor>
+                                <relevant>${relevant}</relevant>
+                                <effortDetails></effortDetails>
+                                <accountinfo></accountinfo>
+                                <homologate>1</homologate>
+                            </effort>
+                        </efforts>
+                    </athlete>`;
+            }
+            
+            // check if the next entry is different
+            if (i<resultsFiltered.length-1 && resultsFiltered[i+1].xRound != lastXRound){
+                lastXRound = resultsFiltered[i+1].xRound;
+                xDiscipline = this.conf.disciplineTranslationTable[resultsFiltered[i+1].xDiscipline];
+                catCode = resultsFiltered[i+1].code;
+                xmlStr+= `
+                </athletes>
+            </discipline>
+            <discipline sportDiscipline="${xDiscipline}" licenseCategory="${catCode}">
+                <athletes>`;
+            }
+        }
+        // end the xml.
+        xmlStr+= `
+                </athletes>
+            </discipline>`;
+
+        // loop over all results and create the xml
+
+
+        // finalize the xml:
+        xmlStr += `
+        </disciplines>
+    </event>
+</watDataset>`;
+
+        // TODO: for testing, write the file to disk; later eventually keep writing to disk but also upload the result
+        await writeFile(`./temp/newResults.xml`, xmlStr);
+        
+        //TODO: remove for actual upload!
+        //return {response: true, isAchange: false};
+
+        // gzip the xml!
+        let xmlgz = zlib.gzipSync(xmlStr);
+
+        // create the body
+        let remoteFilename = `${today.getUTCFullYear()}${(today.getUTCMonth()+1).toString().padStart(2,0)}${today.getUTCDate().toString().padStart(2,0)}_${meeting.data.baseSettings.SUI.approval}.gz`; // the filename to be send
+        let body = "--swissAthletics\r\n"; // TODO: eventually CRLF before is (not) needed
+        body += `content-disposition: form-data; name="file"; filename="${remoteFilename}" \r\n`;
+        body += `content-type: application/x-gzip \r\n\r\n`;
+        // put here the xmlgz
+        let body2 = `\r\n`;
+        body2 += "--swissAthletics--";
+
+        // finally transform the body to buffer and concat with the xmlgz buffer 
+        let bodyBuffer = Buffer.concat([Buffer.from(body), xmlgz, Buffer.from(body2)]);
+
+        let opts2 = {
+            host: this.conf.host,
+            port: this.conf.port,
+            auth:`${opts.username}:${opts.password}`,
+            method:'POST',
+            headers:{
+                'Content-Type': "multipart/form-data; boundary=swissAthletics",
+                'Content-Length': bodyBuffer.length, 
+            },
+            path: this.conf.pathResultsUpload,
+        }
+
+        // if it does not work, try with the module "form-data"
+
+        return new Promise((resolve, reject)=>{
+            // upload the data
+            let req = https.request(opts2); 
+            req.write(bodyBuffer);
+
+            req.on('error', (e)=>{
+                this.logger.log("Upload failed: " + e.message);
+                reject({code:31, message: 'HTTPS error: ' + e.message});
+            })
+            req.on('response', (res)=>{
+
+                if (res.statusCode==401){
+                    this.logger.log(`Upload SUI results failed: ${res.statusCode} ${res.statusMessage}`);
+                    reject({code:33, message:`Upload results failed due to invalid username and/or password (${res.statusCode} ${res.statusMessage})`});
+                }
+                else if (res.statusCode>299){
+                    this.logger.log(`Upload SUI results failed: ${res.statusCode} ${res.statusMessage}`);
+                    reject({code:32, message:`Upload results failed: ${res.statusCode} ${res.statusMessage}`});
+                } else {
+                    let ret = {response: true, isAchange: false};
+                    resolve(ret);
+                }
+            })
+
+            req.end(); // finally send the real request
+
+        })
+
+    }
+
+
+
+    // TODO: to be moved in another file
+    /**
+     * Merge multiple results (e.g. attempts in techLong or heights in techHigh) of the same round in one. This funtion calls the type specific function to merge (and potentially preprocess) the results. Ideally the data is already sorted such that all results of the same round/person occurs right after the other, but it will be sorted here to ensure that everything works fine. 
+     * @param {array} results array with the raw sql result lines, where the result of one person might be on multiple lines
+     * @returns array of results that are bundled by person/round
+     */
+    bundleResults(results){
+        
+        if (results.length==0) return results;
+        
+        // first sort the results by xSeriesStart to make sure that reuslts that belong together appear one after the other
+        results.sort((a,b)=>a.xSeriesStart-b.xSeriesStart);
+
+        let resBundled = [];
+        
+        let lastXSSR = results[0]?.xSeriesStart;
+        let begin = 0; // the begin of the same xSSR
+        for (let i = 0; i<results.length; i++){
+            // always actually check the next element; except if it is the last element
+            if (i==results.length-1 || lastXSSR != results[i+1].xSeriesStart){
+                
+                let end = i;
+                // get the results to bundle
+                const resToBundle = results.slice(begin, end+1);
+                // merge all results in between
+                // TODO: this if/else should actually be in a general function somewhere and not here
+                let bundled;
+                if (results[i].bdCType == 1){
+                    // techHigh
+                    bundled = this.bundleTechHigh(resToBundle);
+                } else if (results[i].bdCType == 2){
+                    // techLong
+                    bundled = this.bundleTechLong(resToBundle);
+                } else if ((results[i].bdCType == 3)){
+                    // track (probably nothing to do in the subfunction) 
+                    bundled = this.bundleTrack(resToBundle);
+                }
+                resBundled.push(bundled);
+
+                if (i<results.length-1){
+                    lastXSSR = results[i+1].xSeriesStart;
+                    begin = i+1;
+                }
+            }
+        }
+
+        return resBundled;
+    }
+
+    /**
+     * take an array of results (i.e. with every attempt) of one person and create a single object with all results in it
+     */
+    bundleTechHigh(results){
+
+        // make sure the sorting is correct
+        results.sort((a,b)=>{
+            if (a.jumpoffOrder != b.jumpoffOrder){
+                return a.jumpoffOrder - b.jumpoffOrder;
+            } else {
+                return a.height-b.height;
+            }
+        })
+
+        // use the first result as the basis and then delete/add properties
+        let res = JSON.parse(JSON.stringify(results[0]));
+
+        // delete the properties that are only valid for the single result
+        delete res.resultsHighFailedAttempts;
+        delete res.resultsHighValid;
+        delete res.resultsHighPassed;
+        delete res.height;
+        delete res.jumpoffOrder;
+        
+        // add the new properties
+        // create the following "total" properties to be added to the object:
+        res.rankingData = {
+            totalFailedAttempts: 0, // until and with the last valid hight
+            //failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
+            failedAttemptsOnLastValid: 0,
+            lastValidHeight: 0,
+            numFailedJumpoffAttempts:0,
+            numValidJumpoffAttempts:0,
+            //lastFinishedHeight: 0,
+            //firstUnfinishedHeight: ,
+        }
+
+        // additionally add an array with the following data per item:
+        /*
+        {
+            height (in cm),
+            resultStr XX-, XO, ...
+            jumpoffOrder 0, 
+        }
+        */
+        res.results = [];
+
+        for (let r of results){
+            // create the string
+            let resStr = r.jumpoffOrder==0 ? '' : 'J:';
+            resStr += 'X'.repeat(r.resultsHighFailedAttempts);
+            if (r.resultsHighValid){
+                resStr += 'O';
+            } else if (r.resultsHighPassed){
+                resStr += '-'
+            }
+            res.results.push({
+                height: r.height,
+                resultStr: resStr,
+                jumpoffOrder: r.jumpoffOrder,
+                resultsHighFailedAttempts: r.resultsHighFailedAttempts,
+                resultsHighValid: r.resultsHighValid,
+                resultsHighPassed: r.resultsHighPassed,
+            })
+
+            // calculate the ranking data
+            if (r.jumpoffOrder>0){
+                // in jumpoff
+                if (r.resultsHighValid){
+                    res.rankingData.numValidJumpoffAttempts++;
+                } else{
+                    res.rankingData.numFailedJumpoffAttempts++;
+                }
+            } else {
+                // regular result
+                res.rankingData.totalFailedAttempts += r.resultsHighFailedAttempts;
+                if (r.resultsHighValid){
+                    res.rankingData.failedAttemptsOnLastValid = r.resultsHighFailedAttempts;
+                    res.rankingData.lastValidHeight = r.height;
+                }
+            }
+        }
+
+        return res;
+
+    }
+
+    /**
+     * take an array of results (i.e. with every attempt) of one person and create a single object with all results in it
+     */
+    bundleTechLong(results){
+        // make sure the sorting is correct
+        results.sort((a,b)=>a.attempt-b.attempt);
+
+        // use the first result as the basis and then delete/add properties
+        let res = JSON.parse(JSON.stringify(results[0]));
+
+        // delete the properties that are only valid for the single result
+        delete res.attempt;
+        delete res.result;
+        delete res.wind;
+
+        // note: we need two different kind of analysis here: 
+        // the performances sorted best to worst for ranking
+        // the best performance considering the wind limit for entry limits and similar
+        
+        // add the new properties
+        // create the following "total" properties to be added to the object:
+        res.rankingData = {
+            bestResultWindValid: 0, // will ALWAYS be filled with the best result where the wind either does not exist (e.g throws or indoor) or where it is <=2.0 m/s
+            bestResultWindValidWind: null, // will be set to the wind of the best result with valid wind
+            bestResult: 0, // the overall best result
+            bestResultWind: null, // the wind for the respective result
+            resultsSorted: [], // best first; only non-zero results, but independent of the wind; will be used for ranking later (Note: the wind is not important here)
+        }
+
+        res.results = []; // the original order of results, a copy of the original object including attempt, result and wind
+
+        for (let r of results){
+            res.results.push({
+                attempt: r.attempt,
+                result: r.result,
+                wind: r.wind,
+            })
+            // assuming that a value of 0 means a not valid result
+            if (r.result){
+                res.rankingData.resultsSorted.push(r.result);
+            }
+
+            // calculate the best result considering wind
+            if ((r.wind===null || r.wind<=200)){
+                if (res.rankingData.bestResultWindValid < r.result){
+                    res.rankingData.bestResultWindValid = r.result;
+                    res.rankingData.bestResultWindValidWind = r.wind;
+
+                } else if (res.rankingData.bestResultWindValid == r.result && r.wind<res.rankingData.bestResultWindValidWind){
+                    // just update the wind, because it is lower
+                    res.rankingData.bestResultWindValidWind = r.wind;
+                }
+            }
+
+            // the best result independent of the wind
+            if ( res.rankingData.bestResult < r.result){
+                res.rankingData.bestResult = r.result;
+                res.rankingData.bestResultWind = r.wind;
+            } else if( res.rankingData.bestResult == r.result && r.wind<res.rankingData.bestResultWind){
+                // just update the wind, because it is lower
+                res.rankingData.bestResultWind = r.wind;
+            }
+
+        }
+        // sort the results for the sorted view; best result first
+        res.rankingData.resultsSorted.sort().reverse(); 
+
+        return res;
+    }
+
+    /**
+     * for track events ther should be just one result entry per person per contest; thus we simply return the first element. If there were multiple, we write an error message.
+     */
+    bundleTrack(results){
+        if (results.length>1){
+            this.logger.log(20, `There was more than one result for xSeriesStart=${results[0].xSeriesStart} in a track event. Used only the first result for the online-result update.`);
+        }
+        return results[0];
+    }
+
+    /**
+     * Structure the data in the input by sorting it into subcontainers. On every container-level, we might perform a ranking. 
+     * @param {object} conf The configuration for the bunding, including potential child-configurations
+     * @param {string} conf.grouping the name of the property used to group (if omitted, sorting will be used)
+     * @param {string} conf.sorting the name of the property used to sort (if omitted, grouping will be used)
+     * @param {string} conf.ranking true or false (default) to add a rank. for this level or not. The name of the rank will be the grouping property name.
+     * @param {object} conf.sub The configuration of the sub-structure
+     * @param {any} conf.<anything> will simply be kept within the conf object stored in the strcuture
+     * @param {array} data The array to take teh data from
+     */
+    bundlingAndRanking(conf, data){
+
+        /**
+         * pageBreak: 0=default: no, +1: after this container, +2: before this container; both=1+2=3
+         * pagebreakN: do a page break after n children: default 0
+         * the returned data should look like this, e.g. for a typical ranking list, ordered by discipline/eventGroup/round/group (typically=contest)/:
+         * [
+         *  {data: all60mRes, 
+         *      label:'60m', 
+         *      conf={grouping:xDiscipline, sorting: disciplienSortorder, label:discicplineName, pageBreak:3, pageBreakN:0, ranking:false, flatten:true, sub:[...]},
+         *      sub:[{data:MAN60mSaturday, label:'60m MAN Saturday' conf:{grouping:xEventGroup, sorting:datetime, label: egName, ranking:false, flatten:false, sub:[...]}, sub:[{data:MAN60mSaturdayRound1, conf:{ranking:true, grouping: xRound, sorting:roundNumber, sub:[...]}, sub:{data:MAN60mSaturdayRound1Heat1, conf:{ranking: true, grouping:xSeries, sorting: seriesNumber, hereIsNoSubAnymore}}}]}, 
+         *          {label:'60m M Sunday, ...}]},
+         * {data: all100mRes, label:'100m', ...}
+         * ]
+         */
+        
+        if (!('grouping' in conf) && !('sorting' in conf)){
+            this.logger.log(10, `Cannot bundle/rank data if neither "grouping" nor "sorting" is defined!`);
+            return {data, conf};
+        }
+        if (!('grouping' in conf)){
+            conf.grouping = conf.sorting;
+        }
+        if (!('sorting' in conf)){
+            conf.sorting = conf.grouping;
+        }
+
+        // first, sort the data
+        data.sort((a,b)=>a[conf.grouping]-b[conf.grouping]);
+
+        // create the container to be returned
+        let bundledData = [];
+
+        // loop over the data and do the bunding; if requested also add the rank
+        let lastVal = data[0][conf.grouping];
+        let begin = 0;
+        for (let i=0; i<data.length; i++){
+            if (i==data.length-1 || data[i+1][conf.grouping] != lastVal){
+                
+                let end = i;
+                let resToBundle = data.slice(begin, end+1);
+
+                // add ranks to the data, if requested
+                if (conf.ranking){
+                    if (data[begin].bdCType == 1){
+                        // techHigh
+                        this.rankTechHigh(resToBundle, conf.grouping);
+                    } else if (data[begin].bdCType == 2){
+                        // techLong
+                        this.rankTechLong(resToBundle, conf.grouping);
+                    } else if (data[begin].bdCType == 3){
+                        // track
+                        this.rankTrack(resToBundle, conf.grouping);
+                    }
+                }
+
+                let bundle = {
+                    data: resToBundle,
+                    // label, // not nessessarily done here 
+                    conf,
+                };
+                if (conf.sub){
+                    // let the data be prepared recursively
+                    bundle.sub = this.bundlingAndRanking(conf.sub, resToBundle);
+                }
+
+                if (i<data.length-1){
+                    begin = i+1;
+                    lastVal = data[i+1][conf.grouping];
+                }
+
+                // add the data to the bundles
+                bundledData.push(bundle);
+            }
+
+        }
+
+        // finally, sort the bundles
+        bundledData.sort((a,b)=>a.data[0][conf.sorting]-b.data[0][conf.sorting]);
+
+        return bundledData;
+
+    }
+
+    // add ranks for techLong results
+    rankTechLong(results, label){
+        results.sort((r1, r2)=>{
+            // compare the sorted Results
+            for (let i=0; Math.min(r1.rankingData.resultsSorted.length, r2.rankingData.resultsSorted.length); i++){
+                if (r1.rankingData.resultsSorted[i]>r2.rankingData.resultsSorted[i]){
+                    // r1 is better
+                    return -1;
+                } 
+                if (r2.rankingData.resultsSorted[i]>r1.rankingData.resultsSorted[i]){
+                    // r2 is better
+                    return 1;
+                } 
+                // both are equal
+                return 0;
+            }
+
+            // if one athlete had more results than another, he/she is better if at least the best of the additional results is valid
+
+            if (r1.rankingData.resultsSorted.length>r2.rankingData.resultsSorted.length && r1.rankingData.resultsSorted[r2.rankingData.resultsSorted.length-1]>0){
+                // r1 is better
+                return -1;
+            }
+            if (r2.rankingData.resultsSorted.length>r1.rankingData.resultsSorted.length && r2.rankingData.resultsSorted[r1.rankingData.resultsSorted.length-1]>0){
+                // r2 is better
+                return 1;
+            }
+
+            // both are equal
+            return 0;
+        })
+
+        // do the ranking
+        // current rank during rank assignment
+        let rank=1;
+        // from the sorted array, derive the ranking
+        for (let i=0; i<results.length; i++){
+
+            // make sure the ranking object already exists
+            if (!('ranking' in results[i])){
+                results[i].ranking = {};
+            }
+
+            if (results[i].resultOverrule<2){
+                let r2 = results[i];
+                if (i>0){
+                    let r1 = results[i-1];
+                    // check if the element equals the last
+                    let equal = true;
+                    for (let j=0; j<Math.min(r1.rankingData.resultsSorted.length, r2.rankingData.resultsSorted.length); j++){
+                        if (r2.rankingData.resultsSorted[j] != r1.rankingData.resultsSorted[j]){
+                            equal = false;
+                            break;
+                        }
+                    }
+                    if (!equal){
+                        rank = i+1;
+                    }
+                }
+                // assign a rank only if there is a valid result
+                if (r2.rankingData.bestResult){ // if there is no valid result, it will be 0
+                    results[i].ranking[label] = rank;
+                }else{
+                    results[i].ranking[label] = 0
+                }
+                
+            } else {
+                results[i].ranking[label] = 0; // TODO: eventually, no rank is something undefined instead of 0 or we use rank as a string and tranlate the overrule-code here to DQ, DNS, DNF, ...
+            }
+            
+        }
+
+    }
+
+    // add ranks for track results
+    rankTrack(results, label){
+        // always use simply the time; ranking based on the evaluation on the timing will be present anyway
+
+        results.sort((s1,s2)=>{
+            if (Math.max(s1.resultOverrule,1) !=  Math.max(s2.resultOverrule,1)){ // regular (0) and retired (1) must be treated the same
+                return s1.resultOverrule - s2.resultOverrule; // this should meansingfully sort also within resultOverrule
+            }
+            if (s1.timeRounded===null && s2.timeRounded===null){
+                return 0;
+            }
+            if (s1.timeRounded===null){
+                return 1;
+            } 
+            if (s2.timeRounded===null){
+                return -1;
+            } 
+            return s1.timeRounded-s2.timeRounded;
+        });
+
+        let lastRank = 0;
+        let lastTime = -1;
+        for (let i=0; i<results.length; i++){
+            let res = results[i];
+            if (res.timeRounded != lastTime){
+                lastRank = i+1;
+                lastTime = res.timeRounded;
+            }
+
+            // make sure the ranking object already exists
+            if (!('ranking' in res)){
+                res.ranking = {};
+            }
+
+            // rank=0 if there is a reultOverrule!
+            if (res.resultOverrule>1 || res.timeRounded==null){
+                res.ranking[label] = 0;
+            } else {
+                res.ranking[label] = lastRank;
+            }
+
+        }
+
+    }
+
+    // add ranks for techHigh results
+    rankTechHigh(results, label){
+        // sort the results
+        results.sort((s1, s2)=>{
+            if (Math.max(s1.resultOverrule,1) !=  Math.max(s2.resultOverrule,1)){ // regular (0) and retired (1) must be treated the same
+                return s1.resultOverrule - s2.resultOverrule; // this should meansingfully sort also within resultOverrule
+            }
+            // both result overrules are <2
+            let r1 = s1.rankingData;
+            let r2 = s2.rankingData;
+
+            // 1) lastValidHeight
+            if (r1.lastValidHeight != r2.lastValidHeight){
+                return r2.lastValidHeight - r1.lastValidHeight; // the lower the more to the right.
+            }
+
+            // 2) failed attempts on last valid height
+            if (r1.failedAttemptsOnLastValid != r2.failedAttemptsOnLastValid){
+                return r1.failedAttemptsOnLastValid - r2.failedAttemptsOnLastValid; // the lower the more to the left
+            }
+
+            // 3) failed attempts in total
+            if (r1.totalFailedAttempts != r2.totalFailedAttempts){
+                return r1.totalFailedAttempts - r2.totalFailedAttempts; // the lower the more to the left
+            }
+
+            // jumpoff:
+
+            // 4) the more results (independent whetrher valid or not) there are in the jumpoff, the better
+            // (in contrast to the ranking in techHighBase, we can assume here that the results are correct and we only do the calculation at the end of the competition, and not between two athletes on the same jumpoff height)
+            if (r1.numValidJumpoffAttempts + r1.numFailedJumpoffAttempts != r2.numValidJumpoffAttempts + r2.numFailedJumpoffAttempts){
+                return r2.numValidJumpoffAttempts + r2.numFailedJumpoffAttempts - r1.numValidJumpoffAttempts - r1.numFailedJumpoffAttempts; // the more the better, i.e. the lower thew rank
+            }
+
+            // 5) it is also deemed 'failure' when an athlete retired after the last height. Thus if both have failed at the same height, but one is finally called retired, he actually left before and thus is ranked worse
+            if (r1.resultOverrule != r2.resultOverrule){
+                return r1.resultOverrule - r2.resultOverrule;
+            }
+
+            // equal results
+            return 0;
+
+        })
+
+        // current rank during rank assignment
+        let rank=1;
+        // from the sorted array, derive the ranking
+        for (let i=0; i<results.length; i++){
+
+            // make sure the ranking object already exists
+            if (!('ranking' in results[i])){
+                results[i].ranking = {};
+            }
+
+            if (results[i].resultOverrule<2){
+                let r2 = results[i].rankingData;
+                if (i>0){
+                    let r1 = results[i-1].rankingData;
+                    // check if the element equals the last
+                    let equal = (r1.lastValidHeight == r2.lastValidHeight && r1.failedAttemptsOnLastValid == r2.failedAttemptsOnLastValid && r1.totalFailedAttempts == r2.totalFailedAttempts && r2.numValidJumpoffAttempts + r2.numFailedJumpoffAttempts == r1.numValidJumpoffAttempts + r2.numFailedJumpoffAttempts && r1.resultOverrule == r2.resultOverrule); 
+                    if (!equal){
+                        rank = i+1;
+                    }
+                }
+                // assign a rank only if there is a valid height
+                if (r2.lastValidHeight){ // if there is no valid height, it will be 0
+                    results[i].ranking[label] = rank;
+                }else{
+                    results[i].ranking[label] = 0
+                }
+                
+            } else {
+                results[i].ranking[label] = 0; // TODO: eventually, no rank is something undefined instead of 0 or we use rank as a string and tranlate the overrule-code here to DQ, DNS, DNF, ...
+            }
+            
+        }
+
+    }
+
 
     /**
      * update the base data. 
@@ -253,6 +1396,10 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * @param {string} opts.password 
      */
     async updateBaseData(opts){
+
+        if (!('password' in opts) || !('username' in opts)){
+            throw {code:30, message: 'username or password missing'};
+        }
 
         // TODO: move the first part (download, extracting and xml2js in a separate Worker thread (https://nodejs.org/api/worker_threads.html#new-workerfilename-options)) in order to not occupy the main process
 
@@ -731,6 +1878,9 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         let d = new Date(parseInt(dateStr.slice(0,4)), parseInt(dateStr.slice(4,6))-1, parseInt(dateStr.slice(6,8)))
                         this.postUpdateBaseData(d);
 
+                        // make sure that all contests recreate their startgroups !
+                        this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
+
                         // report success
                         resolve(notes);
     
@@ -758,6 +1908,11 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * 
      */
     async getCompetitions(opts){
+
+        if (!('password' in opts) || !('username' in opts)){
+            throw {code:30, message: 'username or password missing'};
+        }
+
         const options = {
             host: this.conf.host,
             port: this.conf.port,
@@ -811,7 +1966,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         // split by line:
                         const lines = rawMsg.split('\n'); // should have three lines
                         const competitionIDs = lines[0].slice(8).split(':');
-                        const competitionNames = lines[1].slice(5).split(':');
+                        const competitionNames = lines[1].slice(6,-1).split(':'); // has "" around the values (not the single values, but the whole)
                         const competitionDates = lines[2].slice(10).split(':');
     
                         // all arrays should have the same length
@@ -822,7 +1977,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     
                             competitions.push({
                                 identifier: competitionIDs[i],
-                                name: competitionNames[i].slice(1,-1), // there are '' around the name
+                                name: competitionNames[i], 
                                 date
                             })
                         }
@@ -943,20 +2098,23 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
     /**
      * Import a competition into the provided meeting.
-     * @param {string} identifier The identifier of the meeting (e.g. the meeting name or a key identifying the meeting with the national body)
      * @param {object} meetingRooms The meeting-object to import the competition into.
-     * @param {object} opts Object with the options required to get the data; e.g. login credentials to the central database of the national body.
+     * @param {object} opts Object with the options required to get the data; e.g. login credentials to the central database of the national body and the identifier of the meeting.
      * @resolve {object} o.notes: some notes about the importing process
      * @resolve {object} o.baseSettings: settings of the base import, eventually needed for results upload (e.g. a meeting ID)
      * @reject {object} o.code: 1=general connection error, 2=Server error during processing, 3=meeting does not exist, 4=credentials invalid
      */
-    async importCompetition(identifier, meetingRooms, opts){
+    async importCompetition(meetingRooms, opts){
+
+        if (!('password' in opts) || !('username' in opts) || !('identifier' in opts)){
+            throw {code:30, message: 'username, password or meeting-identifier missing'};
+        }
 
         // request must be post; 
         // request body: &meetingid=123456
         // type: application/x-www-form-urlencoded
 
-        const requestBody = `&meetingid=${identifier}`;
+        const requestBody = `&meetingid=${opts.identifier}`;
 
         // returns an xml, which then ideally is parsed as it is done for the base data
 
@@ -1018,7 +2176,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 let timeDownloaded = new Date();
                 this.logger.log(90, `Download of competition data successful. Duration: ${(timeDownloaded - timeStart)/1000}s.`);
     
-                // TODO: what response do we get when there is no meeting with the given ID?
+                // what response do we get when there is no meeting with the given ID?
                 // --> error {code:3, message:`Meeting with ID ${identifier} does not exist.`}
                 
                 // ungzip and import: 
@@ -1278,8 +2436,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                             notes.push(msg);
                                         })
 
-                                        let x=3;
-
                                     }
 
 
@@ -1288,9 +2444,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
 
                         }
-                        
-                        
-                        // TODO: temporary implement here the stuff for the foreign-athletes stuff.
 
 
                         const importResult = {
@@ -1309,7 +2462,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                     reject(err);
                 }) // end pipline
     
-            })
+            }) // end onResponse
 
             // Send also the content of the message now (not just the header)
             request.write(requestBody);
@@ -1380,13 +2533,13 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
                 ret.push({
                     xDiscipline: perf.xDiscipline,
-                    notification: this.perfAlabus2LA(perf.notificationEffort, xDiscipline),
+                    notification: this.perfAlabus2LA(perf.notificationEffort, perf.xDiscipline),
                     notificationEvent: perf.notificationEffortEvent,
                     notificationDate: perf.notificationEffortDate,
-                    season: this.perfAlabus2LA(perf.seasonEffort, xDiscipline),
+                    season: this.perfAlabus2LA(perf.seasonEffort, perf.xDiscipline),
                     seasonEvent: perf.seasonEffortEvent,
                     seasonDate: perf.seasonEffortDate,
-                    best: this.perfAlabus2LA(perf.bestEffort, xDiscipline),
+                    best: this.perfAlabus2LA(perf.bestEffort, perf.xDiscipline),
                     bestEvent: perf.bestEffortEvent,
                     bestDate: perf.bestEffortDate,
                 });

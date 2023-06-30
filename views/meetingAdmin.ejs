@@ -59,11 +59,11 @@
                     infoTitle: '',
                     infoContent: '',
                     overlay: undefined,
-                    importServices:['SUI', 'FRA'],
-                    exportServices:['SUI', 'World athletics'],
-                    selectedImportService:0,
-                    importServiceData:{},
-                    importServiceOverlayname: ['importSUIStep1', 'importSUIStep1'],
+                    // NEW approach: only store a list of all module names, of which one module can be selected
+                    // when the selected module is changed, the data gets reset to the default data of the newly selected module
+                    modules:[{name:'swiss-athletics', defaultData:{all:'data that shall be in moduleData as a default', username:'', password: '', overlay:undefined, errConnection:false, errCredentials:false, errGeneral:false, lastUpdate:'', errNoMeetings:false, errCode:0, errMsg:'', updateNotes:'', updateCount:0, failCount:0, newCount:0, importNotes:'', deleteAthletes:0, competitions:[]}}, {name:'world-athletics', defaultData:{}}],
+                    selectedModuleIndex:-1,
+                    moduleData:{}, // will be filled by the selected module
                 }
             },
             methods:{
@@ -72,13 +72,15 @@
                     // prevent that the form is "submitted" (which would simply reload the page).
                     evt.preventDefault();
 
-                    const req = {
-                        baseName: this.importServices[this.selectedImportService],
-                        opts: {
-                            username: this.importServiceData.username,
-                            password: this.importServiceData.password,
-                        }
+                    const opts = {
+                        username: this.moduleData.username,
+                        password: this.moduleData.password,
                     }
+
+                    // hide all errors at beginning
+                    this.moduleData.errConnection = false;
+                    this.moduleData.errNoMeetings = false;
+                    this.moduleData.errCredentials = false;
 
                     // the success callback is always called, even when there was an error
                     const succFunc = (data, defaultFunc)=>{
@@ -86,67 +88,82 @@
 
                         if (data.err==0){
                             // could gather a list of competitions:
-                            this.importServiceData.competitions = data.competitions;
+                            this.moduleData.competitions = data.competitions;
 
                             // make sure the errors are surely hidden
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = false;
-                            this.importServiceData.errCredentials = false;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = false;
+                            this.moduleData.errCredentials = false;
 
-                            this.overlay = 'importSUIStep2';
+                            this.moduleData.overlay = 'importSUIStep2';
                         } else if (data.err==1){
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = true;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = true;
                         } else if (data.err==2){
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = true;
-                            this.importServiceData.errNoMeetings = false;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = true;
+                            this.moduleData.errNoMeetings = false;
                         } else if (data.err==3){
-                            this.importServiceData.errCredentials = true;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = false;
+                            this.moduleData.errCredentials = true;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = false;
                         }
 
                     }
 
-                    rMeet.room.baseGetCompetitionsInit(req, succFunc);
+                    rMeet.room.baseFunctionInit('SUI', 'getCompetitions', opts, succFunc);
                 },
                 baseSuiUpdateBaseDataInit: function(evt){
                     // prevent that the form is "submitted" (which would simply reload the page).
                     evt.preventDefault();
 
-                    // get the date of the last update
-                    const req = {
-                        baseName: this.importServices[this.selectedImportService],
-                    }
-
                     // the success callback is always called, even when there was an error
                     const succFunc = (data, defaultFunc)=>{
                         // there is no default function for this call
-
-                        if (data.err==0){
-                            this.importServiceData.lastUpdate = data.lastUpdate.substr(0,10);
-                        } 
-
+                        this.moduleData.lastUpdate = data.lastUpdate.substr(0,10);
                     }
 
-                    rMeet.room.baseGetLastUpdateInit(req, succFunc);
+                    // reset previous errors
+                    this.moduleData.updateNotes = '';
+                    this.moduleData.errConnection = false;
+                    this.moduleData.errNoMeetings = false;
+                    this.moduleData.errCredentials = false;
+                    this.moduleData.errGeneral = false;
+
+                    rMeet.room.baseFunctionInit('SUI', 'baseLastUpdate', null, succFunc)
                     
                     // show the overlay:
-                    this.overlay = "importServiceBaseUpdate1";
+                    this.moduleData.overlay = "importServiceBaseUpdate1";
+                },
+                baseSuiImportCompetitionWindow: function(evt){
+                    evt.preventDefault();
+
+                    this.moduleData.competitions = [];
+
+                    // make sure the errors are surely hidden
+                    this.moduleData.errConnection = false;
+                    this.moduleData.errNoMeetings = false;
+                    this.moduleData.errCredentials = false;
+
+                    // show the overlay:
+                    this.moduleData.overlay = "importSUIStep1";
                 },
                 baseSuiUpdateBaseData: function(evt){
                     // prevent that the form is "submitted" (which would simply reload the page).
                     evt.preventDefault();
 
-                    const req = {
-                        baseName: this.importServices[this.selectedImportService],
-                        opts: {
-                            username: this.importServiceData.username,
-                            password: this.importServiceData.password,
-                        }
-                    }
+                    const opts = {
+                        username: this.moduleData.username,
+                        password: this.moduleData.password,
+                    };
+
+                    // reset previous errors
+                    this.moduleData.updateNotes = '';
+                    this.moduleData.errConnection = false;
+                    this.moduleData.errNoMeetings = false;
+                    this.moduleData.errCredentials = false;
+                    this.moduleData.errGeneral = false;
 
                     // the success callback is always called, even when there was an error
                     const succFunc = (data, defaultFunc)=>{
@@ -154,45 +171,62 @@
 
                         if (data.err==0){
                             // could gather a list of competitions:
-                            this.importServiceData.updateNotes = data.notes;
+                            this.moduleData.updateNotes = data.notes;
 
                             // make sure the errors are surely hidden
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = false;
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errGeneral = false;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = false;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errGeneral = false;
 
-                            this.overlay = 'importServiceBaseUpdate2';
+                            this.moduleData.overlay = 'importServiceBaseUpdate2';
                         } else if (data.err==2){
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = true;
-                            this.importServiceData.errGeneral = false;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = true;
+                            this.moduleData.errGeneral = false;
                         } else if (data.err==3){
-                            this.importServiceData.errCredentials = true;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errGeneral = false;
+                            this.moduleData.errCredentials = true;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errGeneral = false;
                         }
 
                     }
 
                     const errFunc = (code, msg) =>{
-                        this.importServiceData.errCode = code;
-                        this.importServiceData.errMsg = msg;
-                        this.importServiceData.errGeneral = true;
+                        this.moduleData.errCode = code;
+                        this.moduleData.errMsg = msg;
+                        this.moduleData.errGeneral = true;
                     }
 
-                    rMeet.room.baseUpdateInit(req, succFunc, errFunc);
+                    rMeet.room.baseFunctionInit('SUI', 'baseUpdate', opts, succFunc, errFunc)
 
                 },
+                baseSuiUploadResults: function(evt){
+
+                    // prevent "submit", which would reload
+                    evt.preventDefault();
+
+                    let opts = {
+                        username: this.moduleData.username,
+                        password: this.moduleData.password,
+                    };
+                    const succFunc = ()=>{
+                        alert('successful upload');
+                        this.moduleData.overlay = undefined;
+                    };
+                    const errFunc = (code, message)=>{
+                        alert(`upload failed ${code} ${message}`);
+                    };
+
+                    rMeet.room.baseFunctionInit('SUI', 'uploadResults', opts, succFunc, errFunc)
+                },
                 baseSuiImportCompetition: function(identifier){
-                    const req = {
-                        baseName: this.importServices[this.selectedImportService],
-                        identifier: identifier,
-                        opts: {
-                            username: this.importServiceData.username,
-                            password: this.importServiceData.password,
-                        }
-                    }
+
+                    const opts = {
+                        username: this.moduleData.username,
+                        password: this.moduleData.password,
+                        identifier
+                    };
 
                     // the success callback is always called, even when there was an error
                     const succFunc = (data, defaultFunc)=>{
@@ -202,35 +236,35 @@
                             // imported successfully
 
                             // show some notes from the import process
-                            this.importServiceData.importNotes = data.notes;
-                            this.importServiceData.updateCount = data.updateCount;
-                            this.importServiceData.failCount = data.failCount;
-                            this.importServiceData.newCount = data.newCount;
+                            this.moduleData.importNotes = data.notes;
+                            this.moduleData.updateCount = data.updateCount;
+                            this.moduleData.failCount = data.failCount;
+                            this.moduleData.newCount = data.newCount;
 
                             // make sure the errors are surely hidden
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = false;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = false;
 
-                            this.overlay = 'importSUIStep3';
+                            this.moduleData.overlay = 'importSUIStep3';
 
                         } else if (data.err==1){
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = true;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = true;
                         } else if (data.err==2){
-                            this.importServiceData.errCredentials = false;
-                            this.importServiceData.errConnection = true;
-                            this.importServiceData.errNoMeetings = false;
+                            this.moduleData.errCredentials = false;
+                            this.moduleData.errConnection = true;
+                            this.moduleData.errNoMeetings = false;
                         } else if (data.err==3){
-                            this.importServiceData.errCredentials = true;
-                            this.importServiceData.errConnection = false;
-                            this.importServiceData.errNoMeetings = false;
+                            this.moduleData.errCredentials = true;
+                            this.moduleData.errConnection = false;
+                            this.moduleData.errNoMeetings = false;
                         }
 
                     }
 
-                    rMeet.room.baseImportCompetitionInit(req, succFunc);
+                    rMeet.room.baseFunctionInit('SUI', 'importCompetition', opts, succFunc)
                 },
                 dateFromChanged: function(){
                     // if the dateFrom changes, set the timezone for this date
@@ -268,7 +302,21 @@
                     rMeet.room.renewStartgroupsInit();
                 }
             },
+            computed:{
+                selectedModuleName:function(){
+                    if (this.selectedModuleIndex>=0){
+                        return this.modules[this.selectedModuleIndex].name;
+                    } else {
+                        return '';
+                    }
+                }
+            },
             watch:{
+                selectedModuleIndex:function(){
+                    // reset to the default data
+                    this.moduleData = JSON.parse(JSON.stringify(this.modules[this.selectedModuleIndex].defaultData));
+
+                },
                 meeting:{
                     deep:true,
                     handler: function(){
@@ -343,7 +391,7 @@
             <select v-model="meetingWorkCopy.feeModel" v-bind:disabled="mode!=1">
                 <option value=null><%= __('None') %></option>
                 <option value='swiss'><%= __('Swiss') %></option>
-                <!-- TODO: make the list b eing completed from a list of modules, similar to series assignements -->
+                <!-- TODO: make the list being completed from a list of modules, similar to series assignements -->
             </select>
         </label>
         TODO: add model specific options!
@@ -354,149 +402,178 @@
                 <option value='swiss'><%= __('Swiss') %></option>
             </select>
         </label>
-        TODO: add model specific options!-->
-
-        <h2><%= __("Update base data") %></h2>
-        <!-- TODO: eventually move this to the admin page -->
-        <select v-model="selectedImportService" >
-            <option v-for="(s,i) in importServices" v-bind:value=i>{{s}}</option>
-        </select>
-        <button type="button" class="btn" v-on:click="baseSuiUpdateBaseDataInit($event)"><%= __("Initialize update") %></button><br>
+        TODO: add model specific options!--><br>
         <%= __("Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests") %>:
         <button type="button" class="btn" v-on:click="renewStartgroups($event)"><%= __("Renew") %></button>
-
-        <h2><%= __("Import competition from an online service") %></h2>
-        <select v-model="selectedImportService" >
-            <option v-for="(s,i) in importServices" v-bind:value=i>{{s}}</option>
-        </select>
-        <button type="button" class="btn" v-on:click="overlay=importServiceOverlayname[selectedImportService]"><%= __("Initialize import") %></button>
     
-        <h2><%= __("Export to online service") %></h2>
-        to be done
 
     </form>
-    <div class="overlay" v-bind:class="{shown: overlay=='importServiceBaseUpdate1'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                The last update was done on: {{importServiceData.lastUpdate}}
-                Update the base data. This can easily take some minutes. Please be patient.
-                <label>
-                    <%= __("Username") %>
-                    <input type="text" v-model="importServiceData.username" >
-                </label>
-                <label>
-                    <%= __("Password") %>
-                    <input type="password" v-model="importServiceData.password" >
-                </label>
-                <div v-if="importServiceData.errConnection">
-                    Verbindungsfehler: Mit der Verbindung zum Server ist etwas falsch
-                </div>
-                <div v-if="importServiceData.errCredentials">
-                    Die Loginangaben sind nicht korrekt.
-                </div>
-                <div v-if="importServiceData.errGeneral">
-                    {{`A general error (code ${importServiceData.errCode}) occured: ${importServiceData.errMsg}`}}
-                </div>
-                <button type="submit" class="btn" v-on:click="baseSuiUpdateBaseData($event)">Update</button>
-                <button type="button"class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
-            </form>    
-        </div>
-    </div>
-    <div class="overlay" v-bind:class="{shown: overlay=='importServiceBaseUpdate2'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                Update abgeschlossen. Bemerkungen: 
-                <div v-for="note in importServiceData.updateNotes">{{note}}</div>
-                
-                <button type="button"class="btn btnGreen" v-on:click="overlay=undefined"><%= __("Finished") %></button>
-            </form>    
-        </div>
-    </div>
-    <div class="overlay" v-bind:class="{shown: overlay=='importSUIStep1'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                Rufe zuerst die Liste der Verfügbaren Meetings ab.
-                <label>
-                    <%= __("Username") %>
-                    <input type="text" v-model="importServiceData.username" >
-                </label>
-                <label>
-                    <%= __("Password") %>
-                    <input type="password" v-model="importServiceData.password" >
-                </label>
-                <div v-if="importServiceData.errConnection">
-                    Verbindungsfehler: Mit der Verbindung zum Server ist etwas falsch
-                </div>
-                <div v-if="importServiceData.errCredentials">
-                    Die Loginangaben sind nicht korrekt.
-                </div>
-                <div v-if="importServiceData.errNoMeetings">
-                    Mit diesen Zugangsdatem sind keine Meetings verknüpft.
-                </div>
-                <button type="submit" class="btn" v-on:click="baseSuiGetCompetitions($event)">Anmelden</button>
-                <button type="button"class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
-            </form>    
-        </div>
-    </div>
-    <div class="overlay" v-bind:class="{shown: overlay=='importSUIStep2'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                Meeging zum Import auswählen
-                (Benutzername und Passwort sind unverändert)
-                <label>
-                    <%= __("Username") %>
-                    <input type="text" v-model="importServiceData.username" >
-                </label>
-                <label>
-                    <%= __("Password") %>
-                    <input type="password" v-model="importServiceData.password" >
-                </label>
-                <%= __("Delete registrations of this national body before (re-)importing the competition:") %>
-                <input type="radio" v-model="importServiceData.deleteAthletes" name="group1" id="r1" value="0" checked/>
-                <label for="r1" style="display: inline;"><%= __("Keep all current registrations") %></label><br>
-                <input type="radio" v-model="importServiceData.deleteAthletes" name="group1" id="r2" value="1" />
-                <label for="r2" style="display: inline;"><%= __("Delete starts, keep athletes") %></label><br>
-                <input type="radio" v-model="importServiceData.deleteAthletes" name="group1" id="r3" value="2" />
-                <label for="r3" style="display: inline;"><%= __("Delete starts and athletes") %></label><br>
-                <table class="selectTable">
-                    <template v-for="(m,i) in importServiceData.competitions">
-                        <tr class="clickable" v-on:click="baseSuiImportCompetition(m.identifier)">
-                            <td>{{m.identifier}}</td>
-                            <td>{{m.name}}</td>
-                            <td>{{new Date(m.date).toLocaleDateString()}}</td>
-                        </tr>
-                    </template>
-                </table>
+    <h1><%= __("Data exchange (import, export, base data, ...)") %></h1>
+    <form class="verticalForm">
+        <label>
+            <%= __("Select the data exchange module") %>
+            <select v-model="selectedModuleIndex" >
+                <option v-for="(m,i) in modules" v-bind:value=i>{{m.name}}</option>
+            </select>
+        </label>
+    </form>
+    
+    <!--after here, all stuff should be provided by the respective module -->
 
-                <div v-if="importServiceData.errConnection">
-                    Verbindungsfehler: Mit der Verbindung zum Server ist etwas falsch
-                </div>
-                <div v-if="importServiceData.errCredentials">
-                    Die Loginangaben sind nicht korrekt.
-                </div>
-                <div v-if="importServiceData.errNoMeetings">
-                    Dieses Meeting existiert nicht.
-                </div>
-                <button type="button"class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
-            </form>    
-        </div>
-    </div>
-    <div class="overlay" v-bind:class="{shown: overlay=='importSUIStep3'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                Erfolge und Probleme beim Importieren: <br>
-                <h3>Disziplinen</h3>
-                <div>Disziplinen hinzugefügt: {{importServiceData.newCount}}</div>
-                <div>Disziplinen updated: {{importServiceData.updateCount}}</div>
-                <div>Disziplinen mit Fehlern: {{importServiceData.failCount}}</div>
-                <h3>Notizen</h3>
-                <div v-for="note in importServiceData.importNotes">{{note}}</div>
-                
+    <!-- put all swiss-athletics stuff after here-->
+    <div v-if="selectedModuleName=='swiss-athletics'">
 
-                <button type="button"class="btn btnGreen" v-on:click="overlay=undefined"><%= __("Finished") %></button>
-            </form>    
+        <h3><%= __("Update base data") %></h3>
+        <!-- TODO: eventually move this to the admin page -->
+        <button type="button" class="btn" v-on:click="baseSuiUpdateBaseDataInit($event)"><%= __("Initialize update") %></button><br>
+
+        <h3><%= __("Import competition from") %> swiss-athletics</h3>
+        <button type="button" class="btn" v-on:click="baseSuiImportCompetitionWindow($event)"><%= __("Initialize import") %></button>
+
+        <h3><%= __("Export to") %> swiss-athletics</h3>
+        <button type="button" class="btn" v-on:click="moduleData.overlay='uploadResults'"><%= __("Upload results") %></button><br>
+
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='uploadResults'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <label>
+                        <%= __("Username") %>
+                        <input type="text" v-model="moduleData.username" >
+                    </label>
+                    <label>
+                        <%= __("Password") %>
+                        <input type="password" v-model="moduleData.password" >
+                    </label>
+                    <button type="submit" class="btn" v-on:click="baseSuiUploadResults($event)"><%= __("Upload results") %></button>
+                    <button type="button"class="btn btnRed" v-on:click="moduleData.overlay=undefined"><%= __("Abort") %></button>
+                </form>
+            </div>
+        </div>
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='importServiceBaseUpdate1'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <%= __("The last update was done on") %>: {{moduleData.lastUpdate}} <br>
+                    <%= __("Update the base data. This can easily take some minutes. Please be patient.") %>
+                    <label>
+                        <%= __("Username") %>
+                        <input type="text" v-model="moduleData.username" >
+                    </label>
+                    <label>
+                        <%= __("Password") %>
+                        <input type="password" v-model="moduleData.password" >
+                    </label>
+                    <div v-if="moduleData.errConnection">
+                        <%= __("Connection error: Could not conncet to the server.") %>
+                    </div>
+                    <div v-if="moduleData.errCredentials" style="color: red;">
+                        <%= __("The credentials (username, password) are not correct.") %>
+                    </div>
+                    <div v-if="moduleData.errGeneral">
+                        <%= __("A general error (code {{moduleData.errCode}} occured: {{moduleData.errMsg}})") %>
+                    </div>
+                    <button type="submit" class="btn" v-on:click="baseSuiUpdateBaseData($event)"><%= __("Update") %></button>
+                    <button type="button"class="btn btnRed" v-on:click="moduleData.overlay=undefined"><%= __("Abort") %></button>
+                </form>    
+            </div>
+        </div>
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='importServiceBaseUpdate2'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <%= __("Update finished.") %> <%= __("Remarks") %>: 
+                    <div v-for="note in moduleData.updateNotes">{{note}}</div>
+                    
+                    <button type="button"class="btn btnGreen" v-on:click="moduleData.overlay=undefined"><%= __("Finished") %></button>
+                </form>    
+            </div>
+        </div>
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='importSUIStep1'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <%= __("Get a list of the available meetings") %>
+                    <label>
+                        <%= __("Username") %>
+                        <input type="text" v-model="moduleData.username" >
+                    </label>
+                    <label>
+                        <%= __("Password") %>
+                        <input type="password" v-model="moduleData.password" >
+                    </label>
+                    <div v-if="moduleData.errConnection">
+                        <%= __("Connection error: Could not conncet to the server.") %>
+                    </div>
+                    <div v-if="moduleData.errCredentials" style="color: red;">
+                        <%= __("The credentials (username, password) are not correct.") %>
+                    </div>
+                    <div v-if="moduleData.errNoMeetings">
+                        <%= __("There are no meetings associated with this account.") %>
+                    </div>
+                    <button type="submit" class="btn" v-on:click="baseSuiGetCompetitions($event)">Anmelden</button>
+                    <button type="button"class="btn btnRed" v-on:click="moduleData.overlay=undefined"><%= __("Abort") %></button>
+                </form>    
+            </div>
+        </div>
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='importSUIStep2'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <h4><%= __("Choose the meeting to import") %></h4>
+                    <%= __("Username and password are unchanged") %>
+                    <label>
+                        <%= __("Username") %>
+                        <input type="text" v-model="moduleData.username" >
+                    </label>
+                    <label>
+                        <%= __("Password") %>
+                        <input type="password" v-model="moduleData.password" >
+                    </label>
+                    <%= __("Delete registrations of this national body before (re-)importing the competition:") %><br>
+                    <input type="radio" v-model="moduleData.deleteAthletes" name="group1" id="r1" value="0" checked/>
+                    <label for="r1" style="display: inline;"><%= __("Keep all current registrations") %></label><br>
+                    <input type="radio" v-model="moduleData.deleteAthletes" name="group1" id="r2" value="1" />
+                    <label for="r2" style="display: inline;"><%= __("Delete starts, keep athletes") %></label><br>
+                    <input type="radio" v-model="moduleData.deleteAthletes" name="group1" id="r3" value="2" />
+                    <label for="r3" style="display: inline;"><%= __("Delete starts and athletes") %></label><br>
+                    <table class="selectTable">
+                        <template v-for="(m,i) in moduleData.competitions">
+                            <tr class="clickable" v-on:click="baseSuiImportCompetition(m.identifier)">
+                                <td>{{m.identifier}}</td>
+                                <td>{{m.name}}</td>
+                                <td>{{new Date(m.date).toLocaleDateString()}}</td>
+                            </tr>
+                        </template>
+                    </table>
+    
+                    <div v-if="moduleData.errConnection">
+                        <%= __("Connection error: Could not conncet to the server.") %>
+                    </div>
+                    <div v-if="moduleData.errCredentials" style="color: red;">
+                        <%= __("The credentials (username, password) are not correct.") %>
+                    </div>
+                    <div v-if="moduleData.errNoMeetings">
+                        <%= __("This meeting does not exist") %>
+                    </div>
+                    <button type="button"class="btn btnRed" v-on:click="moduleData.overlay=undefined"><%= __("Abort") %></button>
+                </form>    
+            </div>
+        </div>
+        <div class="overlay" v-bind:class="{shown: moduleData.overlay=='importSUIStep3'}">
+            <div class="overlayContainer">
+                <form class="verticalForm">
+                    <h3><%= __("Disciplines") %></h3>
+                    <div><%= __("Disciplines added") %>: {{moduleData.newCount}}</div>
+                    <div><%= __("Disciplines updated") %>: {{moduleData.updateCount}}</div>
+                    <div><%= __("Disciplines with errors") %>: {{moduleData.failCount}}</div>
+                    <h3><%= __("Notes") %></h3>
+                    <div v-for="note in moduleData.importNotes">{{note}}</div>
+                    <button type="button"class="btn btnGreen" v-on:click="moduleData.overlay=undefined"><%= __("Finished") %></button>
+                </form>    
+            </div>
         </div>
     </div>
+
+    
+
+
+
 
     <div class="overlay" v-bind:class="{shown: mode==1}">
         <div class="overlayContainer">

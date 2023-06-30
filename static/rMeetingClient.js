@@ -46,35 +46,19 @@ export class rMeetingClient extends roomClient{
         this.propertyTransfer(meeting, this.data);
     }
 
-    baseGetCompetitionsInit(req, succFunc){
-        const opt = {
-            readOnly:true,
-        }
-        this.addToStack('baseGetCompetitions', req, succFunc, ()=>{}, opt)
-    }
 
-    baseImportCompetitionInit(req, succFunc){
+    baseFunctionInit(baseName, functionName, data, succFunc, errFunc){
+        const req = {
+            baseName,
+            functionName,
+            data,
+        }
         const opt = {
             readOnly:true, // set to false to make sure the error is shown.
-            requestTimeout: 60, // default would be 10s, allow some more time for processing before the request is deemed failed.
-        }
-        this.addToStack('baseImportCompetition', req, succFunc, ()=>{}, opt)
-    }
-
-    baseUpdateInit(req, succFunc, errFunc){
-        const opt = {
-            readOnly:true, // set to false to make sure the error is shown.
-            requestTimeout: 300, // default would be 10s, allow some more time for processing before the request is deemed failed.
+            requestTimeout: 30, // default would be 10s, allow some more time for processing before the request is deemed failed.
             errorHandling:[{from: 20, to: 99, rule:'deleteRollback', customErrMsg:errFunc}],
         }
-        this.addToStack('baseUpdate', req, succFunc, ()=>{}, opt)
-    }
-
-    baseGetLastUpdateInit(req, succFunc){
-        const opt = {
-            readOnly:true, // set to false to make sure the error is shown.
-        }
-        this.addToStack('baseLastUpdate', req, succFunc, ()=>{}, opt)
+        this.addToStack('baseFunction', req, succFunc, ()=>{}, opt);
     }
 
 }

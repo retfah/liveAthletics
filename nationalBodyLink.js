@@ -57,6 +57,22 @@ export default class nationalBodyLink extends module {
 
     }
 
+    /**
+     * This function is the general entry point for requests. All requests shall (later) be processed through this function. This allows maximum flexibility for (base-)modules. 
+     * It is NOT possible to call the functions directly from rMeeting for security reasons, since it would allow to call ALL module functions, which might be much more than should be allowed.
+     * THe inheriting class shall override this function
+     * @param {string} functionName The name of the function to call
+     * @param {*} data The data for this function
+     * @param {object} meeting The meeting room.
+     * @return {object} o.response
+     * @return {object} o.isAchange (defaults to false)
+     * or throw an error with code >=30
+     */
+    async baseFunction(functionName, data, meeting){
+        throw {code:23, message: `Function ${functionName} does not exist in this module.`};
+        
+    }
+
     // sets the date of the last update to this date or the data specified
     async postUpdateBaseData(date = new Date()){
         // create the document
@@ -111,7 +127,7 @@ export default class nationalBodyLink extends module {
      * @param {object} meeting The meeting-object to import the competition into.
      * @param {object} opts Object with the options required to get the data; e.g. login credentials to the central database of the national body.
      */
-    uploadResults(meeting, opts){
+    async uploadResults(meeting, opts){
 
     }
 
