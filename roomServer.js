@@ -414,7 +414,9 @@ class roomServer{
         this.closing = false;
 
         // all the functions are stored in one of the following objects
-        // the functions must be async. They get just one argument: The data to be processed. On success/failure they must return an object with the schemas defined below 'response', doObj','undoObj' and 'isAchange' as properties and their values, on failure an object with properties 'message' and 'code', storing the error message and the error code
+        // the functions must be async. They get just one argument: The data to be processed. 
+        // Write functions must return an object with the schemas defined below; om success 'response', doObj','undoObj' and 'isAchange' as properties and their values, on failure an object with properties 'message' and 'code', storing the error message and the error code
+        // readonly functions simply return the data on success and the same failure object as writing functions on error
         this.functionsReadOnly = {};
         this.functionsWrite = {};
 

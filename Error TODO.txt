@@ -1,18 +1,14 @@
 ** important: always add the date of the error/todo (when it is added) **
 ** see also MantisBT in xampp; UN: administrator, PW: "as usual" **
 
-// functions needed for results in rSite:
-// addUpdateResult (single result, identified by xContest, xSeries and xSeriesStart)
-// addUpdateResultsHeat (full heat, including aux data; identified by xContest and xSeries, single entries by xSeriesStart)
-// addUpdateHeatAux (e.g. wind, time of start, false starts, ...; NO results, i.e. no data for xSeriesStart) --> how to transfer this? directly as JSON to be stored in aux-data?
-// deleteResultSingle
-// deleteResultHeat
-
-TODO shortterm:
- - manual results must be seen in timing --> requires single result adding in site
- - 
+VERY IMPORTANT: 
+Attention with events: we must make sure that a change in rContest invoked by rSite shall not fire an event to rSite! And an incoming event to rSite shall not result in calling rContestTrack with the change! This could be done with a special property in the transferred data OR we simply use different functions. The latter is probably smarter.
 
 
+TODO: 
+- add name property for contest whereever contests can be created (e.g. from the contest panel as well as from the round assignment)
+- 2023-06: all  without reloading the browser: create eventGroup (through events); (add some further events), add a round to this EG, but from the window first create a contest and select it; --> adding the round then failes with: TypeError: Cannot read properties of undefined (reading 'length'). the EG has no rounds attribute yet! see line 448
+- 2023-05: ALGE: somehow EventId provided by ALGE is NOT the xContest. And in the versatile exchange, the EventNr is not provided. However, in the file the Eventnr is correct. 
 - 2022-08-12: when the client tries to reconnect after the connection was lost, the following error occurs, probably, when the roomCLient tries to connect again, but the roomManager could not yet create the connection: "Connecting to room failed with the following code and message: 3: Connection was closed before the reqeust could be sent." It seems like after this error, the client does nto try again to connect to the roomServer, which is problematic and eventually is the cause for one error in Frauenkappelen with loss of local data. This problem can be stipulated by killing the server and not reloading on the client. 
 - 2022-08-01: when the mongo DB tools od not exist (on PATH), the whole server crashes --> make sure only backup/restore fails
 - 2022-08-01: for some reason, a meeting (!) that was created previously was gone after a restart! WHY CAN THIS HAPPEN?
