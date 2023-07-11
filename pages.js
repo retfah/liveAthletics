@@ -9,11 +9,11 @@
 export default {
 
     /*
-    reference (up to date: 12.5.2018):
+    reference (up to date: 7.2023):
     name:       string, mandatory   it's own name; "self-reference" in order that in the page-object itself the name is still known
     file:       string, optional    the file to be loaded; must contain a proper html site starting with <html>; either file or parent must be given!
     parent:     string, optinoal    the name of the parent, where the data defined in 'injections' is injected in the respective injectdionIDs; either file or parent must be given!
-    injections: object, mandatory except for root; Object with keys=injectionIDs of parent (or grand-parent etc) and value=Object with either file and optional data (injectID1) or text (injectID2); example: {injectID1: {file: Filename.ejs , data: {injectID3: 'hello', injectID4: 'world'}}, injectID2: {text: "this text is directly inserted without any processing"}}
+    injections: object, mandatory except for root; Object with keys=injectionIDs of parent (or grand-parent etc) and value=Object with either file and optional data (injectID1), script (like file, but for javascript, stored on the server as ejs!) or text (injectID2); example: {injectID1: {file: Filename.ejs , data: {injectID3: 'hello', injectID4: 'world'}}, injectID2: {text: "this text is directly inserted without any processing"}} NOTE: "script" shall be a JS module, without the <script> tags around. This is TODO.
     injectionsSelf: object, optional only when not root; injections to be done in its own file(s) defined in injection, if this page is requested (not a subpage). 
     title:      string, mandatory   the title of the page; always the lowest (in the hierarchy) available title is shown; is going to be translated, so set in the default language
     preload:    [string], optional  array of pages that shall be preloaded for faster page change if this page is any of root up to childest page
@@ -28,7 +28,7 @@ export default {
         // the parent admin page; eventually include here the plugin management and probably the plugins (e.g. swiss-athletics-Stammdaten) themselves
         name:"admin",
         injections: {child1: {file:'admin.ejs'}},
-        injectionsSelf: {child2: {text:'injected'}},
+        injectionsSelf: {child2: {text:''}},
         parent: 'main',
         title: "Admin",
     },
@@ -39,7 +39,7 @@ export default {
         //file: 'athletes.ejs',
         parent: 'inscriptions',
         //injectID: 'child1',
-        preload: ['inscriptions'], 
+        preload: ['inscriptions','configuration', 'competition', 'relays', 'teams', 'listcreation'],
         title: "Athletes",
         onLoad: 'startupAthletes'
         //, // addAthlete and alterAthlete might be represented in one single file with different data in/out
@@ -49,9 +49,17 @@ export default {
         name:'clubs',
         injections:{child2: {file: 'clubs.ejs', data: {}}},
         parent: 'admin',
-        preload: [],
+        preload: ['admin', 'disciplines'],
         title: 'Clubs',
         onLoad: 'startupClubs',
+    },
+    disciplines:{
+        name:'disciplines',
+        injections:{child2: {file: 'underConstruction.ejs', data: {}}},
+        parent: 'admin',
+        preload: ['admin', 'clubs'],
+        title: 'Disciplines',
+        //onLoad: 'startupClubs',
     },
     competition: {
         name: 'competition',
@@ -70,11 +78,12 @@ export default {
         name: 'configuration',
         //file: "configuration.ejs", // each page can either have a parent or a file; if there is a parent, the files to be injected are
         injections: {child1: {file:'configuration.ejs'}}, // injections in the parent; data should not be defined (as can be in injectionsSelf, except if the injects of the parent shall be overwritten!)
-        injectionsSelf: {child2: {file:'configurationSelf.ejs', data:{inj:'This is injected! And cannot be translated this way!'}}}, // only injected when itself is the last child; must fill all the ids of the page, simplest would be childX:{text:''}; in the inner object file and text is available; with file, additional data-injections can be defined here: currently only data is supported and no further files with their data and so on --> could be done with recursion  
-        preload : [ 'competition', 'definition'], // TODO: change this to the real values, this is only for testing
+        injectionsSelf: {child2: {text:''}}, // only injected when itself is the last child; must fill all the ids of the page, simplest would be childX:{text:''}; in the inner object file and text is available; with file, additional data-injections can be defined here: currently only data is supported and no further files with their data and so on --> could be done with recursion  
+        preload : ['meetingAdmin', 'definition', 'combined', 'teamcompetition', 'sites', 'dataexchange', 'backup', 'competition', 'inscriptions'], 
         parent: 'main',
         title: 'Configuration' 
     },
+    // This is called from competition/eventGroup:
     groupsQualifications:{
         name:"groupsQualifications",
         injections: {child1: {file: "groupsQualifications.ejs"}},
@@ -89,7 +98,62 @@ export default {
         injectionsSelf: {},
         parent: 'configuration',
         title: 'Meeting Settings',
-        onLoad: 'startupMeetingAdmin'
+        onLoad: 'startupMeetingAdmin',
+        preload : ['definition', 'combined', 'teamcompetition', 'sites', 'dataexchange', 'backup', 'configuration', 'competition'], 
+    },
+    relays:{
+        name: 'relays',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'inscriptions',
+        title: 'Relays',
+        onLoad: 'startupConstruction',
+        preload : ['inscriptions','configuration', 'competition', 'athletes', 'teams', 'listcreation'], 
+    },
+    teams:{
+        name: 'teams',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'inscriptions',
+        title: 'Teams',
+        //onLoad: 'startupConstruction',
+        preload : ['inscriptions','configuration', 'competition', 'athletes', 'relays', 'listcreation'], 
+    },
+    listcreation:{
+        name: 'listcreation',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'inscriptions',
+        title: 'List creation',
+        //onLoad: 'TODO',
+        preload : ['inscriptions','configuration', 'competition', 'athletes', 'relays', 'teams', ], 
+    },
+    combined:{
+        name: 'combined',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'configuration',
+        title: 'Combined events',
+        //onLoad: 'TODO',
+        preload : ['meetingAdmin', 'definition', 'teamcompetition', 'sites', 'dataexchange', 'backup', 'configuration', 'competition'], 
+    },
+    teamcompetition:{
+        name: 'teamcompetition',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'configuration',
+        title: 'Team competitions',
+        //onLoad: 'TODO',
+        preload : ['meetingAdmin', 'definition', 'combined', 'sites', 'dataexchange', 'backup', 'configuration', 'competition'], 
+    },
+    dataexchange:{
+        name: 'dataexchange',
+        injections: {child2: {file: "underConstruction.ejs"}},
+        injectionsSelf: {},
+        parent: 'configuration',
+        title: 'Data exchange',
+        //onLoad: 'TODO',
+        preload : ['meetingAdmin', 'definition', 'combined', 'teamcompetition', 'sites', 'backup', 'configuration', 'competition'], 
     },
     backup:{
         name: 'backup',
@@ -98,6 +162,7 @@ export default {
         parent: 'configuration',
         title: 'Backup and Replication',
         onLoad: 'startupBackup',
+        preload : ['meetingAdmin', 'definition', 'combined', 'teamcompetition', 'sites', 'dataexchange', 'configuration', 'competition'], 
     },
     sites:{
         name: 'sites',
@@ -105,8 +170,8 @@ export default {
         injectionsSelf: {},
         parent: 'configuration',
         title: 'Sites',
-        preload: [],
         onLoad: 'startupSites',
+        preload : ['meetingAdmin', 'definition', 'combined', 'teamcompetition', 'dataexchange', 'backup', 'configuration', 'competition'], 
     },
     definition:{
         name: 'definition',
@@ -115,13 +180,15 @@ export default {
         injectionsSelf: {},
         parent: 'configuration',
         title: 'Definition',
-        onLoad: 'startupEventMgr'
+        onLoad: 'startupEventMgr',
+        preload : ['meetingAdmin', 'combined', 'teamcompetition', 'sites', 'dataexchange', 'backup', 'configuration', 'competition'], 
     },
 
     inscriptions: {
         name: 'inscriptions',
         injections: {child1: {file: 'inscription.ejs'}},
-        preload: ['configuration', 'competition', 'athletes'],
+        injectionsSelf: {child2:{text:''}},
+        preload: ['configuration', 'competition', 'athletes', 'relays'],
         parent: 'main',
         title: 'Inscription'
     },

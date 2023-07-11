@@ -81,5 +81,9 @@ export default {
     "liveResults.ejs":{
         childs:[],
         description: "Show a selector for the different competitions and show the selected competitions",
-    }
+    },
+    "underConstruction.ejs":{
+        childs:[],
+        description: "Show a constrution sign and some text"
+    },
 }

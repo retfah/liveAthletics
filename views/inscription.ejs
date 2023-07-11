@@ -3,11 +3,9 @@
 -->
 <div class="flexNav1" id="Nav1">
     <a class="ItemNav1" href="athletes" onclick="return goto(this);"><%= __('Athletes') %></a><!-- eventually include startlist here and also the personal part of print receipt-->
-    <a class="ItemNav1" href="groups" onclick="return goto(this);"><%= __('Group assignment') %></a>
     <a class="ItemNav1" href="relays" onclick="return goto(this);"><%= __('Relays') %></a>
-    <a class="ItemNav1" href="teams"><%= __('Teams') %></a>
-    <a class="ItemNav1" href="receipts"><%= __('Receipts') %></a> 
-    <a class="ItemNav1" href="startlist"><%= __('Startlists') %></a><!--eventually include in athletes-->
+    <a class="ItemNav1" href="teams" onclick="return goto(this);"><%= __('Teams') %></a>
+    <a class="ItemNav1" href="listcreation" onclick="return goto(this);"><%= __('Create lists') %></a>
 </div>
 <div id="child2">
     <%- child2 %>
