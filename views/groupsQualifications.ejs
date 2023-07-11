@@ -5,7 +5,7 @@
 
 
     // connect to the respective contest; 
-    // in contrast to the vuContestTechHigh in in the respective file, this class here assigns the data from the room to different proeprties in the vue instance. Additionally, we do not request writing rights
+    // in contrast to the vuContestTechHigh in in the respective file, this class here assigns the data from the room to different properties in the vue instance. Additionally, we do not request writing rights
     class vuContestTechHigh2 extends roomClientVue{
         constructor(vue, meetingShortname, xContest){
             // parent constructor: initializes the room
@@ -947,8 +947,8 @@
                                 <th v-if="showFullDetails" is="vue:v-th" sortkey="xInscription">xInscription</th>
                                 <th v-if="showFullDetails" is="vue:v-th" sortkey="xStart">xStart</th>
                                 <th v-if="showFullDetails" is="vue:v-th" sortkey="xStartgroup">xStartgroup</th>
-                                <th is="vue:v-th" sortkey="bib" defaultsort="asc"><%= __('Bib') %></th>
-                                <th is="vue:v-th" sortkey="athlete.lastname"><%= __('Name') %></th>
+                                <th is="vue:v-th" sortkey="bib"><%= __('Bib') %></th>
+                                <th is="vue:v-th" sortkey="athlete.lastname" defaultsort="asc"><%= __('Name') %></th>
                                 <th is="vue:v-th" sortkey="athlete.forename"><%= __('First name') %></th>
                                 <th is="vue:v-th" sortkey="club.name"><%= __('Club') %></th>
                                 <th v-if="showEvent" is="vue:v-th" sortkey="eventStr">Events</th>

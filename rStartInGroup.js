@@ -35,6 +35,7 @@
 
  import Sequelize  from 'sequelize';
  const Op = Sequelize.Op;
+import { copyObject } from './common.js';
 
 import roomServer from './roomServer.js';
 
@@ -1131,7 +1132,8 @@ class rStartsInGroup extends roomServer{
                 throw {code:24, message:"The startsInGroup does not exist anymore on the server (should actually never happen)."};
             }
 
-            let startsInGroupOld = o.dataValues;
+            // cannot just assign dataValues to startsInGroup old, since "update" does not create a new object, but modifies the old one!
+            let startsInGroupOld = copyObject(o.dataValues);
 
             return o.update(data).then(async(startsInGroupChanged)=>{
                 // the data should be updated in th DB by now.
