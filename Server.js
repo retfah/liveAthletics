@@ -1709,8 +1709,8 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 			.then(renderData =>{
 				recursiveLoad(page, renderData);
 			}).catch(err =>{
-				logger.log(20, 'something went wrong on preparing injections')
-				res.status(404).send('Sorry, something went terribly wrong preparing injections.')
+				logger.log(20, `something went wrong on preparing injections: ${err}`)
+				res.status(404).send(`Sorry, something went terribly wrong preparing injections_ ${err}`)
 			});
 		} else{
 			// start recursive creation of the page
@@ -1726,9 +1726,9 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 		 */
 		async function prepareInjections(injections, renderData={}){
 			for (let child in injections){
-				if (injections[child].text){
+				if ('text' in injections[child]){
 					renderData[child] = req.i18n.__(injections[child].text) // incl. translation
-				} else if (injections[child].file){
+				} else if ('file' in injections[child]){
 
 					// check if the file is in the files list; throw Error otherwise
 					if (!(injections[child].file in files)){
@@ -1757,7 +1757,7 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 			variables.forEach((el)=>{
 				if (!(el in renderData)){
 					if (developMode){
-						renderData[el] = "TODO";
+						renderData[el] = "to be filled"; 
 					}else{
 						renderData[el] = "";
 					}

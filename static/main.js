@@ -584,8 +584,13 @@ class pageHandling{
                 this._toPreloadPages.push(pageName);
 
                 //wsProcessor.sendRequest({name:'preloadPage', data:pageName}, preloadPageCB, (errCode, errMsg)=>{console.log(errMsg)}); 
+                const errHanding = (errCode, errMsg)=>{
+                    console.log(errMsg);
+                    // try again after a timeout
+                    setTimeout(()=>{wsHandler.emitRequest('preloadPage', pageName, this.preloadPageCB, errHanding)}, 1000);
+                }
 
-                wsHandler.emitRequest('preloadPage', pageName, this.preloadPageCB, (errMsg,errCode)=>{console.log(errMsg)}); // TODO: error handling  
+                wsHandler.emitRequest('preloadPage', pageName, this.preloadPageCB, errHanding);  
             }
         } 
     }
@@ -628,8 +633,13 @@ class pageHandling{
                 this._toPreloadFiles.push(fileName);
 
                 //wsProcessor.sendRequest({name:'preloadFile', data:fileName}, preloadFileCB, (errCode, errMsg)=>{console.log(errMsg)}); 
+                const errHanding = (errCode, errMsg)=>{
+                    console.log(errMsg);
+                    // try again after a timeout
+                    setTimeout(()=>{wsHandler.emitRequest('preloadFile', fileName, this.preloadFileCB, errHanding)}, 1000);
+                }
 
-                wsHandler.emitRequest('preloadFile', fileName, this.preloadFileCB, (errMsg, errCode)=>{console.log(errMsg)}); // TODO: error handling 
+                wsHandler.emitRequest('preloadFile', fileName, this.preloadFileCB, errHanding); 
             }
         } 
     }
@@ -765,12 +775,61 @@ class pageHandling{
                     return;
                 }
                 var x;
-                if (x=injections[child].text) {
+                if ((x=injections[child].text) !== undefined) {
                     // just insert a text
                     el.innerHTML=x;
-                } else if (x=injections[child].file){
+                } else if ((x=injections[child].file) !== undefined){
                     // insert a file
-                    el.innerHTML = this._files[x];
+                    // NOTE: if we just added everything as innerHTML, then the code would not get executable. Code that is loaded later must be inserted in a script element; thus, split up the file into code and html parts and add them separately
+
+                    // first, empty the current stuff:
+                    el.innerHTML = '';
+
+                    let insertString = this._files[x];
+                    let re;
+                    while (re = insertString.match(/<script.*?>/) ){
+                        let pos = re.index;
+                        // add the stuff before
+                        el.innerHTML += insertString.slice(0,pos);
+                        insertString = insertString.slice(pos);
+
+                        // try to find the end of the script
+                        let re2 = insertString.match(/<\/script\s*?>/); // the end tag is not allowed to have attributes
+                        if (re===null){
+                            logger.log(7,`<Script> must also have a closing tag </script> in file ${x}. Load via http.`);
+                            window.location = window.location.origin + newPathname;
+                            //window.location = window.location.origin + "/" + link;
+                            return;
+                        }
+                        let pos2 = re2.index;
+                        
+                        let elNew = document.createElement('script');
+
+                        // transfer attributes
+                        let attributesStr = re[0].slice(8,re[0].length-1)
+                        // first split into the attributes; the following makes sure that space between "" is not matched
+                        let attrs = attributesStr.split(/ +(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/);
+
+                        for (let attr of attrs){
+                            // split the attribute into the name and the value at teh fiest occurence of = (if there is a value)
+                            let s = attr.split(/=(.*)/); // thanks to the matching all the rest, it will only split at tze first occurence; however, it somehow splits again at the very end (empty string)
+                            // we need to remove leading and trailing ""/''. 
+                            if (s.length>0){
+                                elNew.setAttribute(s[0], s.length>1 ? s[1].replace(/^["'](.*)["']$/, '$1') : ''); 
+                            }
+                        }
+
+
+                        /*if (re[0].includes('module')){
+                            elNew.setAttribute('type', 'module');
+                        }*/
+                        elNew.text = insertString.slice(re[0].length,pos2);
+                        el.appendChild(elNew);
+
+                        insertString = insertString.slice(pos2 + re2[0].length);
+                    }
+                    // add the final html part
+                    el.innerHTML += insertString;
 
                     // if there is data to be inserted in that file, process it
                     if (x=injections[child].data){
