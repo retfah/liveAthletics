@@ -1,0 +1,37 @@
+<div style="text-align: center; align-items: center;display: flex;justify-content: center;">
+    <div style="height:400px; width:400px;">
+        <img src="/static/ConstructionXL.png" alt="Under Construction" style="height:80%"><br>
+        <h3><%= __("This page is still to be created.") %></h3>
+    </div>
+</div>
+<script type="module" src="/static/moduleTest.js" onload="alert('external module loaded')"></script>
+<script type="module" onload="alert('inline module loaded')" async> // TODO: it seems like async is not yet transferred during goto handling
+    alert('run inline module');
+    function test() {alert('run test')}
+    window.test = test;
+</script>
+<script onload="alert('inline script loaded')">
+    //let x=10;
+
+    alert('run inline classic script');
+
+    function startupConstruction(){
+        alert('startupConstruction');
+        if (!('test' in globalThis)){
+            alert('function from inline module does not exist yet!')
+        } else {
+            globalThis.test();
+        }
+    }
+
+    // is the following event also raised when the page/script was inserted
+    window.addEventListener("DOMContentLoaded", (event) => {
+        alert("DOM fully loaded and parsed");
+        });
+        // we could use the load event on the script
+
+    window.addEventListener("load", (event) => {
+        alert("load event");
+        });
+
+</script>
