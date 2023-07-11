@@ -280,7 +280,7 @@ class rEvents extends roomServer{
             };
             return ret;
             
-        }else {
+        } else {
             throw {message: this.ajv.errorsText(this.validateDeleteEvent.errors), code:23};
         }
     }

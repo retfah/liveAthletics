@@ -48,7 +48,7 @@ export class rEventsClient extends roomClient{
     }
 
     deleteEventExe(eventId){
-        let ind = this.data.findIndex(el=>el.xEvent == eventId);
+        let ind = this.data.events.findIndex(el=>el.xEvent == eventId);
         this.data.events.splice(ind, 1);
     }
 
