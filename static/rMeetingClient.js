@@ -36,9 +36,9 @@ export class rMeetingClient extends roomClient{
         this.addToStack('renewStartgroups', true, ()=>{}, ()=>{}, opt)
     }
 
-    updateMeetingInit(meeting, funcOverride=undefined){
+    updateMeetingInit(meeting, funcOverride=undefined, rollBack=()=>{}){
         // meeting should contain all mandatory properties except the index...
-        this.addToStack('updateMeeting', meeting, funcOverride)
+        this.addToStack('updateMeeting', meeting, funcOverride, rollBack)
     }
 
     updateMeetingExe(meeting){
