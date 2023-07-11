@@ -10,20 +10,19 @@ TODO:
 - Quittung drucken
 
 -->
-<!--<script src="/static/v-mask.js"></script>-->
 <script type="module">
     // include stuff which is in a module; add it to window, so that it can be used 
     import {formatCountryRegion, disciplineFormatters, validatePerformance} from '/static/performanceProcessing.js';
-    window.formatCountryRegion = formatCountryRegion;
-    window.disciplineFormatters = disciplineFormatters;
-    window.validatePerformance = validatePerformance;
+    globalThis.formatCountryRegion = formatCountryRegion;
+    globalThis.disciplineFormatters = disciplineFormatters;
+    globalThis.validatePerformance = validatePerformance;
 
 </script>
 <script type="text/javascript">
 
 // the regions are needed because during adding athletes from a base DB we might have to add regions
 // not needed anymore (2022-07)
-class vuRegions extends roomClientVue{
+globalThis.vuRegions = class vuRegions extends roomClientVue{
     
     constructor(vue, meetingShortname){
         // parent constructor: initializes the room
@@ -67,7 +66,7 @@ class vuRegions extends roomClientVue{
     }
 }
 
-class vuClubs extends roomClientVue{
+globalThis.vuClubs = class vuClubs extends roomClientVue{
     
     constructor(vue, meetingShortname){
         // parent constructor: initializes the room
@@ -111,7 +110,7 @@ class vuClubs extends roomClientVue{
     }
 }
 
-class vuStarts extends roomClientVue{
+globalThis.vuStarts = class vuStarts extends roomClientVue{
     
     constructor(vue, meetingShortname){
         // parent constructor: initializes the room
@@ -157,7 +156,7 @@ class vuStarts extends roomClientVue{
     }
 }
 
-class vuInscriptions extends roomClientVue{
+globalThis.vuInscriptions = class vuInscriptions extends roomClientVue{
     
     constructor(vue, meetingShortname){
         // parent constructor: initializes the room
@@ -212,7 +211,7 @@ class vuInscriptions extends roomClientVue{
     }
 }
 
-class vuEvents extends roomClientVue{
+globalThis.vuEvents = class vuEvents extends roomClientVue{
         
         constructor(vue, meetingShortname){
             // parent constructor: initializes the room
@@ -277,6 +276,8 @@ class vuEvents extends roomClientVue{
 
 var vueAthletes={};
 function startupAthletes(){
+
+    alert('starting up athletes');
 
     let vueAppConfig = {
         data(){
@@ -765,8 +766,15 @@ function startupAthletes(){
                 this.infoContent = content;
                 this.infoVisible = true;
             },
-            // NEW: 
-            formatCountryRegion:window.formatCountryRegion,
+            // NEW
+            formatCountryRegion(region){
+                // formatCountryRegion might not yet be available at startup, since modules are loaded async.
+                if ('formatCountryRegion' in window){
+                    return window.formatCountryRegion(region);
+                } else {
+                    return '';
+                }
+            },
             // OLD: 
             formatCountryRegion2(region){
                 // if there is country and region defined, return "country / region", otherwise just "country"
