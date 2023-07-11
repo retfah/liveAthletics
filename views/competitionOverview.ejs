@@ -319,6 +319,7 @@
                     <tr>
                         <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
                         <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                        <th is="vue:v-th" sortkey="discName"><%= __("Name") %></th>
                         <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
                         <th is="vue:v-th" sortkey="formattedStart" defaultsort="asc"><%= __("Start") %></th>
                         <th is="vue:v-th" sortkey="formattedAppeal"><%= __("Appeal") %></th>
@@ -333,6 +334,7 @@
                     <tr v-for="co in displayData" :key="co.xContest" v-on:click="gotoContest(co)" v-bind:style="{ 'background-color': statusBackgroundColor(co.status), '--backColorHover': statusBackgroundColorHover(co.status), color: statusTextColor(co.status) }">
                         <td v-if="showFullDetails">{{co.xContest}}</td>
                         <td>{{co.discName}}</td>
+                        <td>{{co.name}}</td>
                         <td>{{statusText(co.status)}}</td>
                         <td>{{co.formattedStart}}</td>
                         <td>{{co.formattedAppeal}}</td>

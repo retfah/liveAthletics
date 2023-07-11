@@ -289,6 +289,7 @@
                     newDateStart:"",
                     newXBaseDiscipline:undefined,
                     newInfo:'', 
+                    newContestName:'',
                     eventGroupRadio:'none', 
                     contestRadio: 'new',
                     newEventGroupName:'', 
@@ -377,8 +378,8 @@
                 },
                 deleteEvent: function(id){
                     // we do not locally delete the dataset, but wait till the server did it.
-                    rE.room.addToStack('deleteEvent', id) //direct
-                    //rE.room.deleteEventInit(id); // indirect
+                    //rE.room.addToStack('deleteEvent', id) //direct
+                    rE.room.deleteEventInit(id); // indirect
                 },
                 addRound: function(){
                     this.roundModID = -1;
@@ -490,6 +491,7 @@
                     // if xbaseDiscipline is given, the xBaseDiscipline canot be changed (used when addContest is clicked within the groups-definitions)
                     this.newXBaseDiscipline = xBaseDiscipline;
                     this.createContestFixedDisc = xBaseDiscipline!==undefined;
+                    this.newContestName = '';
 
                     // create new:
                     this.contestModID = -1;
@@ -520,6 +522,7 @@
                             datetimeAppeal: dA.toJSON(),
                             datetimeCall: dC.toJSON(),
                             datetimeStart: dS.toJSON(),
+                            name: this.newContestName, 
                             //status: 0,
                             //conf:'',
                         }
@@ -534,6 +537,7 @@
                             datetimeAppeal: dA.toJSON(),
                             datetimeCall: dC.toJSON(),
                             datetimeStart: dS.toJSON(),
+                            name: this.newContestName, 
                             //status: 0,
                             //conf:'',
                         }
@@ -552,6 +556,7 @@
                     this.newDateAppeal = co.datetimeAppeal;
                     this.newDateCall = co.datetimeCall;
                     this.newDateStart = co.datetimeStart;
+                    this.newContestName = co.name;
                     
                     this.overlay2 = "addContest";
 
@@ -1260,6 +1265,7 @@
                         <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
                         <th is="vue:v-th" sortkey="xBaseDiscipline" v-if="showFullDetails">xBaseDiscipline</th>
                         <th is="vue:v-th" sortkey="baseDiscName"><%= __("Base discipline") %></th>
+                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
                         <th is="vue:v-th" sortkey="formattedStarttime" defaultsort="asc"><%= __("Start") %></th>
                         <th is="vue:v-th" sortkey="formattedAppealtime"><%= __("Appeal") %></th>
                         <th is="vue:v-th" sortkey="formattedCalltime"><%= __("Call") %></th>
@@ -1275,6 +1281,7 @@
                         <td v-if="showFullDetails">{{co.xContest}}</td>
                         <td v-if="showFullDetails">{{co.xBaseDiscipline}}</td>
                         <td>{{co.baseDiscName}}</td>
+                        <td>{{co.name}}</td>
                         <td>{{co.formattedStarttime}}</td>
                         <td>{{co.formattedAppealtime}}</td>
                         <td>{{co.formattedCalltime}}</td>
@@ -1443,7 +1450,7 @@
                                 <div v-if="true"><!--contestRadio=='existing'-->
                                     <select v-model.number="g.xContest">
                                         <option value=null><%= __("defined later") %></option>
-                                        <option v-for="contest in contestsForRound" v-bind:value="contest.xContest">{{formatDate(contest.datetimeStart)}}</option><!-- TODO: add site as an identifier and/or implement a name for the contest-->
+                                        <option v-for="contest in contestsForRound" v-bind:value="contest.xContest">{{formatDate(contest.datetimeStart)}}{{contest.name!='' ? ` ${contest.name}`:''}}</option><!-- TODO: add site as an identifier and/or implement a name for the contest-->
                                     </select>
                                     <button type="button" class="btn" v-on:click="addContestGroup"><%= __('Add contest') %></button>
                                 </div>
@@ -1475,6 +1482,10 @@
                             <select v-model.number="newXBaseDiscipline" v-bind:disabled="createContestFixedDisc">
                                 <option v-for="bd in baseDisciplinesSeasonFiltered" v-bind:value="bd.xBaseDiscipline">{{getBaseDisciplineName(bd.xBaseDiscipline)}}</option>
                             </select>
+                        </label>
+                        <label>
+                            <%= __('Name') %>
+                            <input type="text" v-model="newContestName">
                         </label>
                         <label style="display:inline-block">
                             <%= __("Start time") %>
