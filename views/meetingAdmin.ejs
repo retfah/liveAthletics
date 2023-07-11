@@ -294,6 +294,9 @@
                         defaultFunc(data);
                         // then set the mode to 0
                         this.mode = 0; 
+                    }, ()=>{
+                        // resets the data in meetingWorkCopy on error
+                        this.abortMeetingChange();
                     });
 
                     this.mode = 2;
