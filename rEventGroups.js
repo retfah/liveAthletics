@@ -229,10 +229,8 @@ class rEventGroups extends roomServer{
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
 
-            // make sure that there is a rounds property; otherwise sequelize will not return the rounds property, which we need
-            if (!dataTranslated.rounds){
-                dataTranslated.rounds = [];
-            }
+            // make sure that there is an empty rounds property; otherwise sequelize will not return the rounds property, which we need
+            dataTranslated.rounds = [];
 
             // nested "eager" create work!
             var eventGroup = await this.models.eventgroups.create(dataTranslated, {include:[{model:this.models.rounds, as:"rounds", include: [{model:this.models.groups, as:"groups"}]}]}).catch((err)=>{throw {message: `Sequelize-problem: EventGroup could not be created: ${err}`, code:22}})
