@@ -1,6 +1,7 @@
 {
   "name": "liveathletics",
-  "description": "Live management and result broadcasting for athletics competitions",
+  "version": "0.5.0",
+  "description": "athletics / track and field competition management software and result broadcasting",
   "keywords": [
     "liveAthletics",
     "live",
@@ -8,15 +9,18 @@
     "athletics",
     "track and field",
     "competition management",
-    "results"
+    "results",
+    "browser"
   ],
   "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/retfah/liveAthletics",
+  "repository": "github:retfah/liveAthletics",
   "author": {
     "name": "Reto Fahrni",
     "email": "retofahrni@bluewin.ch"
   },
+  "main": "Server.js",
   "type": "module",
-  "version": "0.0.1",
   "dependencies": {
     "ajv": "^8.5.0",
     "ajv-formats": "^2.1.0",
