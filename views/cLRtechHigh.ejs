@@ -6,7 +6,7 @@ const cLRtechHigh = {
     template:`
     
 <div id="vueSeriesAdminTech">
-<h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h2>
+<h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h2>
 <div v-if="contest.status<90"> <!-- v-if="contest.state<90" -->
 <!--currently, the roll call is beeing done or the series are being created. Show all inscribed athletes. -->
 <h3><%= __("Startlist") %></h3>
