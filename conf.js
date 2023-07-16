@@ -39,6 +39,7 @@ export default {
         version: 1, // i.a. stored along with data-backups
         versionMinForRestore: 1, // minimum required version for restore.
         timezone: 'Europe/Zurich', //https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+        pathToDumpScript:'C:/Program Files/MariaDB 10.6/bin/mariadb-dump', // for linux only the final name is needed
     },
 
     databaseMongo: {

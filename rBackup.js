@@ -719,7 +719,7 @@ class rBackup extends roomServer{
         // If it is the change from sec/main, then also restart the rooms to make sure that all rooms can now have writing clients. And vice versa.
         if ((oldData.isMain && !data.isMain) || (!oldData.isMain && data.isMain)){
             // notify all rooms (except sideChannel and this room) about the fact that this is now a main/secondary server.
-            updateRoomMode(data.isMain);
+            this.updateRoomMode(data.isMain);
         }
 
         // apply the changes in the side channels, e.g. open a connection to added push servers, stop removed connections, etc.
@@ -793,7 +793,7 @@ class rBackup extends roomServer{
         // Backup SQL
         var args = ['--port', conf.database.port, '--host', conf.database.host, `--password=${conf.database.password}`, `--user=${conf.database.username}`, this.rMeetings.getDbNameSql(this.meetingShortname), "--result-file="+pathSql]
         let mysqlDumpProm = new Promise((resolve, reject)=>{
-            var mysqldump = spawn('C:/Program Files/MariaDB 10.6/bin/mariadb-dump', args)
+            var mysqldump = spawn(conf.database.pathToDumpScript, args)
             mysqldump.stdout.on('data', (data)=>{
                 console.log('mysqldump stdout: ' + data);
             });

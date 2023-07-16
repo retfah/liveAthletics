@@ -175,7 +175,7 @@ class rSideChannel extends roomServer{
      * @param {wsConnectionUUID} tabIdExclude Exclude this wsConnection-UUID form the broadcast (e.g. because the request came fomr this UUID)
      * @param {boolean} roomDatasetOnly Set to true, if the broadcast should only go to clients of the room-data itself and not of a roomDataset (e.g. during broadcasts of changes, which are handled separately in the roomDatasets)
      */
-     broadcast(obj, tabIdExclude, roomDatasetOnly=false){
+    broadcast(obj, tabIdExclude, roomDatasetOnly=false){
 
         // broadcast to clients of the room itself (and not just of a roomView)
         // currently the potential to send one data-package per client, eventually with the data of several views, is left unused 
@@ -309,10 +309,10 @@ class rSideChannel extends roomServer{
         // override here the default behavior and return a full backup, created in rBackup
         // ONLY DO THIS WHEN THIS CLIENT IS NOT A WRITING CLIENT (=main server) ! 
         if (!client.writing){
-            let ret = await this.rBackup.serverFuncReadOnly('createBackup', {backupSideChannelConfiguration: false,
-                backupSideChannelData: false})
-                
-            return ret.response;
+            let ret = await this.rBackup.serverFuncReadOnly('createBackup', {backupSideChannelConfiguration: false, backupSideChannelData: false})
+            
+            return ret;
+            //return ret.response;
         }
 
         // TODO: what to return otherwise

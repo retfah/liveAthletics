@@ -1,12 +1,5 @@
 // This is the sideChannelClient to be used on the server (for secondary servers!) For the identically named file for the browser see in the folder /static/ !
 
-/**
- * Why we want to use the standard server/cleint mechanisms: 
- * - automatic boadcast of changes to all connected clients
- * - ?
- * --> how big is the effort to do this manually?
- * Eventually we need wo rooms: one is the actual sideCHannel, the other is the room for all backup settings. We need to separate this probably, since we must be able to e.g. change the backup settings on a secondary server 2. However, its further secondary servers (server 3, as clients) shall not get a changed ID, because it would mean that the main ID would not be the same anymore on server 1 and server 3. One side channel would then be fore the conenction management, the other for the actual transactions. 
- */
 
 import roomClient from './roomClientForServer.js';
 
@@ -102,7 +95,7 @@ export default class rSideChannelClient extends roomClient{
         this.rSideChannel.ID = this.ID;
     }
 
-    // this function is called, after the full data update is done. The data is tehn already stored in this.data; however this data is not needed there, but we need to restore it as if it was a regular backup (what it is)
+    // this function is called, after the full data update is done. The data is then already stored in this.data; however this data is not needed there, but we need to restore it as if it was a regular backup (what it is)
     async afterFullreload(){
         // this.data contains the pure backup. The restore function needs two additional properties
         let dataPrep = {

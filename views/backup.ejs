@@ -438,6 +438,12 @@
                     <input type="text" v-model="backup.pullFromServer.shortname" v-bind:disabled="mode!=1">
                 </label>
             </div>
+            <div>
+                <!-- status stuff -->
+                <h3><%= __("Connection Status to main server") %></h3>
+                {{status.connectedToMain}}
+                {{status.connectionToMain}}
+            </div>
         </div>
         <div>
             <h3><%= __('Settings for this server as main server for others') %>:</h3>
@@ -644,7 +650,7 @@
                 </label>
                 <label>
                     <%= __('Token') %>:
-                    <input type="text" v-model="newPullToken">
+                    <input type="text" v-model="newPullToken" size="40">
                 </label>
             </form>
             <button v-if="!modPullToken" type="button" class="btn btnGreen" v-on:click="savePullServer"><%= __('Add') %></button>
@@ -666,7 +672,7 @@
                 </label>
                 <label>
                     <%= __('Token') %>:
-                    <input type="text" v-model="newPushToken">
+                    <input type="text" v-model="newPushToken" size="40">
                 </label>
                 <label>
                     <%= __('Host') %>:
