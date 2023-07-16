@@ -422,8 +422,10 @@ for contest in selectedContests:
             <div v-if="selectedContests.length>0" class="hideDesktop">
                 <h2 ><%= __("Pinned contests") %></h2>
                 <div v-for="(co, index) of selectedContests" class="navItem">
-                    <div style="flex:1;">{{co.discName}} {{co.categories}}</div>
-                    <button type="button" v-on:click="unpinContest(index)" class="close btn">X</button>
+                    <div style="flex:1; display:flex; align-items: baseline; justify-content: space-between;">
+                        <div>{{co.discName}} {{co.categories}} {{co.name}}</div>
+                        <button type="button" v-on:click="unpinContest(index)" class="close btn">X</button>
+                    </div>
                 </div>
             </div>
 
