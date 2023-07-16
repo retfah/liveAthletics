@@ -441,7 +441,8 @@ for contest in selectedContests:
                                 <th is="vue:v-th" sortkey="categories"><%= __("Categories") %></th>
                                 <!--<th is="vue:v-th" sortkey="name"><%= __("Name") %></th>-->
                                 <th is="vue:v-th" sortkey="formattedStart" defaultsort="asc"><%= __("Start") %></th>
-                                <th id="vue:v-th" sortkey="eventGroupNames"><%= __("Event Group Names") %></th>
+                                <th is="vue:v-th" sortkey="name"><%= __("Contest Name") %></th>
+                                <!--<th is="vue:v-th" sortkey="eventGroupNames"><%= __("Event Group Names") %></th>-->
                                 <!--<th><%= __("Groups in EventGroups with Events") %></th>-->
                             </tr>
                         </thead>
@@ -453,7 +454,8 @@ for contest in selectedContests:
                                 <td>{{co.categories}}</td>
                                 <!--<td>{{co.name}}</td>-->
                                 <td>{{co.formattedStart}}</td>
-                                <td>{{co.eventGroupNames}}</td>
+                                <td>{{co.name}}</td>
+                                <!--<td>{{co.eventGroupNames}}</td>-->
                                 <!--<td>
                                     <div v-for="g in co.groups">
                                         <template v-for="(evt, evtIndex) in g.events">
