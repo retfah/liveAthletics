@@ -1006,7 +1006,11 @@ class socketProcessor2{
         if (window.location.port!=''){
             port = ':'+window.location.port;
         }
-        this.wsconn = new WebSocket("ws://" +window.location.hostname+port+"/ws"); // New 2021-01: use the same connection as the main-hhtp/html part
+        let protocol = 'ws';
+        if (window.location.protocol.includes('https')){
+            protocol = 'wss';
+        }
+        this.wsconn = new WebSocket(`${protocol}://${window.location.hostname}${port}/ws`); 
         this.wsconn.onopen = (event)=>{
             logger.log(90, 'websocket successfully connected; start wsProcessor');
 

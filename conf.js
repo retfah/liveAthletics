@@ -10,8 +10,16 @@ export default {
     version: 1, // i.a. stored along with data-backups
     versionMinForRestore: 1, // minimum required version for restore.
     
-    // the port to listen on (node/express default is 3000, http is 80)
+    // the port to listen on for http (node/express default is 3000, http is 80)
     port: 80,
+
+    // if https shall be used, define the setting here:
+    https:null,
+    /*https:{
+        port:443,
+        keyFilePath: '/etc/letsencrypt/live/liveathletics.ch/privkey.pem',
+        certificateFilePath: '/etc/letsencrypt/live/liveathletics.ch/fullchain.pem',
+    },*/
 
     // logging: set various kinds of loggers; one logger per object
     // properties for each logger

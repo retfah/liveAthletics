@@ -208,12 +208,6 @@ const cP=cookieParser(conf.sessionSecret)
 // Start server
 // ------------------
 
-// listen on port 3000, automatically http
-var server     =    app.listen(conf.port);
-
-// the same could be done the follwing way
-//var server = http.createServer(app).listen(3000);
-
 
 // start the bare websocket Server
 // we (currently) want a separate server/port for the ws-stuff, as on port 3000 is the normal webserver and the current/old WebSocket implementation with Socket.io
@@ -221,7 +215,10 @@ var server     =    app.listen(conf.port);
 //const wss = new wsServer({server:server, port:3001}); // uses the the same server (but different port) as the http/html
 const wss = new wsServer({noServer: true}); // NEW 2021-01-22: use the same server and port as the express app; route ws-upgrade requests to the ws then
 
-server.on('upgrade', function upgrade(req, socket, head) {
+// listen to on certain port for http
+var server = http.createServer(app).listen(conf.port);
+
+function upgrade(req, socket, head) {
 	// upgrades are only allowed when for /ws path
 	if (req.url != "/ws"){
 		// Decline the connection:
@@ -261,7 +258,19 @@ server.on('upgrade', function upgrade(req, socket, head) {
 
 		}
 	})
-  });
+  }
+server.on('upgrade', upgrade);
+
+// if https shall be used, get the certificate files, set the port and start the server and handle ws-upgrades
+var serverS;
+if (conf.https){
+	const options = {
+		key: fs.readFileSync(conf.https.keyFilePath),
+		cert: fs.readFileSync(conf.https.certificateFilePath),
+	  };
+	var serverS = https.createServer(options, app).listen(conf.https.port)
+	serverS.on('upgrade', upgrade);
+}
 
 
 // start the logger --> define the log level
