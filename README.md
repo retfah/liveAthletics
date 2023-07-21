@@ -2,6 +2,7 @@
 athletics / track and field competition management software
 
 This software is under developement. 
+An exemplary online might (!) be found at [liveathletics.ch](liveathletics.ch).
 
 In the final version, liveAthletics will provide all funcctionality needed to manage large competitions, including the competition management (entries, seeding, recording results, quelifications, result views, team events, combined events, groups, automatic backup+replication) as well as traffic-saving live results for thousands of clients (via websockets). Any change of data is instantly broadcasted to all clients that depend on this data. Multiple-servers are kept up-to-date automatically, which allows load balancing and automatic back-up. 
 
@@ -22,6 +23,7 @@ Up and running:
 - backup and restoration to/from file
 
 TODO:
+- User management and group policies
 - horizontal technical events (all throws, long jump and triple jump)
 - qualification between rounds
 - combined events
