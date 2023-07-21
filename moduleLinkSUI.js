@@ -25,8 +25,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
         pathEmptyDb: './emptyDbBaseSui.sql',
 
-        //host: 'alabus.swiss-athletics.ch', // live server
-        host: 'alabustest.swiss-athletics.ch', // test server
+        host: 'alabus.swiss-athletics.ch', // live server
+        //host: 'alabustest.swiss-athletics.ch', // test server
         port: 443,
         pathBaseData: '/rest/License/Athletica/ExportStammDataFull',
         pathCompetitionList: "/rest/Event/Athletica/ExportMeetingList",
@@ -218,7 +218,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
             return {isAchange: false, response:{lastUpdate:this.lastBaseUpdateDate}};
         } else if (functionName=='baseUpdate') {
             let response = {err:0};
-            response.notes = await this.updateBaseData(data).catch((errObj)=>{
+            // note: meeting is needed to raise an event.
+            response.notes = await this.updateBaseData(data, meeting).catch((errObj)=>{
                 if (errObj.code==1){
                     // connection error
                     response.err = 2;
@@ -1395,7 +1396,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * @param {string} opts.username The username for the login (actually the license/member number)
      * @param {string} opts.password 
      */
-    async updateBaseData(opts){
+    async updateBaseData(opts, meeting){
 
         if (!('password' in opts) || !('username' in opts)){
             throw {code:30, message: 'username or password missing'};
@@ -1471,8 +1472,9 @@ export default class moduleLinkSUI extends nationalBodyLink {
                     notes.push(msg);
                     this.logger.log(90, msg);
                     //parseStringPromise(xmlString, {explicitArray:false,})
-                    return this.parseBase(xmlString)
-                    .then(async (xml)=>{
+                    return this.parseBase(xmlString).catch((err)=>{
+                        throw {code:29, message:`Error in the worker for parsing: ${JSON.stringify(err)}`}
+                    }).then(async (xml)=>{
     
                         let timeUnzipped = new Date();
                         msg = `Parsing xml successful. Duration: ${(timeUnzipped - timeDownloaded)/1000}s. Starting importing the data.`;
@@ -1879,14 +1881,12 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         this.postUpdateBaseData(d);
 
                         // make sure that all contests recreate their startgroups !
-                        this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);
+                        meeting.eH.raise(`general@${meeting.meetingShortname}:renewStartgroups`);
 
                         // report success
                         resolve(notes);
     
-                    }).catch((err)=>{
-                        throw {code:29, message:`Error in the worker for parsing: ${JSON.stringify(err)}`}
-                    });
+                    })
 
                 }).catch((err)=>{
                     // do not throw, since the calling function is not async
