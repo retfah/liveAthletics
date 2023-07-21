@@ -47,7 +47,7 @@ export class rMeetingClient extends roomClient{
     }
 
 
-    baseFunctionInit(baseName, functionName, data, succFunc, errFunc){
+    baseFunctionInit(baseName, functionName, data, succFunc, errFunc, timeout=30){
         const req = {
             baseName,
             functionName,
@@ -55,7 +55,7 @@ export class rMeetingClient extends roomClient{
         }
         const opt = {
             readOnly:true, // set to false to make sure the error is shown.
-            requestTimeout: 30, // default would be 10s, allow some more time for processing before the request is deemed failed.
+            requestTimeout: timeout, // default would be 10s, allow some more time for processing before the request is deemed failed.
             errorHandling:[{from: 20, to: 99, rule:'deleteRollback', customErrMsg:errFunc}],
         }
         this.addToStack('baseFunction', req, succFunc, ()=>{}, opt);
