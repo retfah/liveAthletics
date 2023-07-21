@@ -121,7 +121,11 @@
                     // the success callback is always called, even when there was an error
                     const succFunc = (data, defaultFunc)=>{
                         // there is no default function for this call
-                        this.moduleData.lastUpdate = data.lastUpdate.substr(0,10);
+                        if (data.lastUpdate){
+                            this.moduleData.lastUpdate = data.lastUpdate.substr(0,10);
+                        } else {
+                            this.moduleData.lastUpdate = '-';
+                        }
                     }
 
                     // reset previous errors
@@ -198,7 +202,7 @@
                         this.moduleData.errGeneral = true;
                     }
 
-                    rMeet.room.baseFunctionInit('SUI', 'baseUpdate', opts, succFunc, errFunc)
+                    rMeet.room.baseFunctionInit('SUI', 'baseUpdate', opts, succFunc, errFunc, 300); //timeout after 300s
 
                 },
                 baseSuiUploadResults: function(evt){
