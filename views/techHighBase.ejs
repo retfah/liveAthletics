@@ -241,7 +241,7 @@
                     }
                 },
                 showAuto(){
-                    // automatically show the most meaningful page when the selected status is changed
+                    // automatically show the most meaningful page (and results sorting) when the selected status is changed
                     if (this.contest.status<=39){
                         this.show='rollCall';
                     } else if (this.contest.status<=89 && this.contest.status>=60){
@@ -252,9 +252,11 @@
                             this.show = 'startheights';
                         } else {
                             this.show = 'competition';
+                            this.sortValue2 = 2;
                         }
                     } else if (this.contest.status>180){
                         this.show = 'resShow';
+                        this.sortValue2 = 2;
                     }
                 },
 
@@ -3412,8 +3414,6 @@
      * @returns dContest instance with all series/persons as childs
      */
     function createDataStructureResults (contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, tempRankingData, conf, xSeries=null){
-        // TODO: currently this is just copied from createDataStructureSeries!
-
 
         // get the name of the discipline
         let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
