@@ -541,7 +541,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     Where
         seriesstartsresults.resultOverrule<=1 AND -- only regular and "retired" results
         -- athletes.nationalBody='SUI' AND -- do NOT only get swiss-people, sicne we need all other persons for ranking as well!
-        contests.status>=180 -- TODO: only competitions that are at least finished!
+        contests.status>=180 -- only competitions that are at least finished!
 
     order by
         eventgroups.xEventGroup, -- must be ordered by eventGroup, round, group and series first to make the ranking-stuff work
@@ -758,7 +758,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 if (res.order==numRoundsEG[res.xEventGroup] && numRoundsEG[res.xEventGroup]>1){
                     // overwrite the default numbers by letters; the last final heat is A_, second last B_, ... 
                     const letters=['A_', 'B_', 'C_', 'D_', 'E_'];
-                    // TODO: we need to know how many heats we had...
+                    // we need to know how many heats we had...
                     let sql = `select count(*) as numHeats from series where xContest=${res.xContest}`;
                     const numHeatsRow = await meeting.seq.query(sql, { type: QueryTypes.SELECT });
                     const numHeats = numHeatsRow[0].numHeats;
@@ -814,18 +814,15 @@ export default class moduleLinkSUI extends nationalBodyLink {
     </event>
 </watDataset>`;
 
-        // TODO: for testing, write the file to disk; later eventually keep writing to disk but also upload the result
+        // for debuggin, write the file to disk
         await writeFile(`./temp/newResults.xml`, xmlStr);
         
-        //TODO: remove for actual upload!
-        //return {response: true, isAchange: false};
-
         // gzip the xml!
         let xmlgz = zlib.gzipSync(xmlStr);
 
         // create the body
         let remoteFilename = `${today.getUTCFullYear()}${(today.getUTCMonth()+1).toString().padStart(2,0)}${today.getUTCDate().toString().padStart(2,0)}_${meeting.data.baseSettings.SUI.approval}.gz`; // the filename to be send
-        let body = "--swissAthletics\r\n"; // TODO: eventually CRLF before is (not) needed
+        let body = "--swissAthletics\r\n"; // TODO eventually CRLF before is (not) needed
         body += `content-disposition: form-data; name="file"; filename="${remoteFilename}" \r\n`;
         body += `content-type: application/x-gzip \r\n\r\n`;
         // put here the xmlgz
@@ -1401,8 +1398,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
         if (!('password' in opts) || !('username' in opts)){
             throw {code:30, message: 'username or password missing'};
         }
-
-        // TODO: move the first part (download, extracting and xml2js in a separate Worker thread (https://nodejs.org/api/worker_threads.html#new-workerfilename-options)) in order to not occupy the main process
 
         let options = {
             host: this.conf.host,
@@ -2131,18 +2126,40 @@ export default class moduleLinkSUI extends nationalBodyLink {
             method: 'post',
         };
 
+        // prepare the returned data
+        let notes = [];
+        let newCount = 0;
+        let updateCount = 0;
+        let failCount = 0;
+
         // delete existing athletes first or not? set default value
         // 0 == do noting; 1== delete all starts, 2== delete athletes and starts
-        opts.deleteAthletes ?? 0; 
+        opts.deleteAthletes = opts.deleteAthletes ?? 0; 
 
         if (opts.deleteAthletes>0){
             // delete all starts related to an athlete in this base
-            // TODO
+            // TODO: relay
+            var xInscriptionsToDelete = meetingRooms.inscriptions.data.inscriptions.filter(i=>{
+                if ('athlete' in i){
+                    return i.athlete.nationalBody == 'SUI';
+                } 
+                return false;
+            }).map(x=>x.xInscription);
+            
+            // delete the starts
+            let startsToDelete = meetingRooms.starts.data.starts.filter(s=>xInscriptionsToDelete.indexOf(s.xInscription)>=0);
+
+            for (let s of startsToDelete){
+                await meetingRooms.starts.serverFuncWrite('deleteStart', s.xStart).catch(err=>notes.push(`Could not delete start for xStart=${s.xStart}: ${err}`));
+            }
+
         }
 
         if (opts.deleteAthletes==2){
-            // delete all athletes linked with this base
-            // TODO
+            // delete all starts+athletes linked with this base (starts were already deleted above)
+            for (let xInsc of xInscriptionsToDelete){
+                await meetingRooms.inscriptions.serverFuncWrite('deleteInscription', xInsc).catch(err=>notes.push(`Could not delete inscription for xInscription=${xInsc}: ${err}`));
+            }
         }
 
         
@@ -2152,7 +2169,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
             this.logger.log(90, 'Starting download of competition.')
             let timeStart = new Date();
     
-            // TODO: post parameter!
             let request = https.request(options);
     
             request.on('error', (e)=>{
@@ -2185,11 +2201,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
                     let timeUnzipped = new Date();
                     this.logger.log(90, `toString successful. Duration: ${(timeUnzipped - timeDownloaded)/1000}s. Starting parsing the xml.`);
                     return parseStringPromise(xmlString, {explicitArray:true,}).then(async (xml)=>{
-                        
-                        let notes = [];
-                        let newCount = 0;
-                        let updateCount = 0;
-                        let failCount = 0;
 
                         const data = xml.meetDataset;
 
@@ -2275,7 +2286,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                     xEvent: eventExisting.xEvent,
                                     xDiscipline,
                                     xCategory: cat.xCategory,
-                                    xEventGroup: null,
+                                    xEventGroup: eventExisting.xEventGroup, // do NOT set the eventGroup; just keep it the way it is!
                                     entryFee: parseFloat(disc.$.disFee)/100 || 0,
                                     bailFee: penalty, // actually not used anymore
                                     onlineId: disc.$.disId,
@@ -2552,5 +2563,4 @@ export default class moduleLinkSUI extends nationalBodyLink {
         }
     }
 
-    // TODO: implement all functions!
 }
