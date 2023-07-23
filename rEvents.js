@@ -105,7 +105,7 @@ class rEvents extends roomServer{
             properties: {
                 xEvent: {type: "integer"},
                 // the discipline MUST NOT be changed
-                //xDiscipline: {type: "integer"},
+                xDiscipline: {type: "integer"},
                 xCategory: {type: "integer"},
                 xEventGroup: {type: ["integer", "null"], default:null},
                 entryFee: {type: "number"}, 
@@ -113,7 +113,7 @@ class rEvents extends roomServer{
                 onlineId: {type: "string", maxLength:36},
                 date: {type:"string", format:"date-time"},
                 info: {type: "string", maxLength: 50},
-                nationalBody: {type:['string', "null"], default:null},
+                nationalBody: {type:['string', "null"]}, // do NOT set a default=null here, since the client might not send the nationalBody, which shall mean "remains unchanged" and should not revert it to null!
             },
             required: ["xEvent", "xDiscipline", "xCategory", "entryFee", "info"]
         };
