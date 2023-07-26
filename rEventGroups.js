@@ -333,49 +333,44 @@ class rEventGroups extends roomServer{
         let valid = this.validateUpdateEventGroup(data);
         if (valid) {
 
-            return this.models.eventgroups.findByPk(data.xEventGroup).then((eventGroup)=>{
+            // get the instance to update
+            let [i,eventGroup] = this.findObjInArrayByProp(this.data, 'xEventGroup', data.xEventGroup);
+            if (i<0){
+                throw {code:22, message:`The eventGroup (xEventGroup=${data.xEventGroup}) does not exist on the server.`};
+            }
 
-                // store the old data for the undo-object
-                let eventGroupOld = eventGroup.dataValues;
+            // store the old data for the undo-object
+            let eventGroupOld = eventGroup.dataValues;
 
-                // it is not allowed to change the discipline of an eventGroup
-                // TODO: allow it as long as there is no event linked to it yet
-                if (eventGroupOld.xDiscipline != data.xDiscipline){
-                    throw {code: 25, message: "It is not allowed to change the discipline of an eventGroup"};
-                }
+            // it is not allowed to change the discipline of an eventGroup
+            // TODO: allow it as long as there is no event linked to it yet
+            if (eventGroupOld.xDiscipline != data.xDiscipline){
+                throw {code: 25, message: "It is not allowed to change the discipline of an eventGroup"};
+            }
 
-                // get the index of the eventGroup in the list of eventGroups
-                let [i,o] = this.findObjInArrayByProp(this.data, 'xEventGroup', data.xEventGroup);
-                if (i<0){
-                    throw {code:24, message:"The eventGroup does not exist anymore on the server (should actually never happen)."};
-                }
+            // update it
+            return eventGroup.update(data, {include: [{model:this.models.rounds, as:"rounds", include:[{model:this.models.groups, as:"groups"}]}]}).then(async(eventGroupChanged)=>{
+                // the data should be updated in the DB by now.
 
-                // update it
-                return eventGroup.update(data, {include: [{model:this.models.rounds, as:"rounds", include:[{model:this.models.groups, as:"groups"}]}]}).then(async(eventGroupChanged)=>{
-                    // the data should be updated in th DB by now.
+                // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
+                this.eH.raise(`eventGroupUpdated${eventGroupChanged.xEventGroup}`, eventGroupChanged)
 
-                    // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
-                    this.eH.raise(`eventGroupUpdated${eventGroupChanged.xEventGroup}`, eventGroupChanged)
+                // set the local data
+                this.data[i] = eventGroupChanged;
 
-                    // set the local data
-                    this.data[i] = eventGroupChanged;
+                let ret = {
+                    isAchange: true, 
+                    doObj: {funcName: 'updateEventGroup', data: eventGroupChanged.dataValues}, 
+                    undoObj: {funcName: 'updateEventGroup', data: eventGroupOld, ID: this.ID},
+                    response: eventGroupChanged.dataValues,
+                    preventBroadcastToCaller: true
+                };
+                
+                // the rest is done in the parent
+                return ret;
 
-                    let ret = {
-                        isAchange: true, 
-                        doObj: {funcName: 'updateEventGroup', data: eventGroupChanged.dataValues}, 
-                        undoObj: {funcName: 'updateEventGroup', data: eventGroupOld, ID: this.ID},
-                        response: eventGroupChanged.dataValues,
-                        preventBroadcastToCaller: true
-                    };
-                    
-                    // the rest is done in the parent
-                    return ret;
-
-                }).catch((err)=>{
-                    throw {code: 22, message: "Could not update the eventGroup with the respective Id. Error: " + err};
-                });
             }).catch((err)=>{
-                throw {code:21, message: "Could not get the eventGroup with the respective Id. Error: " + err}
+                throw {code: 22, message: "Could not update the eventGroup with the respective Id. Error: " + err};
             });
 
         } else {

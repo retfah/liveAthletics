@@ -432,169 +432,164 @@ class rMeetings extends roomServer{
         let valid = this.validateUpdateMeeting(data);
         if (valid) {
 
-            return this.models.meetings.findByPk(data.xMeeting).then((meeting)=>{
+            // get the index of the meeting in the list of meetings
+            let [i,meeting] = this.findObjInArrayByProp(this.data, 'xMeeting', data.xMeeting);
+            if (i<0){
+                throw {code:24, message:`The meeting (xMeeting=${data.xMeeting}) does not exist on the server.`};
+            }
 
-                // store the old data for the undo-object
-                let meetingOld = meeting.dataValues;
+            // store the old data for the undo-object
+            let meetingOld = meeting.dataValues;
 
-                // get the index of the meeting in the list of meetings
-                let [i,o] = this.findObjInArrayByProp(this.data, 'xMeeting', data.xMeeting);
-                if (i<0){
-                    throw {code:24, message:"The meeting does not exist anymore on the server (should actually never happen)."};
-                }
+            // currently the function to change the shortname is untested; do not use it
+            if (data.shortname!=this.data[i].shortname){
+                throw {code:28, message: "The shortname is not allowed to change, since the function is nto tested yet!"};
+            }
 
-                // currently the function to change the shortname is untested; do not use it
-                if (data.shortname!=this.data[i].shortname){
-                    throw {code:28, message: "The shortname is not allowed to change, since the function is nto tested yet!"};
-                }
+            // update it
+            return meeting.update(data).then(async(meetingChanged)=>{
+                // the data should be updated in th DB by now.
 
-                // update it
-                return meeting.update(data).then(async(meetingChanged)=>{
-                    // the data should be updated in th DB by now.
+                // undo the changes on error
+                var undo = async()=>{
+                    // untested: 
+                    return meetingChanged.update(meetingOld);
+                } 
 
-                    // undo the changes on error
-                    var undo = async()=>{
-                        // untested: 
-                        return meetingChanged.update(meetingOld);
-                    } 
+                // NOTE: the shortname currently (2021-01) is not changable after it was set!
+                // if the shortname changes, we need to rename the DB
+                if (meetingOld.shortname != meetingChanged.shortname){
 
-                    // NOTE: the shortname currently (2021-01) is not changable after it was set!
-                    // if the shortname changes, we need to rename the DB
-                    if (meetingOld.shortname != meetingChanged.shortname){
+                    // conneciton to the old DB
+                    var DBconnOld;
 
-                        // conneciton to the old DB
-                        var DBconnOld;
+                    // name of DBs
+                    let nameOld = this.getDbNameSql(meetingOld.shortname);
+                    let nameNew = this.getDbNameSql(meetingChanged.shortname);
 
-                        // name of DBs
-                        let nameOld = this.getDbNameSql(meetingOld.shortname);
-                        let nameNew = this.getDbNameSql(meetingChanged.shortname);
-
-                        // stop the meeting, if it was started
-                        if (this.data[i].running){ // we need to read the property from the data-object since the meeting-variable is from the DB, where running does not exist! 
-                            // store the old DB connection
-                            DBconnOld = this.activeMeetings[meetingOld.shortname].seq;
-                            await this.meetingShutdownOne(meetingOld.shortname);
-                        } else {
-                            // open a DB connection to the old meetingDB
-                            DBconnOld = new Sequelize(nameOld, conf.database.username, conf.database.password, {
-                                dialect: 'mariadb', // mysql, mariadb
-                                dialectOptions: {
-                                    multipleStatements: true, // attention: we need this option for creating meetings; however, it is dangerous as it allows SQL-injections!
-                                    timezone: 'local', // sequelize would define an other default otherwise!
-                                },
-                                host: conf.database.host,
-                                port: conf.database.port,
-                                //operatorsAliases: false, no option anymore
-                                logging: false,
-                                // application wide model options: 
-                                define: {
-                                    timestamps: false // we generally do not want timestamps in the database in every record, or do we?
-                                }
-                            })
-                        }
-                        
-
-                        // a DB cannot simply be renamed, unfortunately...
-                        // so we need to create first the new DB
-                        await mysqlConn.query(`create database if not exists ${nameNew}`).catch(async (error)=>{await undo(); throw {message: `Database could not be created: ${error}`, code:24};})
-
-                        // get a connection to the new DB
-                        try {
-                            var DBconnNew = new Sequelize(nameNew, conf.database.username, conf.database.password, {
-                                dialect: 'mariadb', // mysql, mariadb
-                                dialectOptions: {
-                                    multipleStatements: true, // attention: we need this option for creating meetings; however, it is dangerous as it allows SQL-injections!
-                                    timezone: 'local', // sequelize would define an other default otherwise!
-                                },
-                                host: conf.database.host,
-                                port: conf.database.port,
-                                //operatorsAliases: false, no option anymore
-                                logging: false,
-                                // application wide model options: 
-                                define: {
-                                    timestamps: false // we generally do not want timestamps in the database in every record, or do we?
-                                }
-                            })
-                        } catch (error) {
-                            await undo();
-                            throw {message: `Error on creating new DB connection: ${error}`, code:25}
-                        }
-
-                        // then we move all tables to the new DB
-                        // ATTENTION: this might work differently with different DBs. For mariaDB showAllSchemas returns the names of the tables
-                        await DBconnOld.showAllSchemas().then(schemas =>{
-                            // schemas = ["table1", "table2", ...]
-                            schemas.forEach(async(tableName, index)=>{
-                                await DBconnOld.query(`rename table ${meeting.shortname}.${tableName} to ${meetingChanged.shortname}.${tableName}`)
-                            })
-
-                        }).catch(err=>{
-                            undo();
-                            throw({message: 'Something went wrong when transferring tables form the old to the new DB: '+err, code: 26});
-                        })
-
-                        // finally delete the old DB
-                        await mysqlConn.query(`drop database if exists ${nameOld}`).catch((err)=>{this.logger.log(`Database '${nameOld}' could not be deleted: ${err}`);}).catch(err=>{
-                            this.logger.log(20, `update shortname: old database could not be deleted: ${err}. All other things were successful.`)
-                        }) 
-
-                        // change the entry in the associated list
-                        delete this.meetingsAssoc[meetingOld.shortname]
-                        this.meetingsAssoc[meetingChanged.shortname] = meetingChanged;
-
-                        
-                        // add the additional proeprty "running"
-                        meetingChanged.running = false; 
-
-                        // if the meeting shall be active, start the meeting
-                        if (meetingChanged.active){
-                            this.meetingStartupOne(meetingChanged.shortname, DBconnNew)
-                        }
+                    // stop the meeting, if it was started
+                    if (this.data[i].running){ // we need to read the property from the data-object since the meeting-variable is from the DB, where running does not exist! 
+                        // store the old DB connection
+                        DBconnOld = this.activeMeetings[meetingOld.shortname].seq;
+                        await this.meetingShutdownOne(meetingOld.shortname);
                     } else {
-
-                        // check whether the active state should have changed and add the running property accordingly
-                        if (meetingChanged.active){
-                            if (this.data[i].running){
-                                // was already runnign before, so just set the running property
-                                meetingChanged.running = true;
-                            } else {
-                                // we need to start it up
-                                meetingChanged.running = false;
-                                this.meetingStartupOne(meetingChanged.shortname, DBconnNew); // will change 'running' to true
+                        // open a DB connection to the old meetingDB
+                        DBconnOld = new Sequelize(nameOld, conf.database.username, conf.database.password, {
+                            dialect: 'mariadb', // mysql, mariadb
+                            dialectOptions: {
+                                multipleStatements: true, // attention: we need this option for creating meetings; however, it is dangerous as it allows SQL-injections!
+                                timezone: 'local', // sequelize would define an other default otherwise!
+                            },
+                            host: conf.database.host,
+                            port: conf.database.port,
+                            //operatorsAliases: false, no option anymore
+                            logging: false,
+                            // application wide model options: 
+                            define: {
+                                timestamps: false // we generally do not want timestamps in the database in every record, or do we?
                             }
+                        })
+                    }
+                    
 
-                        } else {
-                            if (this.data[i].running){
-                                // was runnign before, should be shut down now
-                                meetingChanged.running = true; 
-                                this.meetingShutdownOne(meetingChanged.shortname)
-                            } else {
-                                // it is and should be not running
-                                meetingChanged.running = false;
+                    // a DB cannot simply be renamed, unfortunately...
+                    // so we need to create first the new DB
+                    await mysqlConn.query(`create database if not exists ${nameNew}`).catch(async (error)=>{await undo(); throw {message: `Database could not be created: ${error}`, code:24};})
+
+                    // get a connection to the new DB
+                    try {
+                        var DBconnNew = new Sequelize(nameNew, conf.database.username, conf.database.password, {
+                            dialect: 'mariadb', // mysql, mariadb
+                            dialectOptions: {
+                                multipleStatements: true, // attention: we need this option for creating meetings; however, it is dangerous as it allows SQL-injections!
+                                timezone: 'local', // sequelize would define an other default otherwise!
+                            },
+                            host: conf.database.host,
+                            port: conf.database.port,
+                            //operatorsAliases: false, no option anymore
+                            logging: false,
+                            // application wide model options: 
+                            define: {
+                                timestamps: false // we generally do not want timestamps in the database in every record, or do we?
                             }
-                        }
-
+                        })
+                    } catch (error) {
+                        await undo();
+                        throw {message: `Error on creating new DB connection: ${error}`, code:25}
                     }
 
-                    // set the local data
-                    this.data[i] = meetingChanged;
+                    // then we move all tables to the new DB
+                    // ATTENTION: this might work differently with different DBs. For mariaDB showAllSchemas returns the names of the tables
+                    await DBconnOld.showAllSchemas().then(schemas =>{
+                        // schemas = ["table1", "table2", ...]
+                        schemas.forEach(async(tableName, index)=>{
+                            await DBconnOld.query(`rename table ${meeting.shortname}.${tableName} to ${meetingChanged.shortname}.${tableName}`)
+                        })
 
-                    let ret = {
-                        isAchange: true, 
-                        doObj: {funcName: 'updateMeeting', data: data}, 
-                        undoObj: {funcName: 'updateMeeting', data: meetingOld, ID: this.ID},
-                        response: true,
-                        preventBroadcastToCaller: true
-                    };
+                    }).catch(err=>{
+                        undo();
+                        throw({message: 'Something went wrong when transferring tables form the old to the new DB: '+err, code: 26});
+                    })
+
+                    // finally delete the old DB
+                    await mysqlConn.query(`drop database if exists ${nameOld}`).catch((err)=>{this.logger.log(`Database '${nameOld}' could not be deleted: ${err}`);}).catch(err=>{
+                        this.logger.log(20, `update shortname: old database could not be deleted: ${err}. All other things were successful.`)
+                    }) 
+
+                    // change the entry in the associated list
+                    delete this.meetingsAssoc[meetingOld.shortname]
+                    this.meetingsAssoc[meetingChanged.shortname] = meetingChanged;
+
                     
-                    // the rest is done in the parent
-                    return ret;
+                    // add the additional proeprty "running"
+                    meetingChanged.running = false; 
 
-                }).catch((err)=>{
-                    throw {code: 22, message: "Could not update the meeting with the respective Id. Error: " + err};
-                });
+                    // if the meeting shall be active, start the meeting
+                    if (meetingChanged.active){
+                        this.meetingStartupOne(meetingChanged.shortname, DBconnNew)
+                    }
+                } else {
+
+                    // check whether the active state should have changed and add the running property accordingly
+                    if (meetingChanged.active){
+                        if (this.data[i].running){
+                            // was already runnign before, so just set the running property
+                            meetingChanged.running = true;
+                        } else {
+                            // we need to start it up
+                            meetingChanged.running = false;
+                            this.meetingStartupOne(meetingChanged.shortname, DBconnNew); // will change 'running' to true
+                        }
+
+                    } else {
+                        if (this.data[i].running){
+                            // was runnign before, should be shut down now
+                            meetingChanged.running = true; 
+                            this.meetingShutdownOne(meetingChanged.shortname)
+                        } else {
+                            // it is and should be not running
+                            meetingChanged.running = false;
+                        }
+                    }
+
+                }
+
+                // set the local data
+                this.data[i] = meetingChanged;
+
+                let ret = {
+                    isAchange: true, 
+                    doObj: {funcName: 'updateMeeting', data: data}, 
+                    undoObj: {funcName: 'updateMeeting', data: meetingOld, ID: this.ID},
+                    response: true,
+                    preventBroadcastToCaller: true
+                };
+                
+                // the rest is done in the parent
+                return ret;
+
             }).catch((err)=>{
-                throw {code:21, message: "Could not load the meeting with the respective Id. Error: " + err}
+                throw {code: 22, message: "Could not update the meeting with the respective Id. Error: " + err};
             });
 
 
@@ -788,19 +783,6 @@ class rMeetings extends roomServer{
 
         }).catch((err)=>{this.logger.log(1, `Could not load the meetings: ${err}`)})
     }
-
-    // TODO: rewrite this funciton (if needed), in order not to use a mysql call for this but rather search through the objects (if this is faster..?)
-    /**
-     * Get the shortname of the meeting with the given xMeeting
-     * @param {înteger} id xMeeting
-     */
-/*     async getShortnameById(id){
-        this.models.meetings.findByPk(id).then((meeting)=>{
-            return meeting.shortname;
-        }).catch((error)=>{
-            throw {message: `Could not find shortname for xMeeting=${id}: ${error}`, code:51};
-        })
-    } */
 
     // --------------------------------------------------------------
     // maybe the following functions should be outside this function
