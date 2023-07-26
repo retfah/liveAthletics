@@ -105,7 +105,7 @@
 
             <!-- Show this header only on desktop -->
             <div class="hideMobile">
-                <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h1>
+                <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h1>
             </div>
             <div v-if="show=='contestInfo'">
                 <h2><%= __('Contest info') %></h2>
