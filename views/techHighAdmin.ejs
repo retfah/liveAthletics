@@ -6,7 +6,7 @@
     <div class="hideDesktop flexHeadline"><!-- This is the head, contianing the title and the hamburger menu on small screens -->
         <input class="side-menu" type="checkbox" id="side-menu" v-model="burgerChecked" />
         <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
-        <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}} {{formatTime(contest.datetimeStart)}} </h1>
+        <h1>{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h1>
     </div>
     <div class="contest">
         <div class="nav" v-bind:class="{shown: burgerChecked}">
