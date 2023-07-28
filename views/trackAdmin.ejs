@@ -1,7 +1,7 @@
 
 <div id="vueSeriesAdminTrack">
     <div class="notWriting"  v-if="readOnly">
-        <%= __('Currently this client has no rights to do changes.') %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Writing rights') %>:', '<%= __('There can only be one writing client at a time. If a former writing client has not left properly, you can revoke its writing rights by clicking on connection/contests... and the red (=offline) client with the W. Do not revoke its writing rights when the client is just temporarily offline, e.g. due to a network interuption. Otherwise the client will not be able to upload its locally applied changes on reconnect.') %>')"><%= __('i') %></button>
+        <%= __('Currently this client has no rights to do changes.') %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Writing rights') %>:', '<%= __('There can only be one writing client at a time. If a former writing client has not left properly, you can revoke its writing rights by clicking on connection/contests... and the red (=offline) client with the W. Do not revoke its writing rights when the client is just temporarily offline, e.g. due to a network interuption. Otherwise the client will not be able to upload its locally applied changes on reconnect.') %>')"><%= __('i') %></button>
     </div>
     <div class="hideDesktop flexHeadline"><!-- This is the head, contianing the title and the hamburger menu on small screens -->
         <input class="side-menu" type="checkbox" id="side-menu" v-model="burgerChecked" />
@@ -180,7 +180,7 @@
                 <!-- TODO: eventually include paid status!<br> -->
                 <!-- provide a table with all athletes and a select box of their status-->
                 <label class="verticalForm" style="display: inline-block">
-                    <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                    <%= __("Filter athletes") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
                     <input v-model="filterAthletes" type="search" size="30">
                 </label>
                 <!--<button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>-->

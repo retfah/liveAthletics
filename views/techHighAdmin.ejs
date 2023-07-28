@@ -1,7 +1,7 @@
 
 <div id="vueSeriesAdminTech">
     <div class="notWriting"  v-if="readOnly">
-        <%= __('Currently this client has no rights to do changes.') %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Writing rights') %>:', '<%= __('There can only be one writing client at a time. If a former writing client has not left properly, you can revoke its writing rights by clicking on connection/contests... and the red (=offline) client with the W. Do not revoke its writing rights when the client is just temporarily offline, e.g. due to a network interuption. Otherwise the client will not be able to upload its locally applied changes on reconnect.') %>')"><%= __('i') %></button>
+        <%= __('Currently this client has no rights to do changes.') %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Writing rights') %>:', '<%= __('There can only be one writing client at a time. If a former writing client has not left properly, you can revoke its writing rights by clicking on connection/contests... and the red (=offline) client with the W. Do not revoke its writing rights when the client is just temporarily offline, e.g. due to a network interuption. Otherwise the client will not be able to upload its locally applied changes on reconnect.') %>')"><%= __('i') %></button>
     </div>
     <div class="hideDesktop flexHeadline"><!-- This is the head, contianing the title and the hamburger menu on small screens -->
         <input class="side-menu" type="checkbox" id="side-menu" v-model="burgerChecked" />
@@ -178,7 +178,7 @@
                 <!-- TODO: eventually include paid status!<br> -->
                 <!-- provide a table with all athletes and a select box of their status-->
                 <label class="verticalForm" style="display: inline-block">
-                    <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                    <%= __("Filter athletes") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
                     <input v-model="filterAthletes" type="search" size="30">
                 </label>
                 <!--<button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>-->
@@ -342,7 +342,7 @@
                         </option>
                     </select>
                     <br>-->
-                    <%= __("Auto advance") %><button class="information" v-on:click="overlayInfo('<%= __('Auto advance') %>:', '<%= __('If active, the software will automatically advance to the next athlete as soon as a result is entered. If this function is active, the countdown clock cannot be used.') %>')"><%= __('i') %></button>:
+                    <%= __("Auto advance") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Auto advance') %>:', '<%= __('If active, the software will automatically advance to the next athlete as soon as a result is entered. If this function is active, the countdown clock cannot be used.') %>')"><%= __('i') %></button>:
                     <div class="onoffswitch">
                         <input type="checkbox" v-model="autoAdvance" class="onoffswitch-checkbox" id="autoAdvanceSwitch" v-on:change="calculateNextAthlete" :disabled="readOnly">
                         <label class="onoffswitch-label" for="autoAdvanceSwitch">
@@ -354,7 +354,7 @@
     
     
                     <h3><%= __('Heights') %></h3>
-                    <%= __("Current heights") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping heights') %>:', '<%= __('The jumping heights are automatically generated (separately for each series) from the height interval (defined per contest) and are added to this list as soon as they are referenced e.g. as a startheight or in a result. Heights outside the intervals can be specified manually as well. As long as the height is not referenced, it can be deleted by clicking on it.') %>')"><%= __('i') %></button>: 
+                    <%= __("Current heights") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Jumping heights') %>:', '<%= __('The jumping heights are automatically generated (separately for each series) from the height interval (defined per contest) and are added to this list as soon as they are referenced e.g. as a startheight or in a result. Heights outside the intervals can be specified manually as well. As long as the height is not referenced, it can be deleted by clicking on it.') %>')"><%= __('i') %></button>: 
                     <div class="d-flex flex-row">
                         <template v-for="(heightEl, heightElIndex) in sortedHeights">
                             <button v-if="usedHeights.indexOf(heightEl.xHeight)==-1" class="btn btnGrey marginS" v-on:click="deleteHeight(heightElIndex)" :disabled="readOnly">
@@ -608,7 +608,7 @@
                     <button type="button" class="btn" v-on:click="resetPositions" v-if="JSON.stringify(this.position) != JSON.stringify(this.defaultPosition)">
                         <%= __("Reset order of athletes") %>
                     </button>
-                    <%= __("Drag'n'drop") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
+                    <%= __("Drag'n'drop") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
                     <ol>
                         <draggable style="display:inline-block;" v-model="position" @end="onPositionMovingEnded" item-key="index" :disabled="readOnly">
                             <template #item="{element, index}">   

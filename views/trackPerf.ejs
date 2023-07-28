@@ -71,7 +71,7 @@
                 <%= __("Custom") %>
             </label>
             <label>
-                <%= __("Custom sort logic") %> <button type="button" class="information" v-on:click="overlayInfo('<%= __('Custom sort logic') %>:', '<%= __('Note down the lane numbers in the order of assignment, separated with a ";". The first lane will be assigned to the person with the best peformance, etc. Lanes separated with a "," instead of a ";" will be shuffled before assignment. Example: "2,3 ; 4 ; 1" = the two fastest are randomly assigned lanes 2 or 3, the third fastest is on lane 4 and the last is on lane 1. Whitespace is neglected.') %>')"><%= __('i') %></button>
+                <%= __("Custom sort logic") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Custom sort logic') %>:', '<%= __('Note down the lane numbers in the order of assignment, separated with a ";". The first lane will be assigned to the person with the best peformance, etc. Lanes separated with a "," instead of a ";" will be shuffled before assignment. Example: "2,3 ; 4 ; 1" = the two fastest are randomly assigned lanes 2 or 3, the third fastest is on lane 4 and the last is on lane 1. Whitespace is neglected.') %>')"><%= __('i') %></button>
                 <input type="text" v-model="seriesAssignmentConfiguration.trackPerf.sortWithinHeatCustom" v-on:click="seriesAssignmentConfiguration.trackPerf.sortWithinHeat='custom'">
             </label>
         </fieldset>

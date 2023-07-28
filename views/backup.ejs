@@ -366,7 +366,7 @@
 
     <h2><%= __("Backup and replication") %></h2>
     <%= __('This page provides all settings to backup a meeting and/or replicate to live or to other servers.') %>
-    <button type="button" class="information" v-on:click="overlayInfo('<%= __('Backup and replication') %>:', '<%= __('This page provides all settings to backup a meeting and/or replicate to live or to other servers.') %>')"><%= __('i') %></button><br>
+    <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Backup and replication') %>:', '<%= __('This page provides all settings to backup a meeting and/or replicate to live or to other servers.') %>')"><%= __('i') %></button><br>
     
     <form class="verticalForm">
         <h3><%= __("Backup") %></h3>
@@ -397,7 +397,7 @@
         <h3><%= __('Settings of this server') %>:</h3>
         <button type="button" class="btn" v-if="mode==0" v-on:click="modifyBackup"><%= __("Modify") %></button>
         <label>
-            <%= __("Is this the main server") %>: <button type="button" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
+            <%= __("Is this the main server") %>: <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
             <input v-bind:disabled="mode!=1" type="checkbox" v-model="backup.isMain" maxlength="100" ><!-- v-bind:disabled="mode!=1" -->
         </label>
         <div v-if="!backup.isMain">
@@ -531,7 +531,7 @@
             <button type="button" class="btn btnGreen" v-on:click="saveBackupChange"><%= __("Save") %></button>
             <form class="verticalForm">
                 <label>
-                    <%= __("Is this the main server") %>: <button type="button" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
+                    <%= __("Is this the main server") %>: <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Main server') %>:', '<%= __('The main server is the server that handles all changes made by the user. In contrast, a secondary server (checkbox unchecked) will get all changes from exactly one main server and broadcasts it to all its clients and probably further secondary servers.') %>')"><%= __('i') %></button>
                     <input v-bind:disabled="mode!=1" type="checkbox" v-model="backupWorkCopy.isMain" maxlength="100" ><!-- v-bind:disabled="mode!=1" -->
                 </label>
                 <div v-if="!backupWorkCopy.isMain">

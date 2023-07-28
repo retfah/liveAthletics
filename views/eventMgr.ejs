@@ -1131,7 +1131,7 @@
         <button class="btn btnGreen" v-on:click="addEvent()"><%= __("Add event") %></button>
         <!-- show a list of events-->
         <label class="verticalForm">
-            <%= __("Filter events") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <%= __("Filter events") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
             <input v-model="filterEvents" type="search" size="30">
         </label>
         <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
@@ -1177,7 +1177,7 @@
         <h2><%= __("List of event groups") %></h2>
         <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
         <label class="verticalForm">
-            <%= __("Filter event groups") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <%= __("Filter event groups") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
             <input v-model="filterEventGroups" type="search" size="30">
         </label>
         <!--<button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>-->
@@ -1254,7 +1254,7 @@
         <h2><%= __("List of contests") %></h2>
         <button class="btn btnGreen" v-on:click="addContest()"><%= __("Add contest") %></button>
         <label class="verticalForm">
-            <%= __("Filter contests") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <%= __("Filter contests") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
             <input v-model="filterContests" type="search" size="30">
         </label>
         <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->

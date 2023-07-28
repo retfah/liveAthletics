@@ -2864,7 +2864,7 @@
         TODO: eventually include paid status!<br>
         <!-- provide a table with all athletes and a select box of their status-->
         <label class="verticalForm" style="display: inline-block">
-            <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <%= __("Filter athletes") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club, bib, sex, club name and country. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
             <input v-model="filterAthletes" type="text" size="30">
         </label>
         <button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>
@@ -3021,7 +3021,7 @@
 
 
             <h3><%= __('Heights') %></h3>
-            <%= __("Current heights") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping heights') %>:', '<%= __('The jumping heights are automatically generated (separately for each series) from the height interval (defined per contest) and are added to this list as soon as they are referenced e.g. as a startheight or in a result. Heights outside the intervals can be specified manually as well. As long as the height is not referenced, it can be deleted by clicking on it.') %>')"><%= __('i') %></button>: 
+            <%= __("Current heights") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Jumping heights') %>:', '<%= __('The jumping heights are automatically generated (separately for each series) from the height interval (defined per contest) and are added to this list as soon as they are referenced e.g. as a startheight or in a result. Heights outside the intervals can be specified manually as well. As long as the height is not referenced, it can be deleted by clicking on it.') %>')"><%= __('i') %></button>: 
             <div class="d-flex flex-row">
                 <template v-for="(heightEl, heightElIndex) in series[selectedSeries].heights">
                     <button v-if="heightEl.deletable" class="btn btnGrey marginS" v-on:click="deleteHeight(heightElIndex)" :disabled="readOnly">
@@ -3259,7 +3259,7 @@
         </div>
         <div id="orderPosition" style="display:block">
             <h2><%= __("Order of athletes") %></h2>
-            <%= __("Drag'n'drop") %> <button class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
+            <%= __("Drag'n'drop") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Jumping order of athletes') %>:', '<%= __('The order of athletes jumping on the current height can be (temporary) changed by dragging an athlete from one position to another. The current and next athlete are instantly updated, if needed. As soon as the current height changes, the order is reset to the default order and with the athletes that jump on the new height.') %>')"><%= __('i') %></button>
             <ol>
                 <draggable style="display:inline-block;" v-model="position" @end="onPositionMovingEnded" item-key="index" :disabled="readOnly">
                     <template #item="{element, index}">   
