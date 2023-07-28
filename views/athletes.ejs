@@ -951,14 +951,14 @@ function startupAthletes(){
 
                     if (PBSB=='PB'){
                         this.newStartPBrealistic = validity.valid ? validity.realistic : true; // must be set to true, if invalid; otherwise it will not appear red, since the "unrealistic" class had priority over ":invalid"
-                        if (validity.valueModified && applyChange){
+                        if (applyChange){
                             // do NOT apply the value (since it would look strange for times), but format the interpreted value
                             this.newStartPB = this.formatValue(validity.value, disc);
                         }
                     } else {
                         // SB
                         this.newStartSBrealistic = validity.valid ? validity.realistic : true;
-                        if (validity.valueModified && applyChange){
+                        if (applyChange){
                             // do NOT apply the value (since it would look strange for times), but format the interpreted value
                             this.newStartSB = this.formatValue(validity.value, disc);
                         }
@@ -1130,39 +1130,11 @@ function startupAthletes(){
             /**
              * format the given integer-value for the presentation to the user
              * @param {integer} value The integer value to format
-             * @param {integer} xBaseDiscipline According to what discipline the fomatting shall be done. TODO: in the future the link between xBaseDiscpline and the formattgin emthod must be dynamically injected! 
+             * @param {integer} disc The discipline object for the formatting 
              **/
-            // NEW
             formatValue(value, disc){
                 return window.disciplineFormatters[disc.type](value, disc, true, false);
             },
-            // OLD (before 2022-10-12):
-            /*formatValue2(value, xBaseDiscipline){
-                // currently the link between xBaseDiscipline is hardcoded
-
-                let tech = ()=>{
-                    // tech disciplines: the integer value is always in cm --> change to m
-                    return (value/100).toString();
-                }
-
-                // TODO: make this link dynamically injected based on the disciplines
-                let method;
-                if (xBaseDiscipline==1){
-                    // pole vault
-                    method = tech;
-                } else if (xBaseDiscipline == 2){
-                    // high jump
-                    method = tech;
-                } else {
-                    method = function(){
-                        return value;
-                    }
-                }
-
-
-
-                return method();
-            },*/
             getEventTitle: function(ev){
                 // the title of an event, used as the name for an event including some info
                 return `${this.getCategory(ev.xCategory)?.shortname} ${this.getDiscipline(ev.xDiscipline)?.shortname} ${ev.info}`;
@@ -1509,6 +1481,11 @@ function startupAthletes(){
                 const eventNew = this.events.find(e=>e.xEvent==newXEvent);
                 const eventOld = this.events.find(e=>e.xEvent==oldXEvent);
 
+                if (this.startModID>=0){
+                    // if we modify a start, we must not run this function.
+                    return;
+                }
+
                 if (!eventNew || this.selectedInscriptionPerformances===undefined){
                     return
                 }
@@ -1518,9 +1495,11 @@ function startupAthletes(){
                     if (!perf){
                         this.newStartSBnote = undefined;
                         this.newStartPBnote = undefined;
-                        // TODO: delete the values as well?
-                        this.newStartSB = '';
-                        this.newStartPB = '';        
+                        // delete the values only when the discipline changes, but not when we had no event selected before
+                        if (eventOld){
+                            this.newStartSB = '';
+                            this.newStartPB = '';  
+                        }      
                         return
                     } 
                     
@@ -1651,7 +1630,7 @@ function startupAthletes(){
         <button type="button" class="btn btnGreen marginRight" v-on:click="showAssignBibs()"><%= __("Assign (new) bibs") %></button><br>
         <h2><%= __("List of athletes") %>:</h2>
         <label class="verticalForm">
-            <%= __("Filter athletes") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club and bib. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+            <%= __("Filter athletes") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club and bib. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
             <input v-model="filterAthletes" type="text" size="30">
         </label>
         <button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>
@@ -1711,7 +1690,7 @@ function startupAthletes(){
                 <th><%= __("Event") %></th>
                 <th><%= __("Competitive") %></th>
                 <th><%= __("Personal best") %></th>
-                <th><%= __("Registration value") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button></th>
+                <th><%= __("Registration value") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button></th>
                 <th><%= __("Paid") %></th>
                 <th></th> <!-- buttons -->
             </tr>
@@ -1875,7 +1854,7 @@ function startupAthletes(){
                         <input type="text" v-model="newStartPB" id="PB" v-on:input="checkInput('PB')" v-on:change="checkInput('PB', true)" v-bind:class="{unrealistic: !newStartPBrealistic}" v-bind:title="newStartPBnote">
                     </label>
                     <label>
-                        <%= __("Registration value") %><button type="button" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button>: 
+                        <%= __("Registration value") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Registration value') %>:', '<%= __('The value e.g. used for seeding. This is typically the seasonal best, but could also involve a longer qualification period.') %>')"><%= __('i') %></button>: 
                         <input type="text" v-model="newStartSB" id="SB" v-on:input="checkInput('SB')" v-on:change="checkInput('SB', true)" v-bind:class="{unrealistic: !newStartSBrealistic}" v-bind:title="newStartSBnote">
                     </label>
                     <label>

@@ -7,16 +7,16 @@ export const disciplineFormatters = {
     1: function (value, discipline, showUnit=false){
         const valObj = disciplineValueProcessors[1](value);
         if (showUnit){
-            return `${valObj.m}.${valObj.cm} m`;    
+            return `${valObj.m}.${valObj.cm.toString().padStart(2,0)} m`;    
         } 
-        return `${valObj.m}.${valObj.cm}`;
+        return `${valObj.m}.${valObj.cm.toString().padStart(2,0)}`;
     },
     2: function (value, discipline, showUnit=false){
         const valObj = disciplineValueProcessors[1](value);
         if (showUnit){
-            return `${valObj.m}.${valObj.cm} m`;    
+            return `${valObj.m}.${valObj.cm.toString().padStart(2,0)} m`;    
         }
-        return `${valObj.m}.${valObj.cm}`;
+        return `${valObj.m}.${valObj.cm.toString().padStart(2,0)}`;
     },
     3: function (value, discipline, showUnit=false, showMillis=false){
         // competition rules 19.23: up to and inlcuding 10'000m on track, the times have to be shown with 1/100 s precision. On track >10'000m (does that even exist?), times are shown with 1/10 precision. For disciplines partially or fully outside a track the times are precise to 1 s. 
@@ -157,18 +157,18 @@ const disciplineValueProcessors = {
 // see validate performance for the requirements of the returned objects
 export const disciplineValidators = {
     1:function(value, discipline){
-        // provide an object matching xBaseDiscipline with the range of reasonable data
-        const realisticMinMax = {
-            // in DB-units, i.e. cm !
-            1:{min: 120, max: 650}, // pole vault
-            2:{min: 60, max: 260}, // high jump
-        } 
+
+        // get the configuration:
+        const conf = JSON.parse(discipline.baseConfiguration);
 
         // when there is no comma or period and the number has three digits or more, it is in cm
 
         // new approach: 
+        // remove text (e.g. units)
+        value = value.replace(/[A-Za-z]/g, '');
         // replace comma by period
         value = value.replaceAll(',', '.');
+        
 
         // try to interpret the string as a number
         let num = Number(value);
@@ -184,8 +184,8 @@ export const disciplineValidators = {
 
         let valueModified = false;
 
-        // if the number is below 100 or has a period, it is in m (it would be funnier "if it is in in")
-        if (num < 100 || value.indexOf('.') >= 0){
+        // if the number is below 50 or has a period, it is in m (it would be funnier "if it is in in")
+        if (num < 50 || value.indexOf('.') >= 0){
             // change to cm
             num = Math.round(num*100); // despite the fact in athletics we should always round down (floor), we should use round here, because the floats might be slightly "wrong", e.g. floor(4.85*100)=484 instad of 485. 
             valueModified = true;
@@ -194,10 +194,9 @@ export const disciplineValidators = {
 
         // check whether the value is realistic
         let realistic = true;
-        if (discipline.xBaseDiscipline in realisticMinMax){
-            const minMax = realisticMinMax[discipline.xBaseDiscipline];
-            if (num < minMax.min || num > minMax.max){
-                realistic = false
+        if (conf.heightMax){
+            if (num > conf.heightMax || num < conf.heightMax/5){
+                realistic = false;
             }
         } else {
             console.log(`Could not check whether the value ${value} is realistic or not, since no boundaries are given for this base discipline.`);
