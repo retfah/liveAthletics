@@ -1025,7 +1025,7 @@ export class rContestTechHighClient extends roomClient{
                 seriesstartsresults.push({
                     //xSeriesStart: xSeries, // not defined yet
                     xStartgroup: SIG.xStartgroup,
-                    xSeries: -1, // not defined yet
+                    xSeries, // negative, since not defined yet
                     position: i+1,
                     resultOverrule: 0,
                     resultRemark: '',
@@ -1067,7 +1067,7 @@ export class rContestTechHighClient extends roomClient{
             // the order in the response array MUST be the same as in our array here --> TODO: check this!
             for (let i=0;i<data.length;i++){
 
-                const oldXSeries = seriesForIndexReplacement[i].xSeries;
+                const oldXSeries = -1-i;
 
                 // create the new reference in the auxData; at the very end delete the old data
                 this.data.auxData[data[i].xSeries] = this.data.auxData[oldXSeries];
