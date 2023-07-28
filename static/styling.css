@@ -77,6 +77,10 @@ td{
     border-bottom: 1px solid #dee2e6;
 }
 
+h4{
+    margin-bottom: 0;
+}
+
 
 .verticalForm label{
     margin-bottom: 10px;

@@ -688,5 +688,9 @@
 	"List creation": "Listen erstellen",
 	"Main": "Primär",
 	"Connection Status to main server": "Verbindungsstatus zu Hauptserver",
-	"Contest Name": "Bewerbsname"
+	"Contest Name": "Bewerbsname",
+	"Values in cm": "Werte in cm",
+	"Height intervals": "Steigerungshöhen",
+	"The entered values are not valid. Please note that both values must be entered in cm.": "Die eingegebenen Werte sind ungültig. Beide Werte müssen in cm angegeben werden.",
+	"Invalid entry": "Ungültige Eingabe"
 }

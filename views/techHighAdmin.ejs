@@ -838,7 +838,7 @@
                                         <option v-for="cat in categories" v-bind:value="cat.xCategory">{{cat.shortname}}</option>
                                     </select>
                                 </label> -->
-                                <%= __("Jumpoff") %>
+                                <h4><%= __("Jumpoff") %></h4>
                                 <div class="onoffswitch">
                                     <input type="checkbox" v-model="confForMod.jumpoff" class="onoffswitch-checkbox" id="myonoffswitch2" v-on:change="calculateNextAthlete" :disabled="readOnly">
                                     <!-- the label part is model independent, but th id/for must match-->
@@ -851,7 +851,8 @@
                                     <%= __("Jumpoff") %>: 
                                     <input v-model="confForMod.jumpoff"  type="checkbox" :disabled="readOnly">
                                 </label>-->
-                                <!--<%= __("Define jumping height intervals") %>: -->
+                                <h4><%= __("Height intervals") %></h4>
+                                <%= __("Values in cm") %>
                                 <table class="table">
                                     <tr><th><%= __("Interval begin") %></th><th><%= __("Interval") %></th><th></th></tr>
                                     <template v-for="(heightEl, heightElIndex) in confForMod.heightIncreases">

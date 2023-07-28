@@ -393,10 +393,21 @@
                     this.updateHeightIncrease = -1;
                 },
                 addHeightIncrease(){
+                    // check the values
+                    let his = parseInt(this.newHeightIncreaseStart);
+                    let hi = parseInt(this.newInterval);
+                    if (isNaN(his) || isNaN(hi) || his<100 || hi<1){
+                        this.infoContent = "<%= __('The entered values are not valid. Please note that both values must be entered in cm.') %>";
+                        this.infoTitle = "<%= __('Invalid entry') %>";
+                        this.infoVisible = true;
+                        this.newHeightIncreaseStart = '';
+                        this.newInterval = '';
+                        return;
+                    }
+
                     this.confForMod.heightIncreases.push({
-                        // TODO: check the values
-                        heightIncreaseStartheight: parseInt(this.newHeightIncreaseStart),
-                        heightIncrease: parseInt(this.newInterval)
+                        heightIncreaseStartheight: his,
+                        heightIncrease: hi
                     })
                     this.sortHeightIncrease();
                     //this.createAllHeights();
