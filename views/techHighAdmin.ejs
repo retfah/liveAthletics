@@ -877,7 +877,7 @@
                                     
                                 </table>
                     
-                                <button type="submit" class="btn btnGreen" v-on:click="saveUpdateConf" :disabled="readOnly">
+                                <button type="submit" class="btn btnGreen" v-on:click="saveUpdateConf" :disabled="readOnly || updateHeightIncrease>=0">
                                     <%= __("Save") %>
                                 </button>
                                 <button type="button" class="btn btnRed" v-on:click="abortUpdateConf"><%= __("Abort") %></button>
