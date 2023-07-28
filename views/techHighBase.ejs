@@ -1110,8 +1110,23 @@
                             // normal and jumpoff results must be handled separately 
                             if (heightEl.jumpoffOrder==0){    
                                 // normal
-                                if (heightResult.resultsHighValid || heightResult.resultsHighPassed){
+                                if (heightResult.resultsHighValid){
+                                    lastValidHeight = Math.max(heightEl.height, lastValidHeight);
+                                    failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
+                                    failedAttemptsSinceLastValid = 0;
+                                }else{
+                                    failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
+
+                                    if (failedAttemptsSinceLastValid >= 3){
+                                        finished = true;
+                                    }                                                 
+                                }
+                                // do NOT count failed attempts when it is after the last valid height;
+                                // this cannot be included in the if below, since it would then count XX- X with 2 failed attempts, which is wrong.
+                                if (lastValidHeight>=heightEl.height){
                                     totalFailedAttempts += heightResult.resultsHighFailedAttempts;
+                                }
+                                if (heightResult.resultsHighValid || heightResult.resultsHighPassed){
                                     if (lastFinishedHeight){
                                         lastFinishedHeight = Math.max(heightEl.height, lastFinishedHeight);
                                     } else {
@@ -1123,18 +1138,6 @@
                                     } else {
                                         firstUnfinishedHeight = Math.min(heightEl.height, firstUnfinishedHeight); // the elements may be out of order!
                                     }
-                                }
-                                if (heightResult.resultsHighValid){
-                                    lastValidHeight = Math.max(heightEl.height, lastValidHeight);
-                                    failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
-                                    failedAttemptsSinceLastValid = 0;
-                                }else{
-                                    failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
-
-                                    if (failedAttemptsSinceLastValid >= 3){
-                                        finished = true;
-                                    }                                                 
-
                                 }
                                 
                             }else{
