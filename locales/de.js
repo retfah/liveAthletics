@@ -685,5 +685,8 @@
 	"This page is still to be created.": "Diese Seite muss erst noch erstellt werden.",
 	"Data exchange": "Datenaustausch",
 	"Create lists": "Listen erstellen",
-	"List creation": "Listen erstellen"
+	"List creation": "Listen erstellen",
+	"Main": "Primär",
+	"Connection Status to main server": "Verbindungsstatus zu Hauptserver",
+	"Contest Name": "Bewerbsname"
 }
