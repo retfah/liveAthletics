@@ -15,6 +15,12 @@ export default class performances extends Model {
       primaryKey: true,
       comment: "ATTENTION: this is not the same ID as in the competition DB. There will have to be a translation function for baseDisciplineIDs to liveAthleteicsIDs"
     },
+    xDiscipline: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      primaryKey: true,
+      comment: "xDiscipline as in the competition"
+    },
     bestEffort: {
       type: DataTypes.STRING(15),
       allowNull: false,

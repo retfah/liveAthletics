@@ -2537,7 +2537,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
             for (let perf of perfs){
 
-                if (perf.xDiscipline==0){
+                if (perf.xDiscipline===undefined || perf.xDiscipline===0){
                     // discipline not existing in liveAthletics
                     continue;
                 }
