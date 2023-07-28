@@ -959,9 +959,12 @@ class roomServer{
             let writing = this.clients[tabId].writing;
             if (writing){
                 if (this.keepWritingTicket){
-                    //let client = this.clients[tabId];
-                    //delete client.processor;
                     // client should now be identical to onlineWritingClients
+                    // for debugging only: 
+                    if (this.onlineWritingClients[sidHash] == undefined){
+                        this.logger.log(5, `Client with sidHash ${sidHash} is not in onlineWritignCLients list! Why? This might cause the currently investigated troubles! This happened in room ${this.name}.`);
+                        // 2023-07: eventually the change in returnWritingTicket has solved the problem and we never end up here anymore. 
+                    }
                     this.offlineWritingClients[sidHash] = this.onlineWritingClients[sidHash];
                     //this.offlineWritingClients[sidHash] = client; // 2021-01: use the sid to store the offline writing client (since the tabId would change e.g. on reload (it does not change when the same tab reconnects witout reload))
                     this.storeOfflineWritingClients();
@@ -1427,6 +1430,10 @@ class roomServer{
 
             delete this.onlineWritingClients[this.clients[tabId].sidHash];
             this.storeOnlineWritingClients();
+
+            // the following two lines were added 2023-07 to avoid the error that a client was considered writing, but was not in the list of onlineWritingCLients!
+            this.clients[tabId].writing = false;
+            this.clients[tabId].writingTicketID = undefined;
         } else {
             this.logger.log(75, 'Client with tabId "'+tabId+'" is not member of the room '+this.name);
         }
@@ -1596,6 +1603,7 @@ class roomServer{
                 let client = this.offlineWritingClients[sidHash];
                 if (!client){
                     console.log('why here?'); // this really heppened; but I dont know how this is possible.
+                    // 2023-07: eventually the change in returnWritingTicket has solved the problem and we never end up here anymore. 
                 }
                 this.infos.clients[sidHash] = {name:client.name, connected:false, writing:client.writing, sidHash:sidHash}
             }
