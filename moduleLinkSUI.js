@@ -1386,6 +1386,34 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
     }
 
+    /**
+     * returns nicely formatted string of the error; it contains the error as well as the involved line, but avoids to show the full sql (which would be the case if simply the error was shown)
+     * @param {Error} err The error object as returned by sequelize
+     */
+    insertErrorPrinter(err){
+        // get the number of the line
+        let rowMatch = err.original.text.match(/(?<=at row )\d*/g);
+        let lineNumber=undefined;
+        var lineMatch;
+        if (rowMatch!==null){
+            lineNumber = parseInt(rowMatch[0]);
+        } else {
+            // try if the error uses the word line
+            lineMatch = err.original.text.match(/(?<=at line )\d*/g);
+            if (lineMatch===null){
+                // we cannot process this error, so simply return the err as string
+                return err.toString();
+            } else {
+                lineNumber = parseInt(lineMatch[0]);
+            }
+        }
+
+        let strValues = err.original.sql.match(/(?<=values\s*)(?!\s).*/s)[0];
+        // split by line and get the right
+        // line with the (first) error 
+        let errLine = strValues.split(/\),\s*\n?\s*\(/g)[lineNumber-1];
+        return `${err.original.text}: ${errLine}`;
+    }
 
     /**
      * update the base data. 
@@ -1543,7 +1571,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         this.logger.log(90, msg);
     
                         // probably fastest approach to insert the data: create a raw insert script and insert all data at the same time. --> problem: currently the data delivered by Alabus contains multiple identical entries! --> first try to insert all in one query and if this fails, do separate inserts of the athletes in a second insert. Do the same for the performances. 
-                        let athleteInsertQuery = 'insert into athletes (license, licensePaid, licenseCategory, lastname, firstname, sex, nationality, clubCode, birthdate)\n values \n';
+                        let athleteInsertQuery = 'insert into athletes (license, licensePaid, licenseCategory, lastname, firstname, sex, nationality, clubCode, birthdate)\n values ';
                         let performanceInsertQuery = "insert into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ";
     
                         // do a first loop where we try to run two big sql queries for the inserts
@@ -1556,10 +1584,16 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                 this.logger.log(90, msg);
                                 continue;
                             }
+                            if (athlete.birthDate==''){
+                                msg = `Athlete with license ${athlete.$.license} ${athlete.firstName} ${athlete.lastName} has no birthDate and cannot be imported. Skip this athlete.`;
+                                notes.push(msg);
+                                this.logger.log(90, msg);
+                                continue;
+                            }
                             let birthdate = athlete.birthDate.slice(6,10)+'-'+athlete.birthDate.slice(0,2)+'-'+athlete.birthDate.slice(3,5);
                             let sex = athlete.sex.toUpperCase()=='W' ? 'f' : 'm';
     
-                            athleteInsertQuery += `("${license}", ${athlete.$.licensePaid=='0' ? false : true}, "${athlete.$.licenseCat}", "${athlete.lastName}", "${athlete.firstName}", "${sex}", "${athlete.nationality}", "${athlete.accountCode}", "${birthdate}"),`;
+                            athleteInsertQuery += `\n("${license}", ${athlete.$.licensePaid=='0' ? false : true}, "${athlete.$.licenseCat}", "${athlete.lastName}", "${athlete.firstName}", "${sex}", "${athlete.nationality}", "${athlete.accountCode}", "${birthdate}"),`;
     
                             // performances
                             if ((typeof(athlete.performances))=='object' && 'performance' in athlete.performances){
@@ -1599,7 +1633,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                     let discipline = parseInt(perf.$.sportDiscipline)
                                     let xDiscipline = this.conf.disciplineTranslationTableOutdoorInv[discipline] ?? 0;
 
-                                    performanceInsertQuery += `("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O"),\n`;
+                                    performanceInsertQuery += `\n("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "O"),`;
     
                                     /*let insertP = {
                                         license,
@@ -1657,7 +1691,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                     let discipline = parseInt(perf.$.sportDiscipline)
                                     let xDiscipline = this.conf.disciplineTranslationTableIndoorInv[discipline] ?? 0;
         
-                                    performanceInsertQuery += `("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I"),\n`;
+                                    performanceInsertQuery += `\n("${license}", ${discipline}, ${xDiscipline}, "${bestEffort}", "${bestEffortDate}", "${bestEffortEvent}", "${seasonEffort}", "${seasonEffortDate}", "${seasonEffortEvent}", "${notificationEffort}", "${notificationEffortDate}", "${notificationEffortEvent}", "I"),`;
     
                                     /*let insertP = {
                                         license,
@@ -1686,7 +1720,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         let athletesInserted = false;
                         athleteInsertQuery = athleteInsertQuery.slice(0,-1) + ";";
                         await this.sequelize.query(athleteInsertQuery, {logging:false}).then(()=>{athletesInserted=true}).catch(err=>{
-                            let msg = 'Inserting all athletes at a time was not successful. Trying to insert them separately.'+err.toString();
+                            // avoid the full error here, since it contains the full string! Instead, try to deliver only the relevant (=error) part 
+                            let msg = 'Inserting all athletes at a time was not successful. Trying to insert them separately.'+ this.insertErrorPrinter(err);//+err.toString();
                             notes.push(msg);
                             this.logger.log(90, msg);
                         });
@@ -1697,11 +1732,11 @@ export default class moduleLinkSUI extends nationalBodyLink {
                         this.logger.log(90, msg);
     
                         let performancesInserted = false;
-                        performanceInsertQuery = performanceInsertQuery.slice(0,-2) + ";";
+                        performanceInsertQuery = performanceInsertQuery.slice(0,-1) + ";";
                         await this.sequelize.query(performanceInsertQuery, {logging:false, raw:true}).then(()=>{performancesInserted=true}).catch(err=>{
-                            let msg = 'Inserting all performances at a time was not successful. Trying to insert them separately.';
+                            let msg = 'Inserting all performances at a time was not successful. Trying to insert them separately.' + this.insertErrorPrinter(err);
                             notes.push(msg);
-                            this.logger.log(90, msg + err.toString());
+                            this.logger.log(90, msg);
                         });
                         const timePerformancesInserted = new Date();
                         msg = `Performances sql insertion (attempt) finished. Duration: ${(timePerformancesInserted - timeAthletesInserted)/1000}s. If needed, start single inserts of athletes (${!athletesInserted}) and/or performances (${!performancesInserted}).`;
