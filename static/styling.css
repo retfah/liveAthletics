@@ -1428,6 +1428,10 @@ option:hover {
         /*height:auto !important;*/
     }
 
+    .contest {
+        flex-direction: column;
+    }
+
     .liveRes {
         display: flex;
         flex-direction: column;
@@ -1446,7 +1450,7 @@ option:hover {
         overflow: scroll; */
         max-height: 0px; /* does not work with 0%, but with 0, and 0px */
         /*height: 0px;*/
-        overflow:hidden;
+        overflow: hidden;
         /*transition: max-height 1.0s ease-out;*/
     }
 }
