@@ -1631,9 +1631,8 @@ function startupAthletes(){
         <h2><%= __("List of athletes") %>:</h2>
         <label class="verticalForm">
             <%= __("Filter athletes") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by first and last name, club and bib. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterAthletes" type="text" size="30">
+            <input v-model="filterAthletes" type="search" size="30">
         </label>
-        <button style="display: inline-block;" type="button" v-on:click="filterAthletes=''" class="btn"><%= __("Reset filter") %></button>
         <v-table :data="inscriptions" :filters="inscriptionFilters">
             <template #head> <!-- # head is a shorthand for v-slot:head-->
                 <thead>
@@ -1827,7 +1826,7 @@ function startupAthletes(){
                     <h3 v-if="startModID == -1"><%= __("Add start") %>: </h3>
                     <h3 v-if="startModID > -1"><%= __("Update start") %>: </h3>
                     <%= __("Event") %>: 
-                    <input type="text" v-if="startModID == -1" v-model="newStartEventFilter" placeholder="<%= __('Filter') %>" style="display: inline;">
+                    <input type="search" v-if="startModID == -1" v-model="newStartEventFilter" placeholder="<%= __('Filter') %>" style="display: inline;">
                     <div v-if="startModID >= 0" style="display: inline; font-weight: bold;">{{getEventTitle(getEventObj(newStartEvent))}}</div>
                     <label>
                         <!-- The category should be automatically set as soon as there is a birthdate and a sex -->
