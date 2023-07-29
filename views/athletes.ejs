@@ -66,6 +66,47 @@ globalThis.vuRegions = class vuRegions extends roomClientVue{
     }
 }
 
+globalThis.vuStartsInGroups = class vuStartsInGroups extends roomClientVue{
+        
+    constructor(vue, meetingShortname){
+        // parent constructor: initializes the room
+        //(roomName, writing, storeInfos, path, className, datasetName='')
+        super(`startsInGroup@${meetingShortname}`, true, true, '/static/rStartsInGroupClient.js', 'rStartsInGroupsClient', '')
+
+        // needed to call things in the vue class
+        this.vue = vue;
+    }
+
+    /**
+     * called when a a writing ticket is stored or deleted
+     */
+    onWritingTicketChange(){
+        if (this.room.writingTicketID){
+            //this.vueServerAdmin.readOnly = false;
+        } else {
+            //this.vueServerAdmin.readOnly = true;
+        }
+    }
+
+    onChange(){
+        //this.vue.$forceUpdate();
+    }
+    
+    afterFullreload(){
+        // set the changed data-property as data of the vue-instance
+        this.vue.startsInGroups = this.room.data.startsInGroups; // this will actually store a proxy of the data!
+
+        // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+        this.room.data.startsInGroups = this.vue.startsInGroups;
+
+    }
+    
+    dataArrived(){
+        // the same as after full reload
+        this.afterFullreload()
+    }
+}
+
 globalThis.vuClubs = class vuClubs extends roomClientVue{
     
     constructor(vue, meetingShortname){
@@ -138,20 +179,20 @@ globalThis.vuStarts = class vuStarts extends roomClientVue{
     
     afterFullreload(){
         // set the changed data-property as data of the vue-instance
-        this.vue.starts = this.room.data.starts; // this will actually store a proxy of the data!
+        this.vue.startsRaw = this.room.data.starts; // this will actually store a proxy of the data!
         this.vue.disciplines = this.room.data.disciplines;
 
         // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
-        this.room.data.starts = this.vue.starts;
+        this.room.data.starts = this.vue.startsRaw;
     }
     
     dataArrived(){
         // raised as soon as the room has its data stored for the first time
-        this.vue.starts = this.room.data.starts;
+        this.vue.startsRaw = this.room.data.starts;
         this.vue.disciplines = this.room.data.disciplines;
     
         // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
-        this.room.data.starts = this.vue.starts;
+        this.room.data.starts = this.vue.startsRaw;
 
     }
 }
@@ -298,7 +339,8 @@ function startupAthletes(){
                 categories: [], // as auxilariy date of events
                 disciplines: [],// as auxilariy date of events
                 events: [], 
-                starts: [],
+                startsRaw: [], // starts is computed and also contains the startsInGroups
+                startsInGroups: [],
                 meeting: {}, // background information about the meeting
                 show: 'athletes', // which "ribbon" is shown --> TODO: not used anymore
                 selectedInscription: undefined, // if undefined, show the list of athletes; if defined show the starts of this athlete
@@ -333,7 +375,7 @@ function startupAthletes(){
                 newStartPBrealistic: true,
                 newStartSBrealistic: true,
                 newStartEventFilter: '',
-                newStartNumGroup: 0,
+                newStartNumGroup: 1, // note: the index in the DB is 1-based
                 myInputModel: '',
                 autoSelectClub: true, // I think in this "file" we only add clubs through the "new athletes" dialog
                 bibSpacing: 0,
@@ -579,7 +621,7 @@ function startupAthletes(){
                 this.newStartPB = this.formatValue(start.bestPerf, disc);
                 this.newStartSB = this.formatValue (start.bestPerfLast, disc);
                 // TOOD: the groupNumber is actually defined in rStartsInGroup and not in the starts --> eventually create a dataset for rStart containing the number, if available and 1 otherwise. At the same time, make sure that the change of this number will be handed over to rStartsInGroup when we change the data here in rStarts! 
-                //this.newStartNumGroup = start.groupNumber;
+                this.newStartNumGroup = start.SIG.number;
 
                 this.checkInput('PB', true);
                 this.checkInput('SB', true);
@@ -598,6 +640,7 @@ function startupAthletes(){
                         paid: this.newStartPaid,
                         competitive: this.newStartCompetitive,
                         inBase: '', // TODO: is this needed? If yes, change as soon as we have base results
+                        groupNum: parseInt(this.newStartNumGroup),
                     }
 
                     // add performances only if they are valid
@@ -642,6 +685,17 @@ function startupAthletes(){
                     }
 
                     rS.room.addToStack('updateStart', data)
+
+                    
+                    // if the group changes, we need a separate call for the group change, directly in the rStartsInGroup
+                    let start = this.starts.find(s=>s.xStart==this.startModID);
+                    if (this.newStartNumGroup != start.SIG.number){
+                        let data2 = {
+                            number: this.newStartNumGroup,
+                            xStartgroup: start.SIG.xStartgroup,
+                        };
+                        rSIG.room.updateStartsInGroupInit(data2);
+                    }
 
                     this.overlay = "undefined";
                 }
@@ -1294,12 +1348,28 @@ function startupAthletes(){
             },
         },
         computed:{
+            starts: function(){
+                // create a copy of the data in starts and aggregate it with startsinGroup data
+                let starts = copyObject(this.startsRaw);
+                for (let start of starts){
+                    // first search the event for the start
+                    let evt = this.events.find(x=>x.xEvent==start.xEvent);
+                    // if the event is linked to an eventGroup with at least one round, it has a property groups, where every element will contain the reference to the xRound, needed to find the right group
+                    if (evt.xRoundFirst===null){
+                        // event is not linked to an eventGroup and/or has no first round yet
+                        start.SIG = null;
+                    } else {
+                        start.SIG = this.startsInGroups.find(sig=>sig.xRound == evt.xRoundFirst && sig.xStart == start.xStart);
+                    }
+                }
+                return starts;
+            },
             newStartEventGroups: function(){
                 // the number of groups in the first round of the selected event
                 if (this.newStartEvent != undefined){
                     const evt = this.events.find(e=>e.xEvent==this.newStartEvent);
                     if (!evt){
-                        return [null];
+                        return [];
                     }
                     return evt.groups;
                 } else {
@@ -1618,7 +1688,7 @@ function startupAthletes(){
     var rC = new vuClubs(vueAthletes, ms);
     var rE = new vuEvents(vueAthletes, ms); 
     var rS = new vuStarts(vueAthletes, ms);
-    //var rR = new vuRegions(vueAthletes, ms);
+    var rSIG = new vuStartsInGroups(vueAthletes, ms);
     
 }
 </script>
@@ -1840,10 +1910,10 @@ function startupAthletes(){
                         <input type="checkbox" v-model="newStartCompetitive">
                     </label>
                     <label v-if="newStartEventGroups.length>1">
-                        <%= __("Group") %>: (not finished yet!)
+                        <%= __("Group") %>:
                         <select v-model.number="newStartNumGroup">
-                            <option v-for="(g,i) in newStartEventGroups" v-bind:value="i">
-                                {{g}}
+                            <option v-for="(g,i) in newStartEventGroups" v-bind:value="g.number">
+                                {{g.name}}
                             </option>
                         </select>
                     </label>

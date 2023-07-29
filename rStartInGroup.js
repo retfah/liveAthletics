@@ -145,9 +145,10 @@ class rStartsInGroup extends roomServer{
             type: "object",
             properties: {
                 xStart: {type:"integer"},
-                xEvent: {type: "integer"}
+                xEvent: {type: "integer"},
+                groupNum: {type:"integer"},
             },
-            required:["xStart", "xEvent"],
+            required:["xStart", "xEvent", "groupNum"],
             additionalProperties: false
         }
         let schemaDeleteStart = {
@@ -488,7 +489,7 @@ class rStartsInGroup extends roomServer{
     async addedEventToEventgroup(data){
         let valid = this.validateAddedEventToEventgroup(data);
         if (!valid){
-            throw {message: this.ajv.errorsText(this.validateAddedStart.errors), code:21};
+            throw {message: this.ajv.errorsText(this.validateAddedEventToEventgroup.errors), code:21};
         }
 
         // if the eventGroup has a first round, get all starts for that event and create startsInGroup for all athletes of that event (group 1) (requires access to starts and eventGroups)
@@ -587,7 +588,7 @@ class rStartsInGroup extends roomServer{
     async addMultiStartsInGroup(data){
         let valid = this.validateAddMultiStartsInGroup(data);
         if (!valid){
-            throw {message: this.ajv.errorsText(this.validateAddedStart.errors), code:21};
+            throw {message: this.ajv.errorsText(this.validateAddMultiStartsInGroup.errors), code:21};
         }
 
         let inserted = []; // we must separately store the inserted data, to make sure the data sent back and broadcasted contains the xStartgroup
@@ -643,7 +644,7 @@ class rStartsInGroup extends roomServer{
 
         let valid = this.validateDeleteEventFromEventgroup(data);
         if (!valid){
-            throw {message: this.ajv.errorsText(this.validateAddedStart.errors), code:21};
+            throw {message: this.ajv.errorsText(this.validateDeleteEventFromEventgroup.errors), code:21};
         }
         
         // if the eventGroup has a first round, get all starts for that event and create startsInGroup for all athletes of that event (group 1) (requires access to starts and eventGroups)
@@ -801,7 +802,7 @@ class rStartsInGroup extends roomServer{
         // validation: 
         let valid = validateDeleteMultiStartsInGroup(deletedStartsInGroup);
         if (!valid){
-            throw {message: this.ajv.errorsText(this.validateAddedStart.errors), code:21};
+            throw {message: this.ajv.errorsText(this.validateDeleteMultiStartsInGroup.errors), code:21};
         }
 
         // delete in DB all at the same time (!) --> either all deletions fail or none
@@ -885,20 +886,16 @@ class rStartsInGroup extends roomServer{
                 throw{message: `There is no round 1 in eventgroup ${event.xEventGroup}.`, code: 28};
             }
 
-            // testing whether the group exists is actually not necessary, as long as all is programmed as it should in the eventgroup/round management; thus only check during develpment
-            if (developMode){
-                let group = round.groups.find(g=>g.number==1);
-                if (!group){
-                    throw{message: `SEVERE ERROR: There is no group 1 in round ${round.xRound}. This should never happen and must be an error in the eventGroup/round managament.`, code:29}
-                }
-            } 
-            // we actually could/should test whether the group exists, but this 
-            // check whether the grop exists
+            // testing whether the group exists
+            let group = round.groups.find(g=>g.number==data.groupNum);
+            if (!group){
+                throw{message: `SEVERE ERROR: There is no group number ${data.groupNum} in round ${round.xRound}. This should never happen and must be an error in the eventGroup/round managament.`, code:29}
+            }
 
             let insert = {
                 xStart: data.xStart,
                 xRound: round.xRound,
-                number: 1,
+                number: data.groupNum,
                 present: true,
             }
 

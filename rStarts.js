@@ -80,7 +80,7 @@ class rStarts extends roomServer{
         };
         let schemaAddStart = {
             type: "object",
-            properties: start,
+            properties: Object.assign({},start, {groupNum:{type:"integer", default:1}}),
             required: ["xInscription", "xEvent"],
             additionalProperties: false,
         };
@@ -118,7 +118,7 @@ class rStarts extends roomServer{
             var start = await this.models.starts.create(dataTranslated).catch((err)=>{throw {message: `Sequelize-problem: Start could not be created: ${err}`, code:22}})
 
             // try to create the entry in "startsInGroup" (requires that (1) the event is linked with an eventGroup, (2) the eventGroup has a first round and (3) assume that the person shall be added in group 1)
-            await this.startsInGroup.serverFuncWrite('addedStart', {xStart:start.xStart, xEvent: data.xEvent}).catch(async err=>{
+            await this.startsInGroup.serverFuncWrite('addedStart', {xStart:start.xStart, xEvent: data.xEvent, groupNum: data.groupNum}).catch(async err=>{
                 if (err.code != 25 && err.code != 27){
                     await start.destroy(); // delete the entry again
                     throw(err);

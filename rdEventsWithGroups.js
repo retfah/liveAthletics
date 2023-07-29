@@ -2,7 +2,11 @@ import roomDataset from './roomDataset.js';
 
 // add categories + meeting to this dataset (e.g the same as in rEvents, minus the possible disciplines, since we cannot translate them here)
 
-// room dataset containing all events and the groups in their first rounds. This is useful to do the inscriptions, to assign directly also the group of the athlete. However, the same functionality should also be provided by te separate
+// room dataset containing all events and the groups in their first rounds. This is useful to do the inscriptions, to assign directly also the group of the athlete. 
+// CHANGES:
+/**
+ * 2023-07: the groups object now contains the full object per group and not only the name of the group;  
+ */
 
 export default class rdEventsWithGroups extends roomDataset{ // do not rename without renaming the references to the static properties
 
@@ -43,6 +47,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
         // - updateEventGroup (no changes to rounds occure here)
         // raised in rEventGroups.deleteRound
         this.eventGroupRoundDeleteListener = this.rEvents.eH.eventSubscribe(`${this.rEventGroups.name}:resetNumGroups`, (data)=>{
+            // this is called when a round gets deleted, i.e. we have to reset numGroups to the default
 
             // data: {xEventGroup, order, numGroups}
 
@@ -54,8 +59,9 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
                 for (let event of this.data.events){
                     if (event.xEventGroup == data.xEventGroup){
                         changes = true;
-                        event.numGroups = 1; // reset numGroups to 1
-                        event.groups = this.createGroups(data.groups);
+                        event.numGroups = 1;
+                        event.xRoundFirst = null; // xRound of the first round
+                        event.groups = [];
                     }
                 }
                 
@@ -71,7 +77,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
         // raised in rEventGroups.addRound and rEventGroups.updateRound
         this.eventGroupRoundDeleteListener = this.rEvents.eH.eventSubscribe(`${this.rEventGroups.name}:setNumGroups`, (data)=>{
 
-            // data: {xEventGroup, order, numGroups}
+            // data: {xEventGroup, order, numGroups, groups}
 
             // only if the affected round-order is 1, there will be possibly a change
             if (data.order==1 ){
@@ -83,6 +89,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
                         // does the data really change
                         if (event.numGroups != data.numGroups){
                             changes = true;
+                            //xRoundFirst will stay the same
                             event.groups = this.createGroups(data.groups);
                             event.numGroups = data.numGroups; // set numGroups
                         }
@@ -105,9 +112,9 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
      * @param {array} groupsObj The groups array/object from sequelize
      */
     createGroups(groupsObj){
-        // first, sort the array 8it does not matter for the groups if the yget sorted; actually, they might always be sorted already
-        groupsObj.sort((A, B)=>A.number-B.number);
-        return groupsObj.map(el=>el.name);
+        // send only the data needed, i.e. number and name, but not xRound and xContest
+        let groupArr = groupsObj.map(x=>{return {number: x.dataValues.number, name:x.dataValues.name}})
+        return groupArr.sort((a,b)=>a.number-b.number);
     }
 
     // OLD: whenever the number of groups in a first round changes:
@@ -144,17 +151,20 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
             for (let event of data){
                 if (event.xEventGroup == undefined){
                     event.numGroups = 1;
-                    event.groups = [null];
+                    event.xRoundFirst = null; // xRound of the first round
+                    event.groups = [];
                     continue;
                 }
                 const eG = this.rEventGroups.data.find((eG)=>{return event.xEventGroup==eG.xEventGroup});
                 if (eG && eG.rounds.length>=1) {
                     event.numGroups = eG.rounds[0].numGroups;
+                    event.xRoundFirst = eG.rounds[0].xRound;
                     event.groups = this.createGroups(eG.rounds[0].groups);
                 } else {
                     // if there is no round yet or the eventGroup could not be found, we assume there is one group
-                    event.groups = [null];
                     event.numGroups = 1; 
+                    event.xRoundFirst = null;
+                    event.groups = [];
                 }
             }
 
