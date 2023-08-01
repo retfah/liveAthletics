@@ -1122,8 +1122,10 @@
                             if (heightEl.jumpoffOrder==0){    
                                 // normal
                                 if (heightResult.resultsHighValid){
-                                    lastValidHeight = Math.max(heightEl.height, lastValidHeight);
-                                    failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
+                                    if (lastValidHeight<heightEl.height){
+                                        lastValidHeight = heightEl.height;
+                                        failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
+                                    }
                                     failedAttemptsSinceLastValid = 0;
                                 }else{
                                     failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
