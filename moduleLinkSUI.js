@@ -974,6 +974,14 @@ export default class moduleLinkSUI extends nationalBodyLink {
         */
         res.results = [];
 
+        // for the calculation of totalFailedAttempts (only until and inlcuding the last valid height in the main competition), we first need to know the last valid height in order to not count the later results
+        for (let r of results){
+            if (r.jumpoffOrder==0 && r.resultsHighValid && r.height>res.rankingData.lastValidHeight){
+                res.rankingData.lastValidHeight = r.height;
+                res.rankingData.failedAttemptsOnLastValid = r.resultsHighFailedAttempts;
+            }
+        }
+
         for (let r of results){
             // create the string
             let resStr = r.jumpoffOrder==0 ? '' : 'J:';
@@ -1002,10 +1010,9 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 }
             } else {
                 // regular result
-                res.rankingData.totalFailedAttempts += r.resultsHighFailedAttempts;
-                if (r.resultsHighValid){
-                    res.rankingData.failedAttemptsOnLastValid = r.resultsHighFailedAttempts;
-                    res.rankingData.lastValidHeight = r.height;
+                // the totalFailedAttempts shall only consider the failed atempts until and including the lastValidHeight, but not in further 
+                if (r.height<=res.rankingData.lastValidHeight){
+                    res.rankingData.totalFailedAttempts += r.resultsHighFailedAttempts;
                 }
             }
         }
