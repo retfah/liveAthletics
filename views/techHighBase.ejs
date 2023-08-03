@@ -3309,7 +3309,29 @@
                     this.timeMinutes = t.getMinutes().toString().padStart(2,0);
                     this.timeOdd = t.getMilliseconds() < 500;
                 }, 100); // 10 times per second
-                
+
+                // register event for keys x, o, -
+                addEventListener('keydown', (evt)=>{
+                    // only handle the event once
+                    if (evt.repeat) return;
+                    // only on writing clients
+                    if (this.readOnly) return;
+                    // only in the modes regular and jumpoff
+                    if (this.mode <1 || this.mode>2) return;
+                    // only handle when on competiztion window
+                    if (this.show!='competition') return;
+
+                    if (evt.key=='x'){
+                        this.failed();
+                    } else if (evt.key=='o' || evt.key=='0'){
+                        this.cleared();
+                    } else if (evt.key=='-'){
+                        this.passed();
+                    } else if (evt.key=='Enter'){
+                        this.calculateNextAthlete();
+                    }
+
+                })                
             },
             components:{
                 'draggable': vuedraggable,
