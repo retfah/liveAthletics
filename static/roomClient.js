@@ -306,12 +306,8 @@ class roomClient {
                         this.eH.raise('roomInfoChange', this);
                     }
 
-                } /*OLD: else if (code==18){
-                    this.logger.log(7, 'Could not get a writing ticket.')
-                    this.deleteWritingTicketID();
-                    // TODO: maybe let the inheriting class define a callback, that would be called now.
-                    failure(msg, code);
-                }*/ else {
+                } else {
+                    this.connecting = false;
                     let msg2 = `Connecting to room ${this.name} failed with the following code and message: ${code}: ${msg}`;
                     this.logger.log(3, msg2);
                     failure(msg2, code)

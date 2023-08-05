@@ -7,7 +7,7 @@
 
 
 /**
- * The room manager provides a frontend to show information about the status of the connection and the single rooms.
+ * The room manager provides functions to dynamically load/unload rooms and provide to potentially multiple views. It also provides a frontend to show information about the status of the connection and the single rooms.
  */
 class roomManager{
 	
@@ -68,7 +68,7 @@ class roomManager{
 		this.data = {
 			// general ws-connection stuff:
 			clientName: clientName, 
-			connected: '', // must be changed after the vue is initialized, thus is '' and not true or false
+			connected: '', // actually only set to true as soon as also the tabId is reported; must be changed after the vue is initialized, thus is '' and not true or false
 			connecting: false, // unused so far
 			tabId: 0, // unused so far
 			wsWindowShown: false,
@@ -489,19 +489,22 @@ class roomManager{
 				room.storeInfos = storeInfos;
 			}
 
-			// try to connect
-			room.connect(writing, ()=>{
-				// success
-			}, (msg, code)=>{
-				// failure
+			// roomClient actually starts to connect automatically
+			//if (this.data.connected){
 
-				if (code==123){
-					// try to connect without writing rights
-					room.connect(false, ()=>{}, (msg, code)=>{
-						throw new Error();
-					});
-				}
-			})
+				/*room.connect(writing, ()=>{
+					// success
+				}, (msg, code)=>{
+					// failure
+	
+					if (code==123){
+						// try to connect without writing rights
+						room.connect(false, ()=>{}, (msg, code)=>{
+							throw new Error();
+						});
+					}
+				})*/
+			//}
 			
 		}
 
