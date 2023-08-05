@@ -247,7 +247,7 @@ class rStarts extends roomServer{
                 throw {code:25, message:"The start cannot be updated, since xEvent and/or xInscription are not allowed to change."};
             }
 
-            let startOld = {}
+            let startOld = {};
             this.propertyTransfer(o.dataValues, startOld);
 
             // for nested changes it is probably best if we manually change all properties and call save instead of using update, which has some shortcomings currently (e.g. does not save changes of nested entries (here: athlete), returns only the properties that were aprt of the update-object, ...)
@@ -255,6 +255,12 @@ class rStarts extends roomServer{
 
             // save all (if saving to DB is not necessary, sequelize will not do it and directly resolve the promise)
             await o.save().catch((err)=>{throw {code:26, message: `The changed start could not be stored: ${err}`};})
+
+            // TODO: extend with notification effort
+            if (startOld.bestPerf != o.bestPerf || startOld.bestPerfLast != o.bestPerfLast){
+                // notify all rooms about the change (e.g. to update startgroups)
+                this.eH.raise(`inscriptions@${this.meetingShortname}:inscriptionChanged${o.xInscription}`);
+            }
 
             let ret = {
                 isAchange: true, 
