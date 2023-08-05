@@ -265,7 +265,8 @@ class rContests extends roomServer{
                 throw {code:24, message:"The contest does not exist anymore on the server (should actually never happen)."};
             }
 
-            let contestOld = o.dataValues;
+            let contestOld = {};
+            this.propertyTransfer(o.dataValues, contestOld);
 
             // additionally make sure that xBaseDiscipline is not changed!
             if (data.xBaseDiscipline != contestOld.xBaseDiscipline){

@@ -316,7 +316,8 @@ class rEvents extends roomServer{
                 this.eH.raise(`eventDeletedFromEventGroup${o.xEventGroup}`, null)
             }
 
-            let eventOld = o.dataValues;
+            let eventOld = {};
+            this.propertyTransfer(o.dataValues, eventOld);
 
             return o.update(data).then(async(eventChanged)=>{
                 // the data should be updated in th DB by now.

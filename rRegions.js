@@ -201,7 +201,8 @@ class rRegions extends roomServer{
                 throw {code:24, message:"The region does not exist anymore on the server (should actually never happen)."};
             }
 
-            let regionOld = o.dataValues;
+            let regionOld = {};
+            this.propertyTransfer(o.dataValues, regionOld);
 
             return o.update(data).then(async(regionChanged)=>{
                 // the data should be updated in th DB by now.

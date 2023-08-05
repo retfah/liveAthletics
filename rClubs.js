@@ -216,7 +216,8 @@ class rClubs extends roomServer{
                 throw {code:24, message:"The club does not exist anymore on the server (should actually never happen)."};
             }
 
-            let clubOld = o.dataValues;
+            let clubOld = {};
+            this.propertyTransfer(o.dataValues, clubOld);
 
             return o.update(data).then(async(clubChanged)=>{
                 // the data should be updated in th DB by now.

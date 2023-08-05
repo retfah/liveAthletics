@@ -203,7 +203,9 @@ class rCategories extends roomServer{
                 throw {code:24, message:"The category does not exist anymore on the server (should actually never happen)."};
             }
 
-            let categoryOld = o.dataValues;
+
+            let categoryOld = {};
+            this.propertyTransfer(o.dataValues, categoryOld);
 
             return o.update(data).then(async(categoryChanged)=>{
                 // the data should be updated in th DB by now.

@@ -461,7 +461,8 @@ class rInscriptions extends roomServer{
                 throw {code:25, message: "The xAthlete-property is not allowed to change!"};
             }
 
-            let inscriptionOld = o.dataValues;
+            let inscriptionOld = {};
+            this.propertyTransfer(o.dataValues, inscriptionOld);
 
             // for nested changes it is probably best if we manually change all properties and call save instead of using update, which has some shortcomings currently (e.g. does not save changes of nested entries (here: athlete), returns only the properties that were aprt of the update-object, ...)
             this.propertyTransfer(data, o, true);

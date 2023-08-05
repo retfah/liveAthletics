@@ -281,7 +281,8 @@ class rDisciplines extends roomServer{
                 throw {code:24, message:"The baseDiscipline does not exist anymore on the server (should actually never happen)."};
             }
 
-            let baseDisciplineOld = o.dataValues;
+            let baseDisciplineOld = {};
+            this.propertyTransfer(o.dataValues, baseDisciplineOld);
 
             return o.update(data).then(async(baseDisciplineChanged)=>{
                 // the data should be updated in th DB by now.
