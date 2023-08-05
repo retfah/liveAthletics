@@ -1287,6 +1287,7 @@ export class pContestResultsHigh extends printingGeneral {
         })
 
         let categoriesStr = categoriesText.join(', ');
+        let name = this.data.name ? " " + this.data.name : '';
 
         // print contest name, time, category etc
         // the name does not exist yet in the data!
@@ -1296,7 +1297,7 @@ export class pContestResultsHigh extends printingGeneral {
             font:conf.fontContestHeader, 
             size: conf.sizeContestHeader, 
             cells:[
-                {p: ['baseDiscipline',], t:[, " " + categoriesStr]},
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr + name]},
                 {p: 'datetimeStartDateTime', alignmentH:'R'},
             ], 
             columns:[usableWidth*0.7, usableWidth*.3],
@@ -1388,6 +1389,7 @@ export class pContestSheetHigh extends printingGeneral {
         })
 
         let categoriesStr = categoriesText.join(', ');
+        let name = this.data.name ? " " + this.data.name : '';
 
         // print contest name, time, category etc
         // the name does not exist yet in the data!
@@ -1397,7 +1399,7 @@ export class pContestSheetHigh extends printingGeneral {
             font:conf.fontContestHeader, 
             size: conf.sizeContestHeader, 
             cells:[
-                {p: ['baseDiscipline',], t:[, " " + categoriesStr]},
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr + name]},
                 {p: 'datetimeStartDateTime', alignmentH:'R'},
             ], 
             columns:[usableWidth*0.7, usableWidth*.3],
@@ -1509,6 +1511,7 @@ export class pContestSheetTrack extends printingGeneral {
         })
 
         let categoriesStr = categoriesText.join(', ');
+        let name = this.data.name ? " " + this.data.name : '';
 
         // print contest name, time, category etc
         // the name does not exist yet in the data!
@@ -1518,7 +1521,7 @@ export class pContestSheetTrack extends printingGeneral {
             font:conf.fontContestHeader, 
             size: conf.sizeContestHeader, 
             cells:[
-                {p: ['baseDiscipline',], t:[, " " + categoriesStr]},
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr + name]},
                 {p: 'datetimeStartDateTime', alignmentH:'R'},
             ], 
             columns:[usableWidth*0.7, usableWidth*.3],
@@ -2608,7 +2611,7 @@ export class dSeriesSheetTrack extends dSeries {
  */
 export class dContest extends dContainer{
 
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups=[], categories, printConf={}){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), name='', status=10, conf=null, baseDiscipline='', relatedGroups=[], categories, printConf={}){
 
         super(printConf)
         // content obviously similar to the contest table in the DB
@@ -2616,6 +2619,7 @@ export class dContest extends dContainer{
         this.datetimeAppeal= datetimeAppeal;
         this.datetimeCall= datetimeCall;
         this.datetimeStart= datetimeStart;
+        this.name = name;
         this.status= status;
         this.conf= conf;
         this.baseDiscipline= baseDiscipline;
@@ -2664,9 +2668,9 @@ export class dContest extends dContainer{
  * Provide information about the competition to be printed
  */
  export class dContestSheet extends dContest {
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, printConf={}, showRelatedGroups=false, ){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), name='', status=10, conf=null, baseDiscipline='', relatedGroups, categories, printConf={}, showRelatedGroups=false, ){
 
-        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories, printConf)
+        super(datetimeAppeal, datetimeCall, datetimeStart, name, status, conf, baseDiscipline, relatedGroups, categories, printConf)
         // content obviously similar to the contest table in the DB
 
         this.showRelatedGroups = showRelatedGroups;
@@ -2676,9 +2680,9 @@ export class dContest extends dContainer{
 }
 
 export class dContestSheetTrack extends dContestSheet {
-    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), status=10, conf=null, baseDiscipline='', relatedGroups, categories, discConf=[], showRelatedGroups, hurdles=false, printConf={}){
+    constructor(datetimeAppeal=new Date(), datetimeCall=new Date(), datetimeStart=new Date(), name='', status=10, conf=null, baseDiscipline='', relatedGroups, categories, discConf=[], showRelatedGroups, hurdles=false, printConf={}){
 
-        super(datetimeAppeal, datetimeCall, datetimeStart, status, conf, baseDiscipline, relatedGroups, categories, printConf, showRelatedGroups)
+        super(datetimeAppeal, datetimeCall, datetimeStart, name, status, conf, baseDiscipline, relatedGroups, categories, printConf, showRelatedGroups)
         // content obviously similar to the contest table in the DB
 
         // store a list of the discipline configurations that are involved; this is mainly useful for hurdles, where the discipline-configuratio contains "height" and distances d1, d2, d3.

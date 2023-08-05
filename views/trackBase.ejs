@@ -2056,7 +2056,7 @@
             pageBreakAfterNChildren: maxSeries,
         }
 
-        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, cName, relatedGroups, categories, discConfs, true, disciplineConfiguration.type=='hurdles', contestPrintConf);
+        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, cName, relatedGroups, categories, discConfs, true, disciplineConfiguration.type=='hurdles', contestPrintConf);
 
         // create each series-container and add it to the contest
         for (let s of series){

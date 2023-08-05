@@ -3388,7 +3388,7 @@
         // get the name of the discipline
         let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
 
-        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, discName, relatedGroups, categories);
+        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories);
 
         // create each series-container and add it to the contest
         for (let s of series){
@@ -3457,7 +3457,7 @@
         let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
 
         // dContest sheet is the same (pContestSheet will be different) 
-        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.status, contest.conf, discName, relatedGroups, categories, {}, false);
+        let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories, {}, false);
 
         // create each series-container and add it to the contest
         for (let s of series){
