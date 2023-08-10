@@ -1031,6 +1031,13 @@
                     // send the change to the server
                     rCTech.room.updateSSRInit(xSeriesStartEl);
 
+                    if (this.mode==0){
+                        // so far not all startheights were defined, so we can easily just call:
+                        this.calculateNextAthlete();
+                    } else {
+                        // check if the competition can start already
+                        this.onSeriesChangeCalcNextAth=true;
+                    }
 
                     // check if the competition can start already
                     this.onSeriesChangeCalcNextAth=true;
