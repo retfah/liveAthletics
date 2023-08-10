@@ -221,6 +221,9 @@
                     timeUpdateInterval: undefined,
                     last15: false, // last 15 s
                     //currentResultRegistered: false,
+
+                    ssrMod:undefined, // store the xStartgroup that shall be modified in an overlay
+                    resultOverruleMod: 0, 
                 }
             },
             methods:{
@@ -1039,14 +1042,25 @@
                         this.onSeriesChangeCalcNextAth=true;
                     }
 
-                    // check if the competition can start already
-                    this.onSeriesChangeCalcNextAth=true;
-                    //this.calculateNextAthlete();
                 },
                 updateSSR(ssr){
                     // send the change to the server
                     rCTech.room.updateSSRInit(ssr);
 
+                },
+                startUpdateParticipation(ssr){
+                    this.ssrMod = ssr;
+                    this.resultOverruleMod = ssr.resultOverrule;
+                    this.overlay = 'modParticipation';
+                },
+                saveUpdateParticipation(){
+                    // save the changed participation state to the local object and send the change to the server
+                    this.ssrMod.resultOverrule = this.resultOverruleMod;
+                    this.updateSSR(this.ssrMod);
+
+                    this.ssrMod = undefined;
+                    this.calculateNextAthlete();
+                    this.overlay = undefined;
                 },
                 allStartHeightsDefined(){
                     if (this.series.length==0){

@@ -423,18 +423,8 @@
                                 <div class="elText">{{birthdayToXX(auxData.xStartgroup[currentAthleteStart.xStartgroup].birthdate)}}</div>
                                 <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].countryCode}}</div>
                                 <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].clubName}}</div>
-                                <section class="collapsable el2 marginRight" v-if="!readOnly">
-                                    <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
-                                    <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
-                                    <label for="hiddenInput" class="marginRight">
-                                        <%= __("Change participation status") %>  
-                                    </label>
-                                    <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart)">
-                                        <option v-for="option in participationStatesTech" v-bind:value="option.value">
-                                            {{option.text}}
-                                        </option>
-                                    </select>
-                                </section>
+ 
+                                <button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(currentAthleteStart)"><%= __("Change participation status") %></button>
                             </div>
                             
                             <div class="row2">
@@ -458,18 +448,6 @@
                                         <button type="button" class="el width3" v-on:click="failed()" v-bind:disabled="readOnly">X</button>
                                         <button type="button" class="el width3" v-on:click="passed()" v-bind:disabled="readOnly">-</button>
                                     </div>
-    
-                                    <!-- time period stuff: -->
-                                        <!-- Note: we use hours as minutes and minutes as seconds -->
-                                    <!--<div v-if="autoAdvance==false">
-                                        <input type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
-                                        <button type="button" class="btn" v-on:click="setTime" v-if="!readOnly"><%= __("Set") %></button>
-                                        <div v-if="roomAuxData[selectedXSeries].showAttemptPeriod">
-                                            <h3 v-bind:class="{yellowBg: last15}">{{shownTime}}</h3>
-                                            <button type="button" class="btn" v-on:click="startPeriod" v-if="!readOnly">&#9654;</button>
-                                            <button type="button" class="btn" v-on:click="hidePeriod" v-if="!readOnly">&#9209;</button>
-                                        </div>
-                                    </div>-->
                                 </div>
     
                                 <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)"
@@ -542,18 +520,8 @@
                                 <div class="elText">{{birthdayToXX(auxData.xStartgroup[currentAthleteStart.xStartgroup].birthdate)}}</div>
                                 <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].countryCode}}</div>
                                 <div class="elText">{{auxData.xStartgroup[currentAthleteStart.xStartgroup].clubName}}</div>
-                                <section class="collapsable el2 marginRight" v-if="!readOnly">
-                                    <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correcly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
-                                    <input type="checkbox" id="hiddenInput" name="participationStatusHider"></input><!-- do not show the checkbox; tha label is still clickable -->
-                                    <label for="hiddenInput" class="marginRight">
-                                        <%= __("Change participation status") %>  
-                                    </label>
-                                    <select class="content dropdown" v-model="currentAthleteStart.resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(currentAthleteStart);">
-                                        <option v-for="option in participationStatesTech" v-bind:value="option.value">
-                                            {{option.text}}
-                                        </option>
-                                    </select>
-                                </section>
+
+                                <button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(currentAthleteStart)"><%= __("Change participation status") %></button>
                             </div>
                             
                             <div class="row2">
@@ -695,20 +663,7 @@
                                     <div class="marginLeft">
                                         <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
                                     </div>
-    
-                                    <section class="el2 collapsable marginLeft marginRight">
-                                        <div style=" padding: .375rem 0rem; display: inline-block; width:0px;">&nbsp;</div><!--This stupid empty div is just here in order that the fomatting works correctly. Without it, the alignment does not work appropriately when the content is closed. Important as well: do not specify the height of the element, as this would cause probelms as well, but instead have a not-shown 'text' and some padding. It seems like the problem is coming from the vertical-align: baseline;-->
-                                        <input type="checkbox" v-bind:id="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" name="participationStatusHider" ></input><!-- do not show the radio button; tha label is still clickable -->
-                                        <label v-bind:for="'hiddenInput' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart">
-                                            <%= __("Change participation status") %>    
-                                        </label>
-                                        <!-- TODO: participation should be changed only after confirmation or in a usually hidden menu (e.g. click on "change status" to show the dropdown) -->
-                                        <select class="content dropdown marginLeft" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultOverrule" v-on:change="calculateNextAthlete(); updateSSR(series[selectedSeries].seriesstartsresults[startIndex])">
-                                            <option v-for="option in participationStatesTech" v-bind:value="option.value">
-                                                {{option.text}}
-                                            </option>
-                                        </select>
-                                    </section>
+                                    <button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(series[selectedSeries].seriesstartsresults[startIndex])"><%= __("Change participation status") %></button>
                                 </div>
                             </div>
                             <br />
@@ -882,6 +837,25 @@
                                     <%= __("Save") %>
                                 </button>
                                 <button type="button" class="btn btnRed" v-on:click="abortUpdateConf"><%= __("Abort") %></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="confTechHigh" v-if="overlay=='modParticipation'">
+                        <form>
+                            <div class="verticalForm">
+                                <h3><%= __("Change participation status") %></h3>
+                                {{auxData.xStartgroup[ssrMod.xStartgroup].athleteForename}} {{auxData.xStartgroup[ssrMod.xStartgroup].athleteName}}
+                                <select class="content dropdown" v-model="resultOverruleMod">
+                                    <option v-for="option in participationStatesTech" v-bind:value="option.value">
+                                        {{option.text}}
+                                    </option>
+                                </select>
+                                <br>
+                                <button type="submit" class="btn btnGreen" v-on:click="saveUpdateParticipation" :disabled="readOnly">
+                                    <%= __("Save") %>
+                                </button>
+                                <button type="button" class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
                             </div>
                         </form>
                     </div>

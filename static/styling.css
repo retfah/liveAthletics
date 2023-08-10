@@ -641,28 +641,6 @@ option.catMismatch{
     transition: 0.5s;
 }
 
-.collapsable > input[name="participationStatusHider"]:checked ~ label {
-    background-color: #5a6268;
-    border-color:#5a6268;
-}
-.collapsable > input[name="participationStatusHider"]:checked ~ label:hover,
-.collapsable > input[name="participationStatusHider"]:checked ~ label:focus {
-    border-color:#6c757d;
-}
-
-.collapsable > input[name="participationStatusHider"]:not(:checked) ~.content{
-    display:none;
-    padding: 0px;
-    margin: 0px;
-    border-width: 0px;
-    height: 0px;
-    width:0px;
-}
-.collapsable > input[name="participationStatusHider"]:checked ~ .content {
-    /*width: auto;*/
-    display: inline-block;
-  }
-
 .dropdown {
     padding: 6px 12px;
     border: 1px solid RGB(206, 212, 218);
@@ -1099,7 +1077,7 @@ option:hover {
     border:1px solid grey;
     border-radius: var(--border-radius, 4px);
     padding: 5px 10px;
-    max-width: 650px;
+    max-width: 1000px;
     /*width:500px;*/
     overflow: auto;
 }
