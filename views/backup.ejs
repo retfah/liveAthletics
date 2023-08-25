@@ -434,7 +434,7 @@
                     <input type="checkbox" v-model="backup.pullFromServer.secure" v-bind:disabled="mode!=1">
                 </label>
                 <label>
-                    <%= __("Shortname on the server to pull from"); %>
+                    <%= __("Shortname of the meeting on the server to pull from"); %>
                     <input type="text" v-model="backup.pullFromServer.shortname" v-bind:disabled="mode!=1">
                 </label>
             </div>
@@ -463,7 +463,7 @@
                         <tr v-for="pullServer in displayData" :key="pullServer.token">
                             <td>{{pullServer.name}}</td>
                             <td>{{pullServer.token}}</td>
-                            <td>Status TODO</td>
+                            <td><%= __("Connected") %>: {{status.secondaryPullConnections[pullServer.token].connected}}, <%= __("Last connected") %>: {{status.secondaryPullConnections[pullServer.token].lastConnected}}</td>
                         </tr>
                     </tbody>
                 </template>
@@ -569,7 +569,7 @@
                             <input type="checkbox" v-model="backupWorkCopy.pullFromServer.secure" v-bind:disabled="mode!=1">
                         </label>
                         <label>
-                            <%= __("Shortname on the server to pull from"); %>
+                            <%= __("Shortname of the meeting on the server to pull from"); %>
                             <input type="text" v-model="backupWorkCopy.pullFromServer.shortname" v-bind:disabled="mode!=1">
                         </label>
                     </div>
@@ -667,7 +667,7 @@
                     <input type="text" v-model="newPushName">
                 </label>
                 <label>
-                    <%= __('Shortname on the server to push to') %>:
+                    <%= __('Shortname of the meeting on the server to push to') %>:
                     <input type="text" v-model="newPushShortname">
                 </label>
                 <label>

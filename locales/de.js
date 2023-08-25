@@ -362,8 +362,8 @@
 	"for information only": "zur Info",
 	"Add push server": "Push Server hinzufügen",
 	"The connection between the main and this server can either be initiated by the main server ('push mode') or by this server ('pull mode'). ": "Die Verbindung zwischen Hauptserver und diesem Server kann entweder durch den Hauptserver aufgebaut werden ('push Modus') oder durch diesen Server ('pull Modus'). ",
-	"Shortname on the server to pull from": "Kurzname des Servers, von welchem die Daten geholt werden sollen",
-	"Shortname on the server to push to": "Kurzname des Server, zu welchem die Daten geschickt werden sollen",
+	"Shortname of the meeting on the server to pull from": "Kurzname des Meetings auf dem Server, von welchem die Daten geholt werden sollen",
+	"Shortname of the meeting on the server to push to": "Kurzname des Meetings auf dem Server, zu welchem die Daten geschickt werden sollen",
 	"Backup and restore": "Backup und Wiederherstellen",
 	"Download Backup": "Backup herunterladen",
 	"Choose file": "Datei auswählen",
@@ -692,5 +692,7 @@
 	"Values in cm": "Werte in cm",
 	"Height intervals": "Steigerungshöhen",
 	"The entered values are not valid. Please note that both values must be entered in cm.": "Die eingegebenen Werte sind ungültig. Beide Werte müssen in cm angegeben werden.",
-	"Invalid entry": "Ungültige Eingabe"
+	"Invalid entry": "Ungültige Eingabe",
+	"Connected": "Verbunden",
+	"Last connected": "Zuletzt verbunden"
 }
