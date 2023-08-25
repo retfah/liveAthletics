@@ -23,6 +23,11 @@ export default class eventHandling2{ // ES 2015 style syntax
        this.logger = logger;
    }
 
+   toJSON(){
+    // implement here what shall be serialized!
+    return this.listEventListeners();
+   }
+
    /**
     * register a new event, to allow listeners to be bound to it
     * @method eventRegister
@@ -111,6 +116,18 @@ export default class eventHandling2{ // ES 2015 style syntax
        } else {
                return 0;
        }
+   }
+
+   /**
+    * get an object with all events and their listeners
+    */
+   listEventListeners(){
+        // create an object of all events and the names of their listeners
+        let o = {};
+        Object.keys(this._events).forEach(e=>{
+            o[e] = Object.keys(this._events[e]);
+        })
+        return o;
    }
 
 }

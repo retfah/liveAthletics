@@ -1459,6 +1459,13 @@ app.get('/static/wsProcessorBrowser.js', (req, res)=>{
 	res.sendFile('/node_modules/wsprocessor/browser/wsProcessorBrowser.js', { root: __dirname });
 });
 
+// for security reasons only when in develop mode!
+if (global.developMode){
+	app.get('/api/eventHandlers', (req, res)=>{
+		res.send(JSON.stringify(eH));
+	});
+}
+
 // for the ACME challenge of let's encrypt certificate, why need to have the .well-known folder on the root of the server; handle it similar to static redirect the call to the root-folder /.well-known/ to (static/.well-known/)
 app.get('/.well-known', express.static('.well-known'));
 
