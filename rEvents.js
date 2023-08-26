@@ -169,8 +169,8 @@ class rEvents extends roomServer{
                     xEventGroup: event.xEventGroup
                 }
                 await this.startsInGroup.serverFuncWrite('addedEventToEventgroup', data).catch(err=>{
-                    // if the error was 24 (no rounds), then silently continue
-                    if (err.code!=24){
+                    // if the error was 23 (no rounds), then silently continue
+                    if (err.code!=23){
                         throw(err);
                     }
                 });
