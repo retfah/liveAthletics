@@ -338,14 +338,14 @@
                 createEGName(disc, cat){
                     let egName = '';
 
-                    if (cat){
+                    if (cat!=undefined){
                         let [,catObj] = this.findObjInArrayByProp(this.categories, 'xCategory', cat);
-                        egName += catObj.categoryShortname;
+                        egName += catObj.shortname;
                     }
-
-                    egName += ' ';
-
-                    if (disc){
+                    if (cat!=undefined && disc!=undefined){
+                        egName += ' ';
+                    }
+                    if (disc!=undefined){
                         let [, discObj] = this.findObjInArrayByProp(this.disciplines, 'xDiscipline', disc)
                         egName += discObj.shortname;
                     }
