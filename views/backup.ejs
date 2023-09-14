@@ -525,7 +525,7 @@
         </div>
     </div>
     <div class="overlay" v-bind:class="{shown: mode==1}">
-        <div class="overlayContainer">
+        <div class="overlayContainerWide">
             <button type="button"class="btn btnRed" v-on:click="abortBackupChange"><%= __("Abort") %></button>
             <button type="button" class="btn btnGreen" v-on:click="saveBackupChange"><%= __("Save") %></button>
             <form class="verticalForm">
@@ -576,7 +576,7 @@
                 <div>
                     <h3><%= __('Settings for this server as main server for others') %>:</h3>
                     <%= __("Allowed tokens of secondary servers that pull from this server") %>:
-                    <button type="button" v-on:click="addPullServer" class="btn btnGreen"><%= __('Add pull server') %></button>
+                    <br><button type="button" v-on:click="addPullServer" class="btn btnGreen"><%= __('Add pull server') %></button>
                     <v-table :data="backupWorkCopy.secondaryPullServers">
                         <template #head>
                             <thead>
@@ -601,7 +601,7 @@
                         </template>
                     </v-table>
                     <%= __('Connections to secondary servers that are initated by this server together with the respective token of that server') %>
-                    <button type="button" v-on:click="addPushServer" class="btn btnGreen"><%= __('Add push server') %></button>
+                    <br><button type="button" v-on:click="addPushServer" class="btn btnGreen"><%= __('Add push server') %></button>
                     <v-table :data="backupWorkCopy.secondaryPushServers">
                         <template #head>
                             <thead>
