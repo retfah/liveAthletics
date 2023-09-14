@@ -15,6 +15,7 @@
 
 import roomServer from './roomServer.js';
 import rSideChannelClient from './rSideChannelClient.js';
+import rSideChannel from './rSideChannel.js';
 import conf from './conf.js'; 
 import {spawn} from 'child_process';
 //import fs from 'fs';
@@ -391,12 +392,73 @@ class rBackup extends roomServer{
             this.rSideChannel.leaveNote(this.rSideChannel.connectionToMain.wsHandler.tabId);
 
             // make the client leave on the main server
-            if (this.rSideChannel?.connectionToMain){
+            if (this.rSideChannel?.connectionToMain?.connected){
                 this.rSideChannel.connectionToMain.leave();
                 this.rSideChannel.connectionToMain = undefined;
             }
 
         }
+    }
+
+    // call this funciton to "fake"-enter the local side channel to make sure that the main server can send the changes. (Note: the secondary server connects to the main-sideChannel in rSideChannelClient; however, the changes sent by the main server are handed over to rSideChannel and not rSideChannelClient. since the main server does not enter the secondary-rSideChannel itself, we have to "fake"-enter here with our token to make sure the changes sent are not rejected.)
+    // mainly (only?) needed by pull connections
+    /*enterSideChannel(connection, responseHandler){
+        // TODO: what infos do we have to provide through session to make it work?
+        let fakeSession = {};
+
+        // we give it the current ID to avoid the preparation of any data to be transmitted, which would be useless in this case
+        // the token is the one defined here in rbackup (it was already checked above that the transmitted one is the same as the one here)
+        this.rSideChannel.enter(connection.tabId, connection.wsProcessor, responseHandler, {writing:true, ID:this.ID, enterOptions:{token: this.data.backup.token}}, fakeSession)
+    }*/
+
+    // create the rSideChannel client when this is a secondary server. It will retry to connect until it succeeds the first time.
+    setupSecondary(connection, shortname, succCB2=()=>{}, failCB2=(value, code)=>{}){
+
+        // create a side channel once, and if connecting fails, try to connect it again until conenctionToMain is changed (e.g. because the connection was closed or some property has changed)
+
+        let ctm; // connection to main; neded here tho reference it in the failure cb.
+
+        let succCB = ()=>{
+
+            // now, try to "fake"-enter the side channel locally, to make sure the data arriving to rSideChannel directly will be processed.
+
+            let fakeSession = {};
+
+            let fakeResponseFunc = (value, code)=>{
+                // If everything else is correctly programmed (e.g. when the connection is lost the server leaves properly and gives back the writing ticket.), then entering should always work.
+                this.logger.log(95, `sideChannel "fake-entered" (i.e. the main server was entered as a client, but he actually never asked for this. It is needed, because any messages from main to secondary go directly to the sideChannelSeverRoom and not to rSideChannelClient.); resulted in value ${JSON.stringify(value)} and code ${code}.` );
+
+                if (code==0){
+                    // on success, return true;
+                    this.logger.log(95, `Main server successfully registered as writing client on the secondary server`)
+
+                    this.data.status.connectionToMain.enteredOnSecondary = true;
+                    this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+                    succCB2();
+
+                } else {
+                    this.logger.log(50, `Main server could not be registered as writing client on the secondary server. ${code}: ${JSON.stringify(value)}`)
+                    failCB2(value, code);
+                }
+            }
+
+            this.rSideChannel.enter(connection.tabId, connection.wsProcessor, fakeResponseFunc, {writing:true, failOnWritingDeclined: true, ID:this.rSideChannel.ID, enterOptions:{token: this.data.backup.token}}, fakeSession);
+
+        }
+        
+        let failureCB = ()=>{
+            // on failure try again after a timeout:
+            setTimeout(()=>{
+                if (ctm==this.rSideChannel.connectionToMain){
+                    ctm.connect(false, succCB, failureCB)
+                }
+                // if the connctionToMain has changed, it will simply stop here and no further timeout will be called. 
+            },1000*this.pullRetryTimeout);
+        }
+        
+        ctm = new rSideChannelClient(connection, this.eH, shortname, this.meetingShortname, this.logger, this.rSideChannel, this.data.backup.token, succCB, failureCB); 
+        this.rSideChannel.connectionToMain = ctm;
+
     }
 
     // as a secondary server: try to connect to main server when in pull mode or stop an existing pull connection when not in pull mode anymore
@@ -408,7 +470,7 @@ class rBackup extends roomServer{
             let SC = this.pullConnection;
             
             // make the client leave on the main server
-            if (this.rSideChannel?.connectionToMain){
+            if (this.rSideChannel?.connectionToMain?.connected){
                 this.rSideChannel.connectionToMain.leave();
                 this.rSideChannel.connectionToMain = undefined;
             }
@@ -417,9 +479,7 @@ class rBackup extends roomServer{
             this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure);
 
             // unsubscribe from the connection-events:
-            //this.eH.eventUnsubscribe(`wsConnected/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
-            this.eH.eventUnsubscribe(`TabIdSet/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
-            this.eH.eventUnsubscribe(`wsClosed/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
+            this.unsubscribeEventsForTabId(SC.connection.tabId);
             
             // reset it, to let the next part know to create a new connection
             this.pullConnection = null;
@@ -433,7 +493,7 @@ class rBackup extends roomServer{
                     token: this.data.backup.token,
                     lastConnected: undefined,
                     connected: false,
-                    status: 0, // 0) no connection; 1) ws-connection established; 2) tabIdReported; 3) 'connectToMainServer' returned succeess; -1): failure: connection established, but sideChannel roomed failed to answer (e.g. because is in main mode or not ready -> automatic retry to conenct)
+                    status: 0, // 0) no connection; 1) ws-connection established; 2) tabIdReported; 3) 'connectToMainServer' returned succeess; -1): failure: connection established, but sideChannel room failed to answer (e.g. because is in main mode or not ready -> automatic retry to conenct)
                     lastError: '', // store here the last error that occured
                 },
                 connection: undefined,
@@ -457,7 +517,7 @@ class rBackup extends roomServer{
 
                 // enter the room here
 
-                let fakeResponseFunc = (value, code)=>{
+                /*let fakeResponseFunc = (value, code)=>{
                     // If everything else is correctly programmed (e.g. when the connection is lost the server leaves properly and gives back the writing ticket.), then entering should always work.
                     this.logger.log(95, `sideChannel "fake-entered"; resulted in value ${JSON.stringify(value)} and code ${code}.` );
     
@@ -473,27 +533,13 @@ class rBackup extends roomServer{
                     }
                 }
 
+                // enter the room here
+                this.enterSideChannel(conn, fakeResponseFunc)*/
 
-                // TODO: what infos do we have to provide through session to make it work?
-                let fakeSession = {};
-
-                // we give it the current ID to avoid the preparation of any data to be transmitted, which would be useless in this case
-                // the token is the one defined here in rbackup (it was already checked above that the transmitted one is the same as the one here)
-                this.rSideChannel.enter(conn.tabId, conn.wsProcessor, fakeResponseFunc, {writing:true, ID:this.ID, enterOptions:{token: this.data.backup.token}}, fakeSession)
-
-                // then create a rSideChannelClient
-                let createSideChannel = ()=>{
-                    let failureCB = ()=>{
-                        // on failure try again after a timeout:
-                        setTimeout(createSideChannel,1000*this.pullRetryTimeout);
-                    }
-                    this.rSideChannel.connectionToMain = new rSideChannelClient(conn, this.eH, this.data.backup.pullFromServer.shortname, this.meetingShortname, this.logger, this.rSideChannel, this.data.backup.token, ()=>{}, failureCB); 
-                }
-
-                createSideChannel();
+                // then create a rSideChannelClient, and fake enter on this server (secondary)
+                this.setupSecondary(conn, this.data.backup.pullFromServer.shortname);
                 
             }
-
 
             // if the connection is lost, the wsManager and wsServer2Sever, respectively, will try to reconnect; listen to those events to instantly reconnect the sideChannel-rooms
             this.eH.eventSubscribe(`TabIdSet/${conn.tabId}`, connectRoom, `sideChannel:${this.meetingShortname}`); // we use the shortname of the meeting as an identifier for the eventHandler 
@@ -506,6 +552,8 @@ class rBackup extends roomServer{
                 this.data.status.connectionToMain.connectedToMain = false;
                 this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
 
+                // do NOT unsubscribe the events, they stay the same as long as the conneciton stays the same!
+                
             }, `sideChannel:${this.meetingShortname}`);
 
             // if the connection is already established and the tabId is reported, we call on connectRoom now.
@@ -517,6 +565,12 @@ class rBackup extends roomServer{
             }
             
         }
+    }
+
+    unsubscribeEventsForTabId(tabId){
+        this.eH.eventUnsubscribe(`wsConnected/${tabId}`, `sideChannel:${this.meetingShortname}`);
+        this.eH.eventUnsubscribe(`TabIdSet/${tabId}`, `sideChannel:${this.meetingShortname}`);
+        this.eH.eventUnsubscribe(`wsClosed/${tabId}`, `sideChannel:${this.meetingShortname}`);
     }
 
     async statusChanged(noData){
@@ -544,18 +598,25 @@ class rBackup extends roomServer{
             if (this.data.backup.secondaryPushServers.findIndex(el=>el.token==pushToken)==-1){
                 // token was deleted by the user --> stop the connection and delete the token
 
-                // currently, there is no way yet how to remove a client without its request. It does not matter, since the client will anyway destroy the roomCLient when the eonncetion fails.
-                // TODO: we need this! FOr the cases where we have multiple meetings linked through the same connection, the connection will not stop when we actually want it to end in one sideCHannel/meeting, as long as there is other sideChannel/rooms using it! 
-
                 let SC = this.pushConnections[pushToken];
+
+                // if the client was still trying to connect the room, stop it now.
+                clearTimeout(SC.roomConnectTimeout);
+
+                // let the client know that he will be left by the main server
+                // TODO: this does not work like that; echck that the leave function really does what it should
+                let sendData = {arg: 'leaveFromMain', roomName: "sideChannel@" + SC.shortname, opt:{shortname: this.meetingShortname, token:pushToken}}; 
+                SC.connection.emitNote("room", sendData)
+
+                // The tabId is defined here on the main server when opneing the websocketServer2Server connection, but is also used by rSideChannelClient to register here on the main server.
+                // we kick the client out and do not wait for the "friendly leave"
+                this.rSideChannel.leaveNote(SC.connection.tabId);
 
                 // close the connection when no other meeting is using it
                 this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure)
 
                 // unsubscribe from the connection-events:
-                this.eH.eventUnsubscribe(`wsConnected/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
-                this.eH.eventUnsubscribe(`TabIdSet/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
-                this.eH.eventUnsubscribe(`wsClosed/${SC.connection.tabId}`, `sideChannel:${this.meetingShortname}`);
+                this.unsubscribeEventsForTabId(SC.connection.tabId);
                 
                 // delete the token
                 delete this.pushConnections[pushToken];
@@ -567,6 +628,9 @@ class rBackup extends roomServer{
         for (let pushServer of this.data.backup.secondaryPushServers){
 
             if (!(pushServer.token in this.data.status.secondaryPushConnections)){
+
+                this.logger.log(92, `Create push connection for token ${pushServer.token}.`);
+
                 // create the object for the status etc
                 let sideChannel = {
                     info:{
@@ -577,12 +641,13 @@ class rBackup extends roomServer{
                         lastError: '', // store here the last error that occured
                     },
                     connection: undefined,
+                    roomConnectTimeout: undefined, // the timeout when the room-connection fails. Thi is needed to make sure that on a change we stop trying to connect to the old room
                     // repeat here the configuration, since it is needed to tell the wsManager that the connection to XY is not needed by this room anymore
                     host: pushServer.host,
                     port: pushServer.port,
                     path: pushServer.path,
                     secure: pushServer.secure,
-
+                    shortname: pushServer.shortname, // needed when being left from the main server
                 }
 
                 this.data.status.secondaryPushConnections[pushServer.token] = sideChannel.info;
@@ -601,6 +666,8 @@ class rBackup extends roomServer{
                 // prepare a function that shall be called whenever the connection is (re-)established, which then sends a note to the client so that the client will 
                 let connectRoom = ()=>{
 
+                    this.logger.log(92, `wsConnection for tabId ${conn.tabId} and token ${pushServer.token} is connected and TabId reported. Sending 'connectToMainServer' to the secondary`);
+
                     sideChannel.info.status = 2;
 
                     // use the shortname on the secondary server and give it 
@@ -614,6 +681,8 @@ class rBackup extends roomServer{
 
                             // broadcast the statusChange
                             this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+
+                            this.logger.log(92, `sideChannel for tabId ${conn.tabId} and token ${pushServer.token} successfully connected.`);
                         }
                     };
                     let failure = (errCode, errMsg)=>{
@@ -621,10 +690,10 @@ class rBackup extends roomServer{
                         // there was an error in sending the request to the sideChannel room of the secondary server. This could happen when the called server was in main mode or is not ready yet. Automatically retry after a certain timeout
 
                         sideChannel.info.status = -1;
-                        if (errCode!=22){
-                            setTimeout(connectRoom, 1000*this.pushRetryTimeout);
-                        }
-                        
+                        sideChannel.info.connected = false;
+                        //if (errCode!=22){ // always retry; it could be that the secondary (thinks it) is still connected to this main server, but simply needs some more time until the connection is deemed failed. After that point, reconnecting should work
+                            sideChannel.roomConnectTimeout = setTimeout(connectRoom, 1000*this.pushRetryTimeout);
+                        //}
                         
                         let errMsg2 = `Could not connect the side channel to ${pushServer.host}:${pushServer.port}/${pushServer.path}/${pushServer.secure.toString()}. Code: ${errCode}. Message: ${errMsg}`;
 
@@ -646,17 +715,41 @@ class rBackup extends roomServer{
                 // if the connection is lost, the wsManager and wsServer2Sever, respectively, will try to reconnect; listen to those events to instantly reconnect the sideChannel-rooms
                 this.eH.eventSubscribe(`TabIdSet/${conn.tabId}`, connectRoom, `sideChannel:${this.meetingShortname}`); // we use the shortname of the meeting as an identifier for the eventHandler 
 
-                this.eH.eventSubscribe(`wsConnected/${conn.tabId}`, ()=>{sideChannel.info.status=1;}, `sideChannel:${this.meetingShortname}`);
+                this.eH.eventSubscribe(`wsConnected/${conn.tabId}`, ()=>{
+
+                    this.logger.log(92, `wsConnection for tabId ${conn.tabId} and token ${pushServer.token} is connected. TabId to be reported.`);
+
+                    sideChannel.info.status=1;
+                    // broadcast the statusChange
+                    this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+                }, `sideChannel:${this.meetingShortname}`);
 
                 this.eH.eventSubscribe(`wsClosed/${conn.tabId}`, ()=>{
                     // not a lot to do when the connection was closed, since we are already waiting for the reconnect
-                    // simply reset the status to unconnected/0
-                    sideChannel.info.status = 0;
+
+                    // if the client was still trying to connect the room, stop it now.
+                    clearTimeout(sideChannel.roomConnectTimeout);
+
+                    // since the wsManager retries to connect, only send statusChanged when it really changes
+                    if (sideChannel.info.status!=0){
+                        this.logger.log(92, `Client with tabId ${conn.tabId} and token ${pushServer.token} was disconnected.`);
+                        // simply reset the status to unconnected/0
+                        sideChannel.info.status = 0;
+                        sideChannel.info.connected = false;
+                        // broadcast the statusChange
+                        this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+                    } 
+
+                    // do NOT unsubscribe the events, they stay the same as long as the conneciton stays the same!
+
+
                 }, `sideChannel:${this.meetingShortname}`);
 
                 // if the connection is already established and the tabId is reported, we call on connectRoom now.
                 if (conn.connected){
                     sideChannel.info.status = 1;
+                    // broadcast the statusChange
+                    this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
                     if (conn.tabIdReported){
                         connectRoom(); // also sets status =2
                     }
@@ -1065,7 +1158,7 @@ class rBackup extends roomServer{
             })
                 
             // restart rooms:
-            this.rMeetings.createRoomsForMeeting(this.meetingShortname, seq, modelsMeeting, meetingMongoDb)
+            this.rMeetings.createRoomsForMeeting(this.meetingShortname, this.seq, this.models, this.mongoDB)
 
             // set secondary mode, if needed
             if (!this.data.backup.isMain){
@@ -1076,8 +1169,6 @@ class rBackup extends roomServer{
             
             throw({message: `Error during database modification (${err}); successfully reinstalled the old DB.`, code: 24})
         })
-
-        // TODO: restore sideChannelData and sideChannelConfiguration
 
         setTimeout(deleteTempFiles, this.deleteFileTimeout*1000);
 

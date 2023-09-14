@@ -321,7 +321,7 @@ export default class roomClient {
                     this.connecting = false;
                     let msg2 = `Connecting to room ${this.name} failed with the following code and message: ${code}: ${msg}`;
                     this.logger.log(3, msg2);
-                    failure(msg2, code)
+                    failure(msg2, code);
                 }
             });
         }

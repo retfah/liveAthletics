@@ -1134,7 +1134,7 @@ class rMeetings extends roomServer{
         let closePromises = [];
         for (let roomName in activeMeeting.rooms){
             let r = activeMeeting.rooms[roomName];
-            if (!r.name=="backup"){
+            if (r.name.substring(0,7)!="backup@" && r.name.substring(0,12)!="sideChannel@"){
                 closePromises.push(r.closeRoom());
                 
                 delete activeMeeting.rooms[roomName];
