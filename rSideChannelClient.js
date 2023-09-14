@@ -34,7 +34,7 @@ export default class rSideChannelClient extends roomClient{
             // when the connection and data initialization was successful, set the respective status properties in rBackup to true
             rSideChannel.rBackup.data.status.connectionToMain.successfulInitialization = true;
             rSideChannel.rBackup.data.status.connectionToMain.clientOnMain = true;
-            rSideChannel.rBackup.data.status.connectedToMain = true; // should be already true
+            rSideChannel.rBackup.data.status.connectionToMain.connectedToMain = true; // should be already true
             // broadcast the statusChange
             rSideChannel.rBackup.serverFuncWrite('statusChanged',undefined).catch(()=>{});
 
