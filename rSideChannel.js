@@ -509,7 +509,9 @@ class rSideChannel extends roomServer{
             this.connectionToMain = new rSideChannelClient(wsHandler, this.eH, opt.shortname, this.meetingShortname, this.logger, this, this.rBackup.data.backup.token); 
 
             // on failure of the connection, simply destroy the client; it will be reopened again when the connection is reestablished.
-            this.eH.eventSubscribe('wsClientDisconnect/'+tabId,()=>{
+            this.eH.eventSubscribe('wsClosed/'+tabId,()=>{
+
+                this.logger.log(92, `The ws connection used in the sideChannel of tabId: ${tabId} token: ${opt?.token} got disconnected.`);
 
                 // the writing ticket is automatically returned (since roomServer also listens to the same event).
                 // delete the connection to main (Note: there is no need to call close() or somethign like that, since the connection has failed already anyway)
@@ -524,7 +526,7 @@ class rSideChannel extends roomServer{
                 this.rBackup.serverFuncWrite('statusChanged',undefined).catch(()=>{});
 
                 // unregister event
-                this.eH.eventUnsubscribe('wsClientDisconnect/'+tabId, this.name)
+                this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name)
             }, this.name)
 
             // do not send the actual data! we need no data on the main server. 

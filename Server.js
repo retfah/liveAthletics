@@ -753,8 +753,8 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 		// TODO: maybe some more funcitons must be called on closing...
 		
 		// report to the eventHandler that the client disconnected, such that every room having this client can handle this appropriately
-		//eH.raise('wsClientDisconnect/'+ws.sid); // pre 2021-01; no longer used, I think
-		eH.raise('wsClientDisconnect/'+ws.tabID); // new (2021-01)
+		//eH.raise('wsClosed/'+ws.sid); // pre 2021-01; no longer used, I think
+		eH.raise('wsClosed/'+ws.tabID); // new (2021-01)
 	})
 	// that should be it!
 

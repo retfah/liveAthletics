@@ -920,7 +920,7 @@ class roomServer{
 
             // do not listen to the same event anymore, as the client is not connected anymore
             // NOTE: we do not have to listen for a reconnect, since the client will make the request to the room again if needed
-            this.eH.eventUnsubscribe('wsClientDisconnect/'+tabId, this.name + '/' + tabId);
+            this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name + '/' + tabId);
 
             // if the client requested Infos about all the other clients, also delete it from this list
             if (storeInfos){
@@ -997,7 +997,7 @@ class roomServer{
             //this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session)
             this.clientLeft(tabId, datasetName, opt.enterOptions, session)
         }
-        this.eH.eventSubscribe('wsClientDisconnect/'+tabId, listener, this.name + '/' + tabId);
+        this.eH.eventSubscribe('wsClosed/'+tabId, listener, this.name + '/' + tabId);
 
 
         // DISCONTINUED 5. add the client to the room and ev. view (this process shouldn't fail, since we checked rights before!)
@@ -1126,7 +1126,7 @@ class roomServer{
         this.returnWritingTicket(tabId);
 
         // unsubscribe from the disconnect event!
-        this.eH.eventUnsubscribe('wsClientDisconnect/'+tabId, this.name + '/' + tabId);
+        this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name + '/' + tabId);
 
         if (this.clients[tabId].storeInfos){
             this.clientsRequestingInfos.splice(this.clientsRequestingInfos.indexOf(tabId),1);
@@ -1202,7 +1202,7 @@ class roomServer{
         this.returnWritingTicket(tabId);
 
         // unsubscribe from the disconnect event!
-        this.eH.eventUnsubscribe('wsClientDisconnect/'+tabId, this.name + '/' + tabId);
+        this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name + '/' + tabId);
 
         if (this.clients[tabId].storeInfos){
             this.clientsRequestingInfos.splice(this.clientsRequestingInfos.indexOf(tabId),1);
