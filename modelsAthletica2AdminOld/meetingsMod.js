@@ -3,7 +3,7 @@ const { Model, Sequelize } = _sequelize;
 
 export default class meetings extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('meetings', {
+  super.init({
     xMeeting: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
@@ -18,27 +18,41 @@ export default class meetings extends Model {
     shortname: {
       type: DataTypes.STRING(10),
       allowNull: false,
-      comment: "The shortname used for the database name and to identify the meeting. It is the same on master and slave and this name is the one stored in the Client-cookie (if needed). Thereby transferring a session from the master to a slave is easier, when the meeting identificator does not change",
+      comment: "The shortname used for the database name and to identify the meeting. It is the same on master and slave and this name is the one stored in the Client-cookie (if needed). Thereby transferring a session from the master to a slave is easier, when the meetin",
       unique: "shortname_UNIQUE"
     },
-    location: {
+    code: {
       type: DataTypes.STRING(50),
       allowNull: false
     },
     active: {
-      type: DataTypes.BOOLEAN,
+      type: DataTypes.TINYINT,
       allowNull: false,
       comment: "is this meeting active (i.e. should the rooms get loaded)"
     },
-    dateFrom: {
-      type: DataTypes.DATEONLY,
-      allowNull: true,
+    isSlave: {
+      type: DataTypes.TINYINT,
+      allowNull: false,
+      defaultValue: 0,
       comment: "is this the master, i.e. does is store incoming data other than those from the master"
     },
-    dateTo: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-},
+    masterAddress: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: ""
+    },
+    masterUsername: {
+      type: DataTypes.STRING(45),
+      allowNull: false,
+      defaultValue: "default",
+      comment: "the username to log in on the masterserver; not implemented yet"
+    },
+    masterPassword: {
+      type: DataTypes.STRING(45),
+      allowNull: false,
+      defaultValue: "",
+      comment: "the passwort to log in on the masterserver; not implemented yet"
+    },
     // add a virtual property that is not stored in the DB: we need to add the property here such that the default toJSON function of sequelize also stringifies this property. Usually ot would not stringify it. We could override this with an instanceMethod "toJSON" (see commented below), but this would be more compicated
     running: {
       type: DataTypes.VIRTUAL,
@@ -47,6 +61,7 @@ export default class meetings extends Model {
       //field: null
     }
   }, {
+    sequelize,
     tableName: 'meetings',
     timestamps: false,
     indexes: [
@@ -68,5 +83,6 @@ export default class meetings extends Model {
       },
     ]
   });
+  return meetings;
   }
 }

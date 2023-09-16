@@ -3,7 +3,7 @@ const { Model, Sequelize } = _sequelize;
 
 export default class baseaccount extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('baseaccount', {
+  super.init({
     account_code: {
       type: DataTypes.STRING(30),
       allowNull: false,
@@ -30,6 +30,7 @@ export default class baseaccount extends Model {
       defaultValue: ""
     }
   }, {
+    sequelize,
     tableName: 'baseaccount',
     timestamps: false,
     indexes: [
@@ -50,5 +51,6 @@ export default class baseaccount extends Model {
       },
     ]
   });
+  return baseaccount;
   }
 }

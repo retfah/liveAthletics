@@ -19,104 +19,16 @@ export class rMeetingsClient extends roomClient{
     constructor(v, wsHandler, eventHandler, rM, writing=false, storeInfos='', datasetName='', roomName=''){
 
 
-        // TODO: remove all vue stuff:
-        // the vueApp
-        /*var vueServerAdmin;
-        
-        vueServerAdmin = new Vue({
-            el:'#vueDiv',
-            data:{isSlave:false, updateMeeting:-1, meetings:[{name: 'Meeting 1', date:'01-01-1995'}, {name: 'Meeting 2', date:'28-03-1992'}], readOnly: true,
-            deleteWindowShown: false, deleteMeetingObj: {}},
-            methods:{
-
-                // TODO: check: If the following is written with function(){}, this will be the vue-object. If written as an arrow function ()=>{}, this will be the room-object
-
-                deleteMeeting:(meeting)=>{
-                    this.deleteMeeting_init(meeting);
-                },
-
-                // ATTENTION: in the worst case, the meetingIndex might have (-->test it!) changed since the update was started (when another client added or deleted a meeting)!. Thus we always have to check whether the  xMeeting is still te right. 
-                // --> actually I think the ID does change in the background, as a new meeting will result in redrawing of the elements
-                // TODO: check
-
-                startUpdating:function(meeting){
-                    // show the input fields
-                    this.updateMeeting = meeting.xMeeting;
-
-                    // store the old data (used on abort)
-                    this.meetingBeforeUpdate = JSON.parse(JSON.stringify(meeting));
-                },
-                abortUpdate: function(meetingIndex){
-                    // check that the meeting stored behind the index is still the correct!
-                    
-                    // index is not the same meeting anyore --> get the actual index of the meeting
-
-                    // reset the meeting
-                    this.meetings[meetingIndex] = this.meetingBeforeUpdate;
-
-                    // disable update mode
-                    this.updateMeeting=-1;
-                },
-                saveUpdate: (meeting)=>{
-                    // meetingBeforeUpdate is needed for the reset function when there was an error on the server.
-                    
-                    // start storing the update
-                    this.updateMeeting_init(meeting, this.vueServerAdmin.meetingBeforeUpdate);
-
-                    // disable update mode
-                    this.vueServerAdmin.updateMeeting=-1;
-                }
-            }
-        });*/
-
-
         let successCB = ()=>{
             // success callback:
 
             // sort the meetings:
-            this.sortMeetings();
-
-            // new: on success, 'dataArrvied' is called automatically
-            
-            // TODO: delete the following
-            // link the data to Vue
-            /*vueServerAdmin.meetings = this.data;
-
-            if (this.writingTicketID){
-                vueServerAdmin.readOnly = false;
-            }else{
-                vueServerAdmin.readOnly = true;
-            }*/
-            
+            this.sortMeetings();            
 
         }
 
         let failCB = (msg, code)=>{
             // failure callback:
-            // writing to the logger was already done in the parent
-            
-            // 2020-01: code==18 (no writing ticket) does not exist anymore; success is also called when there is no writing ticket
-            /*if (code==18) {
-                // no writing tickets anymore:
-                // connect without writing ticket and try to get one every 5 seconds.
-                this.connect(false, ()=>{
-                    // could connect to server without writing rights
-                    vueServerAdmin.readOnly = true;
-
-                    // sort the meetings:
-                    this.sortMeetings();
-
-                    // the data object will be replaced and not changed, thus we have to assign it again to the vueObject
-                    vueServerAdmin.meetings = this.data;
-
-                    // success CB --> now try to gather a writing ticket every 5s
-                    //setTimeout(TODO, 5000); // TODO: in 'TODO' set readONly =false when got writing ticket
-
-                }, (msg, code)=>{
-                    // fail CB
-                    logger.log('something went completely wrong while connecting to the server-room. Not even without writing rights it was possible to connect. Msg: '+ msg + '; Code: '+code);
-                })
-            }*/
 
         }
 
@@ -136,97 +48,32 @@ export class rMeetingsClient extends roomClient{
 
     }
 
-    // TODO: REMOVE
-    /*afterFullreload(){
-        // set the changed data-property as data of the vue-instance
-        this.vueServerAdmin.meetings = this.data;
-    }*/
 
-    /*
-    randomTakeOverCode() {
-        let length           = 8;
-        var result           = '';
-        var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        var charactersLength = characters.length;
-        for ( var i = 0; i < length; i++ ) {
-            result += characters.charAt(Math.floor(Math.random() * charactersLength));
-        }
-
-        document.getElementById('code').value = result 
-    }*/
-
-    /**
-     * addMeeting_init: initiate adding a Meeting. First checks if the input is compete (if necessary), then creates the data object from the input and calls the sendingFunction on the parent. The parent will then do the rest. The big part (adding the meeting to the meeting list) of the UI-reaction to this addMmeeting is in addMeeting_exe and is called only if the request was properly handled on the server. Here we only reset the form to default values after the requst was sent. 
-     */
-    addMeeting_init(){
+    addMeeting_init2(shortname, location, name, active, dateFrom, dateTo){
         
         /*let schema = {
             type: "object",
             properties: {
-                //xMeeting: {type: "integer"},
-                shortname: {type: "string", maxLength:10}, 
-                code: {type: "string", maxLength:50},
+                xMeeting: {type: "integer"}, // for sideChannel
+                shortname: {type: "string", maxLength:10, pattern:'^((?!\\s).)*$'}, // no whitespace in the whole string!
+                name:{type: "string", maxLength:75},
+                location: {type: "string", maxLength:50},
                 active: {type: "boolean"}, 
-                isSlave: {type: "boolean"},
-                masterAddress: {type: "string", maxLength:100},
-                masterUsername: {type:"string", maxLength:45}, 
-                masterPassword: {type:"string", maxLength:45} 
-            },
-            required: [shortname, active, code]
-        };*/
-
-        // check that important fields are not empty:
-        let sn = document.getElementById('shortname').value;
-        let code = document.getElementById('code').value;
-        if (sn=='' || code==''){
-            document.getElementById('incomplete').style.display = 'inline';
-            setTimeout(()=>{document.getElementById('incomplete').style.display = 'none';}, 10000) // after 10 seconds remove the note
-            return;
-        }
-
-        // prepare the object to be sent to the server:
-        let data = {};
-        data.shortname = sn;
-        data.name = document.getElementById('name').value;
-        data.code = code;
-        data.active = document.getElementById('active').checked;
-        data.isSlave = document.getElementById('isSlave').checked;
-        data.masterAddress = document.getElementById('masterAddress').value;
-        data.masterUsername = document.getElementById('masterUsername').value;
-        data.masterPassword = document.getElementById('masterPassword').value;
-
-        // try to send this to the server
-        this.addToStack('addMeeting', data)
-
-    }
-
-    addMeeting_init2(sn, code, name, active, isSlave, masterAddress, masterUsername, masterPassword){
-        
-        /*let schema = {
-            type: "object",
-            properties: {
-                //xMeeting: {type: "integer"},
-                shortname: {type: "string", maxLength:10}, 
-                code: {type: "string", maxLength:50},
-                active: {type: "boolean"}, 
-                isSlave: {type: "boolean"},
-                masterAddress: {type: "string", maxLength:100},
-                masterUsername: {type:"string", maxLength:45}, 
-                masterPassword: {type:"string", maxLength:45} 
+                dateFrom: {type: "string", format:"date"},
+                dateTo: {type: "string", format:"date"},
             },
             required: [shortname, active, code]
         };*/
 
         // prepare the object to be sent to the server:
-        let data = {};
-        data.shortname = sn;
-        data.name = name;
-        data.code = code;
-        data.active = active;
-        data.isSlave = isSlave;
-        data.masterAddress = masterAddress;
-        data.masterUsername = masterUsername;
-        data.masterPassword = masterPassword;
+        let data = {
+            shortname,
+            name,
+            location, 
+            active, 
+            dateFrom, 
+            dateTo,
+        };
 
         // try to send this to the server
         this.addToStack('addMeeting', data)

@@ -3,7 +3,7 @@ const { Model, Sequelize } = _sequelize;
 
 export default class users extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('users', {
+  super.init({
     xUser: {
       autoIncrement: true,
       type: DataTypes.INTEGER.UNSIGNED,
@@ -26,6 +26,7 @@ export default class users extends Model {
       comment: "used to invalidate passwords or to note that the password is initial and needs to be changed on the first login.\n0: everythink ok.\n-1: to be changed on first login, because it is the initial password\n-2: password was invalidated for some other reason. Als"
     }
   }, {
+    sequelize,
     tableName: 'users',
     timestamps: false,
     indexes: [
@@ -47,5 +48,6 @@ export default class users extends Model {
       },
     ]
   });
+  return users;
   }
 }

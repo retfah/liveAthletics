@@ -8,16 +8,16 @@ import _usersgroups from  "./usersgroups.js";
 import _usersmeetings from  "./usersmeetings.js";
 
 export default function initModels(sequelize) {
-  const baseaccount = _baseaccount.init(sequelize, DataTypes);
-  const baseathletes = _baseathletes.init(sequelize, DataTypes);
-  const meetings = _meetings.init(sequelize, DataTypes);
-  const users = _users.init(sequelize, DataTypes);
-  const usersgroups = _usersgroups.init(sequelize, DataTypes);
-  const usersmeetings = _usersmeetings.init(sequelize, DataTypes);
+  var baseaccount = _baseaccount.init(sequelize, DataTypes);
+  var baseathletes = _baseathletes.init(sequelize, DataTypes);
+  var meetings = _meetings.init(sequelize, DataTypes);
+  var users = _users.init(sequelize, DataTypes);
+  var usersgroups = _usersgroups.init(sequelize, DataTypes);
+  var usersmeetings = _usersmeetings.init(sequelize, DataTypes);
 
   // original:
-  /*meetings.belongsToMany(users, { as: 'xUser_users', through: usersmeetings, foreignKey: "xMeeting", otherKey: "xUser" });
-  users.belongsToMany(meetings, { as: 'xMeeting_meetings', through: usersmeetings, foreignKey: "xUser", otherKey: "xMeeting" });
+  /*meetings.belongsToMany(users, { through: usersmeetings, foreignKey: "xMeeting", otherKey: "xUser" });
+  users.belongsToMany(meetings, { through: usersmeetings, foreignKey: "xUser", otherKey: "xMeeting" });
   usersmeetings.belongsTo(meetings, { as: "xMeeting_meeting", foreignKey: "xMeeting"});
   meetings.hasMany(usersmeetings, { as: "usersmeetings", foreignKey: "xMeeting"});
   usersgroups.belongsTo(users, { as: "xUser_user", foreignKey: "xUser"});

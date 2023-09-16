@@ -3,7 +3,7 @@ const { Model, Sequelize } = _sequelize;
 
 export default class usersmeetings extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('usersmeetings', {
+  super.init({
     xUser: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -23,6 +23,7 @@ export default class usersmeetings extends Model {
       }
     }
   }, {
+    sequelize,
     tableName: 'usersmeetings',
     timestamps: false,
     indexes: [
@@ -44,5 +45,6 @@ export default class usersmeetings extends Model {
       },
     ]
   });
+  return usersmeetings;
   }
 }

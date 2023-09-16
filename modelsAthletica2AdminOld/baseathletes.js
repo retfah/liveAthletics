@@ -3,7 +3,7 @@ const { Model, Sequelize } = _sequelize;
 
 export default class baseathletes extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('baseathletes', {
+  super.init({
     id_athlete: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
@@ -16,7 +16,7 @@ export default class baseathletes extends Model {
       defaultValue: 0
     },
     license_paid: {
-      type: DataTypes.BOOLEAN,
+      type: DataTypes.TINYINT,
       allowNull: false,
       defaultValue: 1
     },
@@ -66,6 +66,7 @@ export default class baseathletes extends Model {
       defaultValue: ""
     }
   }, {
+    sequelize,
     tableName: 'baseathletes',
     timestamps: false,
     indexes: [
@@ -114,5 +115,6 @@ export default class baseathletes extends Model {
       },
     ]
   });
+  return baseathletes;
   }
 }

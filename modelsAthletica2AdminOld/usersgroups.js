@@ -1,9 +1,9 @@
 import _sequelize from 'sequelize';
 const { Model, Sequelize } = _sequelize;
 
-export default class usersmeetings extends Model {
+export default class usersgroups extends Model {
   static init(sequelize, DataTypes) {
-  return sequelize.define('usersmeetings', {
+  super.init({
     xUser: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -13,17 +13,14 @@ export default class usersmeetings extends Model {
         key: 'xUser'
       }
     },
-    xMeeting: {
+    group: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
-      primaryKey: true,
-      references: {
-        model: 'meetings',
-        key: 'xMeeting'
-      }
+      primaryKey: true
     }
   }, {
-    tableName: 'usersmeetings',
+    sequelize,
+    tableName: 'usersgroups',
     timestamps: false,
     indexes: [
       {
@@ -32,17 +29,11 @@ export default class usersmeetings extends Model {
         using: "BTREE",
         fields: [
           { name: "xUser" },
-          { name: "xMeeting" },
-        ]
-      },
-      {
-        name: "xMeeting_idx",
-        using: "BTREE",
-        fields: [
-          { name: "xMeeting" },
+          { name: "group" },
         ]
       },
     ]
   });
+  return usersgroups;
   }
 }

@@ -132,37 +132,25 @@ class rMeetings extends roomServer{
         //this.functionsWrite.TODO2 = this.TODO2.bind(this);
 
         // define, compile and store the schemas:
+        const meetingProps = {
+            xMeeting: {type: "integer"}, // for sideChannel
+            shortname: {type: "string", maxLength:10, pattern:'^((?!\\s).)*$'}, // no whitespace in the whole string!
+            name:{type: "string", maxLength:75},
+            location: {type: "string", maxLength:50},
+            active: {type: "boolean"}, 
+            dateFrom: {type: "string", format:"date"},
+            dateTo: {type: "string", format:"date"},
+        }
         let schemaAddMeeting = {
             type: "object",
-            properties: {
-                xMeeting: {type: "integer"}, // for sideChannel
-                shortname: {type: "string", maxLength:10, pattern:'^((?!\\s).)*$'}, // no whitespace in the whole string!
-                name:{type: "string", maxLength:75},
-                code: {type: "string", maxLength:50},
-                active: {type: "boolean"}, 
-                isSlave: {type: "boolean"},
-                masterAddress: {type: "string", maxLength:100}, // not used anymore
-                masterUsername: {type:"string", maxLength:45},  // not used anymore
-                masterPassword: {type:"string", maxLength:45}, // not used anymore
-            },
-            required: ["shortname", "active", "code"],
+            properties: meetingProps,
+            required: ["shortname", "name", "location", "active", "dateFrom", "dateTo"],
             additionalProperties: false,
         };
         let schemaUpdateMeeting = {
             type: "object",
-            properties: {
-                xMeeting: {type: "integer"},
-                code: {type: "string", maxLength:50},
-                name:{type: "string", maxLength:75},
-                shortname: {type: "string", maxLength:10},  
-                active: {type: ["boolean", "integer"]}, 
-                //active: {type: ["boolean"]}, 
-                isSlave: {type: ["boolean", "integer"]},
-                masterAddress: {type: "string", maxLength:100}, // not used anymore
-                masterUsername: {type:"string", maxLength:45},  // not used anymore
-                masterPassword: {type:"string", maxLength:45}, // not used anymore
-            },
-            required: ["xMeeting", "shortname", "active", "isSlave"],
+            properties: meetingProps,
+            required: ["xMeeting", "shortname", "active"],
             additionalProperties: false,
         };
         let schemaDeleteMeeting = {

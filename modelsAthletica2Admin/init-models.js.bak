@@ -25,15 +25,6 @@ export default function initModels(sequelize) {
   usersmeetings.belongsTo(users, { as: "xUser_user", foreignKey: "xUser"});
   users.hasMany(usersmeetings, { as: "usersmeetings", foreignKey: "xUser"});*/
 
-  meetings.belongsToMany(users, { through: usersmeetings, foreignKey: "xMeeting", otherKey: "xUser" });
-  users.belongsToMany(meetings, { through: usersmeetings, foreignKey: "xUser", otherKey: "xMeeting" });
-  usersmeetings.belongsTo(meetings, {foreignKey: "xMeeting"});
-  meetings.hasMany(usersmeetings, { foreignKey: "xMeeting"});
-  usersgroups.belongsTo(users, {foreignKey: "xUser"});
-  users.hasMany(usersgroups, { foreignKey: "xUser"});
-  usersmeetings.belongsTo(users, {foreignKey: "xUser"});
-  users.hasMany(usersmeetings, {foreignKey: "xUser"});
-
   return {
     baseaccount,
     baseathletes,

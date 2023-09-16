@@ -124,9 +124,6 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
 
                 
                 this.vueServerAdmin = Vue.createApp(vueMeetingsConfig).mount('#vueDiv');
-
-                // create a first random code
-                this.randomTakeOverCode();
             
             }
             
@@ -161,25 +158,12 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                 }
             }
             
-            randomTakeOverCode() {
-                let length           = 8;
-                var result           = '';
-                var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                var charactersLength = characters.length;
-                for ( var i = 0; i < length; i++ ) {
-                    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-                }
-            
-                document.getElementById('code').value = result;
-                //return result;
-            }
-            
             addMeeting_init(){
             
                 // check that important fields are not empty:
                 let sn = document.getElementById('shortname').value;
-                let code = document.getElementById('code').value;
-                if (sn=='' || code==''){
+                let location = document.getElementById('location').value;
+                if (sn=='' || location==''){
                     document.getElementById('incomplete').style.display = 'inline';
                     setTimeout(()=>{document.getElementById('incomplete').style.display = 'none';}, 10000) // after 10 seconds remove the note
                     return;
@@ -187,15 +171,10 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
             
                 let name = document.getElementById('name').value;
                 let active = document.getElementById('active').checked;
-                let isSlave = document.getElementById('isSlave').checked;
-                let masterAddress = document.getElementById('masterAddress').value;
-                let masterUsername = document.getElementById('masterUsername').value;
-                let masterPassword = document.getElementById('masterPassword').value;
+                let dateFrom = document.getElementById('dateFrom').value;
+                let dateTo = document.getElementById('dateTo').value;
             
-                this.room.addMeeting_init2(sn, code, name, active, isSlave, masterAddress, masterUsername, masterPassword)
-            
-                // create a new random takeover code
-                this.randomTakeOverCode();
+                this.room.addMeeting_init2(sn, location, name, active, dateFrom, dateTo)
             
             }
             
@@ -274,68 +253,6 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
             return true;
         }
         
-        
-        // OLD:
-        
-        // the vueApp must be globally available
-        //var vueServerAdmin;
-        
-        /**
-         * The script beeing called after loading (as set in page.onLoad)
-         */
-        /*function loadOld(){
-            document.getElementById('hallo').innerText = 'loaded!'; // --> works; TODO: remove
-        
-            vueServerAdmin = new Vue({
-            el:'#vueDiv',
-            data:{isSlave:false, something:'Hello World', meetings:[{name: 'Meeting 1', date:'01-01-1995'}, {name: 'Meeting 2', date:'28-03-1992'}]}
-            });
-            
-            //[{place:"[1,2]", value:"MAN"}, {place:"[1,3]", value:"U20M"}, {place:"[1,4]", value:"WOM"}, {place:"[1,5]", value:"U20W"},{place:"[2,1]", value:"10:00"}, {place:"[2,3]", value:"60m"}, {place:"[2,4]", value:"Weit"}, {place:"[3,1]", value:"10:30"}, {place:"[3,5]", value:"60m H"}]
-            
-            x={hello:[1,2,3], world:[3,4,5]};
-        
-            // start the Admin/Meeting-room connection and fill the table with the meetings. Additionally link the new-Meeting-form with the respective funciton of the room.
-        
-            // check if wsConnection is established: 
-            if (wsHandler.sidReported){
-                // start connecting the room now
-                roomConnect();
-            } else {
-                // wait for connection and reported sid and then connect to rrom
-                eH.eventSubscribe('SIDset', ()=>{
-                    eH.eventUnsubscribe('SIDset', roomConnect);
-                    roomConnect();
-                });
-            }
-        
-            //this.roomConnected = false;
-        
-            function roomConnect(writing=true){
-                
-                wshandler.emitRequest('room', {
-                    roomName: 'meetings', // the name of the room
-                    arg: 'enter', // enter room
-                    opt: {writing:writing} // options, e.g. the current ID present on the client; It could also be an object, as it is needed with functions
-                }, success=(data)=>{
-                    //this.roomConnected=true; 
-                    vueServerAdmin.meetings = data;
-                }, failure=(code, msg)=>{
-                    // TODO: show this error differently to the user
-                    logger.log(3, 'Connecting to room failed with the following code and message: ' + code + ": " + msg);
-                });
-            }
-        
-        }
-        
-        
-        function unloadOld(){
-            // must return true on success
-        
-            document.getElementById('hallo').innerText = 'unloaded!';
-            return true;
-        }*/
-        
         </script>
     </head>
     <body onload = "startup()" onbeforeunload="unloadMe()">
@@ -367,37 +284,13 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                         <td style="padding:0.4rem"><button class="btn btn-danger" v-on:click=" deleteMeetingObj=meeting; deleteWindowShown=true;" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Delete") %></button></td>
                         <td style="padding:0.4rem" v-if="!meeting.active"><button class="btn btn-secondary" v-on:click=" activate(meeting)" :disabled="readOnly || meeting.running" v-bind:class="{disabled: readOnly || meeting.running}"><%= __("Activate") %></button></td>
                         <td style="padding:0.4rem" v-if="meeting.active"><button class="btn btn-secondary" v-on:click=" deactivate(meeting)" :disabled="readOnly || !meeting.running" v-bind:class="{disabled: readOnly || !meeting.running}"><%= __("Deactivate") %></button></td> <!-- btn-primary-->
-                        <!-- TODO: add a status of the meeting (Starting, started, stopping, stopped) instead of only the active field 
-                        add further buttons for export database, export meeting (=database + this line, e.g. in a zip), import database; 
-                        add a general button to import meetings-->
                     </tr>
-                    <!--<tr v-if="meeting.xMeeting==updateMeeting">
-                        <td>{{meeting.xMeeting}}</td>
-                        <td><input type="text" v-model="meeting.shortname" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td><input type="text" v-model="meeting.code" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td>{{meeting.active ? "<%= __("Yes") %>" : "<%= __("No") %>" }}</td>
-                        <td><input type="checkbox" v-model="meeting.isSlave" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td><input type="text" v-model="meeting.masterAddress" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td><input type="text" v-model="meeting.masterUsername" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td><input type="text" v-model="meeting.masterPassword" v-on:blur="saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"></td>
-                        <td style="padding:0.4rem"><button class="btn btn-success" v-on:click=" saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"><%= __("Save") %></button></td>
-                        <td style="padding:0.4rem"><button class="btn btn-secondary" v-on:click=" abortUpdate(meetingIndex); "><%= __("Abort") %></button></td>
-                    </tr>-->
                     <tr v-if="meeting.xMeeting==updateMeeting">
                         <td>{{meeting.xMeeting}}</td>
                         <!--<td><input type="text" v-model="meeting.shortname" size=10></td>-->
                         <td>{{meeting.shortname}}</td> <!-- the shortname cannot be changed, since the database-name would change. -->
                         <td><input type="text" v-model="meeting.name" size=35></td>
                         <td>{{meeting.active ? "<%= __("Yes") %>" : "<%= __("No") %>" }}</td>
-                        <!--<td>
-                            <div class="onoffswitch">
-                                <input type="checkbox" v-model="meeting.isSlave" class="onoffswitch-checkbox" id="myonoffswitch">
-                                <label class="onoffswitch-label" for="myonoffswitch">
-                                    <span class="onoffswitch-inner"></span>
-                                    <span class="onoffswitch-switch"></span>
-                                </label>
-                            </div>
-                        </td>-->
                         <td style="padding:0.4rem"><button class="btn btn-success" v-on:click=" saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"><%= __("Save") %></button></td>
                         <td style="padding:0.4rem"><button class="btn btn-secondary" v-on:click=" abortUpdate(meetingIndex); "><%= __("Abort") %></button></td>
                         <td></td>
@@ -418,34 +311,22 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                         <input type="text" id="name" maxlength=75 class="form-control">
                     </div>
                     <div class="form-group">
-                        <label for="code"><%= __("Take-over code") %></label>
-                        <input type="text" id="code" maxlength="50" class="form-control">
+                        <label for="location"><%= __("Location") %></label>
+                        <input type="text" id="location" maxlength="50" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="dateFrom"><%= __("Date from") %></label>
+                        <input class="form-control" type="date" id="dateFrom" v-model="dateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="dateTo"><%= __("Date to") %></label>
+                        <input class="form-control" type="date" id="dateTo" v-model="dateTo">
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="active" checked>
                         <label class="form-check-label" for="active"><%= __("Activate") %></label>
                     </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="isSlave" v-model="isSlave">
-                        <label class="form-check-label" for="isSlave"><%= __("Slave mode") %></label>
-                    </div>
-                    <div v-bind:hidden="!isSlave">
-                        <div class="form-group" > <!--TODO: add style here with vue, such that it is hidden when slave is false-->
-                            <label for="masterAddress"><%= __("URL to master") %></label>
-                            <input type="text" class="form-control" maxlength=100 id="masterAddress">
-                            <small><%= __("Port can be specified after a trailing colon (:).") %></small>
-                        </div>
-                        <div class="form-group" > <!--TODO: add style here with vue, such that it is hidden when slave is false-->
-                            <label for="masterUsername"><%= __("Master username") %></label>
-                            <input type="text" class="form-control" maxlength=45 id="masterUsername">
-                        </div>
-                        <div class="form-group">
-                            <label for="masterPassword"><%= __("Master password") %></label>
-                            <input type="text" class="form-control" maxlength=45 id="masterPassword">
-                        </div>
-                    </div>
                     <button type="button" class="btn btn-primary" onclick="vueMeetings.addMeeting_init();" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Add") %></button>
-                    <!--<button type="button" class="btn btn-primary" v-on:click="vueMeetings.addMeeting_init();" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Add") %></button>-->
                     <div id='incomplete' class='text-warning' style="display: none"><%= __("Incomplete form.") %></div>
                 </div>
             </form>
