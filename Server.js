@@ -89,7 +89,7 @@ import wsExt from 'wsprocessor'; // acknowledged websocket messages
 import rMeetings from './rMeetings.js'; // room doeing meeting manipulation
 import AjvPack from 'ajv';
 const Ajv = AjvPack.default;
-const ajv 			= 	new Ajv({allowUnionTypes:true}); // check JSON input with schema
+const ajv = new Ajv({allowUnionTypes:true}); // check JSON input with schema
 
 import {propertyTransfer} from './common.js';
 
@@ -1390,6 +1390,34 @@ async function roomStartup(){
 }
 roomStartup().catch((err)=>{throw err;});
 
+// -------------------
+// Plugins
+// see plugins.js for a reasonable base class (wtith/out mongo)
+// -------------------
+
+// get the Plugins Mongo DB
+const mongoDbPlugins = mongoclient.db("plugins");
+
+
+// start the meeting data providers
+const meetingDataProviders = {}; // the name of the provider is the property name, the instance is the value
+const meetingDataProvidersData = []; // array of all provider.data objects
+
+for (let dp of conf.meetingDataProviders){
+	let x = new dp(logger, mongoDbPlugins);
+	meetingDataProviders[x.name] = x;
+	meetingDataProvidersData.push(x.data);
+}
+
+
+// TODO: how to consider out own meetings in a similar way? It should always be live.
+/*class liveAthletics extends dataProvider{
+	constructor(){
+		super('liveAthletics');
+
+		// will always be live
+	}
+}*/
 
 
 // --------------
@@ -1464,6 +1492,20 @@ if (global.developMode){
 	app.get('/api/eventHandlers', (req, res)=>{
 		res.send(JSON.stringify(eH));
 	});
+	app.get('/api/sideChannelClients', (req, res)=>{
+		let meetingShortname = req.query.meetingShortname;
+		let roomName = `sideChannel@${meetingShortname}`;
+		findRoom(roomName, rooms.meetings, rooms, logger).catch(()=>{
+			res.send('Could not find the rSideChannel of the requested meeting')
+		}).then(room=>{
+			res.send(JSON.stringify(room.clients))
+		}).catch((err)=>{
+			res.send(`Error during processing the request: ${err}`);
+		})
+	})
+	app.get('/api/seltecData', (req, res)=>{
+		res.send(JSON.stringify(meetingDataProviders['laportal'].data));
+	})
 }
 
 // for the ACME challenge of let's encrypt certificate, why need to have the .well-known folder on the root of the server; handle it similar to static redirect the call to the root-folder /.well-known/ to (static/.well-known/)

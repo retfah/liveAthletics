@@ -1,6 +1,7 @@
 // configuration file
 
 import { rTimingAlge } from './rTiming.js';
+import { laportal } from './laportalMeetings.js';
 
 export default {
     // the name of this server (only used for information in some places)
@@ -28,7 +29,7 @@ export default {
     // minLevel: optional, lowest logged level (default=0=no min)
     // path: required if type='file'; must not contain any strings that cannot be part of filenames, e.g. ':'; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
 
-    loggers: [{type:'console', maxLevel:92}, {type:'file', path:`./log/log ${(new Date).toISOString().slice(0,19).replaceAll(':','')}.txt`}], // no : in file names! (at least on windows)
+    loggers: [{type:'console', maxLevel:97}, {type:'file', path:`./log/log ${(new Date).toISOString().slice(0,19).replaceAll(':','')}.txt`}], // no : in file names! (at least on windows)
 
     // DB settings
     database: {
@@ -85,4 +86,9 @@ export default {
 
     // define the available timings. In the future we might implement this setting in a GUI and store the configurations in MongoDB. However, we would then need to define some "types" and which class they refer to, e.g. "ALGE" --> rTimingAlge, since we cannot store the class itself to Mongo. 
     timings: [{name: 'ALGE1', class: rTimingAlge}, {name: 'ALGE2', class: rTimingAlge}],
+
+    // providers for meeting data, to aggregate them with liveAthletics meetings
+    // to be extended e.g. with seltec, worldAthletics, diamondLeague, ...
+    meetingDataProviders:[laportal],
+
 }
