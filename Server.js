@@ -98,6 +98,7 @@ import conf from  './conf.js';
 import pages from './pages.js';
 import files from './files.js';
 import wsManagerClass from './wsServer2Server.js';
+import { dataProvider } from "./dataProvider.js";
 //const router	= 	require('./Router'); not used anymore, since it lead to problems (matching the path is different than when using app.METHOD)
 
 // imports with ECMAscript syntax
@@ -1400,25 +1401,50 @@ const mongoDbPlugins = mongoclient.db("plugins");
 
 
 // start the meeting data providers
-const meetingDataProviders = {}; // the name of the provider is the property name, the instance is the value
-const meetingDataProvidersData = []; // array of all provider.data objects
+const meetingDataProviders = [];
 
 for (let dp of conf.meetingDataProviders){
 	let x = new dp(logger, mongoDbPlugins);
-	meetingDataProviders[x.name] = x;
-	meetingDataProvidersData.push(x.data);
+	meetingDataProviders.push(x);
 }
 
 
 // TODO: how to consider out own meetings in a similar way? It should always be live.
-/*class liveAthletics extends dataProvider{
+// we need to handle our own meetings separately, since we need a reference to the meetings, and not just mongoDb and logger, as for all other meetings
+// we do NOT inherit from dataProvider here, since we want to have a getter for the data, instead of the regular data object
+class liveAthletics {
 	constructor(){
-		super('liveAthletics');
+
+		this.name = 'liveAthletics';
 
 		// will always be live
-	}
-}*/
+		// provide the data.meetings/lastUpdated as a getter
+		// showAlternate is never true and a direct hyperlink is not available.
 
+		this._data = {
+			name: this.name, 
+			lastUpdated: null, 
+			showAlternate: false, 
+			directHyperlink: '', 
+			meetings:[], // items: {name (string), dateFrom (date), dateTo (date), place (string),source (string), hyperlink (string) }
+		};
+	}
+
+	get data(){
+		// update the data (this is needed in the case when )
+		this._data.meetings = rooms?.meetings?.rdMeetingSelection?.data ?? [];
+
+		// data is always up to date
+		this._data.lastUpdated = new Date();
+		return this._data;
+	}
+}
+const dpLA = new liveAthletics();
+meetingDataProviders.push(dpLA);
+
+function getMeetingDataProviderData(){
+	return meetingDataProviders.map(m=>m.data);
+}
 
 // --------------
 // Router
@@ -1505,6 +1531,9 @@ if (global.developMode){
 	})
 	app.get('/api/seltecData', (req, res)=>{
 		res.send(JSON.stringify(meetingDataProviders['laportal'].data));
+	})
+	app.get('/api/dataProviders', (req, res)=>{
+		res.send(JSON.stringify(getMeetingDataProviderData()));
 	})
 }
 

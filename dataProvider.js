@@ -11,7 +11,7 @@ export class dataProvider extends pluginMongo{
 			lastUpdated: null, 
 			showAlternate: false, 
 			directHyperlink: '', 
-			meetings:[]
+			meetings:[], // items: {name (string), dateFrom (date), dateTo (date), place (string),source (string), hyperlink (string) }
 		};
 	}
 

@@ -20,7 +20,8 @@ import roomServer from './roomServer.js';
 import fs from 'fs';
 import {promisify} from 'util';
 
-import rdMeetings1 from './rdMeetings1.js';
+import rdMeetings1 from './rdMeetings1.js'; // not used anymore
+import rdMeetings2 from './rdMeetings2.js';
 import rEvents from './rEvents.js';
 import rEventGroups from './rEventGroups.js';
 import rDisciplines from './rDisciplines.js';
@@ -115,7 +116,8 @@ class rMeetings extends roomServer{
         
         // add (sub)-datasets:
         // meetingSeelection:
-        let rdMeetingSelection = new rdMeetings1(this); // this will automatically add the roomDataset to this room.
+        var rdMeetingSelectionOld = new rdMeetings1(this); // this will automatically add the roomDataset to this room.
+        this.rdMeetingSelection = new rdMeetings2(this);
 
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
