@@ -1,0 +1,196 @@
+
+<!--
+bases on the old meetingSelection.ejs, but does not use any websockets. Instead, the list of competitions, including those of other dataProviders, is provided in the document at delivery-time.
+-->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width,initial-scale=1"> <!-- make sure mobile browsers do not lie about their width and then do some ugly scaling -->
+        <title><%= __("Meeting selection") %></title> 
+        <link rel="shortcut icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <link rel="icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
+        <!--<link rel="stylesheet" type="text/css" href="/static/bootstrap.min.css">-->
+        <link rel="stylesheet" type="text/css" href="/static/styling.css">
+        <!--<script src="/static/main.js" type="text/javascript"></script> -->
+        <!--<script src="/static/vue.js" type="text/javascript"></script>-->
+        <script src="/static/vue3.global.js" type="text/javascript"></script>
+        <script src="/static/VTableComponent2.js" type="text/javascript"></script>
+        <script src="/static/ajv.min.js"></script>
+        
+        <script type="text/javascript">
+
+        function startup(){
+
+            let vueMeetingSelectionConfig = {
+                    data(){
+                        return {
+                            dataProviders: <%- JSON.stringify(dataProviders) %>,
+                            dateFrom: null,
+                            dateTo: null,
+                            currentFrom: null, // the "from date" for the current seting
+                            currentTo: null, // the "to date" for the current seting
+                            searchString: '',
+                            overlay:null, // options: setDate
+                            overlayVisible: false, 
+                            overlayTitle: '', 
+                            overlayContent:''
+                        };
+                    },
+                    methods:{
+                        setDateCurrent(){
+                            this.dateFrom = this.currentFrom;
+                            this.dateTo = this.currentTo;
+                        },
+                        setDateAll(){
+                            this.dateFrom = '2000-01-01';
+                            this.dateTo = '2100-01-01'
+                        },
+                        link(href){
+                            document.location = href;
+                        },
+                    },
+                    computed:{
+                        meetings: function(){
+                            let ms = [];
+                            for (let dp of this.dataProviders){
+                                ms.push(...dp.meetings);
+                            }
+
+                            // create the nicely looking date formatting; JS has everything that is needed (very cool)
+                            const formatter = Intl.DateTimeFormat(navigator.language, {day:"2-digit", month:'short', year:'numeric'}); 
+                            // TODO: use potentially an even shorter format on mobile
+                            for (let m of ms){
+                                try{
+                                    m.dateStr = formatter.formatRange(new Date(m.dateFrom), new Date(m.dateTo));
+                                } catch (error){
+                                    console.log(`${m.name} has invalid dates: dateFrom: ${m.dateFrom}, dateTo: ${m.dateTo}`)
+                                    m.dateStr = '';
+                                }
+                            }
+
+                            return ms;
+                        },
+                        dateFilteredMeetings: function(){
+                            return this.meetings.filter(m=>{
+                                return !(m.dateTo<this.dateFrom || m.dateFrom>this.dateTo)
+                            })
+                        },
+                        filters: function(){
+                            // create a custom filter for everything that filters by name, place and date at the same time. 
+                            
+                            // split the input string by whitespace
+                            let filterWords = this.searchString.split(" ");
+
+                            // every word may be part of every of the four columns
+                            let filter = {};
+                            let i=1;
+                            for (let filterWord of filterWords){
+                                filter["filter" + i] = {keys:['name', 'dateStr', 'dateTo', 'dateFrom', 'place'], value:filterWord} //
+                                i += 1;
+                            }
+                            return filter;
+
+                        },
+                        basePath: ()=>{
+                            // derive the base path from the current path
+                            // origin = 'https://www.xy.com:1234', pathname = /hello/world.php, href: 'https://www.xy.com:1234/hello/world.php'
+
+                            return window.location.origin + window.location.pathname.split('/').slice(0,2).join('/') + "/";
+
+                        }
+                    },
+                    mounted() {
+                        // set the default range: current date -2 +5 days (i.e. one week, including the current or next weekend)
+                        let d = new Date();
+                        d.setDate(d.getDate()-2);
+                        this.dateFrom = d.toISOString().slice(0,10);
+                        this.currentFrom = this.dateFrom;
+                        d.setDate(d.getDate()+7);
+                        this.dateTo = d.toISOString().slice(0,10);
+                        this.currentTo = this.dateTo;
+                    },
+                    components:{
+                        'v-table':VTable,
+                        'v-th': VTh,
+                        'v-tr':VTr,
+                    }
+                };
+
+            vueMeetings = Vue.createApp(vueMeetingSelectionConfig).mount('#meetingSelection');
+
+        }
+        
+        var vueMeetings;
+        
+        </script>
+    </head>
+    <body onload = "startup()" onbeforeunload="unloadMe()">
+
+        
+        <div id="meetingSelection"> <!-- inside here all the vue.js stuff -->
+
+            <!-- two kinds of filters: date from/to and plaintext (searching the name, date, and place)-->
+            <!-- date filters: buttons for "current" (chosen by default) "all" and genauer -->
+            <header style="max-width: 1000px;">
+                <button type="button" class="btn " v-on:click="setDateCurrent"><%= __("Current") %></button>
+                <button type="button" class="btn " v-on:click="setDateAll"><%= __("All") %></button>
+                <button type="button" class="btn " v-on:click="overlay='setDate'"><%= __("By date") %></button>
+                <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
+            </header>
+
+            <v-table :data="dateFilteredMeetings" :filters="filters">
+                <template #head>
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="dateFrom" defaultsort="asc"><%= __("Date") %></th>
+                            <th is="vue:v-th" sortkey="name" ><%= __("Name") %></th>
+                            <th is="vue:v-th" sortkey="place" ><%= __("Place") %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody>
+                        <tr v-on:click="link(row.hyperlink)" v-for="row in displayData" :key="row.hyperlink">
+                            <td>{{ row.dateStr }}</td>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.place }}</td>
+                        </tr>
+                    </tbody>
+                </template>
+    
+            </v-table>
+
+            <div class="overlay" v-bind:class="{shown: overlay=='setDate'}">
+                <div class="overlayContainer">
+                    <form>
+                        <div class="verticalForm">
+                            <h3><%= __("Set date from/to") %></h3>
+                            <label>
+                                <%= __("from") %>
+                                <input type="date" v-model="dateFrom" class="formCtrl">
+                            </label>
+                            <label>
+                                <%= __("to") %>
+                                <input type="date" v-model="dateTo" class="formCtrl">
+                            </label>    
+                            <button type="button" class="btn" v-on:click="overlay=null"><%= __('Close') %></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="overlay" v-on:click="overlayVisible=false" v-bind:class="{shown: overlayVisible}">
+                <!-- overlay used for displaying general information -->
+                <div id="overlayContainer">
+                    <div id="overlayTitle"><b>{{overlayTitle}}</b></div>
+                    <div id="overlayContent">{{overlayContent}}</div>
+                </div>
+            </div>
+            
+        
+        </div>
+
+    </body>
+</html>
+

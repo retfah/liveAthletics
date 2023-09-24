@@ -42,7 +42,7 @@ export class pluginMongo extends plugin{
 	/*async onMongoConnected(){
 		// initially load the data from Mongo
 		// get the list of currently checked out writing tickets
-		len = await this.collection.countDocuments({type:'data'}) // returns a cursor to the data
+		let len = await this.collection.countDocuments({type:'data'}) // returns a cursor to the data
 		if (len>1){
 			let errMsg = "Too many documents with type:'data' for slvCompetitionOverview";
 			this.logger.log(3, errMsg);

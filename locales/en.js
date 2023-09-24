@@ -225,5 +225,15 @@
 	"Could not find the page for this type of discipline.": "Could not find the page for this type of discipline.",
 	"Tech High Admin": "Tech High Admin",
 	"retiredAbbreviation": "r",
-	"Current meetings": "Current meetings"
+	"Current meetings": "Current meetings",
+	"Current": "Current",
+	"All": "All",
+	"By date": "By date",
+	"Search: name, place, date": "Search: name, place, date",
+	"Date": "Date",
+	"Place": "Place",
+	"Set date from/to": "Set date from/to",
+	"from": "from",
+	"to": "to",
+	"Close": "Close"
 }

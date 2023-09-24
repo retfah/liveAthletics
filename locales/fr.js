@@ -45,5 +45,16 @@
 	"The failed request as well as other hanging requests were deleted and/or rolled back.": "The failed request as well as other hanging requests were deleted and/or rolled back.",
 	"Request will be sent again as soon as possible.": "Request will be sent again as soon as possible.",
 	"Request will be sent again after ${this.timeout}s.": "Request will be sent again after ${this.timeout}s.",
-	"A user-define error handling function was executed.": "A user-define error handling function was executed."
+	"A user-define error handling function was executed.": "A user-define error handling function was executed.",
+	"Current": "Actuel",
+	"All": "Toutes",
+	"By date": "Par date",
+	"Search: name, place, date": "Chercher: nom, ville, date",
+	"Date": "Date",
+	"Name": "Nom",
+	"Place": "Ville",
+	"Set date from/to": "Date de/à",
+	"from": "de",
+	"to": "à",
+	"Close": "Fermer"
 }

@@ -694,5 +694,15 @@
 	"The entered values are not valid. Please note that both values must be entered in cm.": "Die eingegebenen Werte sind ungültig. Beide Werte müssen in cm angegeben werden.",
 	"Invalid entry": "Ungültige Eingabe",
 	"Connected": "Verbunden",
-	"Last connected": "Zuletzt verbunden"
+	"Last connected": "Zuletzt verbunden",
+	"Date": "Datum",
+	"Place": "Ort",
+	"Current": "Aktuelle",
+	"All": "Alle",
+	"Set date from/to": "Datum von/bis",
+	"from": "von",
+	"to": "bis",
+	"By date": "Nach Datum",
+	"Search: name, place, date": "Suchen: Name, Ort, Datum",
+	"Meetings": "Meetings"
 }

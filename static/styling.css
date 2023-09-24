@@ -916,7 +916,19 @@ summary {
     padding: 0 .375rem; 
 }
 
+#meetingSelection header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
+}
 
+#meetingSelection header * {
+    flex-basis: 100px;
+    flex-grow: 1;
+}
 
 /**
 * ON / OFF switch

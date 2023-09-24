@@ -1543,12 +1543,6 @@ app.get('/.well-known', express.static('.well-known'));
 // serve static files (URL must be "/static" and teh fiels lie in "/static")
 app.use('/static', express.static('static'));
 
-// TODO: remove, for testing only
-app.get('/techHigh', (req, res, next)=>{
-	logger.log(99, 'GET: /techHigh')
-	res.render('techHighDemonstrator.ejs');
-})
-
 // the very first level, e.g. "example.com/"
 app.get(/^\/$/,(req, res, next)=>{
 	logger.log(99, 'GET: /^\/$/')
@@ -1558,7 +1552,7 @@ app.get(/^\/$/,(req, res, next)=>{
 	let lang = req.acceptsLanguages(req.i18n.languages);
 	if (lang){
 		req.session.lang = lang;
-		res.redirect('/'+lang);
+		res.redirect('/'+lang+'/');
 	} else {    
 		// show the language page 
 		res.render("setLang.ejs"); 
@@ -1586,6 +1580,12 @@ app.get('/:lang\*', (req, res, next)=>{
 app.get('/:lang/', (req, res, next)=>{
 	logger.log(99, 'GET: /:lang/')
 
+	// make sure it ends on "/" to make relative pathes work correctly
+	if (req.originalUrl.slice(-1) != '/'){
+		res.redirect(req.originalUrl + '/');
+		return;
+	}
+
 	// we could show the language choose page when a language is given that does not exist. Currently it will automatically use the default language.
 
 	// check if there are active meetings
@@ -1597,7 +1597,7 @@ app.get('/:lang/', (req, res, next)=>{
 	}
 	if (numMeetingsActive>1) {
 		// show the list of meetings to select
-		res.render("meetingSelection.ejs");
+		res.render("meetingSelection2.ejs", {dataProviders:getMeetingDataProviderData()});
 	} else if(numMeetingsActive==1){
 		// redirect to the only meeting
 		let shortname = keys[0];
@@ -1619,7 +1619,7 @@ app.get('/:lang/meetingAdministration', (req, res)=>{
 app.get('/:lang/meetingSelection', (req, res)=>{
 	logger.log(99, 'GET: /:lang/meetingSelection')
 
-	res.render('meetingSelection.ejs');
+	res.render('meetingSelection2.ejs');
 })
 
 // timings: 
