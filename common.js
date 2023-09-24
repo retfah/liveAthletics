@@ -22,15 +22,18 @@ function uuidv4() {
 			return v.toString(16);
 	});
 }
-function streamToString (stream) {
+function streamToString (stream, encoding='latin1') {
 	const chunks = [];
 	return new Promise((resolve, reject) => {
 	stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
 	stream.on('error', (err) => reject(err));
 	stream.on('end', () => {
-		resolve(Buffer.concat(chunks).toString('latin1'));
+		resolve(Buffer.concat(chunks).toString(encoding));
 		});
 	})
+}
+function streamToStringUTF8(stream){
+	return streamToString(stream, 'UTF-8');
 }
 /**
  * Transfer the values of the properties in objFrom to the properties in objTo. Recursive. 
@@ -137,4 +140,4 @@ function propertyTransfer(objFrom, objTo, updateOnly=false){
 	}
 }
 
-export {uuidv4, copyObject, copyOwnPropertiesFrom, propertyTransfer, streamToString};
+export {uuidv4, copyObject, copyOwnPropertiesFrom, propertyTransfer, streamToString, streamToStringUTF8};
