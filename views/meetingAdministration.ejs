@@ -209,11 +209,10 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
              * 
              * @param {object} meeting 
              * @param {object} meetingBeforeUpdate the meeting as it was before the update. Needed for undo if there is an error on the server.
-             * @param {object} meetingIndex the index in the array of meetings
              */
-            updateMeeting_init(meeting, meetingBeforeUpdate, meetingIndex){
+            updateMeeting_init(meeting, meetingBeforeUpdate){
             
-                this.room.updateMeeting_init2(meeting, meetingBeforeUpdate, meetingIndex);
+                this.room.updateMeeting_init(meeting, meetingBeforeUpdate);
             
             }
         }
@@ -271,14 +270,23 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                     <th><%= __("Meeting-ID") %></th>
                     <th><%= __("Shortname") %></th>
                     <th><%= __("Name") %></th>
+                    <th><%= __("Location") %></th>
+                    <th><%= __("Date from") %></th>
+                    <th><%= __("Date to") %></th>
                     <th><%= __("Active") %></th>
-                    <th></th><th></th><th></th></tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
                 <template v-for="(meeting, meetingIndex) in meetings">
                     <!-- we cannot include the link in the row, since the buttons would raise those events too then  :onclick="'window.location=\'./' + meeting.shortname + '\''"-->
                     <tr v-if="meeting.xMeeting!=updateMeeting" >
                         <td>{{meeting.xMeeting}}</td>
                         <td :onclick="'window.location=\'./' + meeting.shortname + '\''" class="clickable">{{meeting.shortname}}</td>
                         <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.name}}</td>
+                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.location}}</td>
+                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.dateFrom}}</td>
+                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.dateTo}}</td>
                         <td>{{meeting.active && meeting.running ? "<%= __("Activated") %>" : (meeting.active && !meeting.running ? "<%= __("Activating...") %>" : (!meeting.active && meeting.running ? "<%= __("Deactivating...") %>" : "<%= __("Deactivated") %>" )) }}</td> 
                         <td style="padding:0.4rem"><button class="btn btn-secondary" v-on:click=" startUpdating(meeting)" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Change") %></button></td> 
                         <td style="padding:0.4rem"><button class="btn btn-danger" v-on:click=" deleteMeetingObj=meeting; deleteWindowShown=true;" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Delete") %></button></td>
@@ -289,7 +297,10 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                         <td>{{meeting.xMeeting}}</td>
                         <!--<td><input type="text" v-model="meeting.shortname" size=10></td>-->
                         <td>{{meeting.shortname}}</td> <!-- the shortname cannot be changed, since the database-name would change. -->
-                        <td><input type="text" v-model="meeting.name" size=35></td>
+                        <td><input type="text" v-model="meeting.name" size="35" maxlength="75"></td>
+                        <td><input type="text" v-model="meeting.location" size="20" maxlength="50"></td>
+                        <td><input type="date" v-model="meeting.dateFrom"></td>
+                        <td><input type="date" v-model="meeting.dateTo"></td>
                         <td>{{meeting.active ? "<%= __("Yes") %>" : "<%= __("No") %>" }}</td>
                         <td style="padding:0.4rem"><button class="btn btn-success" v-on:click=" saveUpdate(meeting, meetingBeforeUpdate, meetingIndex)"><%= __("Save") %></button></td>
                         <td style="padding:0.4rem"><button class="btn btn-secondary" v-on:click=" abortUpdate(meetingIndex); "><%= __("Abort") %></button></td>

@@ -198,48 +198,24 @@ export class rMeetingsClient extends roomClient{
      * 
      * @param {object} meeting 
      * @param {object} meetingBeforeUpdate the meeting as it was before the update. Needed for undo if there is an error on the server.
-     * @param {object} meetingIndex the index in the array of meetings
      */
-    updateMeeting_init(meeting, meetingBeforeUpdate, meetingIndex){
+    updateMeeting_init(meeting, meetingBeforeUpdate){
 
         // set the data
-        let data = meeting;
-
-        // on failure on the server, undo the changes (as they are applied in the vue-model automatically)
-        let rollback = ()=>{
-            // check if the meetingIndex has not changed (could be if meanwhile another client has added/deleted a meeting or just the sorting has changed)
-            if (this.data[meetingIndex].xMeeting != meetingBeforeUpdate.xMeeting){
-                // find the correct meetingIndex
-                meetingIndex = this.findObjInArrayByProp(this.data, 'xMeeting', meetingBeforeUpdate.xMeeting);
-            }
-
-            // undo:
-            this.data[meetingIndex] = meetingBeforeUpdate;
+        let data = {
+            xMeeting: meeting.xMeeting,
+            name: meeting.name,
+            shortname: meeting.shortname,
+            location: meeting.location,
+            dateFrom: meeting.dateFrom,
+            dateTo: meeting.dateTo,
+            active: meeting.active,
         };
 
-        // make sure we use the function override, as we do not need to do anything on success on the server, since, everything is done already and updateMeeting_exe is only used on broadcast to the other clients. 
-
-        this.addToStack('updateMeeting', data, ()=>{}, rollback);
-    }
-
-    /**
-     * 
-     * @param {object} meeting 
-     * @param {object} meetingBeforeUpdate the meeting as it was before the update. Needed for undo if there is an error on the server.
-     * @param {object} meetingIndex the index in the array of meetings
-     */
-    updateMeeting_init2(meeting, meetingBeforeUpdate, meetingIndex){
-
-        // set the data
-        let data = meeting;
-
         // on failure on the server, undo the changes (as they are applied in the vue-model automatically)
         let rollback = ()=>{
-            // check if the meetingIndex has not changed (could be if meanwhile another client has added/deleted a meeting or just the sorting has changed)
-            if (this.data[meetingIndex].xMeeting != meetingBeforeUpdate.xMeeting){
-                // find the correct meetingIndex
-                meetingIndex = this.findObjInArrayByProp(this.data, 'xMeeting', meetingBeforeUpdate.xMeeting);
-            }
+            // find the correct meetingIndex
+            let [meetingIndex, m] = this.findObjInArrayByProp(this.data, 'xMeeting', meetingBeforeUpdate.xMeeting);
 
             // undo:
             this.data[meetingIndex] = meetingBeforeUpdate;
