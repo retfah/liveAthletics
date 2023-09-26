@@ -704,5 +704,6 @@
 	"to": "bis",
 	"By date": "Nach Datum",
 	"Search: name, place, date": "Suchen: Name, Ort, Datum",
-	"Meetings": "Meetings"
+	"Meetings": "Meetings",
+	"Attention: {{dp.name}} data might be outdated. Please find here the latest {{dp.name}} data.": "Achtung: Die {{dp.name}}-Daten sind möglicherweise veraltet. Die aktuellsten {{dp.name}}-Daten sind hier zu finden."
 }

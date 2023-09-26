@@ -125,72 +125,77 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
         
         </script>
     </head>
-    <body onload = "startup()" onbeforeunload="unloadMe()">
+    <body onload = "startup()"">
+        <div class="centerContainer">
+            <div id="meetingSelection"> <!-- inside here all the vue.js stuff -->
 
+                <!-- two kinds of filters: date from/to and plaintext (searching the name, date, and place)-->
+                <!-- date filters: buttons for "current" (chosen by default) "all" and genauer -->
+                <div class="headRow">
+                    <button type="button" class="btn " v-on:click="setDateCurrent"><%= __("Current") %></button>
+                    <button type="button" class="btn " v-on:click="setDateAll"><%= __("All") %></button>
+                    <button type="button" class="btn " v-on:click="overlay='setDate'"><%= __("By date") %></button>
+                </div>
+                <div class="headRow">
+                    <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
+                </div>
+                <template v-for="dp in dataProviders">
+                    <div class="headRow alert" v-if="dp.showAlternate">
+                        <a v-bind:href="dp.directHyperlink"><%= __("Attention: {{dp.name}} data might be outdated. Please find here the latest {{dp.name}} data.") %></a>
+                    </div>
+                </template>
+                <v-table :data="dateFilteredMeetings" :filters="filters">
+                    <template #head>
+                        <thead>
+                            <tr>
+                                <th is="vue:v-th" sortkey="dateFrom" defaultsort="asc"><%= __("Date") %></th>
+                                <th is="vue:v-th" sortkey="name" ><%= __("Name") %></th>
+                                <th is="vue:v-th" sortkey="place" ><%= __("Place") %></th>
+                            </tr>
+                        </thead>
+                    </template>
+                    <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                        <tbody>
+                            <tr v-on:click="link(row.hyperlink)" v-for="row in displayData" :key="row.hyperlink">
+                                <td>{{ row.dateStr }}</td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.place }}</td>
+                            </tr>
+                        </tbody>
+                    </template>
         
-        <div id="meetingSelection"> <!-- inside here all the vue.js stuff -->
-
-            <!-- two kinds of filters: date from/to and plaintext (searching the name, date, and place)-->
-            <!-- date filters: buttons for "current" (chosen by default) "all" and genauer -->
-            <header style="max-width: 1000px;">
-                <button type="button" class="btn " v-on:click="setDateCurrent"><%= __("Current") %></button>
-                <button type="button" class="btn " v-on:click="setDateAll"><%= __("All") %></button>
-                <button type="button" class="btn " v-on:click="overlay='setDate'"><%= __("By date") %></button>
-                <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
-            </header>
-
-            <v-table :data="dateFilteredMeetings" :filters="filters">
-                <template #head>
-                    <thead>
-                        <tr>
-                            <th is="vue:v-th" sortkey="dateFrom" defaultsort="asc"><%= __("Date") %></th>
-                            <th is="vue:v-th" sortkey="name" ><%= __("Name") %></th>
-                            <th is="vue:v-th" sortkey="place" ><%= __("Place") %></th>
-                        </tr>
-                    </thead>
-                </template>
-                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                    <tbody>
-                        <tr v-on:click="link(row.hyperlink)" v-for="row in displayData" :key="row.hyperlink">
-                            <td>{{ row.dateStr }}</td>
-                            <td>{{ row.name }}</td>
-                            <td>{{ row.place }}</td>
-                        </tr>
-                    </tbody>
-                </template>
+                </v-table>
     
-            </v-table>
-
-            <div class="overlay" v-bind:class="{shown: overlay=='setDate'}">
-                <div class="overlayContainer">
-                    <form>
-                        <div class="verticalForm">
-                            <h3><%= __("Set date from/to") %></h3>
-                            <label>
-                                <%= __("from") %>
-                                <input type="date" v-model="dateFrom" class="formCtrl">
-                            </label>
-                            <label>
-                                <%= __("to") %>
-                                <input type="date" v-model="dateTo" class="formCtrl">
-                            </label>    
-                            <button type="button" class="btn" v-on:click="overlay=null"><%= __('Close') %></button>
-                        </div>
-                    </form>
+                <div class="overlay" v-bind:class="{shown: overlay=='setDate'}">
+                    <div class="overlayContainer">
+                        <form>
+                            <div class="verticalForm">
+                                <h3><%= __("Set date from/to") %></h3>
+                                <label>
+                                    <%= __("from") %>
+                                    <input type="date" v-model="dateFrom" class="formCtrl">
+                                </label>
+                                <label>
+                                    <%= __("to") %>
+                                    <input type="date" v-model="dateTo" class="formCtrl">
+                                </label>    
+                                <button type="button" class="btn" v-on:click="overlay=null"><%= __('Close') %></button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </div>
-
-            <div id="overlay" v-on:click="overlayVisible=false" v-bind:class="{shown: overlayVisible}">
-                <!-- overlay used for displaying general information -->
-                <div id="overlayContainer">
-                    <div id="overlayTitle"><b>{{overlayTitle}}</b></div>
-                    <div id="overlayContent">{{overlayContent}}</div>
+    
+                <div id="overlay" v-on:click="overlayVisible=false" v-bind:class="{shown: overlayVisible}">
+                    <!-- overlay used for displaying general information -->
+                    <div id="overlayContainer">
+                        <div id="overlayTitle"><b>{{overlayTitle}}</b></div>
+                        <div id="overlayContent">{{overlayContent}}</div>
+                    </div>
                 </div>
-            </div>
+                
             
-        
-        </div>
-
+            </div> <!-- vueDiv -->
+        </div> <!-- centercontainer -->
     </body>
 </html>
 

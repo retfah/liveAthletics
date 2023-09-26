@@ -56,5 +56,6 @@
 	"Set date from/to": "Date de/à",
 	"from": "de",
 	"to": "à",
-	"Close": "Fermer"
+	"Close": "Fermer",
+	"Attention: {{dp.name}} data might be outdated. Please find here the latest {{dp.name}} data.": "Attention: les données '{{dp.name}}' peuvent être obsolètes. Veuillez trouver ici les données '{{dp.name}}' les plus récentes."
 }
