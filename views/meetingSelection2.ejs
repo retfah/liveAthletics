@@ -161,6 +161,9 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
                                 <td>{{ row.name }}</td>
                                 <td>{{ row.place }}</td>
                             </tr>
+                            <tr v-if="displayData.length==0 && dateFrom != '2000-01-01' && dateTo != '2100-01-01' && searchString.trim() != ''">
+                                <td colspan="3" v-on:click="setDateAll"><%= __("Could not find a matching meeting within the selected date range. Click here to search in all meetings.") %></td>
+                            </tr>
                         </tbody>
                     </template>
         
