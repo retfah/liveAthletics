@@ -68,7 +68,7 @@ class rMeetings extends roomServer{
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true)
-        super(eventHandler, mongoDb, logger, 'meetings', true, 1, false, undefined, false);//, roomManager, wsProcessor);
+        super(eventHandler, mongoDb, logger, 'meetings', true, -1, false, undefined, false);//, roomManager, wsProcessor);
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
