@@ -930,6 +930,8 @@ summary {
 .centerContainer {
     display: flex;
     justify-content: center;
+    min-width: min-content;
+    overflow: auto;
 }
 
 #meetingSelection div.headRow * {
