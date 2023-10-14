@@ -18,9 +18,10 @@ export default class eventHandling2{ // ES 2015 style syntax
     * - eventually add the possibility to inform the listener, if the event is unregistered/closed
     */
 
-   constructor(logger){
+   constructor(logger, autoClose=true){
        this._events = {}; // virually protected (not protected, but anybody should know not to touch it!)
        this.logger = logger;
+       this.autoClose = autoClose;
    }
 
    toJSON(){
@@ -29,7 +30,7 @@ export default class eventHandling2{ // ES 2015 style syntax
    }
 
    /**
-    * register a new event, to allow listeners to be bound to it
+    * register a new event, to allow listeners to be bound to it; not necessarily needed, since by default it is automatically created
     * @method eventRegister
     * @param {String} name The name of the event 
     */
@@ -86,21 +87,26 @@ export default class eventHandling2{ // ES 2015 style syntax
        return false; // should never arrive here
    }
 
-   /**
+    /**
     * 
     * @param {String} name 
     * @param {Function} listenerName
     */
-   eventUnsubscribe(name, listenerName){
-       if(!this._events[name]){
-           // this event does not exist, nothing to remove
-           this.logger.log(10, 'Event ' + name + 'does not exist (anymore). nothing to remove the listener from.');
-           return false;
-       } else {
-           delete this._events[name][listenerName];
-           return true; // the deleting will always work and return true, so we do not need to check whether the listenerName was evcven registered
-       }
-   }
+    eventUnsubscribe(name, listenerName){
+        if(!this._events[name]){
+            // this event does not exist, nothing to remove
+            this.logger.log(10, 'Event ' + name + 'does not exist (anymore). nothing to remove the listener from.');
+            return false;
+        } else {
+            delete this._events[name][listenerName];
+
+            if (this.autoClose && Object.keys(this._events[name]).length==0){
+                delete this._events[name];
+            }
+            
+            return true; // the deleting will always work and return true, so we do not need to check whether the listenerName was evcven registered
+        }
+    }
 
    /**
     * raise: raises an event, if there are listeners
