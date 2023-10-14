@@ -281,11 +281,11 @@ Taken from adminServer.ejs and root.ejs, but now merged together to include the 
                     <!-- we cannot include the link in the row, since the buttons would raise those events too then  :onclick="'window.location=\'./' + meeting.shortname + '\''"-->
                     <tr v-if="meeting.xMeeting!=updateMeeting" >
                         <td>{{meeting.xMeeting}}</td>
-                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''" class="clickable">{{meeting.shortname}}</td>
-                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.name}}</td>
-                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.location}}</td>
-                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.dateFrom}}</td>
-                        <td :onclick="'window.location=\'./' + meeting.shortname + '\''"  class="clickable">{{meeting.dateTo}}</td>
+                        <td :onclick="meeting.running ?'window.location=\'./' + meeting.shortname + '\'' : false" :class="{clickable: meeting.running}">{{meeting.shortname}}</td>
+                        <td :onclick="meeting.running ?'window.location=\'./' + meeting.shortname + '\'' : false" :class="{clickable: meeting.running}">{{meeting.name}}</td>
+                        <td :onclick="meeting.running ?'window.location=\'./' + meeting.shortname + '\'' : false" :class="{clickable: meeting.running}">{{meeting.location}}</td>
+                        <td :onclick="meeting.running ?'window.location=\'./' + meeting.shortname + '\'' : false" :class="{clickable: meeting.running}">{{meeting.dateFrom}}</td>
+                        <td :onclick="meeting.running ?'window.location=\'./' + meeting.shortname + '\'' : false" :class="{clickable: meeting.running}">{{meeting.dateTo}}</td>
                         <td>{{meeting.active && meeting.running ? "<%= __("Activated") %>" : (meeting.active && !meeting.running ? "<%= __("Activating...") %>" : (!meeting.active && meeting.running ? "<%= __("Deactivating...") %>" : "<%= __("Deactivated") %>" )) }}</td> 
                         <td style="padding:0.4rem"><button class="btn btn-secondary" v-on:click=" startUpdating(meeting)" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Change") %></button></td> 
                         <td style="padding:0.4rem"><button class="btn btn-danger" v-on:click=" deleteMeetingObj=meeting; deleteWindowShown=true;" :disabled="readOnly" v-bind:class="{disabled: readOnly}"><%= __("Delete") %></button></td>
