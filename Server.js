@@ -1502,9 +1502,6 @@ function getMeetingDataProviderData(){
  * first: check if the requested route is a special route, but wants to use the same base 'directory' as the main part uses --> then add the special routing here
  */
 
-// special route for the first call of the page with nothing after the baseURL: 
-// return the page for language selection
-
 // the wsProcessorBrowser.js file is part of the wsProcessor package; provide it from this location to be always up to date:
 app.get('/static/wsProcessorBrowser.min.js', (req, res)=>{
 	res.sendFile('/node_modules/wsprocessor/browser/wsProcessorBrowser.min.js', { root: __dirname });
@@ -1538,7 +1535,7 @@ if (global.developMode){
 }
 
 // for the ACME challenge of let's encrypt certificate, why need to have the .well-known folder on the root of the server; handle it similar to static redirect the call to the root-folder /.well-known/ to (static/.well-known/)
-app.get('/.well-known', express.static('.well-known'));
+app.use('/.well-known', express.static('.well-known'));
 
 // serve static files (URL must be "/static" and teh fiels lie in "/static")
 app.use('/static', express.static('static'));
