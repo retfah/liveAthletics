@@ -51,24 +51,10 @@ class rEvents extends roomServer{
 
         // get all events
         this.models.events.findAll().then(events=>{
-            this.data.events = events;
-            // aux data:
-            this.data.categories = categories.data;
+            this.data.events.push(...events);
 
             this.ready = true;
         })
-
-        // listen to ausxilary data events:
-                /*this.eH.eventSubscribe('disciplines@' + meetingShortname + ':ready', ()=>{
-            this.data.disciplines = disciplines.data;
-        })*/
-        // not needed anymore, since the orginal references are kept now (2022-07)
-        /*this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
-            this.data.categories = categories.data;
-        })
-        this.eH.eventSubscribe('meeting@' + meetingShortname + ':ready', ()=>{
-            this.data.meeting = rMeeting.data;
-        })*/
 
         // add (sub)-datasets:
         const rdForInscriptions = new rdEventsWithGroups(this, rEventGroups); // this will automatically add the roomDataset to this room.

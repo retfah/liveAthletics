@@ -158,19 +158,19 @@ export class rSiteTrack extends rSite{
             if (data.series.xSite == this.site.xSite){
                 this.addSeries(data);
             }
-        });
+        }, this.name);
 
         this.eH.eventSubscribe(`${this.name}:seriesDeleted`, (series)=>{
             this.deleteSeries(series);
-        })
+        }, this.name)
         
         this.eH.eventSubscribe(`${this.name}:seriesChanged`, (data)=>{
             this.changeSeries(data);
-        })
+        }, this.name)
 
         this.eH.eventSubscribe(`${this.name}:contestChanged`, (contest)=>{
             this.changeContest(contest);
-        })
+        }, this.name)
 
         // do we really need all the following functions? (especially the fact of re-ranking costs some effort!); it would be less effort if we simply used seriesChanged; However, the drawback is that if times are created by the timing, we get only the full series object on the server and somehow need to find out what has changed to call the respective function in the right contest-room --> thus, I think I keep having that many functions.
         // TODO: the functions must somehow have two modes: one when the result arrives from the contest (broadcast to clients only) or when thr result arrives from a (timing-)client (broadcast to clients AND insert result in rContestTrack!!!)
@@ -180,29 +180,41 @@ export class rSiteTrack extends rSite{
             this.serverFuncWrite('addUpdateResult', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateResult in room ${this.name}: ${JSON.stringify(err)}`);
             });
-        })
+        }, this.name)
 
         // probably not needed, since manual results come in one by one
         this.eH.eventSubscribe(`${this.name}:resultsHeatChanged`, (data)=>{
             this.serverFuncWrite('addUpdateResultsHeat', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateResultsHeat in room ${this.name}: ${JSON.stringify(err)}`);
             });
-        })
+        }, this.name)
 
         /*this.eH.eventSubscribe(`${this.name}:heatAuxChanged`, (data)=>{
             this.serverFuncWrite('addUpdateHeatAux', data).catch(err=>{
                 this.logger.log(10, `Error during addUpdateHeatAux in room ${this.name}: ${JSON.stringify(err)}`);
             });
-        })*/
+        }, this.name)*/
 
         this.eH.eventSubscribe(`${this.name}:resultDeleted`, (data)=>{
             // data contains: xContest, xSeries, xSeriesStart
             this.serverFuncWrite('deleteResult', data).catch(err=>{
                 this.logger.log(10, `Error during deleteResult in room ${this.name}: ${JSON.stringify(err)}`);
             });
-        })
+        }, this.name)
 
 
+    }
+
+    async close(){
+        // unregister all events
+        this.eH.eventUnsubscribe(`${this.name}:seriesAdded`, this.name);
+        this.eH.eventUnsubscribe(`${this.name}:seriesDeleted`, this.name);
+        this.eH.eventUnsubscribe(`${this.name}:seriesChanged`, this.name); 
+        this.eH.eventUnsubscribe(`${this.name}:contestChanged`, this.name);
+        this.eH.eventUnsubscribe(`${this.name}:resultChanged`, this.name);
+        this.eH.eventUnsubscribe(`${this.name}:resultsHeatChanged`, this.name);
+        //this.eH.eventUnsubscribe(`${this.name}:heatAuxChanged`, this.name);
+        this.eH.eventUnsubscribe(`${this.name}:resultDeleted`, this.name);
     }
 
     // IMPORTANT: only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 

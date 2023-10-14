@@ -706,7 +706,10 @@ class roomServer{
      * Close a subroom (=delete its reference. Garbage collection will do the rest.)
      * @param {object} subroom The subroom. (Actually we would only need the subroomName, but this would allow the subrooms to close an other subroom than itself.)
      */
-    closeSubroom(subroom){
+    async closeSubroom(subroom){
+
+        await subroom.closeRoom();
+
         delete this.subrooms[subroom.name];    
         // check if now this room can be clsoed as well.
         this.evaluateAutoclosure();
@@ -1255,12 +1258,14 @@ class roomServer{
             return;
         }
 
-        // TODO: registering to a closed room takes two connection attempts: in the first attempt, the server will respond "room not ready" and the second time it will answer with the data. Thus, we should make sure that dynamic creation of rooms does not happen too often. Thus, it could be helpful to not close a room too fast, but eventually after a timeout. (Wile the competition takes place, closure of rooms should be avoided. However, before and after the competition, where only occasionally the data is accessed it might make sense.)
+        // TODO: registering to a closed room takes two connection attempts: in the first attempt, the server will respond "room not ready" and the second time it will answer with the data. Thus, we should make sure that dynamic creation of rooms does not happen too often. Thus, it could be helpful to not close a room too fast, but eventually after a timeout. (While the competition takes place, closure of rooms should be avoided. However, before and after the competition, where only occasionally the data is accessed it might make sense.)
         // actually we could/should also change the behavior when a room is not yet ready: keep the request open and answer as soon as we are ready.
 
         // close the room:
         // there is nothing special to be done except deleting the reference in the parent.
-        this.parentRoom.closeSubroom(this.name);
+        this.parentRoom.closeSubroom(this.name).catch((err=>{
+            this.logger.log(10,`Could not close subroom ${this.name}: ${err}`);
+        }));
     }
 
     /**
@@ -2393,7 +2398,7 @@ class roomServer{
                 this._startWriteFunctionServer(obj.funcName, obj.data, obj.resolve, obj.reject, obj.id, obj.oldId, obj.tabIdExclude); 
             } else if (obj.type=="close") {
                 // if the room shall be closed but there are still functions on the work stack, then we need to wait until the work stack was worked finished until we really close the room.
-                obj.close();
+                obj.close().catch(err=>{this.logger.log(err)});
             }
         }else{
             this.busy = false;
@@ -2619,14 +2624,34 @@ class roomServer{
                     opt: null
                 }
                 this.broadcast(data);
-    
-                await this.close();
+
+                // remove the clients, respectively put writing clients to offline writing clients list
+                for (let tabId in this.clients){
+                    this.handleClientConnectionClose(tabId);
+                    // this also removes the respective event listeners
+                };
+                
+                // let the inheriting class close what is needed
+                await this.close().catch(err=>{
+                    this.logger.log(20, `Error during closing room ${this.name}. The room might not be closed now! ${err}`)
+                });
+
+                // close all roomDatasets and subrooms
+                let proms = [];
+                for (let datasetName in this.datasets){
+                    proms.push(this.datasets[datasetName]._close());
+                }
+                for (let subroomName in this.subrooms){
+                    proms.push(this.closeSubroom(this.subrooms[subroomName]));
+                }
+                await Promise.all(proms);
+
                 resolve();
             }
     
-            // make sure that we do not close a room before not all ganging requests were handled 
+            // make sure that we do not close a room before not all hanging requests were handled 
             if (this.functionsWorkStack.length==0){
-                close();
+                close().catch(err=>{reject(err)});
             } else {
                 this.functionsWorkStack.push({close, type:"close"})
             }

@@ -48,18 +48,6 @@ class rInscriptions extends roomServer{
             meeting: meeting.data, // backgroundinformation about the meeting (e.g. dates)
         }; 
 
-        // the other rooms might actually not be ready yet (since getting their data is async); thus we need to listen to their events
-        // TODO: consider changing the UUID, to make sure a client is really getting the new auxilary data on reload; however, we also would have to push the changes then actually...
-        this.eH.eventSubscribe('regions@' + meetingShortname + ':ready', ()=>{
-            this.data.regions = regions.data;
-        })
-        this.eH.eventSubscribe('categories@' + meetingShortname + ':ready', ()=>{
-            this.data.categories = categories.data;
-        })
-        this.eH.eventSubscribe('meeting@' + meetingShortname + ':ready', ()=>{
-            this.data.meeting = meeting.data;
-        })
-
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
         this.models = modelsMeeting;

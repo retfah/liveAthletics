@@ -20,7 +20,7 @@ import roomServer from './roomServer.js';
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true)
-        super(eventHandler, mongoDb, logger, "contestsOverview@" + meetingShortname, true, 0, false, undefined, false); // no writing clients, changes are not reported to sideChannel, sicne they are only reactions to changes in other rooms
+        super(eventHandler, mongoDb, logger, "contestsOverview@" + meetingShortname, true, 0, false, undefined, false); // no writing clients, changes are not reported to sideChannel, since they are only reactions to changes in other rooms
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
@@ -45,47 +45,12 @@ import roomServer from './roomServer.js';
         this.rCategories = rCategories;
         this.meetingShortname = meetingShortname;
 
-        // 2022-08: a room returns a true promise, as soon as it is ready. Use this to create the data when every room is ready 
+        // room returns a true promise, as soon as it is ready. Use this to create the data as soon as every room is ready 
         Promise.all([this.rEvents._roomReady(), this.rContests._roomReady(), this.rEventGroups._roomReady(), this.rCategories._roomReady()]).then(()=>{
             this.data.categories = rCategories.data;
             this.createData();
             this.ready = true;
         })
-
-        // all rooms need to be ready first before we can create the data
-        /*let checkReadiness = ()=>{
-            
-            if (this.rEvents.ready && this.rEventGroups.ready && this.rContests.ready){
-                this.createData();
-                this.ready = true;
-                return true;
-            }
-            return false;
-        }
-
-        // if rooms are not ready yet, add listeners for the respective room's ready event
-        if (!checkReadiness()){
-            // unsubscribe from the events ("garbage collection")
-            if (!this.rEvents.ready){
-                this.eH.eventSubscribe(`events@${meetingShortname}:ready`, (data)=>{
-                    checkReadiness();
-                    this.eH.eventUnsubscribe(`events@${meetingShortname}:ready`, this.name);
-                }, this.name, true);
-            }
-            if (!this.rEventGroups.ready){
-                this.eH.eventSubscribe(`eventGroups@${meetingShortname}:ready`, (data)=>{
-                    checkReadiness();
-                    this.eH.eventUnsubscribe(`eventGroups@${meetingShortname}:ready`, this.name);
-                }, this.name, true);
-            }
-            if (!this.rContests.ready){
-                this.eH.eventSubscribe(`contests@${meetingShortname}:ready`, (data)=>{
-                    checkReadiness();
-                    this.eH.eventUnsubscribe(`contests@${meetingShortname}:ready`, this.name);
-                }, this.name, true);
-            }
-        }*/
-
 
         // listen to changes in contests, events, eventGroups and make sure that the data here is updated as it should
         // there should be very few or no changes in events and eventGroups, but there are certainly changes in contests (especially contest status changes). Handle the latter separately without recreating the full data every time
@@ -93,10 +58,22 @@ import roomServer from './roomServer.js';
         this.eH.eventSubscribe(`events@${meetingShortname}:change`, (data)=>{this.createData()}, this.name, true);
 
         // TODO: separate handler for changes in contests to not recreate the full dataset on every change
-        this.eH.eventSubscribe(`contests@${meetingShortname}:change`, (data)=>{this.createData()}, this.name, true);
+        let r = this.eH.eventSubscribe(`contests@${meetingShortname}:change`, (data)=>{
+            this.createData();
+        }, this.name, true);
+
+        console.log(`Could the contest-change event be registered successfully?: ${r}`);
 
         this.functionsWrite.updateContests = this.updateContests.bind(this);
 
+    }
+
+    async close(){
+
+        // unregister all events!
+        this.eH.eventUnsubscribe(`eventGroups@${this.meetingShortname}:change`, this.name);
+        this.eH.eventUnsubscribe(`events@${this.meetingShortname}:change`, this.name);
+        this.eH.eventUnsubscribe(`contests@${this.meetingShortname}:change`, this.name);
     }
 
     // (re)creates the data

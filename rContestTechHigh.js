@@ -691,6 +691,29 @@ class rContestTechHigh extends roomServer{
 
     }
 
+    async close(){
+        // remove all event listeners:
+        // startgroup listeners
+        for (let SG of this.data.startgroups){
+            // unregister from the athlete change event
+            this.eH.eventUnsubscribe(`inscriptions@${this.meetingShortname}:inscriptionChanged${SG.xInscription}`, this.name);
+        }
+
+        // SIG listeners:
+        // loop over all related rounds
+        for (let rg of this.data.relatedGroups){
+            this.eH.eventUnsubscribe(`startsInGroup@${this.meetingShortname}:addedAthleteForRound/GrpNbr${rg.xRound}/${rg.number}`, this.name)
+            this.eH.eventUnsubscribe(`startsInGroup@${this.meetingShortname}:deletedAthleteForRound/GrpNbr${rg.xRound}/${rg.number}`, this.name)
+        }
+
+        // eventGroup listeners 
+        this.eH.eventUnsubscribe(`eventGroups@${this.meetingShortname}:contestUnlink${this.contest.xContest}`, this.name)
+        this.eH.eventUnsubscribe(`eventGroups@${this.meetingShortname}:contestLink${this.contest.xContest}`, this.name)
+
+        // general listener:
+        this.eH.eventUnsubscribe(`general@${this.meetingShortname}:renewStartgroups`, this.name)
+    }
+
     /**
      * Flatten all DB-attributes on the highest level of an array with objects. Useful e.g. for associated DB-objects, where columns of references tables result in attributes like "referencedTable.col1", which is changed here to "col1" (the rightmost part after a point) only. IMPORTANT: doews not work when the column name would contain a dot (.)!
      * @param {array} data The array of object to flatten its properties

@@ -34,6 +34,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
 
             // unsubscribe now
             rEvents.eH.eventUnsubscribe(`${rEvents.name}:ready`, this.eGReadyListener);
+            delete this.eGReadyListener;
         })
 
         // connect event for changes in eventGroups to onEventGroupChange
@@ -75,7 +76,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
         })
 
         // raised in rEventGroups.addRound and rEventGroups.updateRound
-        this.eventGroupRoundDeleteListener = this.rEvents.eH.eventSubscribe(`${this.rEventGroups.name}:setNumGroups`, (data)=>{
+        this.eventGroupRoundUpdateListener = this.rEvents.eH.eventSubscribe(`${this.rEventGroups.name}:setNumGroups`, (data)=>{
 
             // data: {xEventGroup, order, numGroups, groups}
 
@@ -105,6 +106,21 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
             //this.onEventGroupChange();
         })
 
+    }
+
+    close(){
+
+        // unsubscribe eventlisteners
+        if (this.eGReadyListener){
+            this.rEvents.eH.eventUnsubscribe(`${this.rEvents.name}:ready`, this.eGReadyListener);
+            delete this.eGReadyListener;
+        }
+        if (this.eventGroupRoundUpdateListener){
+            this.rEvents.eH.eventUnsubscribe(`${this.rEventGroups.name}:setNumGroups`, this.eventGroupRoundUpdateListener);
+        }
+        if (this.eventGroupRoundDeleteListener){
+            this.rEvents.eH.eventUnsubscribe(`${this.rEventGroups.name}:resetNumGroups`, this.eventGroupRoundDeleteListener)
+        }
     }
 
     /**

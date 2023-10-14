@@ -65,7 +65,6 @@ export default class rEventGroup extends roomServer {
         // changes to eG: roundAdd (iO), roundDelete (iO), roundUpdate (iO), groupAdd (in roundUpdate), groupDelete (in roundUpdate), groupChange (in roundUpdate), changedContestAssignment (in roundUpdate)
         // start added/removed for event in this eventGroup (we also need to add a listener to changes of the group (in rStartgroup), but make sure that we do not create a loop, when the change is initiated by this room)
 
-        // TODO: make sure the events are 'unlistened' when the room is closed
         this.l1 = this.eH.eventSubscribe(`eventAddedToEventGroup${eventGroup.xEventGroup}`, async (event)=>{
             if (this.ready){
                 await this.serverFuncWrite('updateData', {});
@@ -93,6 +92,13 @@ export default class rEventGroup extends roomServer {
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateData = this.updateData.bind(this);
 
+    }
+
+    close(){
+        // unregister events
+        this.eH.eventUnsubscribe(`eventAddedToEventGroup${eventGroup.xEventGroup}`, this.l1);
+        this.eH.eventUnsubscribe(`eventDeletedFromEventGroup${eventGroup.xEventGroup}`, this.l2);
+        this.eH.eventUnsubscribe(`eventGroupUpdated${eventGroup.xEventGroup}`, this.l3);
     }
 
     async updateData(data){

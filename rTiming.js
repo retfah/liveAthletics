@@ -598,6 +598,7 @@ export default class rTiming extends roomServer{
             //this.eH.eventUnsubscribe(`wsConnected/${this.conn.tabId}`, this.name);
             this.eH.eventUnsubscribe(`TabIdSet/${this.conn.tabId}`, this.name);
             this.eH.eventUnsubscribe(`wsClosed/${this.conn.tabId}`, this.name);
+            this.eH.eventUnsubscribe(`wsError/${this.conn.tabId}`, this.name);
             
             // close the connection
             this.wsManager.returnConnection(this.data.siteConf.shortname, this.data.siteConf.host, this.data.siteConf.port, this.data.siteConf.path, this.data.siteConf.secure);
@@ -1898,6 +1899,8 @@ export class rTimingAlge extends rTiming {
      *      - HeatResult: SessionId, EventNr, HeatId, Starttime, Finishtime, Runtime, Wind, WindUnit, DistanceMeters
      *      - Result: see CompetitorEvaluated 
      * - Time has the format HH:MM:SS.1234
+     * 
+     * Problems in spring 2023: with the data provided by the versatile exchange protocol, it is not possible to fully identify a heat or a person, since the sent eventId/heatId/Id are (partially) internal ids and not the ids provided in the input file! A possible solution might be to add the seriesId not only in the series, but as Reserved2 for every person, since this field should be correctly exported.  
      * 
      * The startjudge can send HeatReactiontimes. 
      * 

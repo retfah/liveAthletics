@@ -38,7 +38,7 @@ class rRegions extends roomServer{
 
         // get all regions
         this.models.regions.findAll().then(regions=>{
-            this.data = regions;
+            this.data.push(...regions);
             this.ready = true;
             //this.eH.raise(`${this.name}:initialized`)
         })

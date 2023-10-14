@@ -246,10 +246,28 @@ class roomDataset{
         
         // if it is a dynamic roomDataset, check whether there are still clients connected or close this roomDataset
         if (this.isDynamic && this.clients.length==0 ){
-            // remove the dataset from the room's list of datasets
-            this.room.datasetCloses(this.name);
-            // the garbage collector will delete this object then since it is not referenced anymore
+            this._close().catch(err=>{
+                this.logger.log(20, `Error during closing of the roomDataset ${this.name}: ${err}`)
+            })
         }
+    }
+
+    // called internaly to close the roomDataset
+    async _close(){
+        // remove the dataset from the room's list of datasets
+        this.room.datasetCloses(this.name);
+        // the garbage collector will delete this object then since it is not referenced anymore
+
+        // call potential closing functions. 
+        await this.close();
+    }
+
+    /**
+     * called when the room dataset is closed.
+     * To be implemented 
+     */
+    async close(){
+
     }
 
     /**

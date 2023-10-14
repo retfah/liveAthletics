@@ -1019,6 +1019,7 @@ class rMeetings extends roomServer{
             }
 
             // if the connection is lost, the wsManager and wsServer2Sever, respectively, will try to reconnect; listen to those events to instantly reconnect the sideChannel-rooms
+            // NOTE: the events and not unsubscribed since this room is always open
             this.eH.eventSubscribe(`TabIdSet/${this.tabId}`, connectRoom, shortname); // we use the shortname of the meeting as an identifier for the eventHandler 
 
             this.eH.eventSubscribe(`wsConnected/${this.tabId}`, ()=>{sideChannel.status=1;}, shortname);
@@ -1084,8 +1085,9 @@ class rMeetings extends roomServer{
         // stop all rooms etc
         let mainRoomClosurePromise = this.closeMainRoomsForMeeting(shortname);
         let backupClosurePromise = activeMeeting.rooms.backup.closeRoom();
+        let sideChannelClosurePromise = activeMeeting.rooms.sideChannel.closeRoom();
         
-        await Promise.all([mainRoomClosurePromise, backupClosurePromise]).catch(err=>{
+        await Promise.all([mainRoomClosurePromise, backupClosurePromise, sideChannelClosurePromise]).catch(err=>{
             this.logger.log(5,`Could not correctly close all rooms. Continue anyway. Error:  ${err}`)
         });
 
@@ -1113,7 +1115,7 @@ class rMeetings extends roomServer{
     }
 
     /**
-     * Stop all rooms except the side channel
+     * Stop all rooms except the sideChannel and backup
      * @param {string} shortname Name of the meeting
      */
     async closeMainRoomsForMeeting(shortname){
@@ -1132,6 +1134,8 @@ class rMeetings extends roomServer{
         }
         return Promise.all(closePromises).catch(err=>{
             this.logger.log(5,`Could not correctly close all rooms. Continue anyway. Error:  ${err}`)
+        }).then(()=>{
+            console.log('done'); // for testing only
         });
     }
 
