@@ -248,7 +248,7 @@ class rBackup extends roomServer{
             let listenerName = `${this.name}SCready`;
             this.eH.eventSubscribe(`${this.rSideChannel.name}:ready`, ()=>{
                 this.startItUp();
-                this.eH.eventUnsubscribe(listenerName);
+                this.eH.eventUnsubscribe(`${this.rSideChannel.name}:ready`, listenerName);
             }, listenerName)
         }
 
@@ -338,29 +338,21 @@ class rBackup extends roomServer{
 
 
 
-    async resetToSecondary(){
-        // delete the data in all rooms and reset the IDs etc of all rooms. Eventually this can be done easier by deleting all mongo stuff and restarting the room, since rooms can create a default dataset automatically.
-
-        // TODO
-        // TEMPORARY ALTERNATIVE
-        // only reset the sideChannel-ID, so that it will surely get a full backup at first connection to the main server
-        // until that point, we simply keep the current data
-
-        // TODO
-
-    }
-
     /**
      * Make sure that after this function is run, all configured connections in "backup" have their status part in "status" set. If a connection is not available, try to create it; if a token/connection was deleted from the list (i.e. has no rights to get the secondary information anymore) but exists, make sure the connection is closed.
      * NOTE: This function is not only called on startup, but also on every updateBackup.
      */
     async startItUp(){
+        // when we change from pull-secondary to main OR from secondary getting pushed to to main, then end this connection properly
+                // TODO: as a secondary server: when the server is changed from secondary to main, make sure the old connection to main is stopped. --> this would happen automatically when we decide to restart all rooms when this change occurs (e.g. because we need to set whether rooms have writing rights or not) 
         await this.stopPush(); // if this WAS a secondary server receiving push messages, stop the current push connection
+
+        // get changes from another server to this server
         let p1 = this.startStopPull(); // as a secondary server: try to connect to main server when in pull mode or stop an existing pull connection when not in pull mode
 
+        // push changes on this server to others
         let p2 = this.startStopPush(); // as a main server: try to push to all registered secondary servers
         let p3 = this.revisePullTokens(); // as a main server: make sure, only allowed servers are listening
-        // TODO: as a secondary server: when the server is changed from secondary to main, make sure the old connection to main is stopped. --> this would happen automatically when we decide to restart all rooms when this change occurs (e.g. because we need to set whether rooms have writing rights or not) 
 
         await Promise.all([p1, p2, p3]);
 
@@ -383,6 +375,7 @@ class rBackup extends roomServer{
          */
     }
 
+    // stop !receiving! push messages from a main server.
     async stopPush(){
         // if this was a secondary server in push mode and is not anymore, then stop the old connection
         // how to detect that there was a push connection? This.pullConnection is still undefined, but there is a sideChannelClient (i.e. connectionToMain is defined); 
@@ -391,25 +384,33 @@ class rBackup extends roomServer{
             // make the main server leave here (on the secondary)
             this.rSideChannel.leaveNote(this.rSideChannel.connectionToMain.wsHandler.tabId);
 
-            // make the client leave on the main server
+            // make the client leave the "fake entering" on this server
             if (this.rSideChannel?.connectionToMain?.connected){
                 this.rSideChannel.connectionToMain.leave();
                 this.rSideChannel.connectionToMain = undefined;
             }
 
+            // update status
+            this.resetStatusConnectionToMain();
+
+            // unregister events 
+            // there is (probably) no need to unregister any events here, since the only registered events are the events of roomServer / roomClient (which then call sideChannel.clientLeft, which then calls rBackup.secondaryDisconnected)
+            
         }
+
     }
 
-    // call this funciton to "fake"-enter the local side channel to make sure that the main server can send the changes. (Note: the secondary server connects to the main-sideChannel in rSideChannelClient; however, the changes sent by the main server are handed over to rSideChannel and not rSideChannelClient. since the main server does not enter the secondary-rSideChannel itself, we have to "fake"-enter here with our token to make sure the changes sent are not rejected.)
-    // mainly (only?) needed by pull connections
-    /*enterSideChannel(connection, responseHandler){
-        // TODO: what infos do we have to provide through session to make it work?
-        let fakeSession = {};
+    resetStatusConnectionToMain(){
 
-        // we give it the current ID to avoid the preparation of any data to be transmitted, which would be useless in this case
-        // the token is the one defined here in rbackup (it was already checked above that the transmitted one is the same as the one here)
-        this.rSideChannel.enter(connection.tabId, connection.wsProcessor, responseHandler, {writing:true, ID:this.ID, enterOptions:{token: this.data.backup.token}}, fakeSession)
-    }*/
+        let CTM = this.data.status.connectionToMain;
+        CTM.enteredOnSecondary = false; // set in fakeResponseFunc in rSideChannel.wsRequestIncoming
+        CTM.connectedToMain = false; // set in rSideChannelClient
+        CTM.clientOnMain = false; // set in rSideChannelClient
+        CTM.successfulInitialization = false; // this.connected=true in rSideChannelClient; changed when success in rSideChannelClient is called
+
+        this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+
+    }
 
     // create the rSideChannel client when this is a secondary server. It will retry to connect until it succeeds the first time.
     setupSecondary(connection, shortname, succCB2=()=>{}, failCB2=(value, code)=>{}){
@@ -461,28 +462,37 @@ class rBackup extends roomServer{
 
     }
 
+    // end the pull connection; is callsed either when we do not push anymore or when the room is closed
+    endPull(){
+        let SC = this.pullConnection;
+            
+        // make the client leave on the main server
+        if (this.rSideChannel?.connectionToMain?.connected){
+            this.rSideChannel.connectionToMain.leave();
+            this.rSideChannel.connectionToMain = undefined;
+        }
+
+        // close the connection when no other meeting is using it
+        this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure);
+
+        // unsubscribe from the connection-events:
+        this.unsubscribeEventsForTabId(SC.connection.tabId);
+        
+        // reset it, to let the next part know to create a new connection
+        this.pullConnection = null;
+
+        // update status.connectionToMain
+        this.resetStatusConnectionToMain();
+
+    }
+
     // as a secondary server: try to connect to main server when in pull mode or stop an existing pull connection when not in pull mode anymore
     async startStopPull(){
 
         // if there is a connection that needs to be stopped now (because the server is main now or is not pulling anymore or the connection-setup has changed)
         if (this.pullConnection != null && (this.data.backup.isMain || this.data.backup.pullFromServer == null || this.pullConnection.host != this.data.backup.pullFromServer.host || this.pullConnection.port != this.data.backup.pullFromServer.port || this.pullConnection.path != this.data.backup.pullFromServer.path || this.pullConnection.secure != this.data.backup.pullFromServer.secure)){
 
-            let SC = this.pullConnection;
-            
-            // make the client leave on the main server
-            if (this.rSideChannel?.connectionToMain?.connected){
-                this.rSideChannel.connectionToMain.leave();
-                this.rSideChannel.connectionToMain = undefined;
-            }
 
-            // close the connection when no other meeting is using it
-            this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure);
-
-            // unsubscribe from the connection-events:
-            this.unsubscribeEventsForTabId(SC.connection.tabId);
-            
-            // reset it, to let the next part know to create a new connection
-            this.pullConnection = null;
         }
 
         // check whether this is a pullServer and no pullConnection exists yet
@@ -589,6 +599,34 @@ class rBackup extends roomServer{
         return ret;
     }
 
+    // end the pull connection with the given token; is callsed either when we do not push anymore or when the room is closed
+    endPush(pushToken){
+        let SC = this.pushConnections[pushToken];
+
+        // if the client was still trying to connect the room, stop it now.
+        clearTimeout(SC.roomConnectTimeout);
+
+        // let the client know that he will be left by the main server
+        let sendData = {arg: 'leaveFromMain', roomName: "sideChannel@" + SC.shortname, opt:{shortname: this.meetingShortname, token:pushToken}}; 
+        SC.connection.emitNote("room", sendData)
+
+        // The tabId is defined here on the main server when opneing the websocketServer2Server connection, but is also used by rSideChannelClient to register here on the main server.
+        // we kick the client out and do not wait for the "friendly leave"
+        this.rSideChannel.leaveNote(SC.connection.tabId);
+
+        // close the connection when no other meeting is using it
+        this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure)
+
+        // unsubscribe from the connection-events:
+        this.unsubscribeEventsForTabId(SC.connection.tabId);
+        
+        // delete the token
+        delete this.pushConnections[pushToken];
+        delete this.data.status.secondaryPushConnections[pushToken];
+        
+        this.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+    }
+
     /**
      * startStopPushServers; to be called when the backup data has changed. Automatically stops pushing to clients that are not in the list anymore and connects to clients that newly should receive changes as a push.
      */
@@ -598,29 +636,7 @@ class rBackup extends roomServer{
             if (this.data.backup.secondaryPushServers.findIndex(el=>el.token==pushToken)==-1){
                 // token was deleted by the user --> stop the connection and delete the token
 
-                let SC = this.pushConnections[pushToken];
-
-                // if the client was still trying to connect the room, stop it now.
-                clearTimeout(SC.roomConnectTimeout);
-
-                // let the client know that he will be left by the main server
-                // TODO: this does not work like that; echck that the leave function really does what it should
-                let sendData = {arg: 'leaveFromMain', roomName: "sideChannel@" + SC.shortname, opt:{shortname: this.meetingShortname, token:pushToken}}; 
-                SC.connection.emitNote("room", sendData)
-
-                // The tabId is defined here on the main server when opneing the websocketServer2Server connection, but is also used by rSideChannelClient to register here on the main server.
-                // we kick the client out and do not wait for the "friendly leave"
-                this.rSideChannel.leaveNote(SC.connection.tabId);
-
-                // close the connection when no other meeting is using it
-                this.wsManager.returnConnection(this.meetingShortname, SC.host, SC.port, SC.path, SC.secure)
-
-                // unsubscribe from the connection-events:
-                this.unsubscribeEventsForTabId(SC.connection.tabId);
-                
-                // delete the token
-                delete this.pushConnections[pushToken];
-                delete this.data.status.secondaryPushConnections[pushToken];
+                this.endPush(pushToken);
             }
         }
 
@@ -813,12 +829,13 @@ class rBackup extends roomServer{
         if ((oldData.isMain && !data.isMain) || (!oldData.isMain && data.isMain)){
             // notify all rooms (except sideChannel and this room) about the fact that this is now a main/secondary server.
             this.updateRoomMode(data.isMain);
+
+            // If the mode is changed from secondary to main OR if the mode is changed from push to pull or vice versa, stop the possible "connectionToMain" in rSideChannel and "exit"/close the current writing client. 
+            // TODO
         }
 
         // apply the changes in the side channels, e.g. open a connection to added push servers, stop removed connections, etc.
         this.startItUp();
-
-        // TODO: If the mode is changed from secondary to main OR if the mode is changed from push to pull or vice versa, stop the possible "connectionToMain" in rSideChannel and "exit"/close the current writing client. 
 
         // return broadcast
         let ret = {
@@ -1180,10 +1197,26 @@ class rBackup extends roomServer{
 
     }
 
+    // called on close, unregister all (possibly) registered events
+    async close(){
 
-    close(){
-        // TODO: close all sideChannels
-        // for push sideChannels, where we asked for the connection from the wsManager, also tell the wsManager taht we do not need the conenction anymore. If this was the only meeting using this connection, the ws conncetion will be ended 
+        // if this (secondary) server received push data, we probably do not need to unregister any events, since this is done in the roomServer/roomClient and not here
+
+        // if this secondary server got the data by pulling, it (likely) has registered the TabIDset and wsClosed events
+        if (this.pullConnection){
+            // close the pull connection
+            this.endPull();
+
+        }
+
+        // for push sideChannels, where we asked for the connection from the wsManager, also tell the wsManager that we do not need the conenction anymore. If this was the only meeting using this connection, the ws conncetion will be ended 
+        for (let pushToken in this.data.status.secondaryPushConnections){
+            this.endPush(pushToken);
+        }
+
+        // usually already unregistered:
+        this.eH.eventUnsubscribe(`${this.rSideChannel.name}:ready`, this.name+'SCready');
+
     }
 
     // create a random string of given length

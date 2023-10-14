@@ -293,6 +293,11 @@ class rSideChannel extends roomServer{
     close(){ 
         // delete the listener when we close the room
         this.eH.eventUnsubscribe(`${this.meetingShortname}:changeForSideChannel`, this.name);
+
+        if (this.connectionToMain){
+            let tabId = this.connectionToMain.wsHandler.tabId;
+            this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name)
+        }
         
     }
 
@@ -450,41 +455,6 @@ class rSideChannel extends roomServer{
                 responseFunc(`The meeting ${this.meetingShortname} already is connected to a main room.`, 22)
                 return;
             }
-
-            // try the approach with the secondary server as a client; try to get it a writing ticket and limit the number of writing tickets to one.
-
-            // we give it the current (local, secondary) ID to avoid the preparation of any data to be transmitted, which would be useless in this case
-            // the token is the one defined here in rBackup (it was already checked above that the transmitted one is the same as the one here)
-            // since we should not continue before we successfully have entered this (secondary) server with writing rights (in order not to create the sideChannel client, which then would already (eventuelly successfully connect to the main server)), we have to do this workaround with a manual promise, since this.enter "returns its answer" in the fakeResponseFunc
-            /*let continue2=true;
-            await new Promise ((resolve, reject)=>{
-
-                let fakeResponseFunc = (value, code)=>{
-                    // If everything else is correctly programmed (e.g. when the connection is lost the server leaves properly and gives back the writing ticket.), then entering should always work.
-                    this.logger.log(95, `sideChannel "fake-entered" (i.e. the main server was entered as a client, but he actually never asked for this. It is needed, because any messages from main to secondary go directly to the sideChannelSeverRoom and not to rSideChannelClient.); resulted in value ${JSON.stringify(value)} and code ${code}.` );
-    
-                    if (code==0){
-                        // on success, return true;
-                        this.logger.log(95, `Main server successfully registered as writing client on the secondary server`)
-    
-                        this.rBackup.data.status.connectionToMain.enteredOnSecondary = true;
-                        this.rBackup.serverFuncWrite('statusChanged',undefined).catch(()=>{});
-                        resolve();
-
-                    } else {
-                        this.logger.log(50, `Main server could not be registered as writing client on the secondary server. ${code}: ${JSON.stringify(value)}`)
-                        responseFunc(`rSideChannelClient could not register the main server as a writing client on the secondary server.`, 25);
-                        reject();
-                    }
-                }
-
-                this.enter(tabId, wsProcessor, fakeResponseFunc, {writing:true, failOnWritingDeclined: true, ID:this.ID, enterOptions:{token: opt?.token}}, session);
-            }).catch(err=>{
-                continue2=false;
-            })
-            if (!continue2){
-                return;
-            }*/
             
             // create a special roomClient instance and connect it to the rSideChannel on the main server
             // In the browser (regular roomClient) wsHandler is an instance of socketProcessor2. Actually, only emitNote, emitRequest, connected and ... are implemented
