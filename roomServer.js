@@ -917,7 +917,8 @@ class roomServer{
 
         // 4. define the listener for client-disconnection
         // listen to ws-disconnect events: (the listener is also used for disconnecting from the event!)
-        let listener = ()=>{
+        // NEW 2023-10: done in a separate function, also used in closeRoom
+        /*let listener = ()=>{
 
             this.logger.log(98, 'Client '+tabId+' got disconnected from room '+this.name + ' without properly leaving first.');
 
@@ -926,31 +927,9 @@ class roomServer{
             this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name + '/' + tabId);
 
             // if the client requested Infos about all the other clients, also delete it from this list
-            if (storeInfos){
+            if (this.clients[tabId].storeInfos){
                 this.clientsRequestingInfos.splice(this.clientsRequestingInfos.indexOf(tabId),1);
             }
-
-            // DISCONTINUED leave all roomViews:
-            /*this.clients[tabId].views.forEach((el, ind)=>{
-                // if (el=''){
-                //     // the client listened to the room data
-                //     let i = this.roomClients.indexOf(tabId);
-                //     if (i>=0){
-                //         this.roomClients.splice(i,1);
-                //     }
-                // }else {
-                //     this.roomViews[el].leave(tabId);
-                // }
-                this.roomViews[el].leave(tabId)
-            })*/
-
-            // DISCONTINUED leave the room itself, if the client also listened to the room
-            /*if (this.clients[tabId].listeningRoom){
-                let i = this.roomClients.indexOf(tabId);
-                if (i>=0){
-                    this.roomClients.splice(i,1);
-                }
-            }*/
 
             // leave the dataset
             if (this.clients[tabId].datasetName){
@@ -960,6 +939,7 @@ class roomServer{
 
             // if the client had writing rights: move the client from the clients list to the offlineWritingClients list and remove its processor, but do not delete the writingTicket from the list!
             let writing = this.clients[tabId].writing;
+            let sidHash = this.clients[tabId].sidHash;
             if (writing){
                 if (this.keepWritingTicket){
                     // client should now be identical to onlineWritingClients
@@ -968,7 +948,12 @@ class roomServer{
                         this.logger.log(5, `Client with sidHash ${sidHash} is not in onlineWritignCLients list! Why? This might cause the currently investigated troubles! This happened in room ${this.name}.`);
                         // 2023-07: eventually the change in returnWritingTicket has solved the problem and we never end up here anymore. 
                     }
+                    // this is the only place where offlineWritingCLients is written (and not deleted)
                     this.offlineWritingClients[sidHash] = this.onlineWritingClients[sidHash];
+                    // for debugging only: 
+                    if (this.onlineWritingClients[sidHash]==null){
+                        console.log('why? should not happen');
+                    }
                     //this.offlineWritingClients[sidHash] = client; // 2021-01: use the sid to store the offline writing client (since the tabId would change e.g. on reload (it does not change when the same tab reconnects witout reload))
                     this.storeOfflineWritingClients();
                 } else {
@@ -981,6 +966,10 @@ class roomServer{
                 this.storeOnlineWritingClients();
 
             }
+
+            // inform the room that the client has left:
+            //this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session)
+            this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session);
 
             // always delete the client from the clients list:
             delete this.clients[tabId];
@@ -995,12 +984,8 @@ class roomServer{
                 // no need to change client list
                 this.broadcastInfos(false); 
             }
-
-            // inform the room that the client has left:
-            //this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session)
-            this.clientLeft(tabId, datasetName, opt.enterOptions, session)
-        }
-        this.eH.eventSubscribe('wsClosed/'+tabId, listener, this.name + '/' + tabId);
+        }*/
+        this.eH.eventSubscribe('wsClosed/'+tabId, ()=>{this.handleClientConnectionClose(tabId)}, this.name + '/' + tabId);
 
 
         // DISCONTINUED 5. add the client to the room and ev. view (this process shouldn't fail, since we checked rights before!)
@@ -1108,6 +1093,96 @@ class roomServer{
         respFunc(data, 0);
         
     } // end enter
+
+    // used when the client ws connection is closed (as a listener) and on closeRoom
+    handleClientConnectionClose(tabId){
+        this.logger.log(98, 'Client '+tabId+' got disconnected from room '+this.name + ' without properly leaving first.');
+
+        // do not listen to the same event anymore, as the client is not connected anymore
+        // NOTE: we do not have to listen for a reconnect, since the client will make the request to the room again if needed
+        this.eH.eventUnsubscribe('wsClosed/'+tabId, this.name + '/' + tabId);
+
+        // if the client requested Infos about all the other clients, also delete it from this list
+        if (this.clients[tabId].storeInfos){
+            this.clientsRequestingInfos.splice(this.clientsRequestingInfos.indexOf(tabId),1);
+        }
+
+        // DISCONTINUED leave all roomViews:
+        /*this.clients[tabId].views.forEach((el, ind)=>{
+            // if (el=''){
+            //     // the client listened to the room data
+            //     let i = this.roomClients.indexOf(tabId);
+            //     if (i>=0){
+            //         this.roomClients.splice(i,1);
+            //     }
+            // }else {
+            //     this.roomViews[el].leave(tabId);
+            // }
+            this.roomViews[el].leave(tabId)
+        })*/
+
+        // DISCONTINUED leave the room itself, if the client also listened to the room
+        /*if (this.clients[tabId].listeningRoom){
+            let i = this.roomClients.indexOf(tabId);
+            if (i>=0){
+                this.roomClients.splice(i,1);
+            }
+        }*/
+
+        // leave the dataset
+        if (this.clients[tabId].datasetName){
+            this.datasets[this.clients[tabId].datasetName].leave(tabId);
+        }
+
+
+        // if the client had writing rights: move the client from the clients list to the offlineWritingClients list and remove its processor, but do not delete the writingTicket from the list!
+        let writing = this.clients[tabId].writing;
+        let sidHash = this.clients[tabId].sidHash;
+        if (writing){
+            if (this.keepWritingTicket){
+                // client should now be identical to onlineWritingClients
+                // for debugging only: 
+                if (this.onlineWritingClients[sidHash] == undefined){
+                    this.logger.log(5, `Client with sidHash ${sidHash} is not in onlineWritignCLients list! Why? This might cause the currently investigated troubles! This happened in room ${this.name}.`);
+                    // 2023-07: eventually the change in returnWritingTicket has solved the problem and we never end up here anymore. 
+                }
+                // this is the only place where offlineWritingCLients is written (and not deleted)
+                this.offlineWritingClients[sidHash] = this.onlineWritingClients[sidHash];
+                // for debugging only: 
+                if (this.onlineWritingClients[sidHash]==null){
+                    console.log('why? should not happen');
+                }
+                //this.offlineWritingClients[sidHash] = client; // 2021-01: use the sid to store the offline writing client (since the tabId would change e.g. on reload (it does not change when the same tab reconnects witout reload))
+                this.storeOfflineWritingClients();
+            } else {
+                // return the writing ticket
+                this.returnWritingTicketByID(this.clients[tabId].writingTicketID);
+            }
+            
+            // remove from onlineWritingClient
+            delete this.onlineWritingClients[sidHash];
+            this.storeOnlineWritingClients();
+
+        }
+
+        // inform the room that the client has left:
+        //this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session)
+        this.clientLeft(tabId, this.clients[tabId].datasetName, this.clients[tabId].enterOptions, this.clients[tabId].session);
+
+        // always delete the client from the clients list:
+        delete this.clients[tabId];
+        //delete this.tabIdHashed[tabIdHash];
+
+        // send the updated clientInfo to every listening client
+        // update the clientInformation and sent them to the clients
+        if (this.storeReadingClientInfos || writing){
+            // also change client list
+            this.broadcastInfos(true); 
+        } else {
+            // no need to change client list
+            this.broadcastInfos(false); 
+        }
+    }
 
     /**
      * Leave the room. Just remove the entry in the clients array. 
@@ -1609,8 +1684,9 @@ class roomServer{
                 if (!client){
                     console.log('why here?'); // this really heppened; but I dont know how this is possible.
                     // 2023-07: eventually the change in returnWritingTicket has solved the problem and we never end up here anymore. 
+                } else {
+                    this.infos.clients[sidHash] = {name:client.name, connected:false, writing:client.writing, sidHash:sidHash}
                 }
-                this.infos.clients[sidHash] = {name:client.name, connected:false, writing:client.writing, sidHash:sidHash}
             }
         }
 
