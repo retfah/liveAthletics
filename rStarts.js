@@ -73,9 +73,9 @@ class rStarts extends roomServer{
             xInscription: {type: "integer"},
             xEvent: {type: "integer"},
             paid: {type: "boolean"},
+            notificationPerf: {type: "integer"},
             bestPerf: {type: "integer"},
             bestPerfLast: {type: "integer"},
-            inBase: {type: "string"}, // TODO: before it was a boolean; since we might want to have multiple base-data providers, we have to store its name here or undefinedif it is not from the store
             competitive: {type: "boolean"}, // if non-competitive, an athlete will not automatically be qualified for the next round and will not get a rank in the rankinglist.
         };
         let schemaAddStart = {
@@ -255,9 +255,8 @@ class rStarts extends roomServer{
 
             // save all (if saving to DB is not necessary, sequelize will not do it and directly resolve the promise)
             await o.save().catch((err)=>{throw {code:26, message: `The changed start could not be stored: ${err}`};})
-
-            // TODO: extend with notification effort
-            if (startOld.bestPerf != o.bestPerf || startOld.bestPerfLast != o.bestPerfLast){
+            
+            if (startOld.bestPerf != o.bestPerf || startOld.bestPerfLast != o.bestPerfLast|| startOld.notificationPerf != o.notificationPerf){
                 // notify all rooms about the change (e.g. to update startgroups)
                 this.eH.raise(`inscriptions@${this.meetingShortname}:inscriptionChanged${o.xInscription}`);
             }
