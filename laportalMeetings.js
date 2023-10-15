@@ -159,6 +159,10 @@ export class laportal extends dataProvider{
 			//console.log(dom);
 			let meetings = [];
 			for (let tr of dom.HTML.BODY[0].SECTION[0].DIV[0].SECTION[0].TABLE[0].TBODY[0].TR){
+				if (tr.TD[0]._ == 'No competitions found'){
+					// following stuff would fail if there are no competitions
+					return {meetings, numPages:1}
+				}
 				let dateStr = tr.TD[0].A[0].TIME[0]._; // in the format "17. Sep 2023"
 				var dateTo, dateFrom;
 				if (dateStr.indexOf('-')==-1){
