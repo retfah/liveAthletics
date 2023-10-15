@@ -23,7 +23,6 @@ import _groups from  "./groups.js";
 import _heightincreases from  "./heightincreases.js";
 import _heights from  "./heights.js";
 import _inscriptions from  "./inscriptions.js";
-import _meetings from  "./meetings.js";
 import _modules from  "./modules.js";
 import _regions from  "./regions.js";
 import _relayathletepositions from  "./relayathletepositions.js";
@@ -66,7 +65,6 @@ export default function initModels(sequelize) {
   const heightincreases = _heightincreases.init(sequelize, DataTypes);
   const heights = _heights.init(sequelize, DataTypes);
   const inscriptions = _inscriptions.init(sequelize, DataTypes);
-  const meetings = _meetings.init(sequelize, DataTypes);
   const modules = _modules.init(sequelize, DataTypes);
   const regions = _regions.init(sequelize, DataTypes);
   const relayathletepositions = _relayathletepositions.init(sequelize, DataTypes);
@@ -234,7 +232,6 @@ export default function initModels(sequelize) {
     heightincreases,
     heights,
     inscriptions,
-    meetings,
     modules,
     regions,
     relayathletepositions,

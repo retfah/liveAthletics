@@ -1,7 +1,7 @@
 # Sequelize-auto:
 **folgender Befehl auf kommandozeile ausführen für ecmascript-module mit Klassen (nicht mehr verwenden!!!):**
 ```
-node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeeting" -e "mysql" -l esm 
+node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d a2neu -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsMeetingNeu" -e "mysql" -l esm 
 node ./node_modules/sequelize-auto/bin/sequelize-auto -h localhost -d athletica2_admin -u athletica -x athletica -p 3305 -o "C:\Users\Reto\Documents\Reto\Programmieren\liveAthletics\AppFolder\modelsAthletica2Admin2" -e "mysql" -l esm
 ```
 

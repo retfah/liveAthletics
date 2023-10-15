@@ -19,7 +19,7 @@ export default class resultstrack extends Model {
       comment: "in 1\/100'000s (hopefully futureproof)\nsufficient for all runs; takes up to 11.9h\n"
     },
     timeRounded: {
-      type: DataTypes.SMALLINT.UNSIGNED,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       comment: "rounded time, digits and rounding defined by the discipline"
     },

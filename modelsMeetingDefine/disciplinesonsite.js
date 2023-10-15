@@ -35,13 +35,6 @@ export default class disciplinesonsite extends Model {
           { name: "xBaseDiscipline" },
         ]
       },
-      {
-        name: "fk_disciplinesOnSite_baseDisciplines1",
-        using: "BTREE",
-        fields: [
-          { name: "xBaseDiscipline" },
-        ]
-      },
     ]
   });
   }

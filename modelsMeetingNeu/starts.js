@@ -31,6 +31,11 @@ export default class starts extends Model {
       allowNull: false,
       defaultValue: false
     },
+    notificationPerf: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      defaultValue: 0
+    },
     bestPerf: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -42,10 +47,6 @@ export default class starts extends Model {
       allowNull: false,
       defaultValue: 0,
       comment: "best performance in the range of interest"
-    },
-    inBase: {
-      type: DataTypes.STRING(25),
-      allowNull: true
     },
     competitive: {
       type: DataTypes.BOOLEAN,

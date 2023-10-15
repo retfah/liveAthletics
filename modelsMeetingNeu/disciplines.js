@@ -36,6 +36,11 @@ export default class disciplines extends Model {
       allowNull: false,
       defaultValue: "''",
       comment: "This should contain e.g. a JSON string with discipline specific settings, e.g. distance, wind, whatever, which is then interpreted by the type of the discipline. "
+    },
+    info: {
+      type: DataTypes.STRING(45),
+      allowNull: false,
+      defaultValue: ""
     }
   }, {
     tableName: 'disciplines',

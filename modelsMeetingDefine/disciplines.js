@@ -41,7 +41,7 @@ export default class disciplines extends Model {
       type: DataTypes.STRING(45),
       allowNull: false,
       defaultValue: ""
-    },
+    }
   }, {
     tableName: 'disciplines',
     timestamps: false,
