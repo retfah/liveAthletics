@@ -1,5 +1,6 @@
 import { dataProvider } from "./dataProvider.js";
 import https from 'https';
+//import http from 'http';
 import { pipeline } from 'stream/promises';
 import {streamToStringUTF8} from './common.js';
 import {parseStringPromise} from 'xml2js';
@@ -8,14 +9,17 @@ import {parseStringPromise} from 'xml2js';
  * get the list of competitions from the seltec server. 
  * Problem: sometimes the server responds very slow or there is even an ETIMEDOUT error. Potentially, the server might also dislike many requests at the same time. Therefore, we should (1), limit the number of requests per time, (2) try to store older data (i.e. a meeting in the past will hardly change again and does not need an update every few minutes) and (3) make sure that errors lead to a retry of this request. 
  * - read past, current, upcoming with different intervals
- * - internally use two lists: past (will hardly change over the day), and upcoming+current (might change during the day)
- * - the
+ * - internally use three separate lists: past (will hardly change over the day), and upcoming+current (might change during the day)
+ * - whenever one of the lists is updated, all three lists get merged to be delivered to the client as one list
+ * - the past list is stored to mongoDB when finished, since it takes long to regenerate (in order to be instantly ready with some data)
+ * - on startup, the list is loaded from MongoDB and replaced ("updated") as soon as grabbing past has finished.
  */
 export class laportal extends dataProvider{
 	constructor(logger, mongoDb){
 		super('laportal', logger, mongoDb);
 
-		this.data.directHyperlink = "https://slv.laportal.net/Competitions/Current";
+		this.baseUrl = "https://slv.laportal.net";
+		this.data.directHyperlink = this.baseUrl + "/Competitions/Current";
 
 		// define separate intervals
 		this.tIntervalPast = 24*3600; // in s
@@ -106,7 +110,12 @@ export class laportal extends dataProvider{
 	// only does the actual request and either returns the resultstream, or returns (! not rejects) with the error
 	async request(path){
 		return new Promise((resolve, reject)=>{
-			let request = https.get(path);
+			const options = {
+				headers:{
+					'User-Agent': 'RetoIndex',
+				}
+			}
+			let request = https.get(path, options);
 
 			request.on('error', (e)=>{
 				resolve(e);
@@ -202,7 +211,7 @@ export class laportal extends dataProvider{
 				}
 				// add the timezoneOffset to make sure the dates are correct in UTC with zero time (midnight)
 
-				let href = "https://slv.laportal.net" + tr.TD[0].A[0].$.HREF;
+				let href = this.baseUrl + tr.TD[0].A[0].$.HREF;
 
 				// meetings with/out CIS do have a slightly different structure (one div in between) 
 				let name;
@@ -242,7 +251,7 @@ export class laportal extends dataProvider{
 		}
 		this.updatingCurrent = true;
 		// lang=en is needed to process the written dates
-		return this.getMeetings('https://slv.laportal.net/Competitions/Current?lang=en').then((m)=>{
+		return this.getMeetings(this.baseUrl + '/Competitions/Current?lang=en').then((m)=>{
 			this.errorCurrent = false;
 			this.meetingsCurrent = m;
 			this.merge();
@@ -262,7 +271,7 @@ export class laportal extends dataProvider{
 		}
 		this.updatingUpcoming = true;
 		// lang=en is needed to process the written dates
-		return this.getMeetings('https://slv.laportal.net/Competitions/Upcoming?lang=en').then((m)=>{
+		return this.getMeetings(this.baseUrl + '/Competitions/Upcoming?lang=en').then((m)=>{
 			this.errorUpcoming = false;
 			this.meetingsUpcoming = m;
 			this.merge();
@@ -282,7 +291,7 @@ export class laportal extends dataProvider{
 		}
 		this.updatingPast = true;
 		// lang=en is needed to process the written dates
-		return this.getMeetings('https://slv.laportal.net/Competitions/Past?lang=en').then((m)=>{
+		return this.getMeetings(this.baseUrl + '/Competitions/Past?lang=en').then((m)=>{
 			this.errorPast = false;
 			this.meetingsPast = m;
 			this.merge();
