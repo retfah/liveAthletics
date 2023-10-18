@@ -27,6 +27,8 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
                             dataProviders: <%- JSON.stringify(dataProviders) %>,
                             dateFrom: null,
                             dateTo: null,
+                            userFrom: null,
+                            userTo: null,
                             currentFrom: null, // the "from date" for the current seting
                             currentTo: null, // the "to date" for the current seting
                             searchString: '',
@@ -43,13 +45,35 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
                         },
                         setDateAll(){
                             this.dateFrom = '2000-01-01';
-                            this.dateTo = '2100-01-01'
+                            this.dateTo = '2100-01-01';
                         },
                         link(href){
                             document.location = href;
                         },
+                        applyUserRange(){
+                            this.dateFrom = this.userFrom;
+                            this.dateTo = this.userTo;
+                            this.overlay=null
+                        },
                     },
                     computed:{
+                        selectedRangeStr: function(){
+                            const formatter = Intl.DateTimeFormat(navigator.language, {day:"2-digit", month:'short', year:'numeric'}); 
+                            if (this.dateFrom<=this.dateTo){
+                                return formatter.formatRange(new Date(this.dateFrom), new Date(this.dateTo));
+                            } else {
+                                return '<%= __("By date") %>';
+                            }
+                        },
+                        selectedView:function(){
+                            // set this vaiable to either current, all or user
+                            if (this.dateFrom == this.currentFrom && this.dateTo == this.currentTo){
+                                return 'current';
+                            } else if (this.dateFrom == '2000-01-01' && this.dateTo == '2100-01-01'){
+                                return 'all';
+                            } 
+                            return 'user';
+                        },
                         meetings: function(){
                             let ms = [];
                             for (let dp of this.dataProviders){
@@ -108,6 +132,10 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
                         d.setDate(d.getDate()+7);
                         this.dateTo = d.toISOString().slice(0,10);
                         this.currentTo = this.dateTo;
+
+                        // initial values for the user settings
+                        this.userFrom = this.currentFrom;
+                        this.userTo = this.currentTo;
                     },
                     components:{
                         'v-table':VTable,
@@ -127,16 +155,22 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
     <body onload = "startup()"">
         <div class="centerContainer">
             <div id="meetingSelection" style="min-width: min(100%, 600px);"> <!-- inside here all the vue.js stuff -->
-
                 <!-- two kinds of filters: date from/to and plaintext (searching the name, date, and place)-->
                 <!-- date filters: buttons for "current" (chosen by default) "all" and genauer -->
                 <div class="headRow">
-                    <button type="button" class="btn " v-on:click="setDateCurrent"><%= __("Current") %></button>
-                    <button type="button" class="btn " v-on:click="setDateAll"><%= __("All") %></button>
-                    <button type="button" class="btn " v-on:click="overlay='setDate'"><%= __("By date") %></button>
+                    <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
                 </div>
                 <div class="headRow">
-                    <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
+                    <button type="button" class="btn " v-bind:class="{btnSelected:selectedView=='current'}" v-on:click="setDateCurrent"><%= __("Current") %></button>
+                    <button type="button" class="btn " v-bind:class="{btnSelected:selectedView=='all'}" v-on:click="setDateAll"><%= __("All") %></button>
+                    <button type="button" class="btn " v-bind:class="{btnSelected:selectedView=='user'}" v-on:click="overlay='setDate'">
+                        <template v-if="selectedView=='user'">
+                            {{selectedRangeStr}}
+                        </template>
+                        <template v-else>
+                            <%= __("By date") %>
+                        </template>
+                    </button>
                 </div>
                 <template v-for="dp in dataProviders">
                     <div class="headRow alert" v-if="dp.showAlternate">
@@ -175,13 +209,14 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
                                 <h3><%= __("Set date from/to") %></h3>
                                 <label>
                                     <%= __("from") %>
-                                    <input type="date" v-model="dateFrom" class="formCtrl">
+                                    <input type="date" v-model="userFrom" class="formCtrl">
                                 </label>
                                 <label>
                                     <%= __("to") %>
-                                    <input type="date" v-model="dateTo" class="formCtrl">
+                                    <input type="date" v-model="userTo" class="formCtrl">
                                 </label>    
-                                <button type="button" class="btn" v-on:click="overlay=null"><%= __('Close') %></button>
+                                <button type="button" class="btn btnGreen" v-on:click="applyUserRange"><%= __('Apply') %></button>
+                                <button type="button" class="btn btnRed" v-on:click="overlay=null"><%= __('Abort') %></button>
                             </div>
                         </form>
                     </div>

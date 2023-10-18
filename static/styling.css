@@ -927,6 +927,15 @@ summary {
     margin: 2px 0px;
 }
 
+#meetingSelection div.headRow .btnSelected {
+    /*padding: 6px 12px;*/
+    border-radius: var(--border-radius, 4px) var(--border-radius, 4px) 0 0;
+    border-color: black black rgba(0,0,0,0) black;
+    background-color: rgb(200, 200, 200);
+    /*cursor: pointer;
+    font: inherit; /* also sets the line height to 24px */
+}
+
 .centerContainer {
     display: flex;
     justify-content: center;
