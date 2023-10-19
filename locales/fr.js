@@ -58,5 +58,8 @@
 	"to": "à",
 	"Close": "Fermer",
 	"Attention: {{dp.name}} data might be outdated. Please find here the latest {{dp.name}} data.": "Attention: les données '{{dp.name}}' peuvent être obsolètes. Veuillez trouver ici les données '{{dp.name}}' les plus récentes.",
-	"Could not find a matching meeting within the selected date range. Click here to search in all meetings.": "Aucune compétition n'a été trouvée dans la période sélectionnée. Cliquez ici pour chercher dans toutes les compétitions."
+	"Could not find a matching meeting within the selected date range. Click here to search in all meetings.": "Aucune compétition n'a été trouvée dans la période sélectionnée. Cliquez ici pour chercher dans toutes les compétitions.",
+	"No meetings within the selected date range. Click here to show all meetings.": "Aucune compétition dans la période sélectionnée. Cliquez ici pour montrer toutes les compétitions.",
+	"Apply": "Appliquer",
+	"Abort": "Abandonner"
 }

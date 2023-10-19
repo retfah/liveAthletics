@@ -707,5 +707,8 @@
 	"Meetings": "Meetings",
 	"Attention: {{dp.name}} data might be outdated. Please find here the latest {{dp.name}} data.": "Achtung: Die {{dp.name}}-Daten sind möglicherweise veraltet. Die aktuellsten {{dp.name}}-Daten sind hier zu finden.",
 	"Could not find a matching meeting within the selected date range. Click here to search in all meetings.": "Es konnte kein Meeting im gewählten Datumsbereich gefunden werden. Hier klicken um in allen Meetings zu suchen.",
-	"Seasonal best": "Saisonbestleistung"
+	"Seasonal best": "Saisonbestleistung",
+	"Order": "Reihenfolge",
+	"Same order for series and within series": "Gleiche Reihenfolge der Serien und innerhalb der Serien",
+	"No meetings within the selected date range. Click here to show all meetings.": "Keine Meetings im gewählten Datumsbereich. Hier klicken um alle Meetings anzuzeigen."
 }
