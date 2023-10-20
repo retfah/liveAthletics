@@ -1056,6 +1056,7 @@ export class rContestTrackClient extends roomClient{
             position: position,
             resultOverrule: 0,
             resultRemark: '',
+            resultstrack: null,
             qualification: 0, // not used yet
             startConf: lane.toString(), // here will be the startheight as JSON
             resultstrack:null,
@@ -1371,6 +1372,7 @@ export class rContestTrackClient extends roomClient{
                         position: position++,
                         resultOverrule: 0,
                         resultRemark: '',
+                        resultstrack: null,
                         qualification: 0, // not used yet
                         startConf: series.SSRs[i].lane.toString(), // lane
                     })
