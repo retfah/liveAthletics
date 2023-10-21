@@ -14,6 +14,10 @@
             <%= __("Registration value") %>
         </label>
         <label>
+            <input type="checkbox"  v-model="seriesAssignmentConfiguration.trackPerf.includeSB">
+            <%= __("Seasonal best") %>
+        </label>
+        <label>
             <input type="checkbox"  v-model="seriesAssignmentConfiguration.trackPerf.includePB">
             <%= __("Personal best") %>
         </label>
@@ -200,11 +204,14 @@
             const performances = {};
             for (let SG of this.unassignedAthletesCreate){
                 perfs = [Infinity];
-                if (this.seriesAssignmentConfiguration.trackPerf.includeRV && SG.bestPerfLast){
-                    perfs.push(SG.bestPerfLast);
+                if (this.seriesAssignmentConfiguration.trackPerf.includeRV && SG.notificationPerf){
+                    perfs.push(SG.notificationPerf);
                 }
                 if (this.seriesAssignmentConfiguration.trackPerf.includePB && SG.bestPerf){
                     perfs.push(SG.bestPerf);
+                }
+                if (this.seriesAssignmentConfiguration.trackPerf.includeSB && SG.bestPerfLast){
+                    perfs.push(SG.bestPerfLast);
                 }
                 if (this.seriesAssignmentConfiguration.trackPerf.includeRV && SG.includePerfPreviousRounds){
                     // TODO
@@ -382,6 +389,7 @@
             this.seriesAssignmentConfiguration.trackPerf = {
                 includeRV: true,
                 includePB: false,
+                includeSB: false,
                 includePerfPreviousRounds: true,
                 includePerfOtherEvents: false, // TODO: whether or not to include the results from other events on the same competition
                 distributeAthletes: 'bestFirst', // bestFirst, bestLast, IAAF

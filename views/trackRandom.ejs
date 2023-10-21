@@ -7,19 +7,19 @@
     <template v-if="conf.startInLanes">
         <fieldset>
             <legend><%= __("Position of athletes in heats with empty lanes") %>: </legend>
-            <label style="display:inline-block">
+            <label>
                 <input type="radio" name="positioningInSeries" value="left" v-model.number="seriesAssignmentConfiguration.trackRandom.positioningInSeries">
                 <%= __("Left") %>
             </label>
-            <label style="display:inline-block">
+            <label>
                 <input type="radio" name="positioningInSeries" value="centerLeft" v-model.number="seriesAssignmentConfiguration.trackRandom.positioningInSeries">
                 <%= __("Center left") %>
             </label>
-            <label style="display:inline-block">
+            <label>
                 <input type="radio" name="positioningInSeries" value="centerRight" v-model.number="seriesAssignmentConfiguration.trackRandom.positioningInSeries">
                 <%= __("Center right") %>
             </label>
-            <label style="display:inline-block">
+            <label>
                 <input type="radio" name="positioningInSeries" value="right" v-model.number="seriesAssignmentConfiguration.trackRandom.positioningInSeries">
                 <%= __("Right") %>
             </label>

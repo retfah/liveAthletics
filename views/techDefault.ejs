@@ -2,61 +2,72 @@
 <!-- the configuration window for this kind of series assignment-->
 <div v-if="seriesAssignmentOverlay=='overlayMaxSeriesSize'" class="verticalForm">
     <h3><%= __("Configuration") %></h3>
-    <%= __("Info") %>: <%= __("Assign at maximum the given number of athletes per series. If multiple series are needed, the athletes are evenly distributed.") %>
     <label>
-        <%= __("Max. number of athletes per series") %>
+        <%= __("Max. number of athletes per series") %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Info') %>:', '<%= __('Assign at maximum the given number of athletes per series. If multiple series are needed, the athletes are evenly distributed.') %>')"><%= __('i') %></button>
         <input type="number" v-model="seriesAssignmentConfiguration.techDefault.maxAthletes" size=3>
     </label>
-    <%= __("Sort by") %>: 
-    <label style="display:inline-block">
-        <input type="radio" name="sortBy" value="bestPerfLast" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
-        <%= __("Registration value") %>
-    </label>
-    <label style="display:inline-block">
-        <input type="radio" name="sortBy" value="bestPerf" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
-        <%= __("Personal best") %>
-    </label>
-    <label style="display:inline-block">
-        <input type="radio" name="sortBy" value="random" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
-        <%= __("Randomly") %>
-    </label>
+    <fieldset>
+        <legend><%= __("Sort by") %></legend>
+        <!-- style="display:inline-block" -->
+        <label>
+            <input type="radio" name="sortBy" value="notificationPerf" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+            <%= __("Registration value") %>
+        </label>
+        <label>
+            <input type="radio" name="sortBy" value="bestPerfLast" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+            <%= __("Seasonal best") %>
+        </label>
+        <label>
+            <input type="radio" name="sortBy" value="bestPerf" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+            <%= __("Personal best") %>
+        </label>
+        <label>
+            <input type="radio" name="sortBy" value="random" v-model.number="seriesAssignmentConfiguration.techDefault.sortBy">
+            <%= __("Randomly") %>
+        </label>
+    </fieldset>
     <div v-if="seriesAssignmentConfiguration.techDefault.sortBy!='random'">
-        <%= __("Sorting") %>: 
-        <label style="display:inline-block">
-            <input type="checkbox" name="commonSorting" value="true" v-model="seriesAssignmentConfiguration.techDefault.commonSorting">
-            <%= __("Same sorting strategy for series and within series") %>
-        </label><br>
-        <template v-if="seriesAssignmentConfiguration.techDefault.commonSorting">
-            <label style="display:inline-block">
-                <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-                <%= __("Best first") %>
+        <fieldset>
+            <legend><%= __("Order") %></legend>
+            <label>
+                <input type="checkbox" name="commonSorting" value="true" v-model="seriesAssignmentConfiguration.techDefault.commonSorting">
+                <%= __("Same order for series and within series") %>
             </label>
-            <label style="display:inline-block">
-                <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-                <%= __("Best last") %>
-            </label>
-        </template>
-        <template v-if="!seriesAssignmentConfiguration.techDefault.commonSorting">
-            <%= __("Sorting of the series") %>:
-            <label style="display:inline-block">
-                <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-                <%= __("Best first") %>
-            </label>
-            <label style="display:inline-block">
-                <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
-                <%= __("Best last") %>
-            </label>
-            <br>
-            <%= __("Sorting within the series") %>:
-            <label style="display:inline-block">
-                <input type="radio" name="sortingWithin" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
-                <%= __("Best first") %>
-            </label>
-            <label style="display:inline-block">
-                <input type="radio" name="sortingWithin" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
-                <%= __("Best last") %>
-            </label>
-        </template>
+            <template v-if="seriesAssignmentConfiguration.techDefault.commonSorting">
+                <label>
+                    <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                    <%= __("Best first") %>
+                </label>
+                <label>
+                    <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                    <%= __("Best last") %>
+                </label>
+            </template>
+            <template v-if="!seriesAssignmentConfiguration.techDefault.commonSorting">
+                <fieldset>
+                    <legend><%= __("Sorting of the series") %></legend>
+                    <label>
+                        <input type="radio" name="sorting" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                        <%= __("Best first") %>
+                    </label>
+                    <label>
+                        <input type="radio" name="sorting" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sorting">
+                        <%= __("Best last") %>
+                    </label>
+                </fieldset>
+                <fieldset>
+                    <legend><%= __("Sorting within the series") %></legend>
+                    <label>
+                        <input type="radio" name="sortingWithin" value=1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
+                        <%= __("Best first") %>
+                    </label>
+                    <label>
+                        <input type="radio" name="sortingWithin" value=-1 v-model.number="seriesAssignmentConfiguration.techDefault.sortingWithin">
+                        <%= __("Best last") %>
+                    </label>
+                </fieldset>
+            </template>
+        </fieldset>
     </div>
 
 </div>
@@ -94,9 +105,13 @@
                             return x.bestPerf
                         } 
                         
-                    } else {
+                    } else if(this.seriesAssignmentConfiguration.techDefault.sortBy=="bestPerfLast") {
                         if (x.bestPerfLast){
                             return x.bestPerfLast
+                        }
+                    } else {
+                        if (x.notificationPerf){
+                            return x.notificationPerf
                         }
                     }
                     return 0
@@ -129,7 +144,7 @@
             this.seriesAssignmentConfiguration.techDefault = {
                 maxAthletes: 30,
                 sorting: -1, // 1: Best first, -1: Best last
-                sortBy: "bestPerfLast", // either of: bestPerf, bestPerfLast, random
+                sortBy: "notificationPerf", // either of: bestPerf, bestPerfLast, notificationPerf, random
                 sortingWithin: -1,
                 commonSorting: true,
             }

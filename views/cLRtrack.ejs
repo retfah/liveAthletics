@@ -24,6 +24,7 @@ const cLRtrack = {
                         <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                         <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                         <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                        <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
                         <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
                         <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
                     </tr>
@@ -40,6 +41,7 @@ const cLRtrack = {
                         <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
                         <td>{{ row.clubName }}</td>
                         <!--<td>{{ row.country }}</td>-->
+                        <td>{{formatValue(row.notificationPerf)}}</td>
                         <td>{{formatValue(row.bestPerfLast)}}</td>
                         <td>{{formatValue(row.bestPerf)}}</td>
                     </tr>
@@ -47,7 +49,6 @@ const cLRtrack = {
             </template>
         </v-table>
     </div> <!-- roll call view -->
-
     <div id="heatsView2" v-if="contest.status>=90 && contest.status<140">
         <!-- show heats with PB / SB and the position/lane -->
         <template v-if="conf.startInLanes">
@@ -80,8 +81,9 @@ const cLRtrack = {
                                     <!--<th><%= __("Result") %></th>-->
                                     <!--<th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>-->
                                     <!--<th><%= __("Remarks") %></th>-->
-                                    <th><%= __("PB") %></th>
+                                    <th><%= __("Registration value") %></th>
                                     <th><%= __("SB") %></th>
+                                    <th><%= __("PB") %></th>
                                 </thead> 
                             </template>   
                             <template v-slot:body="{displayData:ssrs}">
@@ -99,8 +101,9 @@ const cLRtrack = {
                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>-->
                                             <!--<td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>-->
                                             <!--<td>{{element.resultRemark}}</td>-->
-                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                            <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
+                                            <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                         </tr>
                                         <tr v-else>
                                         </tr>
@@ -140,8 +143,9 @@ const cLRtrack = {
                                     <!--<th><%= __("Result") %></th>-->
                                     <!--<th><%= __("Participation status") %></th>-->
                                     <!--<th><%= __("Remarks") %></th>-->
-                                    <th><%= __("PB") %></th>
-                                    <th><%= __("SB") %></th>
+                                    <th is="vue:v-th" :sortkey="startsingroup.notificationPerf"><%= __('Registration value') %></th>
+                                    <th is="vue:v-th" :sortkey="startsingroup.bestPerfLast"><%= __("SB") %></th>
+                                    <th is="vue:v-th" :sortkey="startsingroup.bestPerf"><%= __("PB") %></th>
                                 </thead> 
                             </template>   
                             <template v-slot:body="{displayData:ssrs}">
@@ -161,8 +165,9 @@ const cLRtrack = {
                                                 </option>
                                             </select></td>-->
                                             <!--<td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>-->
-                                            <td>{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                            <td>{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                            <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
+                                            <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                         </tr>
                                         <tr v-else>
                                         </tr>
@@ -175,7 +180,6 @@ const cLRtrack = {
             </div>
         </template>
     </div>
-
     <div id="resultsView2" v-if="contest.status>=140">
         <!-- show results including rank; do not show position for non-started in lanes -->
         <h3><%= __("Results") %></h3>
@@ -223,7 +227,7 @@ const cLRtrack = {
                             <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                 <template v-slot:head>
                                     <thead>
-                                        <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
                                         <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
                                         <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
                                         <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
@@ -234,8 +238,8 @@ const cLRtrack = {
                                         <th><%= __("Result") %></th>
                                         <th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>
                                         <th><%= __("Remarks") %></th>
-                                        <th v-if="showPBSB"><%= __("PB") %></th>
                                         <th v-if="showPBSB"><%= __("SB") %></th>
+                                        <th v-if="showPBSB"><%= __("PB") %></th>
                                     </thead> 
                                 </template>   
                                 <template v-slot:body="{displayData:ssrs}">
@@ -253,9 +257,25 @@ const cLRtrack = {
                                                 <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                                 <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
                                                 <td v-if="showReactionTimes && disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>
-                                                <td>{{element.resultRemark}}</td>
-                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                <td>
+                                                    <template v-if="!showPBSB && element.resultstrack!==null">
+                                                        <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                                            <%= __("PB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                                            =<%= __("PB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                                            =<%= __("SB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                                            <%= __("SB") %> 
+                                                        </template>
+                                                    </template>
+                                                    {{element.resultRemark}}
+                                                </td>
+                                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                                             </tr>
                                             <tr v-else>
                                             </tr>
@@ -298,7 +318,7 @@ const cLRtrack = {
                             <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                 <template v-slot:head>
                                     <thead>
-                                        <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                        <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
                                         <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
                                         <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
                                         <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
@@ -307,8 +327,8 @@ const cLRtrack = {
                                         <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                                         <th><%= __("Result") %></th>
                                         <th><%= __("Remarks") %></th>
-                                        <th v-if="showPBSB"><%= __("PB") %></th>
                                         <th v-if="showPBSB"><%= __("SB") %></th>
+                                        <th v-if="showPBSB"><%= __("PB") %></th>
                                     </thead> 
                                 </template>   
                                 <template v-slot:body="{displayData:ssrs}">
@@ -324,9 +344,25 @@ const cLRtrack = {
                                                 <td>{{getCategory(element.startsingroup.xCategory)}}</td>
                                                 <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                                 <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
-                                                <td>{{element.resultRemark}}</td>
-                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                                <td>
+                                                    <template v-if="!showPBSB && element.resultstrack!==null">
+                                                        <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                                            <%= __("PB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                                            =<%= __("PB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                                            =<%= __("SB") %> 
+                                                        </template>
+                                                        <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                                            <%= __("SB") %> 
+                                                        </template>
+                                                    </template>
+                                                    {{element.resultRemark}}
+                                                </td>
+                                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                                             </tr>
                                             <tr v-else>
                                             </tr>
@@ -344,7 +380,7 @@ const cLRtrack = {
             <v-table :data="overall" class="heatContent">
                 <template v-slot:head>
                     <thead>
-                        <th is="vue:v-th" sortkey="sortRankOverall" defaultSort="asc"><%= __("Rank") %></th>
+                        <th is="vue:v-th" sortkey="sortRankOverall" defaultsort="asc"><%= __("Rank") %></th>
 
                         <!--<th is="vue:v-th" sortkey="series.number"><%= __("Heat") %></th>
                         <th v-if="conf.startInLanes" is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
@@ -358,8 +394,8 @@ const cLRtrack = {
                         <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                         <th><%= __("Result") %></th>
                         <th><%= __("Remarks") %></th>
-                        <th v-if="showPBSB"><%= __("PB") %></th>
                         <th v-if="showPBSB"><%= __("SB") %></th>
+                        <th v-if="showPBSB"><%= __("PB") %></th>
                     </thead> 
                 </template>   
                 <template v-slot:body="{displayData:ssrs}">
@@ -380,9 +416,25 @@ const cLRtrack = {
                                 <td>{{getCategory(element.startsingroup.xCategory)}}</td>
                                 <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                 <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
-                                <td>{{element.resultRemark}}</td>
-                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerf)}}</td>
-                                <td v-if="showPBSB">{{formatPerf(element.startsingroup.bestPerfLast)}}</td>
+                                <td>
+                                    <template v-if="!showPBSB && element.resultstrack!==null ">
+                                        <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                            <%= __("PB") %> 
+                                        </template>
+                                        <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                            =<%= __("PB") %> 
+                                        </template>
+                                        <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                            =<%= __("SB") %> 
+                                        </template>
+                                        <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                            <%= __("SB") %> 
+                                        </template>
+                                    </template>
+                                    {{element.resultRemark}}
+                                </td>
+                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                             </tr>
                             <tr v-else>
                             </tr>
@@ -391,7 +443,7 @@ const cLRtrack = {
                 </template>
             </v-table>
         </div>
-    </div> <!-- end results -->
+    </div>  <!-- end results -->
 
     <div class="overlay"  v-bind:class="{shown: overlay}">
         <div class="overlayContainer">

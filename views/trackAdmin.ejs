@@ -198,6 +198,9 @@
                                 <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
                                 <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                                 <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                                <th is="vue:v-th" sortkey="notificationPerf"><%= __('Registration value') %></th>
+                                <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
                                 
                             </tr>
                         </thead>
@@ -215,7 +218,9 @@
                                 <td>{{ row.sex }}</td>
                                 <td>{{ row.clubName }}</td>
                                 <!--<td>{{ row.country }}</td>-->
-        
+                                <td>{{formatValue(row.notificationPerf)}}</td>
+                                <td>{{formatValue(row.bestPerfLast)}}</td>
+                                <td>{{formatValue(row.bestPerf)}}</td>
                             </tr>
                         </tbody>
                     </template>
@@ -294,8 +299,9 @@
                                                         <th><%= __("Name") %></th>
                                                         <th><%= __("Firstname") %></th>
                                                         <th><%= __("Club") %></th>
-                                                        <th><%= __("PB") %></th>
+                                                        <th><%= __('Registration value') %></th>
                                                         <th><%= __("SB") %></th>
+                                                        <th><%= __("PB") %></th>
                                                     </tr>
                                                 </thead>
                                                                             
@@ -309,6 +315,7 @@
                                                             <td> </td>
                                                             <td> </td>
                                                             <td> </td>
+                                                            <td> </td>
                                                         </tr>
                                                         <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop2(series.xSeries, $event, element)" @dragstart="dragStart(series.xSeries, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
                                                             <td>{{element.lane}}</td>
@@ -316,8 +323,9 @@
                                                             <td>{{element.startsingroup.athleteName}}</td>
                                                             <td>{{element.startsingroup.athleteForename}}</td>
                                                             <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
                                                             <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                         </tr>
                                                     </template>
                                                 </tbody>
@@ -334,11 +342,12 @@
                                         <thead>
                                             <tr @dragover="dragOver(element, unassignedAthletes, $event)" @drop="drop2('unassignedAthletes', $event, element)">
                                                 <th is="vue:v-th" sortkey="present"><%= __('Present') %></th>
-                                                <th is="vue:v-th" sortkey="athleteName" defaultSort="asc"><%= __('Name') %></th>
+                                                <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
                                                 <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
                                                 <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                <th is="vue:v-th" sortkey="notificationPerf"><%= __('Registration value') %></th>
                                                 <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
                                             </tr>
                                         </thead>
                                     </template>
@@ -350,8 +359,9 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{formatValue(element.bestPerf)}}</td>
+                                                    <td>{{formatValue(element.notificationPerf)}}</td>
                                                     <td>{{formatValue(element.bestPerfLast)}}</td>
+                                                    <td>{{formatValue(element.bestPerf)}}</td>
                                                 </tr>
                                             </template>
                                         </tbody>   
@@ -391,8 +401,9 @@
                                                         <th><%= __("Name") %></th>
                                                         <th><%= __("Firstname") %></th>
                                                         <th><%= __("Club") %></th>
-                                                        <th><%= __("PB") %></th>
+                                                        <th><%= __('Registration value') %></th>
                                                         <th><%= __("SB") %></th>
+                                                        <th><%= __("PB") %></th>
                                                     </tr>
                                                 </thead>
                                                 <!-- the following draggable must be named as tbody to make it work, however, we then need to specify that it actually is a vue component by using the is="vue:draggable" label. Finally, draggable would usually result in a div, but we want it to be a tbody element, so we set tag="tbody".-->
@@ -403,8 +414,9 @@
                                                             <td>{{element.startsingroup.athleteName}}</td>
                                                             <td>{{element.startsingroup.athleteForename}}</td>
                                                             <td>{{element.startsingroup.clubName}}</td>
-                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
                                                             <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                         </tr>
                                                     </template>
                                                 </tbody>
@@ -421,11 +433,12 @@
                                         <thead>
                                             <tr>
                                                 <th is="vue:v-th" sortkey="present"><%= __('Present') %></th>
-                                                <th is="vue:v-th" sortkey="athleteName" defaultSort="asc"><%= __('Name') %></th>
+                                                <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
                                                 <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
                                                 <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                <th is="vue:v-th" sortkey="notificationPerf"><%= __('Registration value') %></th>
                                                 <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
                                             </tr>
                                         </thead>
                                     </template>
@@ -437,8 +450,9 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{formatValue(element.bestPerf)}}</td>
+                                                    <td>{{formatValue(element.notificationPerf)}}</td>
                                                     <td>{{formatValue(element.bestPerfLast)}}</td>
+                                                    <td>{{formatValue(element.bestPerf)}}</td>
                                                 </tr>
                                             </template>
                                         </tbody>   
@@ -693,6 +707,7 @@
                                     <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                                     <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                                     <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                                    <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
                                     <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
                                     <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
                                 </tr>
@@ -709,6 +724,7 @@
                                     <td>{{ categories.find(c=>c.xCategory==row.xCategory)?.shortname}}</td>
                                     <td>{{ row.clubName }}</td>
                                     <!--<td>{{ row.country }}</td>-->
+                                    <td>{{formatValue(row.notificationPerf)}}</td>
                                     <td>{{formatValue(row.bestPerfLast)}}</td>
                                     <td>{{formatValue(row.bestPerf)}}</td>
                                 </tr>
@@ -748,8 +764,9 @@
                                                 <!--<th><%= __("Result") %></th>-->
                                                 <!--<th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>-->
                                                 <!--<th><%= __("Remarks") %></th>-->
-                                                <th><%= __("PB") %></th>
+                                                <th><%= __("Registration value") %></th>
                                                 <th><%= __("SB") %></th>
+                                                <th><%= __("PB") %></th>
                                             </thead> 
                                         </template>   
                                         <template v-slot:body="{displayData:ssrs}">
@@ -767,8 +784,9 @@
                                                         <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>-->
                                                         <!--<td v-if="showReactionTimes &&disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>-->
                                                         <!--<td>{{element.resultRemark}}</td>-->
-                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
                                                         <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -808,8 +826,9 @@
                                                 <!--<th><%= __("Result") %></th>-->
                                                 <!--<th><%= __("Participation status") %></th>-->
                                                 <!--<th><%= __("Remarks") %></th>-->
-                                                <th><%= __("PB") %></th>
-                                                <th><%= __("SB") %></th>
+                                                <th is="vue:v-th" :sortkey="startsingroup.notificationPerf"><%= __('Registration value') %></th>
+                                                <th is="vue:v-th" :sortkey="startsingroup.bestPerfLast"><%= __("SB") %></th>
+                                                <th is="vue:v-th" :sortkey="startsingroup.bestPerf"><%= __("PB") %></th>
                                             </thead> 
                                         </template>   
                                         <template v-slot:body="{displayData:ssrs}">
@@ -829,8 +848,9 @@
                                                             </option>
                                                         </select></td>-->
                                                         <!--<td><input class="" type="text" v-model="element.resultRemark" v-on:change="updateSSR(element)" size="10"></td>-->
-                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
                                                         <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                        <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                     </tr>
                                                     <tr v-else>
                                                     </tr>
@@ -890,7 +910,7 @@
                                         <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                             <template v-slot:head>
                                                 <thead>
-                                                    <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                                    <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
                                                     <th is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
                                                     <th v-if="conf.groupSize>1" is="vue:v-th" sortkey="posInLane"><%= __("Position") %></th>
                                                     <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
@@ -901,8 +921,8 @@
                                                     <th><%= __("Result") %></th>
                                                     <th is="vue:v-th" sortkey="sortReactionTime" v-if="showReactionTimes && disciplineConfiguration.crouchStart"><%= __("Reaction time") %></th>
                                                     <th><%= __("Remarks") %></th>
-                                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                                     <th v-if="showPBSB"><%= __("SB") %></th>
+                                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                                 </thead> 
                                             </template>   
                                             <template v-slot:body="{displayData:ssrs}">
@@ -920,9 +940,25 @@
                                                             <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
                                                             <td v-if="showReactionTimes && disciplineConfiguration.crouchStart">{{element.reactionTimeStr}}</td>
-                                                            <td>{{element.resultRemark}}</td>
-                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>
+                                                                <template v-if="!showPBSB && element.resultstrack!==null">
+                                                                    <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                                                        <%= __("PB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                                                        =<%= __("PB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                                                        =<%= __("SB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                                                        <%= __("SB") %> 
+                                                                    </template>
+                                                                </template>
+                                                                {{element.resultRemark}}
+                                                            </td>
                                                             <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                         </tr>
                                                         <tr v-else>
                                                         </tr>
@@ -965,7 +1001,7 @@
                                         <v-table :data="series2.SSRs" class="heatContent" style="width:100%">
                                             <template v-slot:head>
                                                 <thead>
-                                                    <th is="vue:v-th" sortkey="sortRank" defaultSort="asc"><%= __("Rank") %></th>
+                                                    <th is="vue:v-th" sortkey="sortRank" defaultsort="asc"><%= __("Rank") %></th>
                                                     <th is="vue:v-th" sortkey="position"><%= __("Position") %></th>
                                                     <th v-if="showBib" is="vue:v-th" sortkey="startsingroup.bib"><%= __("Bib") %></th>
                                                     <th is="vue:v-th" sortkey="startsingroup.athleteName"><%= __("Name") %></th>
@@ -974,8 +1010,8 @@
                                                     <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                                                     <th><%= __("Result") %></th>
                                                     <th><%= __("Remarks") %></th>
-                                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                                     <th v-if="showPBSB"><%= __("SB") %></th>
+                                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                                 </thead> 
                                             </template>   
                                             <template v-slot:body="{displayData:ssrs}">
@@ -991,9 +1027,25 @@
                                                             <td>{{getCategory(element.startsingroup.xCategory)}}</td>
                                                             <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
-                                                            <td>{{element.resultRemark}}</td>
-                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                            <td>
+                                                                <template v-if="!showPBSB && element.resultstrack!==null">
+                                                                    <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                                                        <%= __("PB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                                                        =<%= __("PB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                                                        =<%= __("SB") %> 
+                                                                    </template>
+                                                                    <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                                                        <%= __("SB") %> 
+                                                                    </template>
+                                                                </template>
+                                                                {{element.resultRemark}}
+                                                            </td>
                                                             <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                         </tr>
                                                         <tr v-else>
                                                         </tr>
@@ -1011,7 +1063,7 @@
                         <v-table :data="overall" class="heatContent">
                             <template v-slot:head>
                                 <thead>
-                                    <th is="vue:v-th" sortkey="sortRankOverall" defaultSort="asc"><%= __("Rank") %></th>
+                                    <th is="vue:v-th" sortkey="sortRankOverall" defaultsort="asc"><%= __("Rank") %></th>
 
                                     <!--<th is="vue:v-th" sortkey="series.number"><%= __("Heat") %></th>
                                     <th v-if="conf.startInLanes" is="vue:v-th" sortkey="lane"><%= __("Lane") %></th>
@@ -1025,8 +1077,8 @@
                                     <th is="vue:v-th" :sortkey="getCategoryForTable"><%= __("Category") %></th>
                                     <th><%= __("Result") %></th>
                                     <th><%= __("Remarks") %></th>
-                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                     <th v-if="showPBSB"><%= __("SB") %></th>
+                                    <th v-if="showPBSB"><%= __("PB") %></th>
                                 </thead> 
                             </template>   
                             <template v-slot:body="{displayData:ssrs}">
@@ -1047,9 +1099,25 @@
                                             <td>{{getCategory(element.startsingroup.xCategory)}}</td>
                                             <td v-if="element.resultOverrule==0">{{element.resultStr}}</td>
                                             <td v-else>{{participationStatesTrack.find(el=>el.value==element.resultOverrule)?.abbreviation}}</td>
-                                            <td>{{element.resultRemark}}</td>
-                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                            <td>
+                                                <template v-if="!showPBSB && element.resultstrack!==null ">
+                                                    <template v-if="element.startsingroup.bestPerf>element.resultstrack.timeRounded">
+                                                        <%= __("PB") %> 
+                                                    </template>
+                                                    <template v-else-if="element.startsingroup.bestPerf==element.resultstrack.timeRounded">
+                                                        =<%= __("PB") %> 
+                                                    </template>
+                                                    <template v-else-if="element.startsingroup.bestPerfLast==element.resultstrack.timeRounded">
+                                                        =<%= __("SB") %> 
+                                                    </template>
+                                                    <template v-else-if="element.startsingroup.bestPerfLast>element.resultstrack.timeRounded">
+                                                        <%= __("SB") %> 
+                                                    </template>
+                                                </template>
+                                                {{element.resultRemark}}
+                                            </td>
                                             <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                            <td v-if="showPBSB">{{formatValue(element.startsingroup.bestPerf)}}</td>
                                         </tr>
                                         <tr v-else>
                                         </tr>
@@ -1069,7 +1137,7 @@
                         <button type="button" class="btn" v-on:click="addEmptySeriesInitial()"><%= __("Add single series") %></button>
                         <button type="button" class="btn" v-on:click="overlay='automaticSeriesAssignment'"><%= __("Automatic series assignment") %></button>
     
-                        <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch;">
+                        <div style="display: grid; grid-template-columns: auto auto; grid-template-areas: 'series athletes'; justify-content: stretch; column-gap: 20px;">
                             <!-- differentiate startInLanes-->
                             <template v-if="conf.startInLanes">
                                 <!-- started in lanes -->
@@ -1100,8 +1168,9 @@
                                                             <th><%= __("Name") %></th>
                                                             <th><%= __("Firstname") %></th>
                                                             <th><%= __("Club") %></th>
-                                                            <th><%= __("PB") %></th>
+                                                            <th><%= __("Registration value") %></th>
                                                             <th><%= __("SB") %></th>
+                                                            <th><%= __("PB") %></th>
                                                         </tr>
                                                     </thead>
                                                                                 
@@ -1115,6 +1184,7 @@
                                                                 <td> </td>
                                                                 <td> </td>
                                                                 <td> </td>
+                                                                <td> </td>
                                                             </tr>
                                                             <tr class="dragelementH" v-else @dragover="dragOver(element, series.SSRs, $event)" @drop="drop(series.SSRs, index, $event)" @dragstart="dragStart(series.SSRs, element, index, $event)" @dragenter="dragEnter" @dragleave="dragLeave" @dragend="dragEnd" draggable="true" :class="{alert1: element.alert==1}">
                                                                 <td>{{element.lane}}</td>
@@ -1122,8 +1192,9 @@
                                                                 <td>{{element.startsingroup.athleteName}}</td>
                                                                 <td>{{element.startsingroup.athleteForename}}</td>
                                                                 <td>{{element.startsingroup.clubName}}</td>
-                                                                <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
+                                                                <td>{{formatValue(element.startsingroup.notificationPerf)}}</td>
                                                                 <td>{{formatValue(element.startsingroup.bestPerfLast)}}</td>
+                                                                <td>{{formatValue(element.startsingroup.bestPerf)}}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -1143,8 +1214,9 @@
                                                     <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
                                                     <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
                                                     <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                    <th is="vue:v-th" sortkey="notificationPerf"><%= __('Registration value') %></th>
                                                     <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
                                                 </tr>
                                             </thead>
                                         </template>
@@ -1155,8 +1227,9 @@
                                                     <td>{{ element.athleteName }}</td>
                                                     <td>{{ element.athleteForename }}</td>
                                                     <td>{{ element.clubName }}</td>
-                                                    <td>{{ formatValue(element.bestPerf)}}</td>
+                                                    <td>{{ formatValue(element.notificationPerf)}}</td>
                                                     <td>{{ formatValue(element.bestPerfLast)}}</td>
+                                                    <td>{{ formatValue(element.bestPerf)}}</td>
                                                 </tr>
                                             </template> 
                                         </template>
@@ -1192,8 +1265,9 @@
                                                             <th><%= __("Name") %></th>
                                                             <th><%= __("Firstname") %></th>
                                                             <th><%= __("Club") %></th>
-                                                            <th><%= __("PB") %></th>
+                                                            <th><%= __("Registration value") %></th>
                                                             <th><%= __("SB") %></th>
+                                                            <th><%= __("PB") %></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody is="vue:draggable" v-model="seriesObj[index].SSRs" item-key="index" group="athleteSeriesAssignment" @change="changeOnSeries($event, series, index)"  v-bind:id="'s' + (index+1)" tag="tbody"  ghost-class="swappos" > <!-- TODO: set teh appropriate class stuff-->
@@ -1203,8 +1277,9 @@
                                                                 <td>{{element?.startsingroup?.athleteName}}</td>
                                                                 <td>{{element?.startsingroup?.athleteForename}}</td>
                                                                 <td>{{element?.startsingroup?.clubName}}</td>
-                                                                <td>{{formatValue(element?.startsingroup?.bestPerf)}}</td>
+                                                                <td>{{formatValue(element?.startsingroup?.notificationPerf)}}</td>
                                                                 <td>{{formatValue(element?.startsingroup?.bestPerfLast)}}</td>
+                                                                <td>{{formatValue(element?.startsingroup?.bestPerf)}}</td>
                                                             </tr>
                                                         </template>
                                                     </tbody>
@@ -1223,8 +1298,9 @@
                                                     <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
                                                     <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
                                                     <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
+                                                    <th is="vue:v-th" sortkey="notificationPerf"><%= __('Registration value') %></th>
                                                     <th is="vue:v-th" sortkey="bestPerfLast"><%= __('SB') %></th>
+                                                    <th is="vue:v-th" sortkey="bestPerf"><%= __('PB') %></th>
                                                 </tr>
                                             </thead>
                                         </template>
@@ -1235,8 +1311,9 @@
                                                         <td>{{ element.athleteName }}</td>
                                                         <td>{{ element.athleteForename }}</td>
                                                         <td>{{ element.clubName }}</td>
-                                                        <td>{{ formatValue(element.bestPerf)}}</td>
+                                                        <td>{{ formatValue(element.notificationPerf)}}</td>
                                                         <td>{{ formatValue(element.bestPerfLast)}}</td>
+                                                        <td>{{ formatValue(element.bestPerf)}}</td>
                                                     </tr>
                                                 </template>
                                             </draggable>

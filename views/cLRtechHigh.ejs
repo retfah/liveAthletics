@@ -21,6 +21,7 @@ const cLRtechHigh = {
             <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
             <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
             <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+            <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
             <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
             <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
         </tr>
@@ -36,6 +37,7 @@ const cLRtechHigh = {
             <td>{{ row.sex }}</td>
             <td>{{ row.clubName }}</td>
             <!--<td>{{ row.country }}</td>-->
+            <td>{{formatHeight(row.notificationPerf)}}</td>
             <td>{{formatHeight(row.bestPerfLast)}}</td>
             <td>{{formatHeight(row.bestPerf)}}</td>
         </tr>
@@ -61,6 +63,7 @@ const cLRtechHigh = {
                         <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
                         <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                         <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                        <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
                         <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
                         <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
                     </tr>
@@ -77,6 +80,7 @@ const cLRtechHigh = {
                         <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
                         <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
                         <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
+                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
                         <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
                         <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
                     </tr>
@@ -111,6 +115,7 @@ const cLRtechHigh = {
                         <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
                         <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                         <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                        <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
                         <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
                         <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
                     </tr>
@@ -127,6 +132,7 @@ const cLRtechHigh = {
                         <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
                         <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
                         <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
+                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
                         <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
                         <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
                     </tr>
@@ -416,7 +422,7 @@ const cLRtechHigh = {
             }
         },
         showAuto(){
-            // automatically show the most meaningful page when the selected status is changed
+            // automatically show the most meaningful page (and results sorting) when the selected status is changed
             if (this.contest.status<=39){
                 this.show='rollCall';
             } else if (this.contest.status<=89 && this.contest.status>=60){
@@ -427,7 +433,11 @@ const cLRtechHigh = {
                     this.show = 'startheights';
                 } else {
                     this.show = 'competition';
+                    this.sortValue2 = 2;
                 }
+            } else if (this.contest.status>180){
+                this.show = 'resShow';
+                this.sortValue2 = 2;
             }
         },
 
@@ -564,10 +574,21 @@ const cLRtechHigh = {
             this.updateHeightIncrease = -1;
         },
         addHeightIncrease(){
+            // check the values
+            let his = parseInt(this.newHeightIncreaseStart);
+            let hi = parseInt(this.newInterval);
+            if (isNaN(his) || isNaN(hi) || his<100 || hi<1){
+                this.infoContent = "<%= __('The entered values are not valid. Please note that both values must be entered in cm.') %>";
+                this.infoTitle = "<%= __('Invalid entry') %>";
+                this.infoVisible = true;
+                this.newHeightIncreaseStart = '';
+                this.newInterval = '';
+                return;
+            }
+
             this.confForMod.heightIncreases.push({
-                // TODO: check the values
-                heightIncreaseStartheight: parseInt(this.newHeightIncreaseStart),
-                heightIncrease: parseInt(this.newInterval)
+                heightIncreaseStartheight: his,
+                heightIncrease: hi
             })
             this.sortHeightIncrease();
             //this.createAllHeights();
@@ -701,7 +722,12 @@ const cLRtechHigh = {
         addEmptySeriesInitial: function(){
             // add an empty series to the seriesObj used in the inital series configuration tool
             this.seriesObj.push({
-                number:this.seriesObj.length+1, xSite: undefined, status: 10, name:'', startsingroup:[]
+                number:this.seriesObj.length+1, 
+                xSite: null, 
+                status: 10, 
+                name:'', 
+                startsingroup:[],
+                datetime: this.contest.datetimeStart,
             });
         },
         resetInitialSeriesAssignment: function(){
@@ -745,13 +771,38 @@ const cLRtechHigh = {
             return false; // avoid reload of the page
 
         },
+        deleteSeries(xSeries){
+            rCTech.room.deleteSeriesInit(xSeries);
+            this.yesNoVisible = false;
+            //this.showTimeUpdate();
+        },
+        initDeleteSeries(series){
+            this.yesNoTitle = '<%= __("Delete series") %>';
+            this.yesNoText = `<%= __("Do you want to delete series ${series.number}?") %>`;
+            this.yesNoFunction = ()=>{
+                this.deleteSeries(series.xSeries);
+            }
+            this.yesNoVisible = true;
+        },
         addSeries: function(){
             // add an empty series
-            rCTech.room.addSeriesInit();
+            let xSite = null
+            if (this.defaultSite){
+                xSite = this.defaultSite.xSite;
+            }
+            // add an empty series
+            rCTech.room.addSeriesInit(xSite, this.contest.datetimeStart);
         },
-        deleteAllSeries: function(){
-            // TODO: implement a warning dialog!
-
+        deleteAllSeriesInit(){
+            // show warning
+            this.yesNoVisible = true,
+            this.yesNoText = '<%= __("Delete all series") %>';
+            this.yesNoTitle = `<%= __("Do you really want to delete all series? This can't be undone.") %>`;
+            this.yesNoFunction = this.deleteAllSeries;
+            
+        },
+        deleteAllSeries(){
+            this.yesNoVisible=false;
             // the room functiuon will also change the local data
             rCTech.room.deleteAllSeriesInit();
         },
@@ -1161,15 +1212,33 @@ const cLRtechHigh = {
             // send the change to the server
             rCTech.room.updateSSRInit(xSeriesStartEl);
 
+            if (this.mode==0){
+                // so far not all startheights were defined, so we can easily just call:
+                this.calculateNextAthlete();
+            } else {
+                // check if the competition can start already
+                this.onSeriesChangeCalcNextAth=true;
+            }
 
-            // check if the competition can start already
-            this.onSeriesChangeCalcNextAth=true;
-            //this.calculateNextAthlete();
         },
         updateSSR(ssr){
             // send the change to the server
             rCTech.room.updateSSRInit(ssr);
 
+        },
+        startUpdateParticipation(ssr){
+            this.ssrMod = ssr;
+            this.resultOverruleMod = ssr.resultOverrule;
+            this.overlay = 'modParticipation';
+        },
+        saveUpdateParticipation(){
+            // save the changed participation state to the local object and send the change to the server
+            this.ssrMod.resultOverrule = this.resultOverruleMod;
+            this.updateSSR(this.ssrMod);
+
+            this.ssrMod = undefined;
+            this.calculateNextAthlete();
+            this.overlay = undefined;
         },
         allStartHeightsDefined(){
             if (this.series.length==0){
@@ -1189,6 +1258,7 @@ const cLRtechHigh = {
         },
         calculateTemporaryRankingData(){
             // calculate all data needed for ranking and to find out, who is next
+            // this is done independently of the current mode
 
             /*                             12:{
                 totalFailedAttempts: 0, // until and with the last valid hight
@@ -1250,8 +1320,25 @@ const cLRtechHigh = {
                     // normal and jumpoff results must be handled separately 
                     if (heightEl.jumpoffOrder==0){    
                         // normal
-                        if (heightResult.resultsHighValid || heightResult.resultsHighPassed){
+                        if (heightResult.resultsHighValid){
+                            if (lastValidHeight<heightEl.height){
+                                lastValidHeight = heightEl.height;
+                                failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
+                            }
+                            failedAttemptsSinceLastValid = 0;
+                        }else{
+                            failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
+
+                            if (failedAttemptsSinceLastValid >= 3){
+                                finished = true;
+                            }                                                 
+                        }
+                        // do NOT count failed attempts when it is after the last valid height;
+                        // this cannot be included in the if below, since it would then count XX- X with 2 failed attempts, which is wrong.
+                        if (lastValidHeight>=heightEl.height){
                             totalFailedAttempts += heightResult.resultsHighFailedAttempts;
+                        }
+                        if (heightResult.resultsHighValid || heightResult.resultsHighPassed){
                             if (lastFinishedHeight){
                                 lastFinishedHeight = Math.max(heightEl.height, lastFinishedHeight);
                             } else {
@@ -1263,18 +1350,6 @@ const cLRtechHigh = {
                             } else {
                                 firstUnfinishedHeight = Math.min(heightEl.height, firstUnfinishedHeight); // the elements may be out of order!
                             }
-                        }
-                        if (heightResult.resultsHighValid){
-                            lastValidHeight = Math.max(heightEl.height, lastValidHeight);
-                            failedAttemptsOnLastValid = heightResult.resultsHighFailedAttempts;
-                            failedAttemptsSinceLastValid = 0;
-                        }else{
-                            failedAttemptsSinceLastValid += heightResult.resultsHighFailedAttempts;
-
-                            if (failedAttemptsSinceLastValid >= 3){
-                                finished = true;
-                            }                                                 
-
                         }
                         
                     }else{
@@ -2136,7 +2211,7 @@ const cLRtechHigh = {
             }
             return resStr;
             },
-            strToResult(resStr, showAlert=false, jumpoff=false){
+        strToResult(resStr, showAlert=false, jumpoff=false){
             resStr = resStr.toUpperCase();
             failedCount = 0;
             valid = false;
@@ -2461,10 +2536,11 @@ const cLRtechHigh = {
                 return resCopy;
             }
         },
-        seriesStatusChanged(){
+        seriesStatusChanged(series, evt){
 
             // send the change to the server
-            rCTech.room.updateSeriesInit(this.series[this.selectedSeries]);
+            rCTech.room.updateSeriesInit(series, 'status', parseInt(evt.target.value));
+        
         },
         startPeriod(){
             // current time:
@@ -2640,16 +2716,16 @@ const cLRtechHigh = {
 
             // DISQ, DNS
             if (resultOverrule>1){
-                return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
             }
 
             // retired
             if (resultOverrule==1){
                 // if the athlete had a result then show the last height together with the abbreviaiton for retired
                 if (tempRankingData.lastValidHeight>0){
-                    return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                    return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                 } else {
-                    return this.participationStates.find(el=>el.value==resultOverrule)?.abbreviation;
+                    return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                 }
             }
 
@@ -2670,12 +2746,38 @@ const cLRtechHigh = {
         getLastResults(numRes=2){
             // get the specified number of results 
         },
+        saveDateUtc(series, evt){
+            series.datetime = new Date(evt.srcElement.value).toISOString();
+        },
+        formatInputDate(date){
+            // date can be of type date or a datestring
+            // create a string that javascript accepts for input.value (unfortunately there is no automatic translation between javascript date and the format that input accepts...!)
+            let s = "";
+            let d = new Date(date); // doesnt change anything is date is already a date
+            s += d.getFullYear();
+            s += "-" + (d.getMonth()+1).toString().padStart(2,0);
+            s += "-" + d.getDate().toString().padStart(2,0);
+            s += "T" + d.getHours().toString().padStart(2,0);
+            s += ":" + d.getMinutes().toString().padStart(2,0);
+            return s;
+        },
+        siteChanged(series, evt){
+            // called e.g. when the time or the site was changed
+            if (evt.target.value===null || evt.target.value=='null'){
+                rCTech.room.updateSeriesInit(series, 'xSite', null);
+            } else {
+                rCTech.room.updateSeriesInit(series, 'xSite', parseInt(evt.target.value));
+            }
+        },
+        dateChanged(series, evt){
+            rCTech.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+        },
     },
     watch:{
         mode: function(newMode,oldMode){ 
             if (newMode>0 && oldMode==0){
-                this.sortValue1 = 2;
-                this.sortValue2 = 1; // keep the default order!
+                this.sortValue1 = 1; // keep the default order!
+                this.sortValue2 = 2;
             } else if(newMode==0 && oldMode>0){
                 this.sortValue1 = 1;
                 this.sortValue2 = 1;
@@ -2794,7 +2896,33 @@ const cLRtechHigh = {
 
         
         /* !!! properties for SERIES CREATION and COMPETITION !!! */
-
+        maxDateTime: function(){
+            return `${this.meeting.dateTo.slice(0,10)}T23:59`;
+        },
+        minDateTime: function(){
+            return `${this.meeting.dateFrom.slice(0,10)}T00:00`;
+        },
+        defaultSite: function(){
+            return this.sites.find(s=>{
+                if (s.type != 1) return false
+                if (s.seriesonsite){
+                    if (s.seriesonsite.find(sos=>sos.xBaseDiscipline == this.contest.xBaseDiscipline)){
+                        return true;
+                    }
+                }
+                return false;
+            });
+        },
+        defaultSiteConf: function(){
+            if (this.defaultSite){
+                try{
+                    const conf = JSON.parse(this.defaultSite.conf);
+                    return conf;
+                }catch(ex){
+                    logger.log(10, 'The site configuration object is not a valid JSON.')
+                }
+            }
+        },
 
         // transfer some of the aux properties form the writing room, if this room is a readOnly room (position and positionNext are transferred in calculateNextAthlete)
             // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
@@ -2979,7 +3107,9 @@ const cLRtechHigh = {
                 let series = this.series[i];
                 
                 // add the other data of the series, for informational purposes only! A change to those is useless.
-                let seriesCopy = copyObject(series); // seriesstartsresults is actually already added here, but will be deleted again:
+                // do NOT use copyObject here, since it would destroy the reactivity. Use propertyTransfer instead.
+                let seriesCopy = {};
+                propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
 
                 // get the startgroup for every seriesstartsresult
                 let SSRs = [];
@@ -3024,6 +3154,11 @@ const cLRtechHigh = {
 
         /* !!! properties for SERIES CREATION only !!! */
 
+        seriesAssignments: function(){
+            // filter all series assignments to show only track (ytype==3) assignements
+            return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(1)>=0);
+        },
+
         defaultPosition: function(){
             // returns an array with the default position array; this is needed to reset the array and to know if the order currently is changed or not
             const ssrs = this.series[this.selectedSeries].seriesstartsresults;
@@ -3035,6 +3170,7 @@ const cLRtechHigh = {
             })
             return posCopy;
         },
+
         // to move around the atheletes e.g. from non-assigned to series we have to work on the startgroups. Create an array with all unassigned startgroups (unassignedAthletes) and one for every series with the same info (seriesAsStartgroups). 
 
         unassignedAthletes: function(){
@@ -3150,7 +3286,7 @@ const cLRtechHigh = {
                         }
                         const Aval = assignVal(A, this.tempRankingData[A.xSeriesStart]);
                         const Bval = assignVal(B, this.tempRankingData[B.xSeriesStart]);
-                            
+                         
                         return Aval - Bval;
                     } else if (rA==0){
                         // A must be lower than B
@@ -3248,7 +3384,7 @@ const cLRtechHigh = {
                         }
                         const Aval = assignVal(A, this.tempRankingData[A.xSeriesStart]);
                         const Bval = assignVal(B, this.tempRankingData[B.xSeriesStart]);
-                            
+                         
                         return Aval - Bval;
                     } else if (rA==0){
                         // A must be lower than B
@@ -3352,6 +3488,9 @@ const cLRtechHigh = {
         },
 
     },
+
+
+
     beforeMount(){
         // work on data before it is showed the first time
         // moved to when the data arrives
