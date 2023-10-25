@@ -470,17 +470,17 @@ class roomClient {
     }
 
     /**
-     * revoke the writingTicket of the client with the given sidhash. 
-     * @param {} sidHash 
+     * revoke the writingTicket of the client with the given tabIdHash. 
+     * @param {} tabIdHash 
      */
-    revokeWritingTicket(sidHash){
+    revokeWritingTicket(tabIdHash){
 
         let data = {
             roomName: this.name,
             arg: 'revokeWritingTicket',
             opt:{
                 writingRequested: (this.writingWanted && !(this.writingTicketID)), // if we already have a writingTicket, we do not need another one...
-                sidHash: sidHash
+                tabIdHash
             }
         }
 
@@ -498,7 +498,7 @@ class roomClient {
             });
 
         }else{
-            // just revoke the ticket of sidHash, but do not gather a ticket; nothing todo when the answer arrives
+            // just revoke the ticket of tabIdHash, but do not gather a ticket; nothing todo when the answer arrives
             this.wsHandler.emitRequest('room', data, ()=>{}, (code, msg)=>{});
         }
     }

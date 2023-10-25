@@ -102,7 +102,7 @@ class roomManager{
 
 		})
 
-		// listen to sid reported
+		// listen to tabId reported
 		eH.eventSubscribe("TabIdSet", (tabId)=>{
 			// now we are connected and can send messages
 			this.data.connected=true;
@@ -234,17 +234,17 @@ class roomManager{
 					}
 					
 				},
-				revokeWritingTicket: (sidHash, roomName)=>{ // must be an arrow function !!!
+				revokeWritingTicket: (tabIdHash, roomName)=>{ // must be an arrow function !!!
 					// revoke the writing ticket for the selected client (all the rest will be done in roomClient)
 					// first find teh room
 					let room;
 					if (room = this.rooms.find(r=>r.name == roomName)){
-						room.revokeWritingTicket(sidHash);
+						room.revokeWritingTicket(tabIdHash);
 					}	
 				},
 				revokeClientClick:(client)=>{
 					if (client.writing && !(client.connected) ){
-						this.data.revokeClient = client.sidHash; 
+						this.data.revokeClient = client.tabIdHash; 
 						this.data.revokeWindowShown = true;
 					} 
 				},
