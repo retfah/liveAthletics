@@ -398,14 +398,27 @@
 
                 },
 
-                groupChanged(start, event){
+                groupChanged(start, event, round){
                     // start is what createAssignmentData provides
 
-                    let data = {
-                        xStartgroup: start.xStartgroup, 
-                        number: parseInt(event.target.value), // note that this number is changed in the data due to the vue binding, but actually we then have an inconsistent group-object, which will be the old name together with the new group number
+                    if (start.xStartgroup == undefined){
+                        // this should actually never be needed. However, it is here to allow users to handle such a bug.
+                        // add start
+                        let data = {
+                            xRound: round.xRound, 
+                            number: parseInt(event.target.value),
+                            xStart: start.xStart,
+                        };
+                        rStartsInGroups.room.addStartsInGroupInit(data);
+                    } else {
+                        // change the existing startsInGroup (which should always be the case)
+                        let data = {
+                            xStartgroup: start.xStartgroup, 
+                            number: parseInt(event.target.value), // note that this number is changed in the data due to the vue binding, but actually we then have an inconsistent group-object, which will be the old name together with the new group number
+                        }
+                        rStartsInGroups.room.updateStartsInGroupInit(data);
                     }
-                    rStartsInGroups.room.updateStartsInGroupInit(data);
+
                     // reset the value back, so that it is clear to the user that the change is not yet processed on the server!
                     event.target.value = start.group.number;
                 },
@@ -938,7 +951,7 @@
                 <input type="checkbox" v-model="showFullDetails">
                 Show full details (for debugging)
             </label> 
-            <div v-if="assignmentForRound==1 ">
+            <div v-if="assignmentForRound==1 && r.order==1">
                 <h3><%= __('Group assignment') %></h3>
                 <v-table :data="startsPQ" ><!--:filters="filters"-->
                     <template #head>
@@ -975,14 +988,15 @@
                                 <td>{{formatPerf(row?.bestPerfLast, discipline.xBaseDiscipline)}}</td>
                                 <td v-if="workRound.numGroups==1">{{row?.group?.number}}</td>
                                 <td v-if="workRound.numGroups>1">
-                                    <select class="select" v-on:change="groupChanged(row, $event)"> <!-- do not use v-model="row.group.number" here to not change the data until it is changed on the server -->
+                                    <select class="select" v-on:change="groupChanged(row, $event, r)"> <!-- do not use v-model="row.group.number" here to not change the data until it is changed on the server -->
+                                        <option value="null" selected v-if="row.xStartgroup === undefined"></option>
                                         <template v-for="(g, gIndex) in workRound.groups">
-                                            <option :value="g.number" selected v-if="row.group.number==g.number">
+                                            <option :value="g.number" v-bind:selected="row.group.number===g.number ? true : null">
                                                 {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template>
                                             </option>
-                                            <option :value="g.number" v-else> <!-- without selected -->
+                                            <!--<option :value="g.number" v-else>
                                                 {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template>
-                                            </option>
+                                            </option>-->
                                         </template>
                                     </select>
                                 </td>
