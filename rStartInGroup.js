@@ -33,7 +33,7 @@
  * ATTENTION: before deleting all startsInGroup for an event, make sure that ALL startsInGroup can be deleted, i.e. they are not referenced in seriesStartsResults, otherwise it might happen that some startsInGroup get deleted, before another athlete arrived which is already in a series, preventing further deletions. We then would have some starts without startsInGroup, despite the fact the eventGroup and round exists. This shall not happen.
  */
 
- import Sequelize  from 'sequelize';
+ import Sequelize, { QueryTypes }  from 'sequelize';
  const Op = Sequelize.Op;
 import { copyObject } from './common.js';
 
@@ -323,7 +323,8 @@ class rStartsInGroup extends roomServer{
     }
 
     /**
-     * A group is deleted. All participants in this group are reset to group 1 (this functin is onyl used for number>=2; the validation ensures this)
+     * A group is deleted. All participants in this group are reset to group 1 (this functin is only used for number>=2; the validation ensures this).
+     * ATTENTION: this function does NOT check if there are aread series/seriesstartsresults for this group! This is must be checked by the caller!
      * @param {object} data "number" of the group, xRound
      */
     async deleteGroup(data){
@@ -805,6 +806,13 @@ class rStartsInGroup extends roomServer{
             throw {message: this.ajv.errorsText(this.validateDeleteMultiStartsInGroup.errors), code:21};
         }
 
+        // check that none of the xStartgroup is already in a series:
+        // untested, since the function is currently not used: 
+        let cnt = await this.models.seriesstartsresults.count({where:{xStartgroup: {[Op.In]:deletedStartsInGroup}}});
+        if (cnt>0){
+            throw {code: 22, message:`Cannot delete the startsInGroup since ${cnt} starts are already assigned to a series.`};
+        }
+
         // delete in DB all at the same time (!) --> either all deletions fail or none
         await this.models.startsingroup.destroy({where:{xStartgroup: {[Op.In]:deletedStartsInGroup}}}).catch(()=>{
             // should we really throw er error here? Or should we simply continue? --> We should not throw an error, but note what xStartgroups failed. We must ensure that the data is still consistent among different clients 
@@ -1071,7 +1079,7 @@ class rStartsInGroup extends roomServer{
 
             // delete the entry in the startsInGroups table
             await this.models.startsingroup.destroy({where:{xStartgroup: data}}).catch(()=>{
-                throw {message: "StartsInGroup could not be deleted!", code:21}
+                throw {message: "StartsInGroup could not be deleted, pontentially since it is already assigned to a series!", code:21}
             });
 
             // NOTE: also arrives here when the event actually did not exist (anymore!); However, should always exist!
@@ -1128,6 +1136,15 @@ class rStartsInGroup extends roomServer{
             if (i<0){
                 throw {code:24, message:"The startsInGroup does not exist anymore on the server (should actually never happen)."};
             }
+
+            // prevent a change of the startsInGroup when there is a seriesStartsResult entry.
+            let res = await this.seq.query(`select count(*) as c from seriesstartsresults where xStartgroup=${o.xStartgroup}`, QueryTypes.SELECT);
+            if (res[0][0].c > 0){
+                throw {code:25, message:"The group cannot be changed, since the person is already assigned to a series. "};
+            }
+            
+            // TODO: check all other functions whether sometinhg similar is needed.
+
 
             // cannot just assign dataValues to startsInGroup old, since "update" does not create a new object, but modifies the old one!
             let startsInGroupOld = copyObject(o.dataValues);
