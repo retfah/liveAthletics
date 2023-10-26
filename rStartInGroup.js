@@ -968,7 +968,7 @@ class rStartsInGroup extends roomServer{
             }
 
             // try to delete the startResult; it will fail when there is an entry in seriesStartResult (this is probably faster than testign that manually on the data in the respective room)
-            startEntries[0].destroy().catch(()=>{
+            await startEntries[0].destroy().catch(()=>{
                 throw {message: "StartsInGroup could not be deleted!", code:26}
             });
 
