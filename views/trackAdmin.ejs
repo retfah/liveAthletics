@@ -519,16 +519,16 @@
                                         <div style="flex-grow:1"></div>
                                         <div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                         <div style="flex-grow:1"></div>
-                                        <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                        <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                             <%= __('Wind') %> (m/s): 
-                                            <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                            <input v-if="series2.auxParsed?.wind" class="" type="text" v-model="series2.auxParsed.wind" v-on:change="windChanged(series2, $event)" size="5"></input>
+                                            <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                            <input v-if="series2.aux?.wind" class="" type="text" v-model="series2.aux.wind" v-on:change="windChanged(series2, $event)" size="5"></input>
                                             <input v-else class="" type="text" v-on:change="windChanged(series2, $event)" size="5"></input>
                                         </div>
-                                        <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                        <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                        <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                        <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                         <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                        <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                        <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                         <div style="flex-grow:1"></div>    
                                         <div>
                                             <!--<%= __("Series Status") %>-->
@@ -612,16 +612,16 @@
                                         <div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                         <div style="flex-grow:1"></div>
                                         <!-- typically, not started in lanes contests do not have a wind measurement; but we keep it anyway -->
-                                        <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                        <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                             <%= __('Wind') %> (m/s): 
-                                            <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                            <input v-if="series2.auxParsed?.wind" class="" type="text" v-model="series2.auxParsed.wind" v-on:change="windChanged(series2, $event)" size="5"></input>
+                                            <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                            <input v-if="series2.aux?.wind" class="" type="text" v-model="series2.aux.wind" v-on:change="windChanged(series2, $event)" size="5"></input>
                                             <input v-else class="" type="text" v-on:change="windChanged(series2, $event)" size="5"></input>
                                         </div>
-                                        <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                        <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                        <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                        <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                         <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                        <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                        <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                         <div style="flex-grow:1"></div>
                                         <div>
                                             <!--<%= __("Series Status") %>-->
@@ -888,16 +888,16 @@
                                             <div style="flex-grow:1"></div>
                                             <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                             <div style="flex-grow:1"></div>-->
-                                            <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                            <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                                 <%= __('Wind') %>: 
-                                                <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                                <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                                <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                                <div style="display: inline;" v-if="series2.aux?.wind" >{{series2.aux.wind}} m/s</div>
                                                 <div style="display: inline;" v-else ></div>
                                             </div>
-                                            <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                            <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                            <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                            <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                             <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                            <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                            <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                             <div style="flex-grow:1"></div>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 
@@ -980,16 +980,16 @@
                                             <div style="flex-grow:1"></div>
                                             <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                             <div style="flex-grow:1"></div>-->
-                                            <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                            <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                                 <%= __('Wind') %>: 
-                                                <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                                <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                                <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                                <div style="display: inline;" v-if="series2.aux?.wind" >{{series2.aux.wind}} m/s</div>
                                                 <div style="display: inline;" v-else ></div>
                                             </div>
-                                            <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                            <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                            <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                            <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                             <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                            <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                            <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                             <div style="flex-grow:1"></div>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 
@@ -1337,15 +1337,15 @@
                         <!-- title -->
                         <h2><%= __("SeriesSingular") %> {{heatInfo.number}} {{formatTime(heatInfo.datetime, false)}}</h2>
                         <!-- show first the general information as in the main window: wind, current time or runTime -->
-                        <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.auxParsed?.wind || disciplineConfiguration.wind) ">
-                            <%= __('Wind') %>: {{heatInfo.auxParsed?.wind}}
+                        <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.aux?.wind || disciplineConfiguration.wind) ">
+                            <%= __('Wind') %>: {{heatInfo.aux?.wind}}
                         </div>
-                        <div v-if="heatInfo.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.auxParsed.finishTime, false, false)}}</div>
+                        <div v-if="heatInfo.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.aux.finishtime, false, false)}}</div>
                         <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
                         
                         <!-- show all (false-)starts with reaction times -->
-                        <h4 v-if="heatInfo.auxParsed?.starts && heatInfo.auxParsed?.starts.length>0"><%= __("Start attempts") %></h4>
-                        <div v-for="(start, iStart) in heatInfo.auxParsed.starts" style="display:flex">
+                        <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
+                        <div v-for="(start, iStart) in heatInfo.aux.starts" style="display:flex">
                             <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
                             <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
                             <div v-if="start.reactionTimes">

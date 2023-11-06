@@ -485,7 +485,7 @@ export class rSiteTrack extends rSite{
             datetime: series.datetime,
             id: series.id,
             xContest: series.xContest,
-            aux: JSON.parse(series.aux), // in rContest this is a JSON-string, here it shall be a regular object
+            aux: series.aux, // since 2023-10 no parsing is needed anymore, since it is an object in rOCntest as well
         }
     }
 

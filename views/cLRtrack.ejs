@@ -205,16 +205,16 @@ const cLRtrack = {
                                 <div style="flex-grow:1"></div>
                                 <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                 <div style="flex-grow:1"></div>-->
-                                <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                     <%= __('Wind') %>: 
-                                    <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                    <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                    <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                    <div style="display: inline;" v-if="series2.aux?.wind" >{{series2.aux.wind}} m/s</div>
                                     <div style="display: inline;" v-else ></div>
                                 </div>
-                                <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                 <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                 <div style="flex-grow:1"></div>
                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                     
@@ -297,16 +297,16 @@ const cLRtrack = {
                                 <div style="flex-grow:1"></div>
                                 <!--<div style="padding-top:7px">{{getSiteName(series2.xSite)}}</div>
                                 <div style="flex-grow:1"></div>-->
-                                <div style="padding-top:7px" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) ">
+                                <div style="padding-top:7px" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) ">
                                     <%= __('Wind') %>: 
-                                    <!-- since the auxParsed object might be null or auxParsed.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
-                                    <div style="display: inline;" v-if="series2.auxParsed?.wind" >{{series2.auxParsed.wind}} m/s</div>
+                                    <!-- since the aux object might be null or aux.wind is undefined, we need to differentiate with and without (no v-model) previous data -->
+                                    <div style="display: inline;" v-if="series2.aux?.wind" >{{series2.aux.wind}} m/s</div>
                                     <div style="display: inline;" v-else ></div>
                                 </div>
-                                <div style="flex-grow:1" v-if="(showWindAlways || series2.auxParsed?.wind || disciplineConfiguration.wind) "></div>
-                                <div v-if="series2.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.auxParsed.finishTime, false, false)}}</div>
+                                <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
+                                <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
                                 <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                <button v-if="series2.auxParsed !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
+                                <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                 <div style="flex-grow:1"></div>
                                 <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                     
@@ -453,15 +453,15 @@ const cLRtrack = {
                 <!-- title -->
                 <h2><%= __("SeriesSingular") %> {{heatInfo.number}} {{formatTime(heatInfo.datetime, false)}}</h2>
                 <!-- show first the general information as in the main window: wind, current time or runTime -->
-                <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.auxParsed?.wind || disciplineConfiguration.wind) ">
-                    <%= __('Wind') %>: {{heatInfo.auxParsed?.wind}}
+                <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.aux?.wind || disciplineConfiguration.wind) ">
+                    <%= __('Wind') %>: {{heatInfo.aux?.wind}}
                 </div>
-                <div v-if="heatInfo.auxParsed?.finishTime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.auxParsed.finishTime, false, false)}}</div>
+                <div v-if="heatInfo.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.aux.finishtime, false, false)}}</div>
                 <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
                 
                 <!-- show all (false-)starts with reaction times -->
-                <h4 v-if="heatInfo.auxParsed?.starts && heatInfo.auxParsed?.starts.length>0"><%= __("Start attempts") %></h4>
-                <div v-for="(start, iStart) in heatInfo.auxParsed.starts" style="display:flex">
+                <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
+                <div v-for="(start, iStart) in heatInfo.aux.starts" style="display:flex">
                     <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
                     <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
                     <div v-if="start.reactionTimes">
@@ -1130,7 +1130,7 @@ const cLRtrack = {
             /*if (wind>0){
                 aux.starttime = new Date();
             } else {
-                aux.finishTime = 28754300;
+                aux.finishtime = 28754300;
             }*/
             rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
         },
@@ -2013,15 +2013,10 @@ const cLRtrack = {
                 let seriesCopy = {};
                 propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
 
-                // add the parsed aux data (e.g. with wind, starttime, inofficial finish time, )
-                seriesCopy.auxParsed = null;
-                if (this.series[i].aux){
-                    seriesCopy.auxParsed = JSON.parse(this.series[i].aux);
-                }
                 seriesCopy.liveTime = null; // not currently running OR no starttime available
                 // eventually handle here any live running time as well!
-                if (seriesCopy.auxParsed?.starttime){
-                    if (seriesCopy.auxParsed.finishTime){
+                if (seriesCopy.aux?.starttime){
+                    if (seriesCopy.aux.finishtime){
                         // stop the automatic updateTimeout if it is still running
                         if (seriesCopy.xSeries in this.timers){
                             clearInterval(this.timers[seriesCopy.xSeries]);
@@ -2035,7 +2030,7 @@ const cLRtrack = {
                         // start the automatic updateTimeout if it is not yet running
                         this.timers[seriesCopy.xSeries] = setInterval(()=>{
                             // calculate the time and use the offset as we do in rContestTechHigh
-                            let timeValue = (new Date() - new Date(seriesCopy.auxParsed.starttime) + this.timeOffset)*100 // in 1/100000s
+                            let timeValue = (new Date() - new Date(seriesCopy.aux.starttime) + this.timeOffset)*100 // in 1/100000s
                             // we cannot add the liveTime to the computed property we generate here, since it would not be updated. (computed properties are only updated when the data they are based on is changed; which makes sense.)
                             this.liveTimes[seriesCopy.xSeries] = this.formatValue(timeValue, false, false)
                         }, 80); // do not use 100, since it would look strange if the shown 1/100s would never change. Test what is a number that looks good but works.

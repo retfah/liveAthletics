@@ -56,7 +56,16 @@ export default class series extends Model {
     aux: {
       type: DataTypes.TEXT,
       allowNull: true,
-      comment: "discipline or discipline type specific auxilary data (might eventually replace seriesTrack)"
+      comment: "discipline or discipline type specific auxilary data (might eventually replace seriesTrack)",
+      get(){
+        const rawValue = this.getDataValue('aux');
+        return rawValue ? JSON.parse(rawValue) : null;
+      },
+      set(value){
+        if (value!=null){
+          this.setDataValue('aux', JSON.stringify(value))
+        }
+      }
     }
   }, {
     tableName: 'series',

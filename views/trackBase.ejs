@@ -746,7 +746,7 @@
                     /*if (wind>0){
                         aux.starttime = new Date();
                     } else {
-                        aux.finishTime = 28754300;
+                        aux.finishtime = 28754300;
                     }*/
                     rCTrack.room.updateSeriesInit(series, 'aux', JSON.stringify(aux));
                 },
@@ -1634,15 +1634,10 @@
                         let seriesCopy = {};
                         propertyTransfer(this.series[i], seriesCopy); // seriesstartsresults is actually already added here, but will be deleted again:
 
-                        // add the parsed aux data (e.g. with wind, starttime, inofficial finish time, )
-                        seriesCopy.auxParsed = null;
-                        if (this.series[i].aux){
-                            seriesCopy.auxParsed = JSON.parse(this.series[i].aux);
-                        }
                         seriesCopy.liveTime = null; // not currently running OR no starttime available
                         // eventually handle here any live running time as well!
-                        if (seriesCopy.auxParsed?.starttime){
-                            if (seriesCopy.auxParsed.finishTime){
+                        if (seriesCopy.aux?.starttime){
+                            if (seriesCopy.aux.finishtime){
                                 // stop the automatic updateTimeout if it is still running
                                 if (seriesCopy.xSeries in this.timers){
                                     clearInterval(this.timers[seriesCopy.xSeries]);
@@ -1656,7 +1651,7 @@
                                 // start the automatic updateTimeout if it is not yet running
                                 this.timers[seriesCopy.xSeries] = setInterval(()=>{
                                     // calculate the time and use the offset as we do in rContestTechHigh
-                                    let timeValue = (new Date() - new Date(seriesCopy.auxParsed.starttime) + this.timeOffset)*100 // in 1/100000s
+                                    let timeValue = (new Date() - new Date(seriesCopy.aux.starttime) + this.timeOffset)*100 // in 1/100000s
                                     // we cannot add the liveTime to the computed property we generate here, since it would not be updated. (computed properties are only updated when the data they are based on is changed; which makes sense.)
                                     this.liveTimes[seriesCopy.xSeries] = this.formatValue(timeValue, false, false)
                                 }, 80); // do not use 100, since it would look strange if the shown 1/100s would never change. Test what is a number that looks good but works.

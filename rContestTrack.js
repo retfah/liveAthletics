@@ -392,7 +392,7 @@ class rContestTrack extends roomServer{
 
         // define, compile and store the schemas:
         // TODO: remove, since it is probably not needed for track. We store this information in MariaDB now!
-        const schemaAuxDataPerSeries = {
+        /*const schemaAuxDataPerSeries = {
             type:"object",
             properties:{
                 positionNext:{
@@ -419,6 +419,57 @@ class rContestTrack extends roomServer{
         const schemaAuxData ={
             type:"object",
             additionalProperties: schemaAuxDataPerSeries
+        }*/
+
+        // the aux data is actually sent and stored as JSON/text with the series in the SQL DB; however, to check it, we define the structure here.
+        const schemaAuxSql = {
+            type: ["object", "null"],
+            properties:{
+                wind: {type: ['number', 'null']}, // does not exist, when the wind is not (yet) defined
+                starttime: {type: ['string', 'null'], format: 'date-time'}, // the latest starttime, i..e the one, which was finally run; ISO8601, UTC
+                finishtime: {type: ['integer', 'null']}, // the duration in the usual unit of 1/100000
+                isFalseStart: {type:'boolean'}, // the latest start was a false start or not; the same data will be stored in the starts-array
+                starts: {
+                    type:'array',
+                    items:{
+                        type:'object',
+                        properties:{
+                            starttime: {type: ['string', 'null'], format: 'date-time'}, // should be the same as the
+                            isFalseStart: {type:"boolean"},
+                            reactionTimes: {
+                                type:'array',
+                                items:{
+                                    type:'object',
+                                    properties:{
+                                        lane: {type:'integer'},
+                                        reactionTime: {type: 'integer'},
+                                        //card: {type:'integer'}, // define who got disqualified; eventually as string and/or add another property with the rule leading to the disqualification
+                                    },
+                                    required:['lane', 'reactionTime'], // in ms
+                                    additionalProperties: false,
+                                }
+                            },
+                            
+                        },
+                        required: ['starttime', 'isFalseStart'],
+                        additionalProperties: false,
+                    }
+                },
+                splittimes: {
+                    type:'array',
+                    items:{
+                        type:'object',
+                        properties:{
+                            splittime: {type: 'integer'},
+                            distance: {type: 'integer'}, 
+                        },
+                        required:['splittime'],
+                        additionalProperties: false,
+                    }
+                }
+            },
+            required: [], // none required
+            additionalProperties:false,
         }
 
         const schemaUpdateContest2 = {
@@ -518,62 +569,11 @@ class rContestTrack extends roomServer{
                     type:"array",
                     items: schemaSeriesStartsResults,// reference to the seriesStartsResults,
                 },
-                aux: {type:["string", "null"], default:null}, // JSON string; see schemaAuxSql
+                aux: schemaAuxSql,
             },
             required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults", "aux"],
             additionalProperties: false,
             // neither required nor additional propertzies are defined herein
-        }
-
-        // the aux data is actually sent and stored as JSON/text with the series in the SQL DB; however, to check it, we define the structure here.
-        const schemaAuxSql = {
-            type: "object",
-            properties:{
-                wind: {type: 'number'}, // does not exist, when the wind is not (yet) defined
-                starttime: {type: 'string', format: 'date-time'}, // the latest starttime, i..e the one, which was finally run; ISO8601, UTC
-                finishtime: {type: 'integer'}, // the duration in the usual unit of 1/100000
-                isFalseStart: {type:'boolean'}, // the latest start was a false start or not; the same data will be stored in the starts-array
-                starts: {
-                    type:'array',
-                    items:{
-                        type:'object',
-                        properties:{
-                            starttime: {type: 'string', format: 'date-time'}, // should be the same as the
-                            isFalseStart: {type:"boolean"},
-                            reactionTimes: {
-                                type:'array',
-                                items:{
-                                    type:'object',
-                                    properties:{
-                                        lane: {type:'integer'},
-                                        reactionTime: {type: 'integer'},
-                                        //card: {type:'integer'}, // define who got disqualified; eventually as string and/or add another property with the rule leading to the disqualification
-                                    },
-                                    required:['lane', 'reactionTime'], // in ms
-                                    additionalProperties: false,
-                                }
-                            },
-                            
-                        },
-                        required: ['starttime', 'isFalseStart'],
-                        additionalProperties: false,
-                    }
-                },
-                splittimes: {
-                    type:'array',
-                    items:{
-                        type:'object',
-                        properties:{
-                            splittime: {type: 'integer'},
-                            distance: {type: 'integer'}, 
-                        },
-                        required:['splittime'],
-                        additionalProperties: false,
-                    }
-                }
-            },
-            required: [], // none required
-            additionalProperties:false,
         }
 
         const schemaUpdateSeries = {
@@ -588,7 +588,7 @@ class rContestTrack extends roomServer{
                 name: {type:"string", maxLength:50},
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
-                aux: {type: ["string", "null"]},
+                aux: schemaAuxSql,
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
@@ -616,7 +616,7 @@ class rContestTrack extends roomServer{
                         additionalProperties: false, 
                     }
                 },
-                aux: {type:["string", "null"]},
+                aux: schemaAuxSql,
             },
             required: ["xSeries"],
             additionalProperties: false, // very important: since we simply copy al data, we must amke sure that the restricted data are not chnaged.
@@ -661,7 +661,7 @@ class rContestTrack extends roomServer{
                 seriestrack: schemaSeriestrack,
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid", default:null}, // intended to be UUID, but might be anything else as well
-                aux: {type:["string", "null"], default:null},
+                aux: schemaAuxSql,
             },
             required: ["xContest", "status", "number"],
             additionalProperties: false,
@@ -787,7 +787,7 @@ class rContestTrack extends roomServer{
         this.validateUpdateResult = this.ajv.compile(schemaUpdateResult);
         this.validateDeleteResult = this.ajv.compile(schemaDeleteResult);
         this.validateUpdateSeries = this.ajv.compile(schemaUpdateSeries);
-        this.validateAuxData = this.ajv.compile(schemaAuxData);
+        //this.validateAuxData = this.ajv.compile(schemaAuxData);
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
         this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
@@ -1300,11 +1300,11 @@ class rContestTrack extends roomServer{
             throw {code:21, message: this.ajv.errorsText(this.validateAddUpdateResults.errors)}
         }
         // additionally check the aux data, if not null
-        if (data.aux && data.aux!==null && data.aux!==''){
+        /*if (data.aux && data.aux!==null && data.aux!==''){
             if (!this.validateAuxSql(JSON.parse(data.aux))){
                 throw {code:38, message: this.ajv.errorsText(this.validateAuxSql.errors)}
             }
-        }
+        }*/ // is now (2023-10) included in ajv, since it can be transmitted as object
 
         // find the series
         let series = this.data.series.find(s => s.xSeries == data.xSeries);
