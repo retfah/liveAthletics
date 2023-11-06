@@ -228,6 +228,9 @@ class roomClient {
                     if (!(this.dataPresent)){
                         this.dataPresent = true;
                         
+                        // raise dataArrived-event in the room
+                        this.dataArrived();
+
                         // raise dataArrived-events on all vues
                         this.vues.forEach(el=>el.dataArrived()) 
                     } else {
@@ -1057,6 +1060,14 @@ class roomClient {
         if (this.leaveWhenNoVue){
             this.leave();
         }
+    }
+
+    /**
+     * Event called when the full data set has arrived
+     * Note: the same event is called in every registered vue
+     */
+    dataArrived(){
+
     }
 
     /**
