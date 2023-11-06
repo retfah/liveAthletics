@@ -48,15 +48,15 @@ class ALGElogger {
         // ALGE Versatile Exchange connection options (see Net.socket.connect)
         let optVersatileExchange = {
             port: 4445,
-            host: '192.168.1.104',
+            host: '192.168.3.101',
             keepAlive: true,
             keepAliveInitialDelay: 2000,
         }
 
         // create tcpToFile class for every output
-        //const oDisplayGaz = new tcpToFile(optDisplayGaz, 'displayGaz__', [fileAll, fileDisplayGaz]); // the underlines are intended to make the string as long as Dline for easier comparison
-        //const oDisplayDline = new tcpToFile(optDisplayDline, 'displayDline', [fileAll, fileDisplayDline]);
-        //const oAlgeOutput = new tcpToFile(optAlgeOutput, 'algeOutput', [fileAll, fileAlgeOutput]);
+        const oDisplayGaz = new tcpToFile(optDisplayGaz, 'displayGaz__', [fileAll, fileDisplayGaz]); // the underlines are intended to make the string as long as Dline for easier comparison
+        const oDisplayDline = new tcpToFile(optDisplayDline, 'displayDline', [fileAll, fileDisplayDline]);
+        const oAlgeOutput = new tcpToFile(optAlgeOutput, 'algeOutput', [fileAll, fileAlgeOutput]);
         const oVersatileExchange = new tcpToFile(optVersatileExchange, 'versatileExchange', [fileAll, fileVersatileExchange]);
 
     }
