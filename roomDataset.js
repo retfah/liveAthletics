@@ -2,11 +2,6 @@
 
 import roomServer from "./roomServer.js";
 
-// only needed in developMode actually:
-import _ from 'lodash';
-
-
-
 /**
  * - This class basically provides all methods needed for a data-(sub)-set representation:
  *   - right checking: does a client have the right to get the dataset?
