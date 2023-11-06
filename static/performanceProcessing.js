@@ -56,9 +56,9 @@ export const disciplineFormatters = {
                 // never show the unit here, since it is clear from the format with ":". But differentiate whether there are hours or not
                 if (valObj.hours){
                     if (showMillis){
-                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.millis.toString().pad(3,'0')}`
+                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.millis.toString().padStart(3,'0')}`
                     } else{
-                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.hundreths.toString().pad(2,'0')}`
+                        return `${valObj.hours}:${valObj.minutes.toString().padStart(2,'0')}:${valObj.seconds.toString().padStart(2,'0')}.${valObj.hundreths.toString().padStart(2,'0')}`
                     }
                 }
                 // no hours --> no need to pad minutes, but the seconds
@@ -130,7 +130,7 @@ const disciplineValueProcessors = {
         value -= ret.minutes*60*100000;
         // differentiate whether there is a subSec part or not
         if (subSecRounding==0){
-            // include the rounded in subSecond part in the second by ronding up!
+            // include the rounded in subSecond part in the second by rounding up!
             let secondsFloored = Math.floor(value/100000);
             ret.subSec = value-secondsFloored*100000;
             
@@ -138,12 +138,14 @@ const disciplineValueProcessors = {
             ret.seconds = Math.ceil(value/100000);
 
         } else {
+            // apply the rouding on the chosen subsecond-level. This must be done BEFORE the seconds are split, otherwise 0.9999 would not be rounded up to 1.0000!
+            value = Math.ceil(value/(10**(5-subSecRounding)))*10**(5-subSecRounding);
+
             ret.seconds = Math.floor(value/100000);
             value -= ret.seconds*100000;
             // now, value contains only the sub-seconds part
             // apply the general rounding
             ret.subSec = value;
-            value = Math.ceil(value/(10**(5-subSecRounding)))*10**(5-subSecRounding);
             // millis and hundreths are always rounded up as well
             ret.millis = Math.ceil(value/100) // round up!
             ret.hundreths = Math.ceil(value/1000) // round up!
