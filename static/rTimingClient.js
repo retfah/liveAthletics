@@ -53,14 +53,19 @@ export class rTimingClient extends roomClient{
     }
 
     // there is no exe function for this, since this is actually a note (sent as a request, since roomClient is not designed for notes yet). The note simply invokes changes, which are broadcast by other means.
-    heatsToTimingInit(add, update, del, updateContest){
-        this.addToStack('heatsToTiming', {add, update, delete:del, updateContest}, ()=>{});
+    heatsToTimingInit(add, update, del, updateContest, xContest){
+        this.addToStack('heatsToTiming', {add, update, delete:del, updateContest, xContest}, ()=>{});
     }
     heatToTimingInit(xContest, xSeries){
         this.addToStack('heatToTiming', {xContest, xSeries}, ()=>{});
     }
     changeStatusInit(xContest, xSeries, status){
         this.addToStack('changeStatus', {xContest, xSeries, status}, (data)=>{
+            // data simply is true
+        });
+    }
+    changeContestStatusInit(xContest, status){
+        this.addToStack('changeContestStatus', {xContest, status}, (data)=>{
             // data simply is true
         });
     }

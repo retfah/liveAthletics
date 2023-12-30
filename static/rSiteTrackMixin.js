@@ -105,7 +105,7 @@ export default {
         const ic = this.data.contests.findIndex(c=>c.xContest==contest.xContest);
         // copy over the present series to the new contest object and save it
         contest.series = this.data.contests[ic].series;
-        this.data.contests[ic] = contest;
+        this.propertyTransfer(contest, this.data.contests[ic])
     },
 
     changeSeriesExe: function(series){

@@ -2197,7 +2197,10 @@ class rContestTrack extends roomServer{
 
             const confBeforeRaw = this.data.contest.conf;
             let confBefore = JSON.parse(this.data.contest.conf);
-            let confAfter = JSON.parse(data.conf);
+            let confAfter;
+            if ('conf' in data) { // conf is not necessarily in data!
+                confAfter = JSON.parse(data.conf);
+            }
 
             // if everything is fine, call the update function on the contests room
             return this.rContests.serverFuncWrite('updateContest', data).then(async result=>{
@@ -2213,7 +2216,7 @@ class rContestTrack extends roomServer{
                 let xSites = [];
 
                 // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
-                if (confBeforeRaw != data.conf && 'startInLanes' in confBefore && 'startInLanes' in confAfter && confBefore.startInLanes == true && confAfter.startInLanes == false){
+                if (confAfter !== undefined && confBeforeRaw != data.conf && 'startInLanes' in confBefore && 'startInLanes' in confAfter && confBefore.startInLanes == true && confAfter.startInLanes == false){
                     for (let s of this.data.series){
                         // change occured
                         let change = false;
@@ -2245,7 +2248,7 @@ class rContestTrack extends roomServer{
             }).catch(err=> {throw err})
 
         } else {
-            throw {code: 42, message: this.ajv.errorsText(this.validateUpdateEventGroup.errors)}
+            throw {code: 42, message: this.ajv.errorsText(this.validateUpdateContest2.errors)}
         }
 
     }

@@ -527,9 +527,11 @@
                                         </div>
                                         <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
                                         <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
+                                        <div v-else-if="series2.aux?.isFalseStart" style="padding-top:7px"><%= __("False start") %></div>
                                         <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                        <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
-                                        <div style="flex-grow:1"></div>    
+                                        <div style="flex-grow:1"></div>
+                                        <button v-if="series2.aux === null && readOnly==false" type="button" class="btn" v-on:click="addHeatInfo(series2, $event)"><%= __('Add info') %></button>
+                                        <button v-else type="button" class="btn" v-on:click="showHeatInfo(series2, $event)"><%= __('Info') %></button>  
                                         <div>
                                             <!--<%= __("Series Status") %>-->
                                             <select class="content dropdown" v-model="series2.status" v-on:change="seriesStateChanged(series2, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
@@ -620,9 +622,11 @@
                                         </div>
                                         <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
                                         <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
+                                        <div v-else-if="series2.aux?.isFalseStart" style="padding-top:7px"><%= __("False start") %></div>
                                         <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                        <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                         <div style="flex-grow:1"></div>
+                                        <button v-if="series2.aux === null" type="button" class="btn" v-on:click="addHeatInfo(series2, $event)"><%= __('Add info') %></button>
+                                        <button v-else type="button" class="btn" v-on:click="showHeatInfo(series2, $event)"><%= __('Info') %></button>
                                         <div>
                                             <!--<%= __("Series Status") %>-->
                                             <select class="content dropdown" v-model="series2.status" v-on:change="seriesStateChanged(series2, $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series2.status, seriesStates), '--backColorHover': statusBackgroundColorHover(series2.status, seriesStates), color: statusTextColor(series2.status, seriesStates) }">
@@ -896,9 +900,11 @@
                                             </div>
                                             <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
                                             <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
+                                            <div v-else-if="series2.aux?.isFalseStart" style="padding-top:7px"><%= __("False start") %></div>
                                             <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                            <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                             <div style="flex-grow:1"></div>
+                                            <button v-if="series2.aux === null" type="button" class="btn" v-on:click="addHeatInfo(series2, $event)"><%= __('Add info') %></button>
+                                            <button v-else type="button" class="btn" v-on:click="showHeatInfo(series2, $event)"><%= __('Info') %></button>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 
                                             <div style="padding-top:7px">
@@ -988,9 +994,11 @@
                                             </div>
                                             <div style="flex-grow:1" v-if="(showWindAlways || series2.aux?.wind || disciplineConfiguration.wind) "></div>
                                             <div v-if="series2.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(series2.aux.finishtime, false, false)}}</div>
+                                            <div v-else-if="series2.aux?.isFalseStart" style="padding-top:7px"><%= __("False start") %></div>
                                             <div v-else-if="liveTimes[series2.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[series2.xSeries]}}</div>
-                                            <button v-if="series2.aux !== null" type="button" class="informationGreen" style="margin-top:7px" v-on:click="showHeatInfo(series2)"><%= __('i') %></button>
                                             <div style="flex-grow:1"></div>
+                                            <button v-if="series2.aux === null" type="button" class="btn" v-on:click="addHeatInfo(series2, $event)"><%= __('Add ') %></button>
+                                            <button v-else type="button" class="btn" v-on:click="showHeatInfo(series2, $event)"><%= __('Info') %></button>
                                             <!-- we cannot use el for v-model, since it seems to be a copy of the actual element. However, series[ind] works fine -->
                                                 
                                             <div style="padding-top:7px">
@@ -1341,6 +1349,7 @@
                             <%= __('Wind') %>: {{heatInfo.aux?.wind}}
                         </div>
                         <div v-if="heatInfo.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.aux.finishtime, false, false)}}</div>
+                        <div v-else-if="heatInfo.aux?.isFalseStart"><%= __("False start") %></div>
                         <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
                         
                         <!-- show all (false-)starts with reaction times -->
@@ -1372,6 +1381,59 @@
                         
                         <br>
                         <button type="button" class="btn" v-on:click="overlay=undefined"><%= __("Close") %></button>
+                        <button type="button" class="btn" v-on:click="overlay='HeatAuxMod'" v-bind:disabled="readOnly"><%= __("Modify heat info") %></button>
+                    </div>
+                    
+                    <div v-if="overlay=='HeatAuxMod'">
+                        <!-- Show here all auximlary information of a heat, e.g. all (fals)starts, reaction times, wind, finishtime -->
+                        <!-- title -->
+                        <h2><%= __("SeriesSingular") %> {{heatInfo.number}} {{formatTime(heatInfo.datetime, false)}}</h2>
+                        <!-- show first the general information as in the main window: wind, current time or runTime -->
+                        <fieldset>
+                            <legend><%= __("Manual live timing") %></legend>
+                            <button type="button" class="btn" v-if="heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualStop"><%= __("Stop") %></button>
+                            <button type="button" class="btn" v-if="heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualFalseStart"><%= __("False start") %></button>
+                            <button type="button" v-else v-on:click="manualStart"><%= __("Start") %></button>
+                        </fieldset>
+                        <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.aux?.wind || disciplineConfiguration.wind) ">
+                            <%= __('Wind') %>: {{heatInfo.aux?.wind}}
+                        </div>
+                        <div v-if="heatInfo.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.aux.finishtime, false, false)}}</div>
+                        <div v-else-if="heatInfo.aux?.isFalseStart"><%= __("False start") %></div>
+                        <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
+                        
+                        <!-- show all (false-)starts with reaction times -->
+                        <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
+                        <div v-for="(start, iStart) in heatInfo.aux.starts" style="display:flex">
+                            <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
+                            <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
+                            <div v-if="start.reactionTimes">
+                                <v-table :data="start.reactionTimes">
+                                    <template v-slot:head>
+                                        <thead>
+                                            <th is="vue:v-th" sortkey="lane" defaultsort="asc"><%= __("Lane") %></th>
+                                            <th><%= __("Name") %></th>
+                                            <th is="vue:v-th" sortkey="reactionTime"><%= __("Reaction time") %></th>
+                                        </thead>
+                                    </template>
+                                    <template v-slot:body="{displayData}">
+                                        <tbody>
+                                            <tr v-for="row in displayData" :key="row.lane">
+                                                <td>{{row.lane}}</td>
+                                                <td>{{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteName}} {{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteForename}}</td>
+                                                <td v-bind:class="{reactionTimeInvalid: row.reactionTime<0.1}">{{row.reactionTime}}</td>
+                                            </tr>
+                                        </tbody>
+                                    </template>
+                                </v-table>
+                            </div>
+                            <button type="button" class="btn btnRed" v-on:click="deleteStart(iStart)"><%= __('Delete') %></button>
+                        </div>
+                        
+                        <br>
+                        <!--<button type="button" class="btn btnGreen" v-on:click="saveAuxMod"><%= __("Save") %></button> automatically saved-->
+                        <button type="button" class="btn" v-on:click="overlay=undefined"><%= __("Close") %></button>
+                        <button type="button" class="btn" v-on:click="overlay='HeatInfo'"><%= __("Heat info") %></button>
                     </div>
     
                     <div v-if="overlay=='automaticSeriesAssignment'">

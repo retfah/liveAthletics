@@ -1,5 +1,4 @@
 
-// TODO: this originally bases on techHigh; change everything to track
 
 export class rContestTrackClient extends roomClient{
 
@@ -148,7 +147,8 @@ export class rContestTrackClient extends roomClient{
             return o;
         }
 
-        series[prop] = val;
+        this.propertyTransfer(val,series[prop])
+        //series[prop] = val;
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)

@@ -47,73 +47,63 @@ class rSite extends roomServer{
         // add the functions to the respective object of the parent
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
-        
-        /*this.functionsWrite.addSite = this.addSite.bind(this);*/
+        this.functionsWrite.updateContestStatus = this.updateContestStatus.bind(this); // to be used by rSiteClient!
 
         // define, compile and store the schemas:
-        /*let schemaAddSite = {
+        let schemaUpdateContestStatus = {
             type: "object",
             properties: {
-                xTODO: {type: "integer"}
+                xContest: {type: "integer"},
+                status: {type: "integer"}
             },
-            required: [],
+            required: ['xContest', 'status'],
             additionalProperties: false
         };
-        this.validateAddSite = this.ajv.compile(schemaAddSite);*/
+        this.validateUpdateContestStatus = this.ajv.compile(schemaUpdateContestStatus);
  
     }
 
-    /**
-     * add an site
-     * @param {object} data This data shall already be in the format as can be used by Sequelize to insert the data. It will be checked with the schema first.
-     */
-    // TODO: remove/adapt
-    async addSite(data){
-
+    // IMPORTANT: to be used by rSiteClient only
+    async updateContestStatus(data){
         // validate the data based on the schema
-        let valid = this.validateAddSite(data);
-        if (valid) {
-
-            // translate the boolean values; it would work in the DB (translated automatically), but in the locally stored data and returned value in 'meeting' from sequelize, it would still be the untranslated data, i.e. with true/false instead of 1/0. 
-            // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every function like addSite, updateSite, ... would have to actively call this function in it
-            // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
-            var dataTranslated = data; //this.translateBooleans(data);
-
-            var site = await this.models.sites.create(dataTranslated).catch((err)=>{throw {message: `Sequelize-problem: Site could not be created: ${err}`, code:22}})
-
-            this.data.sites.push(site); 
-
-            // the data to be sent back to the client requesting the add is the full data
-            let sendData = site.dataValues;
-
-            // object storing all data needed to DO the change
-            let doObj = {
-                funcName: 'addSite',
-                data: site.dataValues // should have the same properties as data, but with added xSite
-                // the UUID will be added on resolve
-            }
-
-            // object storing all data needed to UNDO the change
-            // Not needed yet / TODO...
-            let undoObj = {
-                funcName: 'TODO', // deleteSite
-                data: {}
-                // the ID will be added on resolve
-            };
-            
-            // do the rest (put on stack and report to other clients etc)
-            let ret = {
-                isAchange: true, 
-                doObj: doObj, 
-                undoObj: undoObj,
-                response: sendData,
-                preventBroadcastToCaller: true
-            };
-            return ret;
-            
-        } else {
-            throw {message: this.ajv.errorsText(this.validateAddSite.errors), code:23};
+        let valid = this.validateUpdateContestStatus(data);
+        if (!valid){
+            throw{message: this.ajv.errorsText(this.validateUpdateContestStatus.errors), code:21};
         }
+
+        // this could basically be done in rContests; however, there we do not have the necessary data to call some of the events required. Thus, use the function from within rContestXY
+        let rContest = await findSubroom(this.rContests, data.xContest.toString(), this.logger, true)
+        if (!rContest){
+            throw {code:22, message: `Contest ${data.xContest} could not be found.`}
+        }
+
+        // the function expects a JSON; thus, dates actually need to be strings
+        let data2 = {
+            xContest: data.xContest,
+            xBaseDiscipline:rContest.data.contest.xBaseDiscipline, 
+            status: data.status,
+            datetimeAppeal: rContest.data.contest.datetimeAppeal.toISOString(),
+            datetimeCall: rContest.data.contest.datetimeCall.toISOString(),
+            datetimeStart: rContest.data.contest.datetimeStart.toISOString(),
+        }
+
+        // the actual change in the rSite data is made through the seriesCHanged-event that is raised 
+        // important: We need to call addUpdateResults through roomServerFunc 
+        // return the result of the call to addUpdateResults (typically true; or an error)
+        let response = await rContest.serverFuncWrite("updateContest2", data2).catch((err)=>{
+            throw {code: 23, message: `Status change could not be processed: ${err.message}`};
+        });
+
+        let ret = {
+            isAchange: false, // make sure it is not sent to other clients; they will get the change anyway through the rContest
+            doObj: {funcName: 'updateContestStatus', data},
+            undoObj: {funcName: 'TODO', data: null},
+            response, 
+            preventBroadcastToCaller: true
+        };
+        return ret;
+
+
     }
 
 }
@@ -149,7 +139,7 @@ export class rSiteTrack extends rSite{
         // the name of the functions must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.addUpdateResult = this.addUpdateResult.bind(this); // only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
-        this.functionsWrite.addUpdateResultsHeat = this.addUpdateResultsHeat.bind(this); // only funciton to be used by rSiteClient!
+        this.functionsWrite.addUpdateResultsHeat = this.addUpdateResultsHeat.bind(this); // to be used by rSiteClient!
         this.functionsWrite.deleteResult = this.deleteResult.bind(this); // only to be used through the event of rContestTrack, when the changes there are already made! However, it must be a regular room function to use roomServer.serverFuncWrite. 
 
         // sites/xSite@meetingShortname:...
@@ -287,11 +277,12 @@ export class rSiteTrack extends rSite{
 
     }
 
+    // called by the client
     async addUpdateResultsHeat(data){
         // add or update the results of a heat, including aux data of the heat
 
         // call addUpdateResults in the respective contest// try to get the contest
-        let rContest =await findSubroom(this.rContests, data.xContest.toString(), this.logger, true)
+        let rContest = await findSubroom(this.rContests, data.xContest.toString(), this.logger, true)
         if (!rContest){
             throw {code:22, message: `Contest ${data.xContest} could not be found.`}
         }

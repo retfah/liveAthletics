@@ -144,7 +144,8 @@
                     // there will be no waiting page, but a limit to one client and this will be the first offline working page.
                     burgerChecked: false, // burger menu activated
 
-                    heatInfo:undefined, // keeps the seriesAsStartgroup object of the currently shown heatInfo-series
+                    heatInfoX:undefined, // heatInfo keeps the seriesAsStartgroup object of the currently shown heatInfo-series; the heatInfoX is the xSeries and heatInfo is a computed property
+                    heatInfoAuxCopy:undefined, // keeps a copy of the currently shown heatInfo-series-aux data, for modding.
 
                     onSeriesChangeCalcNextAth: true,
 
@@ -1152,12 +1153,60 @@
                         this.sortAthletes(i);
                     }
                 },
-                showHeatInfo(series){
-                    this.heatInfo = series;
-                    this.overlay='HeatInfo';
+                showHeatInfo(series, $event){
+                    this.prepareHeatInfo(series, $event);
+                    
+                    if ($event.ctrlKey && this.readOnly==false){
+                        this.overlay='HeatAuxMod';
+                    } else {
+                        this.overlay='HeatInfo';
+                    }
                 },
+                addHeatInfo(series, $event){
+                    this.prepareHeatInfo(series, $event);
+                    this.overlay='HeatAuxMod';
+                },
+                prepareHeatInfo(series, $event){
+                    //this.heatInfo = series;
+                    this.heatInfoX = series.xSeries;
+                    if (series.aux===null){
+                        this.heatInfoAuxCopy = {};
+                    } else {
+                        this.heatInfoAuxCopy = JSON.parse(JSON.stringify(series.aux));
+                    }
+                },
+                saveAuxMod(){
+                    rCTrack.room.updateSeriesInit(this.heatInfo, 'aux', this.heatInfoAuxCopy);
+                },
+                manualStart(){
+                    let d = new Date();
+                    this.heatInfoAuxCopy.starttime = d.toISOString();
+                    this.heatInfoAuxCopy.isFalseStart = false;
+                    this.heatInfoAuxCopy.finishtime = null;
+                    if (!('starts' in this.heatInfoAuxCopy)){
+                        this.heatInfoAuxCopy.starts=[];
+                    }
+                    this.heatInfoAuxCopy.starts.push({starttime:d.toISOString(), isFalseStart:false })
+                    this.saveAuxMod();
+                },
+                manualFalseStart(){
+                    this.heatInfoAuxCopy.isFalseStart = true;
+                    let s = this.heatInfoAuxCopy.starts.find(el=>el.starttime == this.heatInfoAuxCopy.starttime);
+                    s.isFalseStart = true;
+                    this.saveAuxMod();
+                },
+                manualStop(){
+                    let dStop = new Date();
+                    let dStart = new Date(this.heatInfoAuxCopy.starttime);
 
-                
+                    this.heatInfoAuxCopy.finishtime = (dStop-dStart)*100;
+
+                    this.saveAuxMod();
+                },
+                deleteStart(index){
+                    this.heatInfoAuxCopy.starts.splice(index,1);
+                    this.saveAuxMod();
+                },
                 replaceXResult(xSeriesStart, oldKey, newKey){
                     alert('TODO')
 
@@ -1951,6 +2000,10 @@
                 discipline: function(){
                     return this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
                 }, 
+
+                heatInfo: function(){
+                    return this.series.find(el=>el.xSeries==this.heatInfoX);
+                },
 
             },
             beforeMount(){

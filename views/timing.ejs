@@ -95,7 +95,7 @@
                     this.vue.auto = this.room.data.auto
                     this.vue.timers = this.room.data.timers
                     this.vue.data = this.room.data.data; // the actual data in rTiming
-                    this.vue.contests = this.room.data.contests; 
+                    this.vue.contests = this.room.data.contests;  // site data
 
                     this.room.data.timingOptions = this.vue.timingOptions;
                     this.room.data.siteConf = this.vue.siteConf;
@@ -163,6 +163,7 @@
                                 update: true,
                                 delete: true,
                                 updateContest: true,
+                                xContest: -1,
                             },
                             transferToLA: {
                                 add: true,
@@ -174,6 +175,7 @@
 
                             // temporary variable to be resetted after the change
                             originalStatus: 0, 
+                            originalStatusContest: 0,
 
                             // for testing only
                             //auto2: {10:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 70:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 130:{heatAud:'au', heatD:true, heatPreventOnResult:true, resultAud: ''}, 150:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 180:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}, 200:{heatAud:'', heatD:true, heatPreventOnResult:true, resultAud: ''}},
@@ -185,17 +187,19 @@
                             this.infoContent = content;
                             this.infoVisible = true;
                         },
-                        showHeatsToTiming(){
+                        showHeatsToTiming(xContest){
                             this.transferToTiming.add = true;
                             this.transferToTiming.update = true;
                             this.transferToTiming.delete = true;
                             this.transferToTiming.updateContest = true;
+                            this.transferToTiming.xContest = xContest; 
                             this.overlay = 'heatsToTiming';
                         },
                         applyHeatsToTiming(){
                             // send "note" (actually a request where we do not care about the answer) to server
-                            rTiming.room.heatsToTimingInit(this.transferToTiming.add, this.transferToTiming.update, this.transferToTiming.delete, this.transferToTiming.updateContest);
+                            rTiming.room.heatsToTimingInit(this.transferToTiming.add, this.transferToTiming.update, this.transferToTiming.delete, this.transferToTiming.updateContest, this.transferToTiming.xContest);
                             this.overlay = null;
+                            this.transferToTiming.xContest = -1; // reset, just to make sure we never send the previoius xContest
                         },
                         heatToTiming(xContest, xSeries){
                             rTiming.room.heatToTimingInit(xContest, xSeries);
@@ -601,16 +605,15 @@
 
                             // reset the status ("abort the change"); This was the best method I found...
                             heat.site.status = this.originalStatus;
+                            
+                        },
+                        contestStateChanged(contest, evt){
+                            // abort the change (since the data shall not yet be changed, but we only send a signal to the server to change it and the data here will be changed as soon as the status was changed on the liveAthletics server (i.e. the request gow from rTimingClient to rTiming to rSite to rContest and back...))
 
-                            // TODO: the following works, but is not nice at all!!! How can we make sure that the value does not get changed actually?
-                            // using v-model does not work either, since it automatically changes the value, which we dont want. Or is it possible somehow to abort the change? ask google.
-                            
-                            /*let currentStatus = heat.site.status;
-                            heat.site.status = 0;
-                            setTimeout(()=>{
-                                heat.site.status = currentStatus;
-                            },100);*/
-                            
+                            rTiming.room.changeContestStatusInit(contest.xContest, parseInt(evt.target.value));
+
+                            // reset the status ("abort the change"); This was the best method I found...
+                            contest.site.status = this.originalStatusContest;
                         },
                     },
                     computed:{
@@ -744,7 +747,7 @@
 
                             // finally, sort the object by starttime, heat number and position; use the data of rSIte if available
                             cs.sort((c1, c2)=>{
-                                return c1.datetimeStart-c2.datetimeStart;
+                                return new Date(c1.site.datetimeStart) - new Date(c2.site.datetimeStart);
                             })
 
                             // then sort each series
@@ -857,6 +860,14 @@
                             <%= __("Last heats push successful") %>
                         </div>
                     </div>
+                    <div class="statusEl" v-bind:class="{connected: !infos.lastResultWriteFailed, disconnected: infos.lastResultWriteFailed}" v-bind:title="`Last results transfer error: ${infos.lastResultWriteError}`">
+                        <div v-if="infos.lastResultWriteFailed">
+                            <%= __("Last results transfer failed") %>
+                        </div>
+                        <div v-else>
+                            <%= __("Last results successfully transferred") %>
+                        </div>
+                    </div>
                 </div>
                 <!--  further add all timing specific variables; TODO: include this from a timing-specific file! The following is for ALGE-->
                 <div style="margin:3px 0;" v-if="infos.timing && Object.keys(infos.timing).length>0"> <!-- not before the data is initially loaded -->
@@ -883,6 +894,9 @@
                     <div class="statusEl">
                         <%= __("Last results reading error") %>: {{infos.timing.xmlResultErrorLast}}
                     </div>
+                    <div class="statusEl">
+                        <%= __("Last versatile protocol error") %>: {{infos.timing.versatileError}}
+                    </div>
                 </div>
 
                 <button class="btn" v-on:click="overlay='information'"><%= __("Show information") %></button>
@@ -893,7 +907,7 @@
                     <h3><%= __("Contests") %></h3>
                     <!-- development note: subgrids are not yet available in Chrome based browsers, but it is in development (2023-01);-->
                     <!-- create the following container for every contest -->
-                    <details v-for="(contest, iContest) in main" style="border: 1px solid black; margin: 0;" >
+                    <details v-for="(contest, iContest) in main" style="border: 1px solid black; margin-bottom: 3px;" >
                         <!-- this is the container per contest -->
                         <summary v-if="contest.site" style="padding-left:3px" v-bind:style="{ 'background-color': statusBackgroundColor(contest.site.status), '--backColorHover': statusBackgroundColorHover(contest.site.status), color: statusTextColor(contest.site.status) }">
                             <!-- header to expand the details; -->
@@ -909,13 +923,19 @@
                                 <div v-if="contest.site" >
                                     <div style="font-weight:bold">{{getContestTitleSite(contest)}}</div>
                                     live athletics: {{contest.site.series.length}} <%= __("Heats") %>
+                                    <!-- allow section of the contest states -->
+                                    <select style="padding-left: 5px;" class="content dropdown" v-on:focus="originalStatusContest=contest.site.status" v-on:change="contestStateChanged(contest,$event);" v-model="contest.site.status" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(contest.site.status, contestStates), '--backColorHover': statusBackgroundColorHover(contest.site.status, contestStates), color: statusTextColor(contest.site.status, contestStates) }">
+                                        <option v-for="option in contestStates" v-bind:value="option.value" v-bind:style="{'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, contestStates), color: option.textColor }">
+                                            {{option.text}}
+                                        </option>
+                                    </select>
                                 </div>
                                 <div v-else>
                                     <%= __("Contest does not exist in live athletics") %>
                                 </div>
                             </div>
                             <div style="border:1px solid black; grid-column: buttons / span 1;">
-                                <button type="button" class="btn" v-on:click="showHeatsToTiming">⇨ <%= __("Heats to timing") %> ⇨</button>
+                                <button type="button" class="btn" v-on:click="showHeatsToTiming(contest.xContest)">⇨ <%= __("Heats to timing") %> ⇨</button>
                                 <button type="button" class="btn" v-on:click="showResultsToLA(contest.xContest)">⇦ <%= __("Results to liveAthletics") %> ⇦</button>
                             </div>
                             <div style="border:1px solid black; grid-column: timing / span 1; ">
@@ -943,7 +963,8 @@
                                                 {{option.text}}
                                             </option> <!-- v-bind:selected="heat.site.status == option.value" -->
                                         </select>
-                                        <br>{{heat.site.id}}
+                                        <br>{{heat.site.id}}<br>
+                                        {{heat.site?.aux}}
                                     </div>
                                 </div>
                                 <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1;" v-bind:style="{'grid-row-start': heat.number*2+1}">
@@ -980,7 +1001,7 @@
                                 </div>
                                 <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }">
                                     xSeries (timing): {{heat.timing.xSeries}}<br>
-                                
+                                    {{heat.timing.aux}}
                                 </div>
                                 <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2+1, }">
                                     <table>
@@ -1096,7 +1117,7 @@
                 <div class="overlay" v-bind:class="{shown: overlay=='conf'}">
                     <div class="overlayContainerWide">
                         <h3><%= __("Automatic transfer") %></h3>
-                        <h5><%= __("Automatically transfer the following data between liveAthletics and timing") %>:<button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Description of the settings') %>:', `<%= __('General notes: there are two different types of heat deletion: (1) deletion due to the current state of the heat in live athletics and (2) deletion because the heat is in fact deleted in live athletics. heats to timing: What should be done to the heats in the timing when a heat in live athletics is changed? The reaction is set on the basis of the (new) state in live athletics. add/update will transfer the data to timing. Delete (=type 1) will delete the heat in timing. (Note: this is e.g. useful when heats that are finished shall be deleted from the timing.) propagate delete: delete (=type 2) a heat in the timing when it gets deleted in live athletics? This should eventually not be active when the heat is running currently. no change with results: prevent that results from timing are transferred to live athletics whenever there is already a result in live athletics. results to site: transfer (add/update/delete) results or not from timing to live athletics when the data changes in the timing.') %>`)"><%= __('i') %></button></h5>
+                        <h5><%= __("Automatically transfer the following data between liveAthletics and timing") %>:<button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Description of the settings') %>:', `<%= __('General notes: there are two different types of heat deletion: (1) deletion due to the current state of the heat in live athletics and (2) deletion because the heat is in fact deleted in live athletics. heats to timing: What should be done to the heats in the timing when a heat in live athletics is changed? The reaction is set on the basis of the (new) state in live athletics. add/update will transfer the data to timing. Delete (=type 1) will delete the heat in timing. (Note: this is e.g. useful when heats that are finished shall be deleted from the timing.) propagate delete: delete (=type 2) a heat in the timing when it gets deleted in live athletics? This should eventually not be active when the heat is running currently. no change with results: prevent that series from liveAthletics are transferred to timing whenever there is already a result in timing. results to site: transfer (add/update/delete) results or not from timing to live athletics when the data changes in the timing.') %>`)"><%= __('i') %></button></h5>
                         <form class="verticalForm" v-if="overlay=='conf'"><!-- the if is needed to prevent errors when autoCopy is not yet ready -->
                             <!-- New method -->
                             <div style="display:grid; justify-items: stretch; grid-template-columns: [status] auto [heatAUD] auto [heatD] auto [heatPreventOnResult] auto [resultAUD] auto;" v-bind:style="{'grid-template-rows': autoTransferGridRows}">
