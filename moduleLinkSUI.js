@@ -5,7 +5,7 @@ import {pipeline} from 'stream/promises';
 import {parseStringPromise} from 'xml2js';
 import conf from './conf.js';
 import Sequelize  from 'sequelize';
-import { streamToString } from './common.js';
+import { streamToStringLatin1 } from './common.js';
 const Op = Sequelize.Op;
 const QueryTypes = Sequelize.QueryTypes;
 import {Worker, isMainThread, parentPort, workerData} from  'node:worker_threads';
@@ -1495,7 +1495,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 }
 
                 // ungzip and import: 
-                pipeline(resForProcessing, zlib.createGunzip(), streamToString).then(async (xmlString)=>{
+                pipeline(resForProcessing, zlib.createGunzip(), streamToStringLatin1).then(async (xmlString)=>{
                     // parse the xml (might take some time...)
                     let timeUnzipped = new Date();
                     msg = `Unzipping file successful. Duration: ${(timeUnzipped - timeDownloaded)/1000}s. Starting parsing the xml.`;
@@ -1988,7 +1988,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 let timeDownloaded = new Date();
                 this.logger.log(90, `Download of competitions successful. Duration: ${(timeDownloaded - timeStart)/1000}s.`);
                 
-                pipeline(res, streamToString).then(async (rawMsg)=>{
+                pipeline(res, streamToStringLatin1).then(async (rawMsg)=>{
     
                     // process the gathered data:
                     // Control=116334:123456
@@ -2238,7 +2238,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 // --> error {code:3, message:`Meeting with ID ${identifier} does not exist.`}
                 
                 // ungzip and import: 
-                pipeline(res, streamToString).then(async (xmlString)=>{
+                pipeline(res, streamToStringLatin1).then(async (xmlString)=>{
                     // parse the xml (might take some time...)
                     let timeUnzipped = new Date();
                     this.logger.log(90, `toString successful. Duration: ${(timeUnzipped - timeDownloaded)/1000}s. Starting parsing the xml.`);

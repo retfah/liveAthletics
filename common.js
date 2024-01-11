@@ -35,6 +35,9 @@ function streamToString (stream, encoding='latin1') {
 function streamToStringUTF8(stream){
 	return streamToString(stream, 'UTF-8');
 }
+function streamToStringLatin1(stream){
+	return streamToString(stream, 'latin1');
+}
 /**
  * Transfer the values of the properties in objFrom to the properties in objTo. Recursive. 
  * If updateOnly=false (default), then properties that do exist only in objTo will be deleted. 
@@ -140,4 +143,4 @@ function propertyTransfer(objFrom, objTo, updateOnly=false){
 	}
 }
 
-export {uuidv4, copyObject, copyOwnPropertiesFrom, propertyTransfer, streamToString, streamToStringUTF8};
+export {uuidv4, copyObject, copyOwnPropertiesFrom, propertyTransfer, streamToString, streamToStringUTF8, streamToStringLatin1};
