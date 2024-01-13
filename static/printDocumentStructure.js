@@ -1175,7 +1175,7 @@ export class pHeaderFooter extends printingGeneral{
             data.currentPage = currentPage;
             // create a string with the current date and time
             let d = new Date();
-            data.dString = `${d.getDate().toString().padStart(2,'0')}.${d.getMonth().toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+            data.dString = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 
             let height = await this.printTabularRow(conf.headerTable, data, page, 0, posY);
 
@@ -1204,7 +1204,7 @@ export class pHeaderFooter extends printingGeneral{
             data.currentPage = currentPage;
             // create a string with the current date and time
             let d = new Date();
-            data.dString = `${d.getDate().toString().padStart(2,'0')}.${d.getMonth().toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+            data.dString = `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 
             let height = await this.printTabularRow(conf.footerTable, data, page, 0, conf.footerHeight);
 
