@@ -1398,6 +1398,9 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * @param {Error} err The error object as returned by sequelize
      */
     insertErrorPrinter(err){
+        if (!err?.original?.text){
+            return err.toString();
+        }
         // get the number of the line
         let rowMatch = err.original.text.match(/(?<=at row )\d*/g);
         let lineNumber=undefined;
