@@ -408,7 +408,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
     // TODO: move this to either the base class or even another file, which is also used by the listPrinter
     /**
      * Upload the results of a meeting to the national body. Get the data from the DB here (might be changed later on to the "generic lists processor"); but let the results get processed by the discpipline-type specific function. 
-     * @param {object} meeting The meeting-object to get the results from; should containa  reference 
+     * @param {object} meeting The meeting-object to get the results from; should contain a reference 
      * @param {object} opts Object with the options required to get the data; e.g. login credentials to the central database of the national body.
      */
     async uploadResults(meeting, opts){
@@ -418,9 +418,10 @@ export default class moduleLinkSUI extends nationalBodyLink {
         }
 
         // first, make sure this competition can be uploaded to swiss athletics:
-        if (!('SUI' in meeting?.baseModules)){
-            this.logger.log(20, `Cannot upload meeting ${meeting.name} to swiss-athletics since it was not downloaded from there / there is no event number.`);
-            return;
+        if (!(meeting.data?.baseSettings?.SUI?.approval)){
+            let msg = `Cannot upload meeting ${meeting.name} to swiss-athletics since it was not downloaded from there / there is no event number.`
+            this.logger.log(20, msg);
+            throw {code:31, message: msg};
         }
 
         // for the track disciplines, we need to know how many rounds there are to define the kindOfLap (e.g. V, Z, F, 0, D, ...)
