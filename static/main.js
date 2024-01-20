@@ -983,8 +983,9 @@ class socketProcessor2{
         this.connected = false;
         this.tabIdReported = false;
 
-        // create a new tabId (used on the server to identify the ws-connection)
-        this.tabId = uuidv4();
+        // get or create the tabId (used on the server to identify the ws-connection)
+        // NOTE: if a tab is duplicated, it shares the sessionStorage. If this shall be prevented, add another sessionStortage.closed=false which is set to true when the first tab is closed and which leads to the creation of a new tabId
+        this.tabId = sessionStorage.tabId ? sessionStorage.tabId : sessionStorage.tabId=uuidv4();
 
         this.autoReconnect = true;
 
