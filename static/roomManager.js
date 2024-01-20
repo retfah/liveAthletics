@@ -57,9 +57,12 @@ class roomManager{
 				clientName = window.localStorage.clientName
 			}
 		}
-		// when still empty, create a new string
+		// when still empty, create a new string and store it
 		if (!clientName) {
 			clientName = this.randName(8);
+			if ('localStorage' in window){
+				window.localStorage.setItem('clientName', clientName)
+			}
 		}
 		
 		// the data object; shared with the vue-instance (this is the reason why we need this stupid data object in the roomManager and we cannot simply have all those properties directly in the roomManager-class)
