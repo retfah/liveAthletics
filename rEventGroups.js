@@ -453,7 +453,7 @@ class rEventGroups extends roomServer{
             }
 
             // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
-            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups, groups:round.groups})
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:round.order, numGroups: round.numGroups, groups:round.groups, xRound:round.xRound})
 
             // if a contest is linked to the group, notify it about the new group
             round.groups.forEach(g=>{
@@ -692,7 +692,7 @@ class rEventGroups extends roomServer{
             eG.rounds[i] = roundChanged;
 
             // notify the rdEventsWithGroups about the number of gorups in the new round (NOTE: this information is only needed if order==1, but is sent in any case)
-            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups, groups: roundChanged.groups})
+            this.eH.raise(`${this.name}:setNumGroups`, {xEventGroup: data.xEventGroup, order:roundChanged.order, numGroups: roundChanged.numGroups, groups: roundChanged.groups, xRound:roundChanged.xRound})
 
             // raise an event to notify the eventGroup (i.e. the dynamic room for this eventGroup)
             this.eH.raise(`eventGroupUpdated${eG.xEventGroup}`, eG)

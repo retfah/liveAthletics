@@ -3,6 +3,14 @@ import roomDataset from './roomDataset.js';
 // add categories + meeting to this dataset (e.g the same as in rEvents, minus the possible disciplines, since we cannot translate them here)
 
 // room dataset containing all events and the groups in their first rounds. This is useful to do the inscriptions, to assign directly also the group of the athlete. 
+
+/**  the following events must be handled in order to keep the data uptodate:
+ * - added/deleted/changed event group of event, including when adding/deleting the event -> all of this is automatically done, since this is a room dataset of rEvents
+ * - add/delete/change (numGroups) of first round
+ *   - add (`${this.rEventGroups.name}:setNumGroups`)
+ *   - delete (`${this.rEventGroups.name}:resetNumGroups`)
+ *   - update (`${this.rEventGroups.name}:setNumGroups`)
+ */
 // CHANGES:
 /**
  * 2023-07: the groups object now contains the full object per group and not only the name of the group;  
@@ -78,7 +86,7 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
         // raised in rEventGroups.addRound and rEventGroups.updateRound
         this.eventGroupRoundUpdateListener = this.rEvents.eH.eventSubscribe(`${this.rEventGroups.name}:setNumGroups`, (data)=>{
 
-            // data: {xEventGroup, order, numGroups, groups}
+            // data: {xEventGroup, order, numGroups, groups, xRound}
 
             // only if the affected round-order is 1, there will be possibly a change
             if (data.order==1 ){
@@ -87,12 +95,18 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
 
                 for (let event of this.data.events){
                     if (event.xEventGroup == data.xEventGroup){
-                        // does the data really change
-                        if (event.numGroups != data.numGroups){
+                        // ATENNTION: xRoundFirst might change
+                        // does the data really change?
+                        if (event.numGroups != data.numGroups){ 
                             changes = true;
                             //xRoundFirst will stay the same
                             event.groups = this.createGroups(data.groups);
                             event.numGroups = data.numGroups; // set numGroups
+                        }
+                        // is it the first time we have a xRoundFirst?
+                        if (event.xRoundFirst==null){
+                            changes = true;
+                            event.xRoundFirst = data.xRound;
                         }
                     }
                 }
