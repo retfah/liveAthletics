@@ -147,6 +147,11 @@ export class rContestTrackClient extends roomClient{
             return o;
         }
 
+        // this cannot be done in propertyTransfer, since it would break the reference
+        if (series[prop]===null && typeof(val)=='object' && val!=null){
+            series[prop] = {};
+        }
+
         this.propertyTransfer(val,series[prop])
         //series[prop] = val;
 
