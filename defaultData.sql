@@ -327,4 +327,6 @@ INSERT INTO `disciplines` (`xDiscipline`, `xBaseDiscipline`, `sortorder`, `activ
 (211, 6, 1, b'1', '{\"distance\":100, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":true, \"straight\":true, \"heatInterval\":60}');*/
 INSERT INTO `basedisciplinelocalizations` (`xDisciplinesLocalization`, `xBaseDiscipline`, `language`, `name`, `shortname`) VALUES 
 (NULL, '1', 'de', 'Stabhochsprung', 'Stab'), 
-(NULL, '2', 'de', 'Hochsprung', 'Hoch');
+(NULL, '2', 'de', 'Hochsprung', 'Hoch'),
+(NULL, '3', 'de', 'Stabhochsprung', 'Stab'), 
+(NULL, '4', 'de', 'Hochsprung', 'Hoch');
