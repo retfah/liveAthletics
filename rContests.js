@@ -23,7 +23,7 @@ class rContests extends roomServer{
      * @param {eventHandler} eventHandler The eventhandler instance
      * @param {logger} logger A logger instance
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rEvents, rEventGroups, rStarts, rStartsInGroup, rBaseDisciplines, rMeeting, rCategories){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rEvents, rEventGroups, rStarts, rStartsInGroup, rBaseDisciplines, rMeeting, rCategories, rInscriptions){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false)
@@ -38,6 +38,7 @@ class rContests extends roomServer{
         this.rMeeting = rMeeting;// needed e.g. to print the header/footer with meeting information on the client
         this.rCategories = rCategories;
         this.rSites = {data:{sites:[]}}; // will be overwritten as soon as the sites room is created
+        this.rInscriptions = rInscriptions;
 
         // initialize/define the default structure of the data (either an array [] or an object {})
         // we need to define this since roomDatasets will required the respective type, before the actual data is loaded
@@ -269,7 +270,7 @@ class rContests extends roomServer{
             this.propertyTransfer(o.dataValues, contestOld);
 
             // additionally make sure that xBaseDiscipline is not changed!
-            if (data.xBaseDiscipline != contestOld.xBaseDiscipline){
+            if ('xBaseDiscipline' in data && data.xBaseDiscipline != contestOld.xBaseDiscipline){
                 throw {code:25, message:"xBaseDiscipline shall not be changed. If this is really needed, create a new contest and delete the old."};
             }
 
@@ -335,9 +336,11 @@ class rContests extends roomServer{
         try{
             let subroom;
             if (type==1){
-                subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories)
+                subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)
             } else if (type==3) {
-                subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories)
+                subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)
+            /*} else if (type==2){
+                subroom = new rContestTechLong(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)*/
             } else {
                 this.logger.log(22, `Could not create the subroom for contest ${xContest} in meeting ${this.meetingShortname} since the contest type ${type} is not supported.`);
                 return false;
