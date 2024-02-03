@@ -413,6 +413,20 @@ function startupAthletes(){
                 // since there is no actual handler in the roomClient for such a request (it also is no change and will not be broadcasted), we have to define the funciton here
                 let funcOverride = (data, defaultFunc)=>{
                     this.baseEntriesNum = data.entriesNum; 
+                    data.entries.sort((a,b)=>{
+                        if (a.lastname<b.lastname){
+                            return -1
+                        } else if (a.lastname>b.lastname){
+                            return 1
+                        }
+                        if (a.firstname<b.firstname){
+                            return -1
+                        } else if (a.firstname>b.firstname){
+                            return 1
+                        }
+
+                        return a.identifier-b.identifier
+                    })
                     this.baseEntries =  data.entries;
 
                     // if the base string has changes meanwhile, then this request was certainly not processed, since "rInscription" is an online-only room, where no stack is allowed. So we have to start the next call right away.
@@ -625,8 +639,11 @@ function startupAthletes(){
                 this.newStartPB = this.formatValue(start.bestPerf, disc);
                 this.newStartSB = this.formatValue (start.bestPerfLast, disc);
                 this.newStartNotification = this.formatValue (start.notificationPerf, disc);
-                // TOOD: the groupNumber is actually defined in rStartsInGroup and not in the starts --> eventually create a dataset for rStart containing the number, if available and 1 otherwise. At the same time, make sure that the change of this number will be handed over to rStartsInGroup when we change the data here in rStarts! 
-                this.newStartNumGroup = start.SIG.number;
+                if (start.SIG!==null){
+                    this.newStartNumGroup = start.SIG.number;
+                } else {
+                    this.newStartNumGroup = -1;
+                }
 
                 this.checkInput('PB', true);
                 this.checkInput('SB', true);
@@ -866,6 +883,7 @@ function startupAthletes(){
                 this.overlay='addAthlete';
             },
             addAthleteBase(){
+                this.baseSearchString = '';
                 this.overlay='addAthleteBase';
             },
             modAthlete(xInscription){
@@ -1380,7 +1398,8 @@ function startupAthletes(){
                     // first search the event for the start
                     let evt = this.events.find(x=>x.xEvent==start.xEvent);
                     // if the event is linked to an eventGroup with at least one round, it has a property groups, where every element will contain the reference to the xRound, needed to find the right group
-                    if (evt.xRoundFirst===null){
+                    if (evt?.xRoundFirst==null){ // do not make ===, since we need that undefined==null -> true
+                        // event does not exist yet (i.e. event room is not loaded yet) OR
                         // event is not linked to an eventGroup and/or has no first round yet
                         start.SIG = null;
                     } else {
@@ -1814,112 +1833,10 @@ function startupAthletes(){
     </div>
 
     <!-- Overlay for adding athletes from base data -->
-    <div class="overlay" v-bind:class="{shown: overlay=='addAthleteBase'}">
-        <div class="overlayContainer">
-            <form class="verticalForm">
-                <h3><%= __('Add athlete from base data') %>:</h3>
-                <div v-if="baseModuleNames.length>1">
-                    <label>
-                        <!-- The category should be automatically set as soon as there is a borthdate and a sex -->
-                        <%= __("From base") %>: 
-                        <select v-model.number="selectedBase" style="display:inline">
-                            <option v-for="n,i in baseModuleNames" v-bind:value="i">{{n}}</option>
-                        </select>
-                    </label>
-                </div>
-                <label>
-                    <b><%= __("Search for") %></b>
-                    <input v-model="baseSearchString" type="search" placeholder="<%= __('Name, first name, license') %>" v-on:keydown=" baseSearchKeydown($event)" style="width:100%;"> <!-- v-on:change="baseSearchChanged" -->
-                </label>
-                <b><%= __("Search results") %></b>
-                <div v-if="baseEntriesNum<0"><%= __("Start typing... Automatic search starts after at least 3 characters. A manual search can be initiated with Enter.") %></div>
-                <div v-if="baseEntriesNum>0 && baseEntries.length==0"><%= __("Too many matching athletes found") %>: {{baseEntriesNum}}</div>
-                <div v-if="baseEntriesNum==0"><%= __("No matching athletes found") %></div>
-                <div></div>
-                <div>
-                    <table class="selectTable">
-                        <tr v-for="(ath,i) in baseEntries" class="clickable" v-on:click="addBaseAthlete(i)">
-                            <td>{{ath.identifier}}</td>
-                            <td>{{ath.lastname}}</td>
-                            <td>{{ath.firstname}}</td>
-                            <td>{{ath.birthdate}}</td>
-                            <td>{{ath.clubName}}</td>
-                        </tr>
-                    </table>
-                </div>
-                <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
-            </form>
-        </div>
-    </div>
+    <%- include('addAthletesBaseUI'); %>
 
     <!-- overlay for adding athletes -->
-    <div class="overlay" v-bind:class="{shown: overlay=='addAthlete'}">
-        <div class="overlayContainer">
-            <form>
-                <div class="verticalForm">
-                    <h3 v-if="athleteModID == -1"><%= __("Add athlete") %>: </h3>
-                    <h3 v-if="athleteModID > -1"><%= __("Update athlete") %>: </h3>
-                    <label>
-                        <%= __("First name") %>: 
-                        <input type="text" v-model="newAthleteForename" maxlength="100">
-                    </label>
-                    <label>
-                        <%= __("Name") %>: 
-                        <input type="text" v-model="newAthleteLastname" maxlength="100">
-                    </label>
-                    <label>
-                        <%= __("Birthdate") %>: 
-                        <input type="date" v-model="newAthleteBirthdate" v-on:blur="catCalc"><!--TODO: does this work-->
-                    </label>
-                    <label style="display:inline-block">
-                        <input type="radio" name="sex" v-model="newAthleteSex" v-on:change="catCalc" value="m">
-                        <%= __('Male') %>
-                    </label>
-                    <label style="display:inline-block">
-                        <input type="radio" name="sex" v-model="newAthleteSex" v-on:change="catCalc" value="f">
-                        <%= __('Female') %>
-                    </label><!-- TODO: if this list is extended in the multi-sexual future, probably use a dropdown list and get the allowed options from some configuration file-->
-                    <label>
-                        <!-- The category should be automatically set as soon as there is a borthdate and a sex -->
-                        <%= __("Category") %>: 
-                        <select v-model.number= "newAthleteCategory">
-                            <option v-for="cat in categories" v-bind:value="cat.xCategory">{{cat.shortname}}</option>
-                        </select>
-                    </label>
-                    <label>
-                        <%= __("Club") %>:
-                        <select v-model.number= "newAthleteClub">
-                            <option v-for="club in clubs" v-bind:value="club.xClub">{{club.name}}</option>
-                        </select>
-                        <button class="btn" type="button" v-on:click="addClub()" style="display: inline;"><%= __("Club not listed") %></button>
-                    </label>
-                    <label>
-                        <%= __("Country/Region") %>:
-                        <select v-model.number= "newAthleteRegion">
-                            <option v-for="region in regions" v-bind:value="region.xRegion">{{formatCountryRegion(region)}}</option>
-                        </select>
-                    </label>
-                    <!--TODO: license stuff-->
-                    <label>
-                        <%= __('Bib') %>:
-                        <!-- TODO: add the next bib by default! -->
-                        <input type="number" v-model.number="newAthleteNumber" min="0">
-                    </label>
-
-                    <button v-if="athleteModID==-1" type="button" class="btn btnGreen" v-on:click="createAthlete(false)" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined"><%= __("Create athlete") %>
-                    </button>
-                    <button v-if="athleteModID==-1" type="button" class="btn btnGreen" v-on:click="createAthlete(true)" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined"><%= __("Create athlete + add starts") %>
-                    </button>
-
-                    <button v-if="athleteModID>-1" type="button" class="btn btnGreen" v-on:click="createAthlete" v-bind:disabled="newAthleteBirthdate==undefined || newAthleteCategory==undefined || newAthleteClub==undefined || newAthleteForename==undefined || newAthleteLastname==undefined || newAthleteSex==undefined || newAthleteRegion==undefined">
-                        <%= __("Update athlete") %>
-                    </button>
-
-                    <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <%- include('addAthletesUI'); %>
 
     <!-- overlay for adding/modifing starts-->
     <div class="overlay" v-bind:class="{shown: overlay=='addStart'}">
