@@ -1354,7 +1354,7 @@
                         
                         <!-- show all (false-)starts with reaction times -->
                         <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
-                        <div v-for="(start, iStart) in heatInfo.aux.starts" style="display:flex">
+                        <div v-for="(start, iStart) in heatInfo.aux?.starts" style="display:flex">
                             <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
                             <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
                             <div v-if="start.reactionTimes">
@@ -1391,9 +1391,9 @@
                         <!-- show first the general information as in the main window: wind, current time or runTime -->
                         <fieldset>
                             <legend><%= __("Manual live timing") %></legend>
-                            <button type="button" class="btn" v-if="heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualStop"><%= __("Stop") %></button>
-                            <button type="button" class="btn" v-if="heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualFalseStart"><%= __("False start") %></button>
-                            <button type="button" v-else v-on:click="manualStart"><%= __("Start") %></button>
+                            <button type="button" class="btn" v-if="heatInfoAuxCopy.starttime!=undefined && heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualStop"><%= __("Stop") %></button>
+                            <button type="button" class="btn" v-if="heatInfoAuxCopy.starttime!=undefined &&heatInfoAuxCopy.finishtime==undefined && !heatInfoAuxCopy.isFalseStart" v-on:click="manualFalseStart"><%= __("False start") %></button>
+                            <button type="button" class="btn" v-else v-on:click="manualStart"><%= __("Start") %></button>
                         </fieldset>
                         <div style="padding-top:7px" v-if="(showWindAlways || heatInfo.aux?.wind || disciplineConfiguration.wind) ">
                             <%= __('Wind') %>: {{heatInfo.aux?.wind}}
@@ -1404,7 +1404,7 @@
                         
                         <!-- show all (false-)starts with reaction times -->
                         <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
-                        <div v-for="(start, iStart) in heatInfo.aux.starts" style="display:flex">
+                        <div v-for="(start, iStart) in heatInfo.aux?.starts" style="display:flex">
                             <div style="margin-right: 5px;">{{(new Date(start.starttime)).toLocaleTimeString()}}</div>
                             <div v-bind:class="{invisibleText: !start.isFalseStart}" style="margin-right: 5px;"><%= __("False start") %></div>
                             <div v-if="start.reactionTimes">
