@@ -15,13 +15,14 @@ import {parseStringPromise} from 'xml2js';
  * - on startup, the list is loaded from MongoDB and replaced ("updated") as soon as grabbing past has finished.
  */
 export class laportal extends dataProvider{
-	constructor(logger, mongoDb){
-		super('laportal', logger, mongoDb);
+	constructor(logger, mongoDb, currentRangeFrom, currentRangeTo){
+		super('laportal', logger, mongoDb, currentRangeFrom, currentRangeTo);
 
 		this.baseUrl = "https://slv.laportal.net";
 		this.data.directHyperlink = this.baseUrl + "/Competitions/Current";
 
 		// define separate intervals
+		// ATTENTION: make sure that the lowest value is reasonably low (e.g. 300), since meetingsCurrent shall always represent the current date, but only gets updated whenever an interval is updated.
 		this.tIntervalPast = 24*3600; // in s
 		this.tIntervalCurrent = 60; // in s
 		this.tIntervalUpcoming = 120; // in s
@@ -105,6 +106,19 @@ export class laportal extends dataProvider{
 		} else {
 			this.data.showAlternate=false;
 		}
+
+		// create meetingsCurrent
+		// NOTE: it will use the current date in the server time zone!
+		// first, create the daterange to filter
+		let now = new Date();
+
+		// this approach is needed to make sure that the date is in UTC time zone, i.e. hours and smaller are =0
+		let dFrom = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()+this.currentRangeFrom));
+		let dTo = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()+this.currentRangeTo));
+
+		this.data.meetingsCurrent = this.data.meetings.filter(x=> {
+			return !(x.dateFrom>dTo || x.dateTo<dFrom);
+		});
 	}
 
 	// only does the actual request and either returns the resultstream, or returns (! not rejects) with the error

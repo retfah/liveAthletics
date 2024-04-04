@@ -1404,7 +1404,7 @@ const mongoDbPlugins = mongoclient.db("plugins");
 const meetingDataProviders = [];
 
 for (let dp of conf.meetingDataProviders){
-	let x = new dp(logger, mongoDbPlugins);
+	let x = new dp(logger, mongoDbPlugins, conf.currentRangeFrom, conf.currentRangeTo);
 	meetingDataProviders.push(x);
 }
 
@@ -1427,12 +1427,24 @@ class liveAthletics {
 			showAlternate: false, 
 			directHyperlink: '', 
 			meetings:[], // items: {name (string), dateFrom (date), dateTo (date), place (string),source (string), hyperlink (string) }
+			meetingsCurrent:[], // items as above, but only the current items; this is used to increase the speed of loading, since only those elements will be rendered at first
 		};
 	}
 
 	get data(){
 		// update the data (this is needed in the case when )
 		this._data.meetings = rooms?.meetings?.rdMeetingSelection?.data ?? [];
+
+		// create the current meetings
+		// first, create the daterange to filter
+		let now = new Date();
+		// this approach is needed to make sure that the date is in UTC time zone, i.e. hours and smaller are =0
+		let dFrom = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()+this.currentRangeFrom));
+		let dTo = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()+this.currentRangeTo));
+
+		this._data.meetingsCurrent = this._data.meetings.filter(x=> {
+			return !(x.dateFrom>dTo || x.dateTo<dFrom);
+		})
 
 		// data is always up to date
 		this._data.lastUpdated = new Date();
@@ -1594,7 +1606,7 @@ app.get('/:lang/', (req, res, next)=>{
 	}
 	if (numMeetingsActive>1) {
 		// show the list of meetings to select
-		res.render("meetingSelection2.ejs", {dataProviders:getMeetingDataProviderData()});
+		res.render("meetingSelection2.ejs", {dataProviders:getMeetingDataProviderData(), currentRangeFrom:conf.currentRangeFrom, currentRangeTo:conf.currentRangeTo});
 	} else if(numMeetingsActive==1){
 		// redirect to the only meeting
 		let shortname = keys[0];

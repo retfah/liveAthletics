@@ -184,8 +184,8 @@ class rdMeetings2 extends roomDataset{ // do not rename without renaming the ref
     createObject(laProps){
         return {
             name: laProps.name,
-            dateFrom: laProps.dateFrom,
-            dateTo: laProps.dateTo,
+            dateFrom: new Date(laProps.dateFrom),
+            dateTo: new Date(laProps.dateTo),
             place: laProps.location,
             source: 'liveAthletics',
             hyperlink: laProps.shortname, // eventually
