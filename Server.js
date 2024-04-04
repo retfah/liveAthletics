@@ -1552,6 +1552,10 @@ app.use('/.well-known', express.static('.well-known'));
 // serve static files (URL must be "/static" and teh fiels lie in "/static")
 app.use('/static', express.static('static'));
 
+app.get('/robots.txt', (req,res,next)=>{
+	res.send("# blank file allows all");
+})
+
 // the very first level, e.g. "example.com/"
 app.get(/^\/$/,(req, res, next)=>{
 	logger.log(99, 'GET: /^\/$/')
