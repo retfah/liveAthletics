@@ -1584,6 +1584,7 @@ app.get('/:lang\*', (req, res, next)=>{
 
 	// store the chosen language in the session (needed for websocket-things)
 	req.session.lang = req.params.lang;
+	res.locals.lang = req.params.lang;
 
 	next();
 })
@@ -1639,6 +1640,7 @@ app.get('/:lang/meetingSelection', (req, res)=>{
 app.get('/:lang/timing/', (req, res, next)=>{
 	logger.log(99, 'GET: /:timing/')
 	req.i18n.setLocale(req.params.lang);
+	res.parameters.lang = req.params.lang;
 
 	if (conf.timings.length==1){
 		// automatic redirect to this timing
