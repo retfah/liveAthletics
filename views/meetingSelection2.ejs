@@ -24,7 +24,8 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
             let vueMeetingSelectionConfig = {
                     data(){
                         return {
-                            dataProviders: <%- JSON.stringify(dataProviders) %>,
+                            _dataProviders: <%- JSON.stringify(dataProviders) %>,
+                            dataProviders:[], // will be filled with only the current meetings first; and with all meetings as soon as the current meetings were loaded to improve the felt speed
                             dateFrom: null,
                             dateTo: null,
                             userFrom: null,
@@ -123,19 +124,40 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
 
                         }
                     },
-                    mounted() {
+                    created(){
+                        // copy only the current meetings to 
+                        const propsToCopy = ["name", "lastUpdated", "showAlternate", "directHyperlink"] // apart of meetings
+                        for (let dp of this._dataProviders){
+                            let o = {};
+                            for (let p of propsToCopy){
+                                o[p] = dp[p];
+                            }
+                            o.meetings = dp.meetingsCurrent;
+                            this.dataProviders.push(o)
+                        }
+
                         // set the default range: current date -2 +5 days (i.e. one week, including the current or next weekend)
                         let d = new Date();
-                        d.setDate(d.getDate()-2);
+                        d.setDate(d.getDate()+ <%- currentRangeFrom %>);
                         this.dateFrom = d.toISOString().slice(0,10);
                         this.currentFrom = this.dateFrom;
-                        d.setDate(d.getDate()+7);
+                        d.setDate(d.getDate()+ <%- currentRangeTo %>);
                         this.dateTo = d.toISOString().slice(0,10);
                         this.currentTo = this.dateTo;
 
                         // initial values for the user settings
                         this.userFrom = this.currentFrom;
                         this.userTo = this.currentTo;
+                    },
+                    mounted() {
+
+                        // should be called when everything is loaded.
+                        for (let dp of this._dataProviders){
+                            // add all meetings
+                            let dp2 = this.dataProviders.find(d=>d.name==dp.name);
+                            dp2.meetings = dp.meetings;
+                        }
+
                     },
                     components:{
                         'v-table':VTable,
