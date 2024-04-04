@@ -89,6 +89,10 @@ export default {
 
     // providers for meeting data, to aggregate them with liveAthletics meetings
     // to be extended e.g. with seltec, worldAthletics, diamondLeague, ...
-    meetingDataProviders:[laportal],
+    meetingDataProviders: [laportal],
+
+    // what range of dates shall shown in the meeting overview as "current"
+    currentRangeFrom:-2, // today minus how many days
+    currentRangeTo: 7, // today plus how many days
 
 }
