@@ -1351,7 +1351,6 @@
                         <div v-if="heatInfo.aux?.finishtime" style="padding-top:7px"><%= __("Inofficial time") %>: {{formatValue(heatInfo.aux.finishtime, false, false)}}</div>
                         <div v-else-if="heatInfo.aux?.isFalseStart"><%= __("False start") %></div>
                         <div v-else-if="liveTimes[heatInfo.xSeries]" style="padding-top:7px"><%= __("Current run time") %>: {{liveTimes[heatInfo.xSeries]}}</div>
-                        
                         <!-- show all (false-)starts with reaction times -->
                         <h4 v-if="heatInfo.aux?.starts && heatInfo.aux?.starts.length>0"><%= __("Start attempts") %></h4>
                         <div v-for="(start, iStart) in heatInfo.aux?.starts" style="display:flex">
@@ -1371,7 +1370,7 @@
                                             <tr v-for="row in displayData" :key="row.lane">
                                                 <td>{{row.lane}}</td>
                                                 <td>{{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteName}} {{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteForename}}</td>
-                                                <td v-bind:class="{reactionTimeInvalid: row.reactionTime<0.1}">{{row.reactionTime}}</td>
+                                                <td v-bind:class="{reactionTimeInvalid: row.reactionTime<100}">{{row.reactionTime/1000}} s</td>
                                             </tr>
                                         </tbody>
                                     </template>
@@ -1421,13 +1420,13 @@
                                             <tr v-for="row in displayData" :key="row.lane">
                                                 <td>{{row.lane}}</td>
                                                 <td>{{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteName}} {{heatInfo.SSRs.find(s=>s.lane==row.lane).startsingroup.athleteForename}}</td>
-                                                <td v-bind:class="{reactionTimeInvalid: row.reactionTime<0.1}">{{row.reactionTime}}</td>
+                                                <td v-bind:class="{reactionTimeInvalid: row.reactionTime<100}">{{row.reactionTime/1000}} s</td>
                                             </tr>
                                         </tbody>
                                     </template>
                                 </v-table>
                             </div>
-                            <button type="button" class="btn btnRed" v-on:click="deleteStart(iStart)"><%= __('Delete') %></button>
+                            <button  style="margin-left: 3px; margin-bottom: 3px;" type="button" class="btn btnRed" v-on:click="deleteStart(iStart)"><%= __('Delete') %></button>
                         </div>
                         
                         <br>

@@ -2240,7 +2240,7 @@ export class rTimingAlge extends rTiming {
                     for (let competitor of xml.HeatReactiontimes.Reactiontimes[0].Competitor){
 
                         // the reactiontime is a string; 
-                        let reactionTime = parseFloat(competitor.$.Reactiontime);
+                        let reactionTime = Math.round(parseFloat(competitor.$.Reactiontime)*1000); // in ms
                         if (!isNaN(reactionTime)){
                             newReactionTimes.push({
                                 lane: competitor.$.Lane,

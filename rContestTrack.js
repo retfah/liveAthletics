@@ -137,7 +137,7 @@ class rContestTrack extends rContest{
                                     type:'object',
                                     properties:{
                                         lane: {type:'integer'},
-                                        reactionTime: {type: 'integer'},
+                                        reactionTime: {type: 'integer'}, // in ms
                                         //card: {type:'integer'}, // define who got disqualified; eventually as string and/or add another property with the rule leading to the disqualification
                                     },
                                     required:['lane', 'reactionTime'], // in ms
@@ -200,7 +200,7 @@ class rContestTrack extends rContest{
             timeRounded: {type: "integer", minimum:0},
             rank: {type: 'integer', minimum:1},
             official: {type: 'boolean'},
-            reactionTime: {type:['null', 'integer']},
+            reactionTime: {type:['null', 'integer']}, // in ms
         }
 
         const schemaResultsTrack = {
