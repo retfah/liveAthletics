@@ -720,5 +720,21 @@
 	"Last results successfully transferred": "Letzte Resultatübertragung erfolgreich",
 	"Last versatile protocol error": "Letzter Fehler im Versatile Protokoll",
 	"Add ": "Add ",
-	"Stop": "Stop"
+	"Stop": "Stop",
+	"not qualified": "nicht qualifiziert",
+	"Qualified by rank in heat": "Qualifiziert nach Rang in Lauf",
+	"Qualified by rank in heat by lot": "Qualifiziert nach Rang in Lauf gelost",
+	"Qualified by time": "Qualifiziert nach Zeit",
+	"Qualified by time by lot": "Qualifiziert nach Zeit",
+	"qualified due to withdrawal": "Qualifiziert aufgrund Verzicht",
+	"qualified by Referee": "Qualifiziert durch Schiedsrichter",
+	"qualified by Jury of Appeal": "Qualifiziert durch Jury",
+	"Q": "Q",
+	"QD": "Q*",
+	"q": "q",
+	"qD": "q*",
+	"w": "v",
+	"q+": "q+",
+	"qR": "qR",
+	"qJ": "qJ"
 }
