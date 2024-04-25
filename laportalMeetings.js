@@ -239,7 +239,7 @@ export class laportal extends dataProvider{
 					name, 
 					dateFrom: dateFrom, 
 					dateTo: dateTo, 
-					place: tr.TD[2].A[0]._.trim(), 
+					place: (tr.TD[2].A[0]._ ?? '').trim(), // if place is empty, _ is undefined and trim qould cause an error.
 					source: 'seltec', 
 					hyperlink: href,
 				})
