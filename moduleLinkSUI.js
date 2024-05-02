@@ -1272,7 +1272,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
 
     // add ranks for track results
     rankTrack(results, label){
-        // always use simply the time; ranking based on the evaluation on the timing will be present anyway
+        // always use simply the time; ranking based on the evaluation on the timing should already be present, but we will ensure it here
 
         results.sort((s1,s2)=>{
             if (Math.max(s1.resultOverrule,1) !=  Math.max(s2.resultOverrule,1)){ // regular (0) and retired (1) must be treated the same
@@ -1287,7 +1287,10 @@ export default class moduleLinkSUI extends nationalBodyLink {
             if (s2.timeRounded===null){
                 return -1;
             } 
-            return s1.timeRounded-s2.timeRounded;
+            if (s1.timeRounded-s2.timeRounded != 0){
+                return s1.timeRounded-s2.timeRounded;
+            }
+            return s1.rank-s2.rank;
         });
 
         let lastRank = 0;
@@ -1310,7 +1313,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
             } else {
                 res.ranking[label] = lastRank;
             }
-
         }
 
     }
