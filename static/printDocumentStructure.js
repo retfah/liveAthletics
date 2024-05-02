@@ -1353,6 +1353,105 @@ export class pContestResultsHigh extends printingGeneral {
     }
 }
 
+// originally copied from pContestResultsHigh and at beginnging kept identical
+export class pContestResultsTrack extends printingGeneral {
+    
+    constructor (conf, data){
+        super(conf, data)
+    }
+
+    async printContainerHeader(page, pG){
+
+        let conf = this.conf.contestResultsTrack;
+        //let fontHeader = await page.doc.getFont(conf.fontContestHeader);
+        let fontName = this.conf.font ?? 'Helvetica';
+
+        // create a string with all involved categories. Make sure no category is appearing twice.
+        let categories = [];
+        this.data.relatedGroups.forEach(group=>{
+            group.round.eventgroup.events.forEach(e=>{
+                if (categories.indexOf(e.xCategory)==-1){
+                    categories.push(e.xCategory);
+                }
+            })
+        })
+
+        // sort all categories, translate them to strings and combine them
+        categories.sort((a,b)=>{
+            return this.data.categories.find(el=>el.xCategory==a)?.sortorder - this.data.categories.find(el=>el.xCategory==b)?.sortorder;
+        })
+
+        let categoriesText = categories.map((el)=>{
+            return this.data.categories.find(cat=>cat.xCategory==el)?.shortname;
+        })
+
+        let categoriesStr = categoriesText.join(', ');
+        let name = this.data.name ? " " + this.data.name : '';
+
+        // print contest name, time, category etc
+        // the name does not exist yet in the data!
+        //page.drawText(this.data.baseDiscipline, {font:fontHeader, size: conf.sizeContestHeader, x:this.conf.marginLeft, y:pG.positionY-20})
+        let usableWidth = this.conf.pageSize[0]-this.conf.marginLeft-this.conf.marginRight;
+        let tabConf = {
+            font:conf.fontContestHeader, 
+            size: conf.sizeContestHeader, 
+            cells:[
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr + name]},
+                {p: 'datetimeStartDateTime', alignmentH:'R'},
+            ], 
+            columns:[usableWidth*0.7, usableWidth*.3],
+        };
+        pG.positionY -= await this.printTabularRow(tabConf, this.data, page, this.conf.marginLeft, pG.positionY);
+
+        let groupLines = 0;
+        if (this.data.showRelatedGroups){
+            let font = await page.doc.getFont(fontName);
+            for (let rg of this.data.relatedGroups){
+                groupLines++;
+                // create the string: round name, event group name, ev. hurdle height, categories (from events), group name
+                // additionally we could include the event info field
+
+                // get all categories
+                let xCats = rg.round.eventgroup.events.map(e=>e.xCategory);
+                let cats = this.data.categories.filter(c=>xCats.includes(c.xCategory));
+                cats.sort((a,b)=>a.sortorder - b.sortorder);
+
+                // avoid unnecessary space after the round name, if the round name is empty
+                let s = `${rg.round.name ? `rg.round.name ` : ''}${rg.round.eventgroup.name} ${cats.map(c=>c.shortname).join('/')}`;
+                // include group name only when there is more than one group
+                if (rg.round.numGroups>1){
+                    s += ` ${rg.name}`;
+                }
+
+                // print!
+                page.drawText(s, {font:font, size: conf.sizeContestInfo, x:this.conf.marginLeft, y:pG.positionY-conf.sizeContestInfo*1.2*groupLines})
+            }
+        }
+
+        pG.positionY -= conf.sizeContestInfo*1.2*groupLines;
+
+        pG.positionY -= conf.spaceAfter;
+
+        return [page, pG];
+    }
+
+
+    async printChildSeparatorPrePageBreak(page, pG){
+
+        let conf = this.conf.contestResultsTrack;
+        let font = await page.doc.getFont(conf.fontSeries);
+        page.drawText(conf.strFurtherSeries, {x:this.conf.marginLeft, y: pG.positionY - conf.marginTopSeries - conf.size, size:conf.size, font: font})
+        pG.positionY -= conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+
+        return [page, pG];
+    }
+
+    async childSeparatorPrePageBreakHeight(){
+        let conf = this.conf.contestResultsTrack;
+        return conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+    }
+}
+
 export class pContestSheetHigh extends printingGeneral {
     
     constructor (conf, data){
@@ -1775,6 +1874,113 @@ export class pSeriesContestResultsHigh extends printingGeneral{
     }
 }
 
+// originally copied from pSeriesContestResultsHigh
+export class pSeriesContestResultsTrack extends printingGeneral{
+
+    constructor (conf, data){
+        super(conf, data)
+
+        // at least 2 children shall be printed on one page; otherwise, add a page break before
+        this.minimumChildrenPrint = 3;
+    }
+
+    async printContainerHeader(page, pG){
+        // draw the name+number of the series, eventually how many athletes on this page
+
+        let globalConf = this.conf;
+        let conf = globalConf.contestResultsTrack;
+
+        let fontSeries = await page.doc.getFont(conf.fontSeries);
+
+        // draw the series name
+        let text = '';
+        if (this.data.name){
+            text = conf.strHeat + ' ' + this.data.name;
+        } else {
+            text = conf.strHeat + ' ' + this.data.number + ' ' + conf.strOf + ' ' + this.data.parent.children.length;
+        }
+        // show the table header
+        // add "Vorlauf 2", wind and its time (left, center, right)
+        // code originally copied from contest heats for track
+        // the actual column widths will be calculated by printTabularRow
+        // draw info as a table; series on the left, wind in center (if required; as a cell with solid border) time on the right 
+        // since we cannot have the border only around a cell, we need to draw two tables; one for the elements without the border, and one for the wind
+        let confTable = {
+            margin:0,
+            columns:[220, 75, 220], // total 515
+            //rowHeight: 20,
+            cells: [{t:text}, {opacity:conf.opacityWindBackground, alignmentH:"C", p:'windWithUnit'}, {p:'datetimeFormatted', alignmentH:"R"}],
+            data: this.data,
+        }
+        this.printTabularRow(confTable, this.data, page, globalConf.marginLeft, pG.positionY);
+        pG.positionY -= 14;
+
+        let colConf = JSON.parse(JSON.stringify(conf.athleteColumns)); // copy is needed to not delete the data in the original configuration
+        
+        // replace the cell defintion and font header
+        colConf.font = colConf.fontHeader;
+
+        colConf.linesHorizontal = [0,1];
+
+        // delete the columns that are not selected
+        /*if (!this.data.showHurdleHeightCol){
+            let i = colConf.cells.findIndex(x=>x.identifier=="hurdles");
+            colConf.cells.splice(i,1);
+            colConf.cellsHeader.splice(i,1);
+            colConf.columns.splice(i,1);
+            colConf.linesVertical.splice(i,1);
+        }*/
+        
+        colConf.cells = colConf.cellsHeader;
+
+        let height = await this.printTabularRow(colConf, this.data, page, globalConf.marginLeft, pG.positionY);
+
+        pG.positionY -= height;
+
+        return [page, pG]
+    }
+
+     // we have a fixed height, so we avoid calculating the height by defining this function
+    /*containerHeaderHeight(){
+        return 30; 
+    }*/
+    
+    printContainerFooter(page, pG){
+        // just add some space
+        pG.positionY -= 15;
+        return [page, pG]
+    }
+
+    containerFooterHeight(){
+        return 15;
+    }
+
+    printPostPageBreak(page, pG){
+        // just repeat the regular header stuff
+        return this.printContainerHeader(page, pG);
+    }
+
+    postPageBreakHeight(){
+        // just repeat the regular header stuff
+        return this.containerHeaderHeight();
+    }
+
+    async printChildSeparator(page, pG){
+        // just add some extra space
+        pG.positionY -= this.conf.contestResultsTrack.spaceBetweenAthletes;
+        return [page, pG];
+    }
+
+    async childSeparatorHeight(){
+        return this.conf.contestResultsTrack.spaceBetweenAthletes;
+    }
+
+    printChildSeparatorPrePageBreak(page, pG){
+        // if the series would be breakable, we would implement here a text like "series continues on next page"
+        return [page, pG];
+    }
+}
+
 export class pSeriesContestSheetHigh extends printingGeneral{
 
     constructor (conf, data){
@@ -2153,6 +2359,61 @@ export class pPersonContestResultHigh extends pPerson {
 
 }
 
+// originally copied from pPersonContestResultHigh
+export class pPersonContestResultTrack extends pPerson {
+    
+    constructor(conf, data){
+        super(conf, data);
+    }
+
+    async printContainerHeader(page, pG){
+        // TODO: everything; differentiate whether the details shall be shown or not; 
+
+        let globalConf = this.conf;
+
+        let conf = globalConf.contestResultsTrack;
+
+        // we need to translate the result if it is an resultoverrule: 
+        const translator = (result)=>{
+            if (result in this.conf.staticTranslations){
+                return this.conf.staticTranslations[result];
+            }
+            return result;
+        }
+
+        // draw the athletes header
+        pG.positionY -= await this.printTabularRow(conf.athleteColumns, this.data, page, globalConf.marginLeft, pG.positionY, translator) 
+
+        // draw the second line of the results
+        if (this.data.showDetail){
+            // create the string
+            let resultsStr = `${conf.strAttempts}: `;
+            for (let res of this.data.results){
+                if (res.jumpoffOrder>0){
+                    resultsStr += strJumpoffPrefix;
+                }
+                resultsStr += `${res.height.toFixed(2)} ${res.resultStr}`;
+                if (res != this.data.results[this.data.results.length-1]){
+                    // there will be one more result
+                    resultsStr += ' / ';
+                } else {
+                    // is the last entry; if the person retired, add here the respective flag
+                    if (this.data.resultOverrule==1){
+                        resultsStr += this.conf.staticTranslations["retiredAbbreviation"];
+                    }
+                }
+            }
+
+            // it is one big cell with automatic line break
+            pG.positionY -= await this.printCell(conf.resultsRow, {resultsStr}, page, globalConf.marginLeft + conf.athleteColumns.columns[0], pG.positionY, conf.resultsMaxWidth)
+
+        }
+
+        return [page, pG];
+    }
+
+}
+
 export class pPersonContestSheetHigh extends pPerson {
     
     constructor(conf, data){
@@ -2482,21 +2743,52 @@ export class dPersonContestSheetHigh extends dPerson {
     }
 }
 
-/**
- * Extends the dPerson class by the properties needed to print a contestSheet for TECH HIGH. 
- */
-export class dPersonContestResultHigh extends dPerson {
-
-    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, results=[], startConf=null, resultOverrule=0, resultRemark, showDetail=false){
+class dPersonContestResult extends dPerson{
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, startConf=null, resultOverrule=0, resultRemark, qualification=0, showDetail=false){
         super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
         this.position = position;
         this.startConf = startConf;
         this.rank = rank;
-        this.result = result; // the last valid height
-        this.results = results; // array of object with {height, resultStr, jumpffOrder}, e.g. {height:3.50, resultStr:'XO', jumpoffOrder:0}
+        this.result = result; 
         this.resultOverrule = resultOverrule;
         this.showDetail = showDetail; 
         this.resultRemark = resultRemark;
+        this.qualification = qualification;
+    }
+
+    get qualificationFormatted(){
+        // it will get translated by "static translations"
+        if (this.qualification==0){
+            return '';
+        } else if (this.qualification == 1){
+            return 'Q';
+        }else if (this.qualification == 2){
+            return 'QD';
+        }else if (this.qualification == 3){
+            return 'q';
+        }else if (this.qualification == 4){
+            return 'qD';
+        }else if (this.qualification == 5){
+            return 'w';
+        }else if (this.qualification == 6){
+            return 'q+';
+        }else if (this.qualification == 7){
+            return 'qR';
+        }else if (this.qualification == 8){
+            return 'qJ';
+        }
+        return ''
+    }
+}
+
+/**
+ * Extends the dPerson class by the properties needed to print a resultSheet for TECH HIGH. 
+ */
+export class dPersonContestResultHigh extends dPersonContestResult {
+
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, results=[], startConf=null, resultOverrule=0, resultRemark, qualification, showDetail=false){
+        super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank, result, startConf, resultOverrule, resultRemark, qualification, showDetail)
+        this.results = results; // array of object with {height, resultStr, jumpffOrder}, e.g. {height:3.50, resultStr:'XO', jumpoffOrder:0}
     }
 
     // those texts are later translated by the static translations
@@ -2538,6 +2830,71 @@ export class dPersonContestResultHigh extends dPerson {
         } else {
             return this.resultOverrule;
         }
+    }
+}
+
+/**
+ * Extends the dPerson class by the properties needed to print a resultSheet for TRACK. 
+ */
+export class dPersonContestResultTrack extends dPersonContestResult {
+
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=null, result={}, startConf=null, resultOverrule=0, resultRemark, qualification, showDetail=false, timeFormatter=null){
+        super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank, result, startConf, resultOverrule, resultRemark, qualification, showDetail)
+        this.timeFormatter = timeFormatter; // a function that can be called with the time and that returns the formatted time correct for the specific discipline (e.g. only s up to 400 m, and min:sec.etc for longer runs)
+    }
+
+    // those texts are later translated by the static translations
+    get resultFormatted(){
+        if (this.resultOverrule<=1){
+            // including retired
+            if (this.result){
+                if (this.timeFormatter){
+                    return this.timeFormatter(this.result.time);
+                } else {
+                    // if no formatter is given, print in s with up to 1/100 s.
+                    return (Math.ceil(this.result.time/1000)/100).toFixed(2); // in s, precise to 1/100.
+                }
+            } else {
+                return ''; // no result yet; should only ocur when the cometition is not finished yet
+            }
+        } else if (this.resultOverrule==1){
+            return 'retiredAbbreviation';
+        } else if (this.resultOverrule==3){
+            return 'DNF'
+        } else if (this.resultOverrule==4){
+            return 'withdrawal';
+        } else if (this.resultOverrule==5){
+            return 'DNS';
+        } else if (this.resultOverrule==6){
+            return 'disq.';
+        }
+        
+    }
+
+    get rankFormatted(){
+        if (this.result?.rank){
+            return this.result.rank
+        }
+        return this.rank>0 ? `${this.rank}.` : '';
+    }
+
+    get rankSorting(){
+        // the rank is zero when there is no rank, which is wrong for sorting
+        return this.rank>0 ? this.rank : 999999;
+    }
+
+    get resultOverruleSorting(){
+        // we must treat retired the same as regular!
+        if (this.resultOverrule==1){
+            return 0;
+        } else {
+            return this.resultOverrule;
+        }
+    }
+
+    get resultstrackRankSorting(){
+        // use the track given in the resultstrack object (named "result") for sorting
+        return this.result && this.result.rank>0 ? this.result.rank : 999999;
     }
 }
 
@@ -2603,6 +2960,33 @@ export class dSeriesSheetTrack extends dSeries {
         this.hurdles = hurdles; // is a hurdles competition; then maybe add the information about the heights and distances to the related groups
         this.showRank = showRank; // show a column for the rank; in modern sitautions with automatic data transfer not needed
         this.showResult = showResult;
+    }
+}
+
+export class dSeriesResultsTrack extends dSeries {
+    
+    constructor(xSeries, status, number, name, siteName, SSR, datetime, id, wind=null, showLane=true, showPosition=true, showReactiontime=false, showId=true, showHurdleHeightCol=false, hurdles=false){
+        
+        super(xSeries, status, number, name, siteName, SSR, datetime);
+        this.id = id;
+        this.wind = wind; // show the wind if it is not null
+        this.showLane = showLane;
+        this.showPosition = showPosition;
+        this.showId = showId;
+        // show empty lanes is not an option here, since empty lanes simply would have to be real entries with simply empty name etc.
+        this.showReactiontime = showReactiontime;
+        this.showHurdleHeightCol = showHurdleHeightCol; // actually only needed when there are different hurdle heights in the same series or contest
+        this.hurdles = hurdles; // is a hurdles competition; then maybe add the information about the heights and distances to the related groups
+    }
+
+    get windWithUnit(){
+        if (this.wind !== null){
+            if (typeof(this.wind) == 'number'){
+                return this.wind.toFixed(1) + ' m/s';
+            }
+            return this.wind + ' m/s';
+        }
+        return '';
     }
 }
 

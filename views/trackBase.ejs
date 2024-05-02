@@ -296,6 +296,9 @@
                     printId: false,
                     printEmptyLanes: true,
                     printMaxSeries: 0, // 0=all
+
+                    printReactionTime: false, // print reaction time in results
+                    printLane: false, //print lane in results
                 }
             },
             methods:{
@@ -1450,8 +1453,13 @@
                 },
                 printContest(){
                     // call the same function outside of vue, with the respective parameters
-                    printContest(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes, this.printMaxSeries);
+                    printSeriesTrack(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes, this.printMaxSeries);
                 },
+
+                printResults(){
+                    // call print results track; provide the data of the required rooms, but no processed data, to allow the funciton to be reused on the server!
+                    printResultsTrack(this.contest, this.series, this.startgroups, this.relatedGroups, this.disciplines, this.categories, this.meeting, this.sites,this.printLane, this.printReactionTime) // I dont know whether the last 3 items are really needed. 
+                }
 
             },
             watch:{
@@ -2061,8 +2069,86 @@
 <script type="module">
     // MODULE stuff for printing
     // TODO: modify for track disciplines
-    import {dContestSheetTrack, dSeriesSheetTrack, dPersonContestSheetTrack, dHeaderFooter, printer, pPersonContestSheetTrack, pSeriesContestSheetTrack, pContestSheetTrack, pHeaderFooter} from "/static/printDocumentStructure.js";
+    import {dContestSheetTrack, dSeriesSheetTrack, dSeriesResultsTrack, dPersonContestSheetTrack, dPersonContestResultTrack, dHeaderFooter, printer, pPersonContestSheetTrack, pSeriesContestSheetTrack, pContestSheetTrack, pHeaderFooter, pPersonContestResultTrack, pSeriesContestResultsTrack, pContestResultsTrack} from "/static/printDocumentStructure.js";
 
+        /**
+     * Create the data structure for printing
+     * @param {object} contest The contest object of the room
+     * @param {array} series Array storing all series 
+     * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
+     * @param {array} categories
+     * @param {array} disciplines
+     * @param {array} relatedGroups
+     * @param {array} sites all sites
+     * @param {object} conf Object with the print configuration
+     * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
+     * @returns dContest instance with all series/persons as childs
+     */
+    function createDataStructureResults (contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printLane=false, printReactionTime=false){
+        
+        // get the (base)discipline
+        const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
+        const disciplineConfiguration = JSON.parse(discipline.baseConfiguration);
+        let discName = discipline?.name;
+
+        const timeFormatter = function(time){
+            return window.disciplineFormatters[3](time, discipline, false, false); // show unit, show ms
+        }
+
+        // dContest sheet is the same (pContestSheet will be different) 
+        let cContest =  new dContestSheetTrack(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories, {}, false); // false: do not dhow relatedGroups
+
+        // create each series-container and add it to the contest
+        for (let s of series){
+            if (xSeries==null || s.xSeries == xSeries){
+                
+                // get the name of the site
+                let siteName = '';
+                if (s.xSite !== null){
+                    const site = sites.find(si=>si.xSite == s.xSite);
+                    if (site){
+                        siteName = site.name;
+                    }
+                }
+                let wind = null;
+                if (s.aux && 'wind' in s.aux){
+                    wind = s.aux.wind.toFixed(1);
+                }
+
+                let cSeries = new dSeriesResultsTrack(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, s.datetime, s.id, wind, printLane, false, printReactionTime, false, false, false); 
+
+                // add each person in this series. Get the necessary information from the startgroup
+                for (let ssr of s.seriesstartsresults){
+                    // try to find the startgroup corresponding to SSR
+                    let startGroup = startgroups.find(sg=>sg.xStartgroup==ssr.xStartgroup)
+                    if (startGroup){
+
+                        // get the category name
+                        let cat = categories.find(c=> c.xCategory==startGroup.xCategory);
+                        let catName;
+                        if (cat){
+                            catName = cat.shortname;
+                        }
+
+                        let p = new dPersonContestResultTrack(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, null, ssr.resultstrack, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, ssr.qualification, printReactionTime, timeFormatter);
+
+                        cSeries.children.push(p);
+                    } else {
+                        // TODO: replace by correct logging!
+                        console.log(`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`)
+                        throw {code:5, message:`Could not find the person for the seriesStart ${ssr.xSeriesStart}. Printing not possible.`}
+                    }
+                }
+
+                // sort the persons by their rank
+                cSeries.sortChildren(['resultOverruleSorting', 'rankSorting', 'resultstrackRankSorting']);
+
+                cContest.addSeries(cSeries);
+            }
+        }
+        cContest.sortSeries('number')
+        return cContest
+        }
 
     /**
      * Create the data structure for printing
@@ -2075,7 +2161,7 @@
      * @param {array} sites all sites
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
      */
-    function createDataStructure(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printReactionTimeCol=false, printResultCol=false, printRankCol=false, printId=false, printEmptyLanes=false, maxSeries=null){
+    function createDataStructureHeats(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, xSeries=null, printReactionTimeCol=false, printResultCol=false, printRankCol=false, printId=false, printEmptyLanes=false, maxSeries=null){
 
         // get the (base)discipline
         const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
@@ -2204,7 +2290,32 @@
         return cContest;
     }
 
-    async function printContest(printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries){
+    async function printResultsTrack(contest, series, startgroups, relatedGroups, disciplines, categories, meeting, sites, printLane, printReactionTime){
+        // dynamically get the print configuration for the current language
+        let lang = getLanguage();
+        const {confPrint} = await import(`/${lang}/confPrint`);
+        const conf = confPrint;
+
+        let cContest = createDataStructureResults(contest, series, startgroups, categories, disciplines, relatedGroups, sites, conf, null, printLane, printReactionTime); 
+        let hf = new dHeaderFooter([cContest], meeting);
+        
+        // define the translations from dataContainers to prtContainers
+        const dataToPrint = {
+            dHeaderFooter: pHeaderFooter,
+            dContestSheetTrack: pContestResultsTrack, 
+            dSeriesResultsTrack: pSeriesContestResultsTrack, 
+            dPersonContestResultTrack: pPersonContestResultTrack
+        }
+
+        let p = await printer.create([hf], dataToPrint, conf, true)
+
+        p.showNewTab()
+
+        return p;
+
+    }
+
+    async function printSeriesTrack(printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries){
 
         // dynamically get the print configuration for the current language
         let lang = getLanguage();
@@ -2212,7 +2323,7 @@
         const conf = confPrint;
 
         // (contest, series, startgroups, categories, disciplines, relatedGroups, sites, xSeries=null)
-        let cContest = createDataStructure(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups, vueSeriesAdminTrack.sites, vueSeriesAdminTrack.conf, null, printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries);
+        let cContest = createDataStructureHeats(vueSeriesAdminTrack.contest, vueSeriesAdminTrack.series, vueSeriesAdminTrack.startgroups, vueSeriesAdminTrack.categories, vueSeriesAdminTrack.disciplines, vueSeriesAdminTrack.relatedGroups, vueSeriesAdminTrack.sites, vueSeriesAdminTrack.conf, null, printReactionTimeCol, printResultCol, printRankCol, printId, printEmptyLanes, maxSeries);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTrack.meeting);
 
         // define the translations from dataContainers to prtContainers
@@ -2256,7 +2367,8 @@
     }
 
     // make sure the pritnContest function is visible/accessible to all other rooms.
-    window.printContest = printContest;
+    window.printSeriesTrack = printSeriesTrack;
+    window.printResultsTrack = printResultsTrack;
 </script>
 <!-- up to here, content of techHighBase; all subsequent stuff (i.e. how the data is shown) is defined separately. -->
 <%- content %>

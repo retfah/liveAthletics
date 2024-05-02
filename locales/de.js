@@ -736,5 +736,7 @@
 	"w": "v",
 	"q+": "q+",
 	"qR": "qR",
-	"qJ": "qJ"
+	"qJ": "qJ",
+	"Print lane": "Print lane",
+	"Print reaction time": "Print reaction time"
 }

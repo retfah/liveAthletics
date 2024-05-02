@@ -175,6 +175,71 @@ export const confPrint={
             strCall: 'Call',
         },
 
+        contestResultsTrack: {
+            font:'Helvetica',
+            fontSeries: 'HelveticaBold',
+            fontContestHeader: 'HelveticaBold',
+            size: 10,
+            sizeContestHeader: 12,
+            sizeContestInfo: 10,
+            sizeHeightBackground: 10,
+            spaceBetweenAthletes: 3,
+            spaceAfter: 5,
+            sizeSeries: 12,
+            marginTopSeries: 3,
+            marginBottomSeries: 3,
+            marginRight: 3, // margin to the right of "Results" and "Heights"
+            athleteColumns: {
+                // the athletes "header"
+                margin:[3,2,2,0],
+                columns:[25, 180, 20, 30, 150, 35, 15, 60], // bib, name, birthyear, country, club, result, qualification, remark
+                font:'Helvetica',
+                fontHeader: 'HelveticaBold',
+                size: 10,
+                alignmentH: 'C',
+                hs: 0.75, // horizontal scaling
+                cells:[
+                    {p:'rankFormatted', alignmentH:'R', },
+                    {p:['lastname', 'firstname'], t:[,' '], alignmentH:'L'}, // font:"HelveticaBold"
+                    {p:'year2'},
+                    //{p:'categoryName'},
+                    {p:'country'},
+                    {p:'clubName', alignmentH:'L'},
+                    {pt:'resultFormatted', alignmentH:'L'},
+                    {pt:'qualificationFormatted', alignmentH:'L'},
+                    {p:'resultRemark', alignmentH:'L'},
+                ],
+                cellsHeader:[
+                    {t:'Rank', alignmentH:'R', nf:'scale'},
+                    {t: 'Name', alignmentH:'L'},
+                    {t: 'Year', nf:'scale'},
+                    //{t: 'Category'},
+                    {t:'Country', nf:'scale'},
+                    {t:'Club', alignmentH:'L', nf:'scale'},
+                    {t:'Result', alignmentH:'L', nf:'scale'},
+                    {t:'', alignmentH:'L', nf:'scale'},
+                    {t:'Remark', alignmentH:'L', nf:'scale'},
+                ]
+            },
+            resultsRow:{ // configuration for printCell
+                p:'resultsStr',
+                nf: 'wordWrap',
+                size:8,
+                font:'Helvetica',
+                alignmentH: 'L',
+            },
+            resultsMaxWidth: 515, // potentially end the results string line before the end of the page to avoid that it looks ugly
+            strSeries: 'Heats',
+            strResults: 'Results',
+            strFurtherSeries: 'See next page for further heats.',
+            strHelp: 'O: valid trial, X: failed trial, -: passed trial, r: retired from competition, DNS: did not start, NM: no valid trial recorded, DQ: disqualified', // TODO: replace with a different variable
+            strAppeal: 'Appeal',
+            strCall: 'Call',
+            strHeat: 'Heat',
+            strOf: 'of',
+        },
+
+
         // will be used both in series (for the header) and in person (for the content)
         contestSheetHigh: {
             resColumns: 14, // number of result columns
@@ -331,6 +396,14 @@ export const confPrint={
             DNF: 'aufg.',
             disqualified: 'disq.',
             withdrawal: 'ab.',
+            Q: 'Q',
+            QD: 'Q*',
+            q: 'q',
+            qd: 'q*',
+            w: 'ab', // withdrawal
+            qR: 'qR', // referee
+            qJ: 'qJ', // jury
+            'q+': 'q+',
         },
 
         headerFooter: {
@@ -392,7 +465,29 @@ export const confPrint={
             strFurtherSeries: 'Weitere Serien auf der nächsten Seite.',
             strAppeal: 'Appell',
             strCall: 'Stellzeit',
-        }
+        },
+        contestResultsTrack: {
+            strHeat: 'Lauf',
+            strOf: 'von',
+            strWind: 'Wind m/s',
+            strResults: 'Resultate',
+            strFurtherSeries: 'Weitere Serien auf der nächsten Seite.',
+            strAppeal: 'Appell',
+            strCall: 'Stellzeit',
+            athleteColumns:{
+                cellsHeader:[
+                    {t:'Rang', alignmentH:'R', nf:'scale'},
+                    {t: 'Name', alignmentH:'L'},
+                    {t: 'Jg', nf:'scale'},
+                    //{t: 'Category'},
+                    {t:'Land', nf:'scale'},
+                    {t:'Verein', alignmentH:'L', nf:'scale'},
+                    {t:'Resultat', alignmentH:'L', nf:'scale'},
+                    {t:'', alignmentH:'L', nf:'scale'},
+                    {t:'Bemerkung', alignmentH:'L', nf:'scale'},
+                ],
+            }
+        },
     }
 
 }

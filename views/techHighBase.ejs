@@ -224,6 +224,23 @@
 
                     ssrMod:undefined, // store the xStartgroup that shall be modified in an overlay
                     resultOverruleMod: 0, 
+
+                    // late registration props
+                    athleteModID:-1,
+                    newAthleteCategory:null,
+                    newAthleteClub:null,
+                    newAthleteForename:'',
+                    newAthleteLastname:'',
+                    newAthleteBirthdate:null,
+                    newAthleteSex:null,
+                    newAthleteRegion:null,
+                    regions:null, // TODO
+
+                    baseModuleNames:null, // TODO
+                    baseSearchString:null,
+                    baseEntriesNum:null,
+                    baseEntries:null,
+
                 }
             },
             methods:{
@@ -3539,7 +3556,7 @@
                             return a.height - b.height;
                         })
 
-                        let p = new dPersonContestResultHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, trd.rank, trd.lastValidHeight, results, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, true);
+                        let p = new dPersonContestResultHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, trd.rank, trd.lastValidHeight, results, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, ssr.qualification, true);
 
                         cSeries.children.push(p);
                     } else {

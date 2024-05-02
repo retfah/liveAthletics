@@ -166,6 +166,17 @@
                     </label>
                     <button type="button" class="btn" v-on:click="printContest"><%= __("Print series")%></button>
                 </form>
+                <form class="verticalForm">
+                    <label>
+                        <input type="checkbox" v-model="printLane">
+                        <%= __('Print lane') %>
+                    </label>
+                    <label>
+                        <input type="checkbox" v-model="printReactionTime">
+                        <%= __('Print reaction time') %>
+                    </label>
+                    <button type="button" class="btn" v-on:click="printResults"><%= __("Print results")%></button>
+                </form>
 
                 <h3><%= __("Links") %></h3>
                 <!--<div><%= __("Live results") %>: TODO</div>-->
