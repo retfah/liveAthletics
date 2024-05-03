@@ -604,7 +604,6 @@ export default class rTiming extends roomServer{
     sortData(){
         // first sort the contests
         this.data.data.sort((c1, c2)=>{
-            return c1.datetimeStart-c2.datetimeStart;
         })
 
         // then sort each series
@@ -920,7 +919,7 @@ export default class rTiming extends roomServer{
             const newSeriesT = {};
             this.propertyTransfer(seriesS, newSeriesT);
             // we shall never transfer results; however, eventually the results will soon/instantly be read from the timing again. 
-            for (let ssr of seriesT.SSRs){
+            for (let ssr of newSeriesT.SSRs){
                 ssr.resultOverrule = 0;
                 ssr.resultstrack = null;
             }
@@ -970,16 +969,16 @@ export default class rTiming extends roomServer{
         if (!this.validateChangeStatus(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateChangeStatus.errors)}
         }
-        // use the regular heatresultsincoming to send the change
+        // use the regular heatresultsincoming to send the change --> TODO: this does not work when the heat does not yet/anymore exist in timing due to the previous state!
         let result = {
             xContest: data.xContest,
             xSeries: data.xSeries,
             status: data.status,
         }   
 
-        this.heatResultsIncoming(result);
+        this.heatResultsIncoming(result).catch(err=>this.logger.log(15, err));
 
-        // actually nothing to return
+        // actually nothing to return; if failed, it will not do anything (currently)
         return true;
     }
 
@@ -988,11 +987,6 @@ export default class rTiming extends roomServer{
         if (!this.validateChangeContestStatus(data)){
             throw {code:21, message: this.ajv.errorsText(this.validateChangeContestStatus.errors)}
         }
-        // use the regular heatresultsincoming to send the change
-        let result = {
-            xContest: data.xContest,
-            status: data.status,
-        }   
 
         // send request to site
         // if it does not work, it will silently fail...
@@ -2574,10 +2568,10 @@ export class rTimingAlge extends rTiming {
     async writeInput(){
         
         // first, sort the contests and series by date/time!
-        this.data.data.sort((a,b)=>a.datetimeStart-b.datetimeStart);
+        this.sortData()
+        /*this.data.data.sort((a,b)=>a.datetimeStart-b.datetimeStart);
         for (let c of this.data.data){
             c.series.sort((a,b)=>a.number-b.number);
-        }
 
         // write the input file from this.data.data
         // try to open the file to write. (This command will already truncate the file)
