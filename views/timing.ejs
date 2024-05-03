@@ -963,8 +963,8 @@
                                                 {{option.text}}
                                             </option> <!-- v-bind:selected="heat.site.status == option.value" -->
                                         </select>
-                                        <br>{{heat.site.id}}<br>
-                                        {{heat.site?.aux}}
+                                        <!--<br>{{heat.site.id}}<br>
+                                        {{heat.site?.aux}}-->
                                     </div>
                                 </div>
                                 <div v-if="heat.site" style="border:1px solid black; grid-column: site / span 1;" v-bind:style="{'grid-row-start': heat.number*2+1}">
@@ -1001,7 +1001,7 @@
                                 </div>
                                 <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2, }">
                                     xSeries (timing): {{heat.timing.xSeries}}<br>
-                                    {{heat.timing.aux}}
+                                    <!--{{heat.timing.aux}}-->
                                 </div>
                                 <div v-if="heat.timing" style="border:1px solid black; grid-column: timing / span 1; " v-bind:style="{'grid-row-start': heat.number*2+1, }">
                                     <table>
