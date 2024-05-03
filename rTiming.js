@@ -2081,10 +2081,6 @@ export class rTimingAlge extends rTiming {
         this.tcpConn = null;
         this.tcpConnSJ = null; // start judge
 
-        // we need to keep track of the last started heat to know where to assign live-incoming results to.
-        this.lastHeatXContest = null;
-        this.lastHeatSeriesId = null;
-
         this.defaultTimingOptions = {
             xmlHeatsFolder: '', // path
             xmlResultsFolder: '', // path
@@ -2396,19 +2392,17 @@ export class rTimingAlge extends rTiming {
                 let heat = this.heatsById[seriesId];
                 let xContest = heat.xContest;
 
-                // store the id and xContest of the last started heat
-                this.lastHeatXContest = xContest;
-                this.lastHeatSeriesId = seriesId;
-
                 let time;
                 if ('Time' in xml.HeatStart.$){
                     // time is time of day, e.g. ”12:30:22.2124”
                     let parts = xml.HeatStart.$.Time.split(/[.:]/);
                     let today = new Date();
                     time = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]), parseInt(parts[3].slice(0,3)))// Date constructor is in local time
-                } /*else {
+                } else if(!falseStart) {
+                    // this occured during development, when in OPtiC3 a manual starttime equal to 00:00 was defined. If a real time was entered, it worked
+                    this.logger.log(90, 'ALGE.Versatile.HeatStart did not provide the starttime.')
                     time = new Date();
-                }*/
+                }
 
                 let result = {
                     xContest,
@@ -2481,11 +2475,11 @@ export class rTimingAlge extends rTiming {
 
                 // NOTE: the heat.Id is NOT given here! Neither are the EventNr and the HeatNr (only the useless SessionId, EventId, HeatId)
 
-                //OLD: 
-                // xContest and xSeries are not transmitted with the 'CompetitorEvaluated' signal; thus, we simply assume that the last started heat is the right one. If this does not match, resultIncoming will simply do nothing and log the "error"
-                //let id = this.lastHeatSeriesId;
-                // new: we stored the heat id in reserved2
-                let id = competitor.Reserved2;
+                // xContest and xSeries are not transmitted with the 'CompetitorEvaluated' signal; thus, we stored the heat id in reserved2
+                let id = competitor.$.Reserved2;
+                let heat = this.heatsById[id];
+                let xContest = heat.xContest;
+
                 // mark the result as inofficial so far and do not process the rank
 
                 // create a fake "discipline" object with the relevant information for the automatic processing to a value
@@ -2496,7 +2490,7 @@ export class rTimingAlge extends rTiming {
                 // also works when State is undefined
                 let resultOverrule = this.stateToResultOverrule(competitor.$.State);
                 let result = null;
-                if (resultOverrule==0 && RuntimeFullPrecision in competitor.$){ // checking RuntimeFUllPrecision is only needed during debug when the cursor is put somehwere, but there is actualy no image and no time due to lack of a camera.
+                if (resultOverrule==0 && "RuntimeFullPrecision" in competitor.$){ // checking RuntimeFUllPrecision is only needed during debug when the cursor is put somehwere, but there is actualy no image and no time due to lack of a camera.
                     // regular result
                     // process the time (since it is given as a string)
                     let time = disciplineValidators[3](competitor.$.RuntimeFullPrecision.toString(), discipline).value; // toString is needed since values with just seconds and smaller are processed to float; but the function needs strings
@@ -2514,7 +2508,7 @@ export class rTimingAlge extends rTiming {
                 // the athlete currently is identified by the bib; if Reserved1 is tranferred in the future as well, change to this.;
                 let bib = competitor.$.Bib;
 
-                this.resultIncoming(this.lastHeatXContest, result, resultOverrule=resultOverrule, id, bib=bib).catch(msg=>{this.versatileError(`Error saving the CompetitorEvaluated: ${msg}`)});
+                this.resultIncoming(xContest, result, resultOverrule=resultOverrule, null, id, bib=bib).catch(msg=>{this.versatileError(`Error saving the CompetitorEvaluated: ${msg}`)});
 
             } 
 
