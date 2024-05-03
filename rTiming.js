@@ -844,6 +844,31 @@ export default class rTiming extends roomServer{
                 this.processChange(doObj, {})
 
                 this.changedSeries(s, c);
+            } else if (JSON.stringify(series.aux) != JSON.stringify(s.aux)) {
+                // always update status and aux data (Note: for aux data this might not always be wanted, but mostly and providing a separate option for this would probably be overkill)
+                // prior to 2024-05, when the series are (re)imported to rContest after the status was changed meanwhile, it would be resetted, since the status was eventually not changed in timing! Now, status and the other properties that are only read in rTiming are NOT updated from timing to liveAthletics.
+                // usage of properties: 
+                // liveAthletics only: status
+                // rw both: SSRs (i.e. results), aux
+                // rw in liveathletics, r in timing (as potential series indentifier!): datetime, id, name, number, xContest, xSeries
+                if (s.aux===null){
+                    s.aux = series.aux;
+                } else {
+                    this.propertyTransfer(series.aux, s.aux);
+                }
+                // sort all data
+                this.sortData();
+                this._storeData().catch(err=>this.logger.log(10, `${this.name}: Could not store data to mongo: ${err}`)); // async
+
+                // broadcast the change:
+                let doObj = {
+                    funcName: 'changeSeriesTiming', 
+                    data: series,
+                }
+                this.processChange(doObj, {})
+
+                this.changedSeries(s, c);
+
             }
 
             if (statusChanged){
@@ -1550,6 +1575,14 @@ export default class rTiming extends roomServer{
         // copy the current seriesS as a startpoint for the change to be sent to the server
         let data = {};
         this.propertyTransfer(seriesS, data); // use the site's series object to make sure that there were no changes apart of what we really want to send as a change.
+
+        // never change the following properties: datetime, id, name, number, xContest, xSeries. The latter two are fine anyway.
+        // thus, we simply set them to the value in the rSite
+        data.datetime = seriesS.datetime; 
+        data.id = seriesS.id;
+        data.name = seriesS.name; 
+        data.number = seriesS.number;
+        data.status = seriesS.status; // should not be needed, since status is always transferred to timing
 
         // if the aux data has changed, send it, otherwise not
         if (this.objectsEqual(seriesT.aux, seriesS.aux, false, false)){
