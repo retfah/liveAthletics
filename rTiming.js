@@ -604,6 +604,7 @@ export default class rTiming extends roomServer{
     sortData(){
         // first sort the contests
         this.data.data.sort((c1, c2)=>{
+            return c1.datetimeStart.localeCompare(c2.datetimeStart); // shortest possible string comparison
         })
 
         // then sort each series
@@ -2572,6 +2573,7 @@ export class rTimingAlge extends rTiming {
         /*this.data.data.sort((a,b)=>a.datetimeStart-b.datetimeStart);
         for (let c of this.data.data){
             c.series.sort((a,b)=>a.number-b.number);
+        }*/
 
         // write the input file from this.data.data
         // try to open the file to write. (This command will already truncate the file)
