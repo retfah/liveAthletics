@@ -124,7 +124,7 @@ export class rContestTrackClient extends roomClient{
     }
 
     updateSeriesInit(series2, prop, val){
-        // series2 does not need to be the actual series object, but it shall cpontain all its properties
+        // series2 does not need to be the actual series object, but it shall contain all its properties
         let series = this.data.series.find(s=>s.xSeries==series2.xSeries);
         if (!series){
             return;
@@ -151,9 +151,11 @@ export class rContestTrackClient extends roomClient{
         if (series[prop]===null && typeof(val)=='object' && val!=null){
             series[prop] = {};
         }
-
-        this.propertyTransfer(val,series[prop])
-        //series[prop] = val;
+        if (typeof(series[prop])=='object'){
+            this.propertyTransfer(val,series[prop])
+        } else {
+            series[prop] = val;
+        }
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)
