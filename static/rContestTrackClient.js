@@ -151,7 +151,7 @@ export class rContestTrackClient extends roomClient{
         if (series[prop]===null && typeof(val)=='object' && val!=null){
             series[prop] = {};
         }
-        if (typeof(series[prop])=='object'){
+        if (typeof(series[prop])==='object' && series[prop]!==null){
             this.propertyTransfer(val,series[prop])
         } else {
             series[prop] = val;
