@@ -58,6 +58,16 @@ class rSiteTrackClientForTiming extends roomClient{
     }
     // there is on purpose no exe function for this function, since the change arrives with changeContestExe
 
+    updateSeriesStatus(xContest, xSeries, status){
+        let data = {
+            xContest,
+            xSeries,
+            status
+        }
+        this.addToStack('updateSeriesStatus', data, ()=>{}, ()=>{});
+    }
+    // there is on purpose no exe function for this function, since the change arrives with changeContestExe
+
 
     // do NOT implement the Init function for this!
     addUpdateResultExe(data){

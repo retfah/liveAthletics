@@ -48,6 +48,7 @@ class rSite extends roomServer{
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateContestStatus = this.updateContestStatus.bind(this); // to be used by rSiteClient!
+        this.functionsWrite.updateSeriesStatus = this.updateSeriesStatus.bind(this); // to be used by rSiteClient!
 
         // define, compile and store the schemas:
         let schemaUpdateContestStatus = {
@@ -59,7 +60,18 @@ class rSite extends roomServer{
             required: ['xContest', 'status'],
             additionalProperties: false
         };
+        let schemaUpdateSeriesStatus = {
+            type: "object",
+            properties: {
+                xContest: {type: "integer"},
+                xSeries: {type: "integer"},
+                status: {type: "integer"}
+            },
+            required: ['xContest', 'status', 'xSeries'],
+            additionalProperties: false
+        };
         this.validateUpdateContestStatus = this.ajv.compile(schemaUpdateContestStatus);
+        this.validateUpdateSeriesStatus = this.ajv.compile(schemaUpdateSeriesStatus);
  
     }
 
@@ -102,8 +114,44 @@ class rSite extends roomServer{
             preventBroadcastToCaller: true
         };
         return ret;
+    }
 
+    // IMPORTANT: to be used by rSiteClient only
+    async updateSeriesStatus(data){
+        // validate the data based on the schema
+        let valid = this.validateUpdateSeriesStatus(data);
+        if (!valid){
+            throw{message: this.ajv.errorsText(this.validateUpdateSeriesStatus.errors), code:21};
+        }
 
+        // this could basically be done in rContests; however, there we do not have the necessary data to call some of the events required. Thus, use the function from within rContestXY
+        let rContest = await findSubroom(this.rContests, data.xContest.toString(), this.logger, true)
+        if (!rContest){
+            throw {code:22, message: `Contest ${data.xContest} could not be found.`}
+        }
+
+        // since also the number is required, we need to get it here: 
+        let s = rContest.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!s){
+            throw {code:23, message: `Series ${data.xSeries} could not be found in contest ${data.xContest}.`}
+        }
+        data.number = s.number;
+
+        // the actual change in the rSite data is made through the seriesCHanged-event that is raised 
+        // important: We need to call updateSeries through roomServerFunc 
+        // return the result of the call to updateSeries
+        let response = await rContest.serverFuncWrite("updateSeries", data).catch((err)=>{
+            throw {code: 24, message: `Series status change could not be processed: ${err.message}`};
+        });
+
+        let ret = {
+            isAchange: false, // make sure it is not sent to other clients; they will get the change anyway through the rContest
+            doObj: {funcName: 'updateSeriesStatus', data},
+            undoObj: {funcName: 'TODO', data: null},
+            response, 
+            preventBroadcastToCaller: true
+        };
+        return ret;
     }
 
 }

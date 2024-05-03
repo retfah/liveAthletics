@@ -581,7 +581,7 @@ class rContestTrack extends rContest{
                 this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesAdded`, addData);
             }
         } else if (series.xSite != null){
-            this.eH.raise(`sites/${data.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
         }
 
         let ret = {

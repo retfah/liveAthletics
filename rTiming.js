@@ -977,7 +977,9 @@ export default class rTiming extends roomServer{
             status: data.status,
         }   
 
-        this.heatResultsIncoming(result).catch(err=>this.logger.log(15, err));
+        // send request to site
+        // if it does not work, it will silently fail...
+        this.rSiteClient.updateSeriesStatus(data.xContest, data.xSeries, data.status);
 
         // actually nothing to return; if failed, it will not do anything (currently)
         return true;
