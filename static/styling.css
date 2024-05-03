@@ -1447,6 +1447,10 @@ option:hover {
     .hideDesktop {
         display: none;
     }
+
+    .nav {
+        max-width: 600px;
+    }
 }
 
 @media(max-device-width:768px){
