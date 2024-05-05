@@ -1602,24 +1602,11 @@ app.get('/:lang/', (req, res, next)=>{
 
 	// we could show the language choose page when a language is given that does not exist. Currently it will automatically use the default language.
 
-	// check if there are active meetings
-	let numMeetingsActive = 0;
-	var keys = []; // the meeting keys = shortnames
 	if (roomsReady){
-		keys = Object.keys(rooms.meetings.activeMeetings);
-		numMeetingsActive = keys.length; 
-	}
-	if (numMeetingsActive>1) {
-		// show the list of meetings to select
 		res.render("meetingSelection2.ejs", {dataProviders:getMeetingDataProviderData(), currentRangeFrom:conf.currentRangeFrom, currentRangeTo:conf.currentRangeTo});
-	} else if(numMeetingsActive==1){
-		// redirect to the only meeting
-		let shortname = keys[0];
-		res.redirect(path.posix.join(req.path , shortname)); 
 	} else {
 		// redirect to the admin page; eventually required login first...
 		res.redirect(path.posix.join(req.path, 'meetingAdministration')) // posix.join joins pathes together in unix-style (as is in url), and adds/removes '/' if needed
-		// TODO.
 	}
 	
 })
