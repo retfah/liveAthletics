@@ -63,10 +63,6 @@ export default {
     // the secret which is used to signing the session id (sid) in the cookie
     sessionSecret: "TheSecretForHashing/SigningTheSID",
 
-    // liveServerMode: if set to true, the routing of "/" will redirect to /live. If only on meeting is available, this automatically gets chosen and shown. Otherwise a list of meetings is shown to choose
-    // if false, it will redirect to /work as soon as the meeting is clear
-    liveServerMode:false,
-
     folders: {
         views: "./views/",
         //modelsAdmin:'./modelsAthletica2Admin/', // this path will be used in importing in Server.mjs; however, imports are not allowed to be dynamic (i.e. dependent ona  variable); thus it is hardcoded now and this variable is not used!
