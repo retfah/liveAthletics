@@ -1309,7 +1309,7 @@
                         <label>
                             <%= __("Discipline") %>: 
                             <select v-model.number="newXDiscipline" v-on:change="newXEventGroup=undefined">
-                                <option v-for="discipline in disciplinesSeasonFiltered" v-bind:value="discipline.xDiscipline">{{discipline.name}}</option>
+                                <option v-for="discipline in disciplinesSeasonFiltered" v-bind:value="discipline.xDiscipline">{{discipline.name}} {{discipline.info}}</option>
                             </select>
                         </label>
                         <!--<div><%= __("Appeal time") %>: </div> <input v-model.number="newAppealTime"  type="number" size="3"><%= __("minutes") %>
