@@ -1,0 +1,974 @@
+
+
+<script type="text/javascript">
+    
+    class vuDisciplines extends roomClientVue{
+        
+        constructor(vue, meetingShortname){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super('disciplines@' + meetingShortname, true, true, '/static/rDisciplinesClient.js', 'rDisciplinesClient', '')
+    
+            // needed to call things in the vue class
+            this.vue = vue;
+        }
+    
+        /**discp
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            if (this.room.writingTicketID){
+                //this.vueServerAdmin.readOnly = false;
+            } else {
+                //this.vueServerAdmin.readOnly = true;
+            }
+        }
+    
+        onChange(){
+            //this.vue.$forceUpdate();
+        }
+        
+        afterFullreload(){
+            // set the changed data-property as data of the vue-instance
+            this.vue.disciplines = this.room.data; // this will actually store a proxy of the data!
+    
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.disciplines;
+        }
+        
+        dataArrived(){
+            // raised as soon as the room has its data stored for the first time
+            this.vue.disciplines = this.room.data;
+        
+            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
+            this.room.data = this.vue.disciplines;
+    
+        }
+    }
+    
+    
+    
+    var vueDisciplines={};
+    var rDisciplines = {};
+    function startupDisciplines(){
+    
+        let vueAppConfig = {
+            data(){
+                return {
+                    disciplines:[],
+                    infoTitle:'',
+                    infoContent:'',
+                    infoVisible:false,
+                    showFullDetails: false, // TODO: set to false for production
+                    overlay: undefined,
+                    overlay2: undefined, 
+                    newTranslationName:'',
+                    newTranslationShortname:'',
+                    newTranslationLanguage:'',
+                    newBaseName: '',
+                    newBaseShortname: '',
+                    newType:0, 
+                    newTrackType: 'regular', // regular, relay or hurdles
+                    newDisciplines:[],
+                    newDiscipline:{},
+                    newIndoor:false,
+                    newTimeAppeal:"00:00:00",
+                    newTimeCall:"00:00:00",
+                    newMaxHeight:500, // in cm
+                    newJumpoff:5, // in cm
+                    newDistance:100, // in m
+                    newStartInLanes:true,
+                    newFinishInLanes:true,
+                    newGroupSize:1, // how many people per lane (when started in lanes) / per heat (when not started in lanes)
+                    newWind:true, // whether to measure wind
+                    newStraight:true, // uses the straight 
+                    newHeatInterval:60, // in s
+                    newCrouchStart:true, // needed for reaction times
+                    newSortorder:0,
+                    newActive:true,
+                    // ...
+                    bdModID: -1,
+                    localeModID: -1,
+                    filterDisciplines: '',
+                    filterTranslations: '',
+                    showDeleteFailed: false,
+                    languages: [  ['Abkhazian', 'ab'],    ['Afar', 'aa'],     ['Afrikaans', 'af'],     ['Akan', 'ak'],     ['Albanian', 'sq'],     ['Amharic', 'am'],     ['Arabic', 'ar'],     ['Aragonese', 'an'],     ['Armenian', 'hy'],     ['Assamese', 'as'],     ['Avaric', 'av'],     ['Avestan', 'ae'],     ['Aymara', 'ay'],     ['Azerbaijani', 'az'],     ['Bambara', 'bm'],     ['Bashkir', 'ba'],     ['Basque', 'eu'],     ['Belarusian', 'be'],     ['Bengali (Bangla)', 'bn'],     ['Bihari', 'bh'],     ['Bislama', 'bi'],     ['Bosnian', 'bs'],     ['Breton', 'br'],     ['Bulgarian', 'bg'],     ['Burmese', 'my'],     ['Catalan', 'ca'],     ['Chamorro', 'ch'],     ['Chechen', 'ce'],     ['Chichewa, Chewa, Nyanja', 'ny'],     ['Chinese', 'zh'],     ['Chinese (Simplified)', 'zh-Hans'],     ['Chinese (Traditional)', 'zh-Hant'],     ['Chuvash', 'cv'],     ['Cornish', 'kw'],     ['Corsican', 'co'],     ['Cree', 'cr'],     ['Croatian', 'hr'],     ['Czech', 'cs'],     ['Danish', 'da'],     ['Divehi, Dhivehi, Maldivian', 'dv'],     ['Dutch', 'nl'],     ['Dzongkha', 'dz'],     ['English', 'en'],     ['Esperanto', 'eo'],     ['Estonian', 'et'],     ['Ewe', 'ee'],     ['Faroese', 'fo'],     ['Fijian', 'fj'],     ['Finnish', 'fi'],     ['French', 'fr'],     ['Fula, Fulah, Pulaar, Pular', 'ff'],     ['Galician', 'gl'],     ['Gaelic (Scottish)', 'gd'],     ['Gaelic (Manx)', 'gv'],     ['Georgian', 'ka'],     ['German', 'de'],     ['Greek', 'el'],     ['Greenlandic', 'kl'],     ['Guarani', 'gn'],     ['Gujarati', 'gu'],     ['Haitian Creole', 'ht'],     ['Hausa', 'ha'],     ['Hebrew', 'he'],     ['Herero', 'hz'],     ['Hindi', 'hi'],     ['Hiri Motu', 'ho'],     ['Hungarian', 'hu'],     ['Icelandic', 'is'],     ['Ido', 'io'],     ['Igbo', 'ig'],     ['Indonesian', 'id, in'],     ['Interlingua', 'ia'],     ['Interlingue', 'ie'],     ['Inuktitut', 'iu'],     ['Inupiak', 'ik'],     ['Irish', 'ga'],     ['Italian', 'it'],     ['Japanese', 'ja'],     ['Javanese', 'jv'],     ['Kalaallisut, Greenlandic', 'kl'],     ['Kannada', 'kn'],     ['Kanuri', 'kr'],     ['Kashmiri', 'ks'],     ['Kazakh', 'kk'],     ['Khmer', 'km'],     ['Kikuyu', 'ki'],     ['Kinyarwanda (Rwanda)', 'rw'],     ['Kirundi', 'rn'],     ['Kyrgyz', 'ky'],     ['Komi', 'kv'],     ['Kongo', 'kg'],     ['Korean', 'ko'],     ['Kurdish', 'ku'],     ['Kwanyama', 'kj'],     ['Lao', 'lo'],     ['Latin', 'la'],     ['Latvian (Lettish)', 'lv'],     ['Limburgish ( Limburger)', 'li'],     ['Lingala', 'ln'],     ['Lithuanian', 'lt'],     ['Luga-Katanga', 'lu'],     ['Luganda, Ganda', 'lg'],     ['Luxembourgish', 'lb'],     ['Manx', 'gv'],     ['Macedonian', 'mk'],     ['Malagasy', 'mg'],     ['Malay', 'ms'],     ['Malayalam', 'ml'],     ['Maltese', 'mt'],     ['Maori', 'mi'],     ['Marathi', 'mr'],     ['Marshallese', 'mh'],     ['Moldavian', 'mo'],     ['Mongolian', 'mn'],     ['Nauru', 'na'],     ['Navajo', 'nv'],     ['Ndonga', 'ng'],     ['Northern Ndebele', 'nd'],     ['Nepali', 'ne'],     ['Norwegian', 'no'],     ['Norwegian bokmål', 'nb'],     ['Norwegian nynorsk', 'nn'],     ['Nuosu', 'ii'],     ['Occitan', 'oc'],     ['Ojibwe', 'oj'],     ['Old Church Slavonic, Old Bulgarian', 'cu'],     ['Oriya', 'or'],     ['Oromo (Afaan Oromo)', 'om'],     ['Ossetian', 'os'],     ['Pāli', 'pi'],     ['Pashto, Pushto', 'ps'],     ['Persian (Farsi)', 'fa'],     ['Polish', 'pl'],     ['Portuguese', 'pt'],     ['Punjabi (Eastern)', 'pa'],     ['Quechua', 'qu'],     ['Romansh', 'rm'],     ['Romanian', 'ro'],     ['Russian', 'ru'],     ['Sami', 'se'],     ['Samoan', 'sm'],     ['Sango', 'sg'],     ['Sanskrit', 'sa'],     ['Serbian', 'sr'],     ['Serbo-Croatian', 'sh'],     ['Sesotho', 'st'],     ['Setswana', 'tn'],     ['Shona', 'sn'],     ['Sichuan Yi', 'ii'],     ['Sindhi', 'sd'],     ['Sinhalese', 'si'],     ['Siswati', 'ss'],     ['Slovak', 'sk'],     ['Slovenian', 'sl'],     ['Somali', 'so'],     ['Southern Ndebele', 'nr'],     ['Spanish', 'es'],     ['Sundanese', 'su'],     ['Swahili (Kiswahili)', 'sw'],     ['Swati', 'ss'],     ['Swedish', 'sv'],     ['Tagalog', 'tl'],     ['Tahitian', 'ty'],     ['Tajik', 'tg'],     ['Tamil', 'ta'],     ['Tatar', 'tt'],     ['Telugu', 'te'],     ['Thai', 'th'],     ['Tibetan', 'bo'],     ['Tigrinya', 'ti'],     ['Tonga', 'to'],     ['Tsonga', 'ts'],     ['Turkish', 'tr'],     ['Turkmen', 'tk'],     ['Twi', 'tw'],     ['Uyghur', 'ug'],     ['Ukrainian', 'uk'],     ['Urdu', 'ur'],     ['Uzbek', 'uz'],     ['Venda', 've'],     ['Vietnamese', 'vi'],     ['Volapük', 'vo'],     ['Wallon', 'wa'],     ['Welsh', 'cy'],     ['Wolof', 'wo'],     ['Western Frisian', 'fy'],     ['Xhosa', 'xh'],     ['Yiddish', 'yi, ji'],     ['Yoruba', 'yo'],     ['Zhuang, Chuang', 'za'],     ['Zulu', 'zu'], ], // TODO: eventually use locales (e.g. de-CH) instead of languages (e.g. de)
+                }
+            },
+            methods:{
+                
+                addBaseDiscipline(){
+                    
+                    this.bdModID = -1;
+
+                    // general: 
+                    this.newType = 3; //track
+                    this.newBaseName = '';
+                    this.newBaseShortname = '';
+                    this.newDisciplines = []; // only used for throws and hurdles
+                    this.newIndoor = false;
+                    this.newTimeAppeal = "01:00:00"; // 1 h
+                    this.newTimeCall = "00:30:00"; //30min
+                    this.newSortorder = 0;
+                    this.newActive = true;
+
+                    // for vertical jumps (defaults to pole vault)
+                    this.newMaxHeight = 650; // cm
+                    this.newJumpoff = 5; // cm
+
+                    // for track (defaults to 100m)
+                    this.newDistance = 100;
+                    this.newTrackType = 'regular';
+                    this.newStartInLanes= true;
+                    this.newFinishInLanes = true;
+                    this.newGroupSize = 1;
+                    this.newWind = true; // also used for horizontal jumps
+                    this.newStraight = true;
+                    this.newHeatInterval  = 60; // s
+                    this.newCrouchStart = true; // for reaction time
+                    
+                    this.overlay = "addBaseDiscipline";
+                },
+                addTranslation(){
+                    this.localeModID = -1; // new
+                    this.newTranslationName='';
+                    this.newTranslationShortname='';
+                    this.newTranslationLanguage='';
+                    this.overlay2 = 'modTranslations';
+                },
+                modTranslation(xDisciplinesLocalization){
+                    this.localeModID = xDisciplinesLocalization;
+    
+                    let bdl = this.translations.find(el=>el.xDisciplinesLocalization==xDisciplinesLocalization);
+
+                    this.newTranslationLanguage = bdl.language;
+                    this.newTranslationName = bdl.name;
+                    this.newTranslationShortname = bdl.shortname; 
+
+                    this.overlay2 = "modTranslations";
+                },
+                deleteTranslation(xDisciplinesLocalization){
+                    rDisciplines.room.deleteLocalizationInit(this.bdModID, xDisciplinesLocalization);
+                },
+                createTranslation(){
+                    if (this.localeModID==-1){    
+                        rDisciplines.room.addLocalizationInit(this.bdModID, this.newTranslationLanguage, this.newTranslationName, this.newTranslationShortname)
+                    } else {
+                        rDisciplines.room.updateLocalizationInit(this.bdModID, this.localeModID, this.newTranslationLanguage, this.newTranslationName, this.newTranslationShortname)
+                    }
+                    this.overlay2 = "undefined";
+                },
+                createBaseDiscipline(){
+
+                    // all discipline.configuration shall be objects (without configuration property), which get stringified here!
+
+                    let type;
+                    let baseConf = {};
+                    let disciplines = []; // TODO
+                    if (this.newType=="2a"){
+                        // jump hor
+                        type = 2;
+                        baseConf.type = 'jump';
+                        baseConf.wind = this.newWind;
+                        disciplines = this.newDisciplines;
+                    }else if (this.newType=="2b"){
+                        // throw
+                        type = 2;
+                        baseConf.type = 'throw';
+                        baseConf.wind = false;
+                        disciplines = this.newDisciplines;
+                    } else {
+                        // newType could be int or str
+                        type = parseInt(this.newType);
+                        if (type==1){
+                            // jump vertical
+                            disciplines = [{
+                                sortorder:this.newSortorder,
+                                active:this.newActive,
+                                configuration:{},
+                                info:'',
+                            }]
+                        } else if (type==3) {
+                            // track
+                            baseConf = {
+                                distance: this.newDistance,
+                                startInLanes: this.newStartInLanes,
+                                finishInLanes: this.newFinishInLanes,
+                                groupSize: this.newGroupSize,
+                                wind: this.newWind,
+                                straight: this.newStraight,
+                                heatInterval: this.newHeatInterval,
+                                type: this.newTrackType,
+                                crouchStart: this.newCrouchStart
+                            };
+                            if (this.newTrackType=='hurdles'){
+                                disciplines = this.newDisciplines;
+                            } else {
+                                disciplines = [{
+                                    sortorder:this.newSortorder,
+                                    active:this.newActive,
+                                    configuration:{},
+                                    info:'',
+                                }]
+                            }
+                        }
+                    }
+                    // stringify all disciplin.configuration
+                    for (let d of disciplines){
+                        d.configuration = JSON.stringify(d.configuration);
+                    };
+                    let data = {
+                        type,
+                        nameStd: this.newBaseName,
+                        shortnameStd: this.newBaseShortname,
+                        timeAppeal: this.newTimeAppeal,
+                        timeCall: this.newTimeCall,
+                        baseConfiguration: JSON.stringify(baseConf),
+                        indoor: this.newIndoor,
+                        disciplines,
+                    };
+
+                    if (this.bdModID==-1){
+                        rDisciplines.room.addBaseDisciplineInit(data)
+                    } else {
+                        data.xBaseDiscipline = this.bdModID;
+                        rDisciplines.room.updateBaseDisciplineInit(data)
+                    }
+                    this.overlay = "undefined";
+    
+                },
+                deleteBaseDiscipline(xBaseDiscipline){
+                    rDisciplines.room.deleteBaseDisciplineInit(xBaseDiscipline);
+                },
+                modWeight(d){
+                    this.newDiscipline = d;
+                    this.overlay2 = 'weight';
+                },
+                addWeight(){
+                    // create a new throw discipline, without xDiscipline
+                    let d = {
+                        sortorder:0,
+                        active:true,
+                        configuration:{
+                            weight:0,
+                        },
+                        info:'',
+                    };
+                    this.newDisciplines.push(d);
+                    this.newDiscipline = d;
+                    this.overlay2 = 'weight';
+                },
+                modDistance(d){
+                    this.newDiscipline = d;
+                    this.overlay2 = 'distance';
+                },
+                addDistance(){
+                    // create a new tech long discipline, without xDiscipline
+                    let d = {
+                        sortorder:0,
+                        active:true,
+                        configuration:{
+                            distance:0,
+                        },
+                        info:'',
+                    };
+                    this.newDiscipline = d;
+                    this.newDisciplines.push(d);
+                    this.overlay2 = 'distance';
+                },
+                deleteHurdle(d){
+                    let i = this.newDisciplines.findIndex(d2=>d2==d);
+                    this.newDisciplines.splice(i,1);
+                },
+                modHurdle(d){
+                    this.newDiscipline = d;
+                    this.overlay2 = 'hurdle';
+                },
+                addHurdle(){
+                    // create a new hurlde discipline, without xDiscipline
+                    let d = {
+                        sortorder:0,
+                        active:true,
+                        configuration:{
+                            d1:0,
+                            d2:0,
+                            d3:0,
+                            height:0,
+                        },
+                        info:'',
+                    }
+                    this.newDiscipline = d;
+                    this.newDisciplines.push(d);
+                    this.overlay2 = 'hurdle';
+                },
+                abortDisciplineChangeAdd(){
+                    // if it was a new Discipline, delete it again.
+                    if (this.newDiscipline.xDiscipline == undefined){
+                        let i = this.newDisciplines.findIndex(el=>el==this.newDiscipline);
+                        this.newDisciplines.splice(i,1);
+                    }
+                    this.overlay2 = undefined;
+                },
+                modBaseDiscipline(xBaseDiscipline){
+                    this.bdModID = xBaseDiscipline;
+    
+                    let bd = this.disciplines.find(el=>el.xBaseDiscipline==xBaseDiscipline);
+                    let bc = JSON.parse(bd.baseConfiguration);
+
+                    // general: 
+                    this.newBaseName = bd.nameStd;
+                    this.newBaseShortname = bd.shortnameStd;
+                    this.newDisciplines = bd.disciplines; // only used for throws and hurdles
+                    this.newIndoor = bd.indoor;
+                    this.newTimeAppeal = bd.timeAppeal; // 1 h
+                    this.newTimeCall = bd.timeCall; //30min
+                    if (bd.type==2){
+                        this.newDisciplines = JSON.parse(JSON.stringify(bd.disciplines));
+                        for (let d of this.newDisciplines){
+                            d.configuration = JSON.parse(d.configuration); // configuration shall be an object
+                        }
+
+                        /*if (bc.type=="throw"){
+                            for (let d of this.newDisciplines){
+                                let c = JSON.parse(d.configuration);
+                                d.weight = c.weight;
+                            }
+                        } else {
+                            // distance vor horizontal jumps; (needed for triple jump)
+                            for (let d of this.newDisciplines){
+                                let c = JSON.parse(d.configuration);
+                                d.distance = c.distance;
+                            }
+                        }*/
+
+                        // sortorder and active are not used.
+                    } else if (bd.type==3 && bc.type=='hurdles'){
+                        this.newDisciplines = JSON.parse(JSON.stringify(bd.disciplines));
+
+                        for (let d of this.newDisciplines){
+                            d.configuration = JSON.parse(d.configuration); // configuration shall be an object
+                        }
+
+                        /*for (let d of this.newDisciplines){
+                            let c = JSON.parse(d.configuration);
+                            d.height = c.height;
+                            d.d1 = c.d1;
+                            d.d2 = c.d2;
+                            d.d3 = c.d3;
+                            d.xDiscipline = c.xDiscipline;
+                        }*/
+
+                        // sortorder and active are not used.
+                    } else {
+                        this.newSortorder = bd.disciplines[0].sortorder;
+                        this.newActive = bd.disciplines[0].active;
+                    }
+
+                    // for vertical jumps (defaults to pole vault)
+                    if (bd.type==1){
+                        this.newType = 1; 
+                        this.newMaxHeight = bc.heightMax; // cm
+                        this.newJumpoff = bc.jumpoffHeightVariation; // cm
+                    }
+
+                    // for track (defaults to 100m)
+                    if (bd.type==3){
+                        this.newDistance = bc.distance;
+                        this.newType = 3; 
+                        this.newTrackType = bc.type;
+                        this.newStartInLanes= bc.startInLanes;
+                        this.newFinishInLanes = bc.finishInLanes;
+                        this.newGroupSize = bc.groupSize;
+                        this.newWind = bc.wind;
+                        this.newStraight = bc.straight;
+                        this.newHeatInterval  = bc.heatInterval; // s
+                        this.newCrouchStart = bc.crouchStart; // for reaction time
+                    }
+                    if (bd.type==2){
+                        if (bd.baseConfiguration.throw){
+                            this.type="2b";
+                        } else {
+                            // jump horizontal
+                            this.type="2a";
+                            this.newWind = bc.wind;
+                        }
+                    }
+    
+                    this.overlay = "addBaseDiscipline";
+    
+                },
+                manageTranslations(xBaseDiscipline){
+                    this.bdModID = xBaseDiscipline;
+                    this.overlay = 'manageTranslations'
+                },
+                overlayInfo(title, content){
+                    this.infoTitle = title;
+                    this.infoContent = content;
+                    this.infoVisible = true;
+                },
+                
+                /**
+                 * returns the index and the object itself of the first object where the property prop is equal to value 
+                 * @param {array of objects} arr 
+                 * @param {string} prop 
+                 * @param {*} val 
+                 * @return {array} [index, the object]
+                 */
+                findObjInArrayByProp(arr, prop, val){
+                    for (let i=0; i<arr.length;i++){
+                        if (arr[i][prop] == val){
+                            return [i, arr[i]];
+                        }
+                    }
+                    return [-1, {}];
+                },
+                /**
+                 * The same as findObjInArrayByProp, but only the object is returned
+                 **/
+                findObjInArrayByProp2(arr, prop, val){
+                    return this.findObjInArrayByProp(arr, prop, val)[1];
+                }
+            },
+            computed:{
+                filters: function(){
+                    return {filter1:{keys:['type', 'nameStd', 'shortnameStd', 'indoor'], value:this.filterDisciplines}} 
+                },
+                filtersT:function(){
+                    return {filter1:{keys:['language', 'name', 'shortname'], value:this.filterTranslations}} 
+                },
+                baseDiscipline: function(){
+                    return this.disciplines.find(bd=>bd.xBaseDiscipline == this.bdModID);
+                },
+                translations: function(){
+                    if (this.baseDiscipline){
+                        return this.baseDiscipline?.basedisciplinelocalizations;
+                    } else {
+                        return [];
+                    }
+                    
+                },
+                languagesFiltered: function(){
+                    // remove "all" aready present languages and sort by shortcut of language
+                    // two different cases: 
+                    // - changing a localization: delete all existing localizations, except the one to change
+                    // - adding a localization:   delete all existing localizations
+                    let existingL = this.translations.map(el=>el.language);
+                    let l = JSON.parse(JSON.stringify(this.languages));
+                    let lf
+                    if (this.localeModID>-1){
+                        let langToChange = this.baseDiscipline?.basedisciplinelocalizations.find(el2=>el2.xDisciplinesLocalization==this.localeModID).language;
+                        lf = l.filter(el=>el[1]==langToChange ||!(existingL.includes(el[1])));
+                    } else {
+                        lf = l.filter(el=>!(existingL.includes(el[1])))
+                    }
+                    return lf.sort((a,b)=>{
+                        if (a[1]<b[1]){
+                            return -1
+                        } else if(a[1]==b[1]){
+                            return 0
+                        } else {
+                            return 1
+                        }
+                    })
+                }
+            },
+            watch:{
+                newStartInLanes:function(newVal, oldVal){
+                    if (!newVal){
+                        this.newFinishInLanes = false; // cannot finish in lanes when not started in lanes
+                        this.newCrouchStart = false;
+                    }
+                }
+            },
+            components:{
+                'v-table':VTable,
+                'v-th': VTh,
+                'v-tr':VTr,
+            }
+        }
+
+        // mount it 
+        vueDisciplines = Vue.createApp(vueAppConfig).mount('#vueDiv');
+        
+        let ms = getMeetingShortname();
+        rDisciplines = new vuDisciplines(vueDisciplines, ms);
+        
+    }
+    </script>
+    
+    <!-- NOTE: a discipline in the GUI is a baseDiscipline in the DB, while a variant of a discipline in the GUI is a discipline in the DB-->
+    <div id="vueDiv">
+        <h2><%= __("List of disciplines") %>:</h2>
+        <button type="button" class="btn btnGreen" v-on:click="addBaseDiscipline()"><%= __("Add discipline") %></button><br>
+        <label class="verticalForm">
+            <%= __("Filter disciplines") %>: 
+            <input v-model="filterDisciplines" type="text" size="30">
+        </label>
+        <v-table :data="disciplines" :filters="filters">
+            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                <thead>
+                    <tr>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xBaseDiscipline">xBaseDiscipline</th>
+                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="shortnameStd"><%= __('Shortname') %></th>
+                        <th is="vue:v-th" sortkey="type"><%= __('Type') %></th>
+                        <th is="vue:v-th" sortkey="indoor"><%= __('indoor') %></th>
+                        <th is="vue:v-th" sortkey="timeAppeal"><%= __('Appeal time') %></th>
+                        <th is="vue:v-th" sortkey="timeCall"><%= __('Call time') %></th>
+                        <th><%= __('Variations') %></th>
+                        <th v-if="showFullDetails" is="vue:v-th" sortkey="baseConfiguration">baseConfiguration</th>
+                        <th><!-- Buttons --></th>
+                    </tr>
+                </thead>
+            </template>
+            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                <tbody>
+                    <tr v-for="row in displayData" :key="row.xBaseDiscipline">
+                        <td v-if="showFullDetails">{{row.xBaseDiscipline}}</td>
+                        <td>{{ row.nameStd }}</td>
+                        <td>{{ row.shortnameStd }}</td>
+                        <td>{{row.type}}</td>
+                        <td>{{row.indoor}}</td>
+                        <td>{{row.timeAppeal}}</td>
+                        <td>{{row.timeCall}}</td>
+                        <td><span v-for="(d,i) in row.disciplines"><template v-if="i<row.disciplines?.length-1">{{d.info}}; </template><template v-else>{{d.info}}</template></span></td>
+                        <td v-if="showFullDetails">{{row.baseConfiguration}}</td>
+                        <td>
+                            <button type="button" class="btn btnGrey" v-on:click="modBaseDiscipline(row.xBaseDiscipline)" ><%= __("Change") %></button>
+                            <button type="button" class="btn btnGrey" v-on:click="manageTranslations(row.xBaseDiscipline)" ><%= __("Manage translations") %></button>
+                            <button type="button" class="btn btnRed" v-on:click="deleteBaseDiscipline(row.xBaseDiscipline)"><%= __("Delete") %></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </v-table>
+        
+        <!-- overlay for adding disciplines -->
+        <div class="overlay" v-bind:class="{shown: overlay=='addBaseDiscipline'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="bdModID == -1"><%= __("Add discipline") %>: </h3>
+                        <h3 v-if="bdModID > -1"><%= __("Update discipline") %>: </h3>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newBaseName" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Shortname") %>: 
+                            <input type="text" v-model="newBaseShortname" maxlength="100">
+                        </label>
+                        <label for="type"><%= __("Type") %></label>
+                        <select name="type" v-model="newType" v-bind:disabled="bdModID > -1">
+                            <option value="3"><%= __("Track") %></option>
+                            <option value="1"><%= __("Jump vertical") %></option>
+                            <option value="2a"><%= __("Jump horizontal") %></option>
+                            <option value="2b"><%= __("Throw") %></option>
+                        </select>
+                        <template v-if="newType==3">
+                            <label for="tracktype"><%= __("Track type") %></label>
+                            <select name="tracktype" v-model="newTrackType" v-bind:disabled="bdModID > -1">
+                                <option value="regular"><%= __("Regular") %></option>
+                                <option value="hurdles"><%= __("Hurdles") %></option>
+                                <option value="relay"><%= __("Relay") %></option>
+                            </select>
+                        </template>
+                        <template v-if="!(newTrackType=='hurdles' && newType==3) && newType!=2">
+                            <label>
+                                <%= __("Sortorder") %>
+                                <input type="number" v-model.number="newSortorder" min="0">
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newActive">
+                                <%= __("Active") %>
+                            </label>
+                        </template>
+                        <template v-if="newTrackType=='hurdles' && newType==3">
+                            <h3><%= __("Hurdle heights & distances") %></h3>
+                            <button class="btn btnGrey" type="button" v-on:click="addHurdle"><%= __("New hurdle configuration") %></button>
+                            <!-- show entries for the hurdles -->
+                            <v-table :data="newDisciplines">
+                                <template #head>
+                                    <thead>
+                                        <tr>
+                                            <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
+                                            <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.height"><%= __("Height") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.d1"><%= __("Distance to H1") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.d2"><%= __("Distance between H") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.d3"><%= __("Distance to finish") %></th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
+                                            <th><!-- Buttons --></th>
+                                        </tr>
+                                    </thead>
+                                </template>
+                                <template v-slot:body="{displayData}">
+                                    <tbody>
+                                        <tr v-for="row in displayData" :key="row.xDiscipline">
+                                            <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.sortorder}}</td>
+                                            <td>{{row.active}}</td>
+                                            <td>{{row.configuration.height}}</td>
+                                            <td>{{row.configuration.d1}}</td>
+                                            <td>{{row.configuration.d2}}</td>
+                                            <td>{{row.configuration.d3}}</td>
+                                            <td>{{row.info}}</td>
+                                            <td>
+                                                <button class="btn btnGrey" type="button" v-on:click="modHurdle(row)"><%= __("Change") %></button>
+                                                <button class="btn btnRed" type="button" v-on:click="deleteHurdle(row)"><%= __("Delete") %></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </template>
+                        <template v-if="newType=='2b'">
+                            <h3><%= __("Weights") %></h3>
+                            <button class="btn btnGrey" type="button" v-on:click="addWeight"><%= __("New weight") %></button>
+                            <!-- show entries for the weight -->
+                            <v-table :data="newDisciplines">
+                                <template #head>
+                                    <thead>
+                                        <tr>
+                                            <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
+                                            <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.weight"><%= __("Weight") %></th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
+                                            <th><!-- Buttons --></th>
+                                        </tr>
+                                    </thead>
+                                </template>
+                                <template v-slot:body="{displayData}">
+                                    <tbody>
+                                        <tr v-for="row in displayData" :key="row.xDiscipline">
+                                            <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.sortorder}}</td>
+                                            <td>{{row.active}}</td>
+                                            <td>{{row.configuration.weight}}</td>
+                                            <td>{{row.info}}</td>
+                                            <td><button class="btn btnGrey" type="button" v-on:click="modWeight(row)"><%= __("Change") %></button></td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </template>
+                        <template v-if="newType=='2a'">
+                            <h3><%= __("Distance (optional)") %></h3>
+                            <button class="btn btnGrey" type="button" v-on:click="addDistance"><%= __("New distance") %></button>
+                            <!-- show entries for the different distances -->
+                            <v-table :data="newDisciplines">
+                                <template #head>
+                                    <thead>
+                                        <tr>
+                                            <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
+                                            <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
+                                            <th is="vue:v-th" sortkey="configuration.distance"><%= __("Distance") %></th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
+                                            <th><!-- Buttons --></th>
+                                        </tr>
+                                    </thead>
+                                </template>
+                                <template v-slot:body="{displayData}">
+                                    <tbody>
+                                        <tr v-for="row in displayData" :key="row.xDiscipline">
+                                            <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.sortorder}}</td>
+                                            <td>{{row.active}}</td>
+                                            <td>{{row.configuration.distance}}</td>
+                                            <td>{{row.info}}</td>
+                                            <td><button class="btn btnGrey" type="button" v-on:click="modDistance(row)"><%= __("Change") %></button></td>
+                                        </tr>
+                                    </tbody>
+                                </template>
+                            </v-table>
+                        </template>
+                        <label>
+                            <input type="checkbox" v-model="newIndoor">
+                            <%= __("Indoor discipline") %>
+                        </label>
+                        <label>
+                            <%= __("Appeal time offset") %>
+                            <input type="time" v-model="newTimeAppeal">
+                        </label>
+                        <label>
+                            <%= __("Call time offset") %>
+                            <input type="time" v-model="newTimeCall">
+                        </label>
+                        <template v-if="newType==1">
+                            <!-- options for vertical jumps -->
+                            <label>
+                                <%= __("Maximum height in cm (>world record)") %>
+                                <input type="number" min="1" v-model.number="newMaxHeight">
+                            </label>
+                            <label>
+                                <%= __("Jumpoff height variation in cm") %>
+                                <input type="number" min="1" v-model.number="newJumpoff">
+                            </label>
+                        </template>
+                        <template v-if="newType==3">
+                            <!-- options for track disciplines -->
+                            <label>
+                                <%= __("Distance in m") %>
+                                <input type="number" min="0" v-model.number="newDistance">
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newStartInLanes">
+                                <%= __("Start in lanes") %>
+                            </label>
+                            <label>
+                                <input type="checkbox" v-bind:disabled="!newStartInLanes" v-model="newFinishInLanes">
+                                <%= __("Finish in lanes") %>
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newWind">
+                                <%= __("Measure wind") %>
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newStraight">
+                                <%= __("Uses the straight only") %>
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newCrouchStart" v-bind:disabled="!newStartInLanes" >
+                                <%= __("Crouch start") %> <!-- needed for reaction times -->
+                            </label>
+                            <label>
+                                <template v-if="newStartInLanes">
+                                    <%= __("How many persons per lane") %>
+                                </template>
+                                <template v-else>
+                                    <%= __("How many persons per heat") %>
+                                </template>
+                                <input type="number" min="1" v-model.number="newGroupSize">
+                            </label>
+                            <label>
+                                <%= __("Heat interval in s") %>
+                                <input type="number" min="1" v-model.number="newHeatInterval">
+                            </label>
+                        </template>
+                        <template v-if="newType=='2a'">
+                            <!-- jump horizontal -->
+                            <label>
+                                <input type="checkbox" v-model="newWind">
+                                <%= __("Measure wind") %>
+                            </label>
+                        </template>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="createBaseDiscipline" v-bind:disabled="newBaseName==undefined || newBaseShortname==undefined ">
+                            <div v-if="bdModID==-1"><%= __("Create discipline") %></div>
+                            <div v-if="bdModID>-1"><%= __("Update discipline") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- manage translations -->
+        <div class="overlay" v-bind:class="{shown: overlay=='manageTranslations'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3><%= __("Manage translations") %></h3>
+                        <button type="button" class="btn btnGreen" v-on:click="addTranslation"><%= __("Add translation") %></button><br>
+                        <h3><%= __("Current translations") %>: </h3>
+                        <label class="verticalForm">
+                            <%= __("Filter translations") %>: 
+                            <input v-model="filterTranslations" type="text" size="30">
+                        </label>
+                        <v-table :data="translations" :filters="filtersT">
+                            <template #head> <!-- # head is a shorthand for v-slot:head-->
+                                <thead>
+                                    <tr>
+                                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xDisciplinesLocalization">xDisciplinesLocalization</th>
+                                        <th is="vue:v-th" sortkey="language"><%= __("Language (ISO 639)") %></th>
+                                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
+                                        <th is="vue:v-th" sortkey="shortname"><%= __("Shortname") %></th>
+                                        <th><!-- Buttons --></th>
+                                    </tr>
+                                </thead>
+                            </template>
+                            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                                <tbody>
+                                    <tr v-for="row in displayData" :key="row.xBaseDiscipline">
+                                        <td v-if="showFullDetails">{{row.xDisciplinesLocalization}}</td>
+                                        <td>{{row.language}}</td>
+                                        <td>{{row.name}}</td>
+                                        <td>{{row.shortname}}</td>
+                                        <td>
+                                            <button type="button" class="btn btnGrey" v-on:click="modTranslation(row.xDisciplinesLocalization)" ><%= __("Change") %></button>
+                                            <button type="button" class="btn btnRed" v-on:click="deleteTranslation(row.xDisciplinesLocalization)"><%= __("Delete") %></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </template>
+                        </v-table>
+                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- add/delete/change translations -->
+        <div class="overlay" v-bind:class="{shown: overlay2=='modTranslations'}">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="localeModID == -1"><%= __("Add translation") %>: </h3>
+                        <h3 v-if="localeModID > -1"><%= __("Update translation") %>: </h3>
+                        <label for="language"><%= __("Language (ISO 639)") %></label>
+                        <select name="language" v-model="newTranslationLanguage">
+                            <option v-for="(lang) in languagesFiltered" :value="lang[1]">{{lang[1]}} {{lang[0]}}</option>
+                        </select>
+                        <label>
+                            <%= __("Name") %>: 
+                            <input type="text" v-model="newTranslationName" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Shortname") %>: 
+                            <input type="text" v-model="newTranslationShortname" maxlength="100">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="createTranslation" v-bind:disabled="newTranslationName=='' || newTranslationShortname=='' || newTranslationLanguage==''">
+                            <div v-if="localeModID==-1"><%= __("Create translation") %></div>
+                            <div v-if="localeModID>-1"><%= __("Update translation") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- mod hurdles -->
+        <div class="overlay shown" v-if="overlay2=='hurdle'">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="newDiscipline.xDiscipline == undefined"><%= __("Add hurdle configuration") %>: </h3>
+                        <h3 v-else><%= __("Update hurdle configuration") %>: </h3>
+                        <label>
+                            <%= __("Label") %>
+                            <input type="text" v-model="newDiscipline.info" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Sortorder") %>
+                            <input type="number" v-model.number="newDiscipline.sortorder" min="0">
+                        </label>
+                        <label>
+                            <input type="checkbox" v-model="newDiscipline.active">
+                            <%= __("Active") %>
+                        </label>
+                        <label>
+                            <%= __("Height") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.height" min="0"  step="0.01">
+                        </label>
+                        <label>
+                            <%= __("Distance to H1") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.d1" min="0"  step="0.01">
+                        </label>
+                        <label>
+                            <%= __("Distance between H") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.d2" min="0"  step="0.01">
+                        </label>
+                        <label>
+                            <%= __("Distance to finish") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.d3" min="0"  step="0.01">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="overlay2 = undefined" v-bind:disabled="newDiscipline.height==0 || newDiscipline.info==''">
+                            <div v-if="newDiscipline.xDiscipline == undefined"><%= __("Create hurdle configuration") %></div>
+                            <div v-else><%= __("Update hurdle configuration") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="abortDisciplineChangeAdd"><%= __("Abort") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- mod throw -->
+        <div class="overlay shown" v-if="overlay2=='weight'">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="newDiscipline.xDiscipline == undefined"><%= __("Add throw configuration") %>: </h3>
+                        <h3 v-else><%= __("Update throw configuration") %>: </h3>
+                        <label>
+                            <%= __("Label") %>
+                            <input type="text" v-model="newDiscipline.info" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Sortorder") %>
+                            <input type="number" v-model.number="newDiscipline.sortorder" min="0">
+                        </label>
+                        <label>
+                            <input type="checkbox" v-model="newDiscipline.active">
+                            <%= __("Active") %>
+                        </label>
+                        <label>
+                            <%= __("Weight") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.weight" min="0" step="0.01">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="overlay2 = undefined" v-bind:disabled="newDiscipline.weight==0 || newDiscipline.info==''">
+                            <div v-if="newDiscipline.xDiscipline == undefined"><%= __("Create throw configuration") %></div>
+                            <div v-else><%= __("Update throw configuration") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="abortDisciplineChangeAdd"><%= __("Abort") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- mod jump distance -->
+        <div class="overlay shown" v-if="overlay2=='distance'">
+            <div class="overlayContainer">
+                <form>
+                    <div class="verticalForm">
+                        <h3 v-if="newDiscipline.xDiscipline == undefined"><%= __("Add jump configuration") %>: </h3>
+                        <h3 v-else><%= __("Update jump configuration") %>: </h3>
+                        <label>
+                            <%= __("Label") %>
+                            <input type="text" v-model="newDiscipline.info" maxlength="100">
+                        </label>
+                        <label>
+                            <%= __("Sortorder") %>
+                            <input type="number" v-model.number="newDiscipline.sortorder" min="0">
+                        </label>
+                        <label>
+                            <input type="checkbox" v-model="newDiscipline.active">
+                            <%= __("Active") %>
+                        </label>
+                        <label>
+                            <%= __("Distance") %>
+                            <input type="number" v-model.number="newDiscipline.configuration.distance" min="0"  step="0.01">
+                        </label>
+    
+                        <button type="button" class="btn btnGreen" v-on:click="overlay2 = undefined" v-bind:disabled="false"> <!-- always active, since em empty configuraiton shall be ok -->
+                            <div v-if="newDiscipline.xDiscipline == undefined"><%= __("Create jump configuration") %></div>
+                            <div v-else><%= __("Update jump configuration") %></div>
+                        </button>
+                        <button type="button" class="btn btnRed" v-on:click="abortDisciplineChangeAdd"><%= __("Abort") %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!--<div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
+            <div class="overlayContainer">
+                <%= __("Club could not be deleted, because it is referenced (e.g. an athlete or team is member of this club).") %>
+                <br><button type="button" class="btn"><%= __("OK") %></button>
+            </div>
+        </div>-->
+    
+        <div id="overlay" v-on:click="infoVisible=false" v-bind:class="{shown: infoVisible}">
+            <!-- overlay used for displaying general information -->
+            <div id="overlayContainer">
+                <div id="overlayTitle"><b>{{infoTitle}}</b></div>
+                <div id="overlayContent">{{infoContent}}</div>
+            </div>
+        </div>
+    
+    </div>
+    

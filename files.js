@@ -14,6 +14,9 @@ export default {
     "clubs.ejs":{
         childs: [],
     },
+    "disciplines.ejs":{
+        childs: [],
+    },
     "configuration.ejs": {
         childs: ["child2"]
     },

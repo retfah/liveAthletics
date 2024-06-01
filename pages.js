@@ -55,11 +55,11 @@ export default {
     },
     disciplines:{
         name:'disciplines',
-        injections:{child2: {file: 'underConstruction.ejs', data: {}}},
+        injections:{child2: {file: 'disciplines.ejs', data: {}}},
         parent: 'admin',
         preload: ['admin', 'clubs'],
         title: 'Disciplines',
-        //onLoad: 'startupClubs',
+        onLoad: 'startupDisciplines',
     },
     competition: {
         name: 'competition',

@@ -30,8 +30,11 @@ export class rDisciplinesClient extends roomClient{
 
         // set the available functions
         //this._addFunction('addBaseDiscipline', this.addBaseDisciplineExe);
-        //this._addFunction('deleteBaseDiscipline', this.deleteBaseDisciplineExe);
-        //this._addFunction('updateBaseDiscipline', this.updateBaseDisciplineExe);
+        this._addFunction('deleteBaseDiscipline', this.deleteBaseDisciplineExe);
+        this._addFunction('updateBaseDiscipline', this.updateBaseDisciplineExe);
+        this._addFunction('updateLocalization', this.updateLocalizationExe);
+        this._addFunction('addLocalization', this.addLocalizationExe);
+        this._addFunction('deleteLocalization', this.deleteLocalizationExe);
     }
 
     getTranslatedDisciplines(lang){
@@ -106,7 +109,50 @@ export class rDisciplinesClient extends roomClient{
         return disciplines;
     }
 
-    /*addBaseDisciplineInit(baseDiscipline){
+    addLocalizationInit(xBaseDiscipline, language, name, shortname){
+        let data = {
+            xBaseDiscipline,
+            language, 
+            name,
+            shortname
+        }
+        this.addToStack('addLocalization', data)
+    }
+    addLocalizationExe(data){
+        let bd = this.data.find(el=>el.xBaseDiscipline == data.xBaseDiscipline);
+        bd.basedisciplinelocalizations.push(data);
+    }
+
+    updateLocalizationInit(xBaseDiscipline, xDisciplinesLocalization, language, name, shortname){
+        let data = {
+            xBaseDiscipline,
+            xDisciplinesLocalization,
+            language, 
+            name,
+            shortname
+        }
+        this.addToStack('updateLocalization', data)
+    }
+    updateLocalizationExe(data){
+        let bd = this.data.find(el=>el.xBaseDiscipline == data.xBaseDiscipline);
+        let bdl = bd.basedisciplinelocalizations.find(el=>el.xDisciplinesLocalization==data.xDisciplinesLocalization);
+        this.propertyTransfer(data, bdl);
+    }
+
+    deleteLocalizationInit(xBaseDiscipline, xDisciplinesLocalization){
+        let data = {
+            xBaseDiscipline,
+            xDisciplinesLocalization,
+        }
+        this.addToStack('deleteLocalization', data)
+    }
+    deleteLocalizationExe(data){
+        let bd = this.data.find(el=>el.xBaseDiscipline == data.xBaseDiscipline);
+        let ind = bd.basedisciplinelocalizations.findIndex(el=>el.xDisciplinesLocalization==data.xDisciplinesLocalization);
+        bd.basedisciplinelocalizations.splice(ind, 1);
+    }
+
+    addBaseDisciplineInit(baseDiscipline){
         // baseDiscipline should contain all mandatory properties except the index...
         this.addToStack('addBaseDiscipline', baseDiscipline)
     }
@@ -132,5 +178,5 @@ export class rDisciplinesClient extends roomClient{
     updateBaseDisciplineExe(baseDisciplineUpdated){
         let baseDiscipline = this.data.find(el=>el.xBaseDiscipline == baseDisciplineUpdated.xBaseDiscipline);
         this.propertyTransfer(baseDisciplineUpdated, baseDiscipline, true)
-    }*/
+    }
 }
