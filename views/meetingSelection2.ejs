@@ -7,7 +7,8 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
 <html lang="<%= lang %>">
     <head>
         <meta name="viewport" content="width=device-width,initial-scale=1"> <!-- make sure mobile browsers do not lie about their width and then do some ugly scaling -->
-        <title><%= __("Meeting selection") %></title> 
+        <meta name="description" content="<%= __('LiveAthletics: Live results of swiss athletics competitions') %>">
+        <title><%= __("LiveAthletics | Live results overview") %></title> 
         <link rel="icon" type="image/x-icon" href="/static/favicon_quickNdirty.ico">
         <!--<link rel="stylesheet" type="text/css" href="/static/bootstrap.min.css">-->
         <link rel="stylesheet" type="text/css" href="/static/styling.css">
@@ -179,6 +180,9 @@ bases on the old meetingSelection.ejs, but does not use any websockets. Instead,
             <div id="meetingSelection" style="min-width: min(100%, 600px);"> <!-- inside here all the vue.js stuff -->
                 <!-- two kinds of filters: date from/to and plaintext (searching the name, date, and place)-->
                 <!-- date filters: buttons for "current" (chosen by default) "all" and genauer -->
+                <h1 style="font-size: medium;">
+                    <%= __("LiveAthletics: Live results of swiss athletics competitions") %>
+                </h1>
                 <div class="headRow">
                     <input type="search" class="formCtrl" style="width:300px; flex-basis:300px;" v-model="searchString" placeholder="<%= __('Search: name, place, date') %>">
                 </div>
