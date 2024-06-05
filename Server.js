@@ -1511,6 +1511,27 @@ function getMeetingDataProviderData(){
 
 
 /**
+ * Redirect the subdomain www. to the main domain and http to https, if activated
+ */
+app.get ('*', (req, res, next)=>{
+	let parts = req.headers.host.split('.');
+	if(parts.length>2){ 
+		// redirect 301 (moved permanently)
+		if (conf.https===null || req.secure){
+			res.redirect(301, 'https://' + parts.slice(-2).join('.') + req.url);
+		} else {
+			res.redirect(301, 'http://' + parts.slice(-2).join('.') + req.url);
+		}
+	} else {
+		if (conf.https===null || req.secure){
+			next();
+		} else {
+			res.redirect(301, 'https://' + req.hostname + req.url);
+		} 
+	}  
+})
+
+/**
  * first: check if the requested route is a special route, but wants to use the same base 'directory' as the main part uses --> then add the special routing here
  */
 
