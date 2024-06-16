@@ -168,6 +168,7 @@
                     } else {
                         rDisciplines.room.updateLocalizationInit(this.bdModID, this.localeModID, this.newTranslationLanguage, this.newTranslationName, this.newTranslationShortname)
                     }
+                    this.localeModID = -1;
                     this.overlay2 = "undefined";
                 },
                 createBaseDiscipline(){
@@ -915,7 +916,7 @@
                             <div v-if="localeModID==-1"><%= __("Create translation") %></div>
                             <div v-if="localeModID>-1"><%= __("Update translation") %></div>
                         </button>
-                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                        <button type="button" class="btn btnRed" v-on:click="overlay2 = undefined; localeModID=-1;"><%= __("Abort") %></button>
                     </div>
                 </form>
             </div>
