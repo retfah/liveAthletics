@@ -71,6 +71,7 @@
                     newTrackType: 'regular', // regular, relay or hurdles
                     newDisciplines:[],
                     newDiscipline:{},
+                    newXDiscipline: undefined,
                     newIndoor:false,
                     newTimeAppeal:"00:00:00",
                     newTimeCall:"00:00:00",
@@ -86,6 +87,10 @@
                     newCrouchStart:true, // needed for reaction times
                     newSortorder:0,
                     newActive:true,
+                    newNumAthletes: 2, // relay
+                    newNumAthletesCompeting: 2, // relay
+                    newAssignLegs: true, // relay, if false, no legs are defined.
+                    newLegs:[], // relay
                     // ...
                     bdModID: -1,
                     localeModID: -1,
@@ -111,6 +116,13 @@
                     this.newTimeCall = "00:30:00"; //30min
                     this.newSortorder = 0;
                     this.newActive = true;
+                    this.newXDiscipline = undefined; // MUST be undefined to make sure this property does not get stringified and sent to the server.
+
+                    // for relay
+                    this.newNumAthletes = 8;
+                    this.newNumAthletesCompeting = 4;
+                    this.newAssignLegs = true;
+                    this.newLegs = ['', '', '', ''];
 
                     // for vertical jumps (defaults to pole vault)
                     this.newMaxHeight = 650; // cm
@@ -164,14 +176,20 @@
 
                     let type;
                     let baseConf = {};
-                    let disciplines = []; // TODO
+                    let disciplines = []; 
                     if (this.newType=="2a"){
                         // jump hor
                         type = 2;
                         baseConf.type = 'jump';
                         baseConf.wind = this.newWind;
-                        disciplines = this.newDisciplines;
-                    }else if (this.newType=="2b"){
+                        disciplines = [{
+                            sortorder:this.newSortorder,
+                            active:this.newActive,
+                            configuration:{}, // optional distance could be provided. Not used currently.
+                            info:'',
+                            xDiscipline: this.newXDiscipline, 
+                        }];
+                    } else if (this.newType=="2b"){
                         // throw
                         type = 2;
                         baseConf.type = 'throw';
@@ -182,11 +200,16 @@
                         type = parseInt(this.newType);
                         if (type==1){
                             // jump vertical
+                            baseConf = {
+                                heightMax: this.newMaxHeight,
+                                jumpoffHeightVariation: this.newJumpoff,
+                            }
                             disciplines = [{
                                 sortorder:this.newSortorder,
                                 active:this.newActive,
                                 configuration:{},
                                 info:'',
+                                xDiscipline: this.newXDiscipline, 
                             }]
                         } else if (type==3) {
                             // track
@@ -204,11 +227,20 @@
                             if (this.newTrackType=='hurdles'){
                                 disciplines = this.newDisciplines;
                             } else {
+                                let conf={};
+                                if (this.newTrackType=='relay'){
+                                    conf={
+                                        numAthletes: this.newNumAthletes,
+                                        numAthletesCompeting: this.newNumAthletesCompeting,
+                                        legs: this.newAssignLegs ? this.newLegs : null,
+                                    }
+                                }
                                 disciplines = [{
                                     sortorder:this.newSortorder,
                                     active:this.newActive,
-                                    configuration:{},
+                                    configuration:conf,
                                     info:'',
+                                    xDiscipline: this.newXDiscipline,
                                 }]
                             }
                         }
@@ -221,8 +253,8 @@
                         type,
                         nameStd: this.newBaseName,
                         shortnameStd: this.newBaseShortname,
-                        timeAppeal: this.newTimeAppeal,
-                        timeCall: this.newTimeCall,
+                        timeAppeal: this.formatTime(this.newTimeAppeal),
+                        timeCall: this.formatTime(this.newTimeCall),
                         baseConfiguration: JSON.stringify(baseConf),
                         indoor: this.newIndoor,
                         disciplines,
@@ -258,11 +290,11 @@
                     this.newDiscipline = d;
                     this.overlay2 = 'weight';
                 },
-                modDistance(d){
+                /*modDistance(d){
                     this.newDiscipline = d;
                     this.overlay2 = 'distance';
-                },
-                addDistance(){
+                },*/
+                /*addDistance(){
                     // create a new tech long discipline, without xDiscipline
                     let d = {
                         sortorder:0,
@@ -275,7 +307,7 @@
                     this.newDiscipline = d;
                     this.newDisciplines.push(d);
                     this.overlay2 = 'distance';
-                },
+                },*/
                 deleteHurdle(d){
                     let i = this.newDisciplines.findIndex(d2=>d2==d);
                     this.newDisciplines.splice(i,1);
@@ -319,27 +351,23 @@
                     this.newBaseName = bd.nameStd;
                     this.newBaseShortname = bd.shortnameStd;
                     this.newDisciplines = bd.disciplines; // only used for throws and hurdles
+                    this.newXDiscipline = bd.disciplines[0]?.xDiscipline; // used for others
                     this.newIndoor = bd.indoor;
                     this.newTimeAppeal = bd.timeAppeal; // 1 h
                     this.newTimeCall = bd.timeCall; //30min
                     if (bd.type==2){
-                        this.newDisciplines = JSON.parse(JSON.stringify(bd.disciplines));
+                        this.newDisciplines = JSON.parse(JSON.stringify(bd.disciplines)); // currently not used for jump horizontal
                         for (let d of this.newDisciplines){
                             d.configuration = JSON.parse(d.configuration); // configuration shall be an object
                         }
 
-                        /*if (bc.type=="throw"){
-                            for (let d of this.newDisciplines){
-                                let c = JSON.parse(d.configuration);
-                                d.weight = c.weight;
-                            }
+                        if (bc.type=="throw"){
+                            this.newType = '2b'; // throw
                         } else {
-                            // distance vor horizontal jumps; (needed for triple jump)
-                            for (let d of this.newDisciplines){
-                                let c = JSON.parse(d.configuration);
-                                d.distance = c.distance;
-                            }
-                        }*/
+                            this.newType='2a'; // jump horizontal
+                            this.newSortorder = bd.disciplines[0].sortorder;
+                            this.newActive = bd.disciplines[0].active;
+                        }
 
                         // sortorder and active are not used.
                     } else if (bd.type==3 && bc.type=='hurdles'){
@@ -359,6 +387,18 @@
                         }*/
 
                         // sortorder and active are not used.
+                    } else if (bd.type==3 && bc.type=='relay'){
+                        let c = JSON.parse(bd.disciplines[0].configuration);
+                        this.newNumAthletes = c.numAthletes;
+                        this.newNumAthletesCompeting = c.numAthletesCompeting;
+                        if (c.legs==null){
+                            this.newAssignLegs = false;
+                        }else {
+                            this.newAssignLegs = true;
+                            this.newLegs = c.legs;
+                        }
+                        this.newSortorder = bd.disciplines[0].sortorder;
+                        this.newActive = bd.disciplines[0].active;
                     } else {
                         this.newSortorder = bd.disciplines[0].sortorder;
                         this.newActive = bd.disciplines[0].active;
@@ -427,6 +467,15 @@
                  **/
                 findObjInArrayByProp2(arr, prop, val){
                     return this.findObjInArrayByProp(arr, prop, val)[1];
+                },
+                /**
+                 * makes sure that the time contains seconds
+                 **/
+                formatTime(time){
+                    if (time.split(':').length==2){
+                        return time + ':00';
+                    }
+                    return time;
                 }
             },
             computed:{
@@ -478,6 +527,12 @@
                         this.newFinishInLanes = false; // cannot finish in lanes when not started in lanes
                         this.newCrouchStart = false;
                     }
+                },
+                newNumAthletesCompeting: function(newVal, oldVal){
+                    this.newLegs.length=newVal;
+                    if (newVal>oldVal){
+                        this.newLegs.fill('',oldVal)
+                    }
                 }
             },
             components:{
@@ -498,7 +553,7 @@
     
     <!-- NOTE: a discipline in the GUI is a baseDiscipline in the DB, while a variant of a discipline in the GUI is a discipline in the DB-->
     <div id="vueDiv">
-        <h2><%= __("List of disciplines") %>:</h2>
+        <h2><%= __("Disciplines") %>:</h2>
         <button type="button" class="btn btnGreen" v-on:click="addBaseDiscipline()"><%= __("Add discipline") %></button><br>
         <label class="verticalForm">
             <%= __("Filter disciplines") %>: 
@@ -509,7 +564,7 @@
                 <thead>
                     <tr>
                         <th v-if="showFullDetails" is="vue:v-th" sortkey="xBaseDiscipline">xBaseDiscipline</th>
-                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="nameStd" defaultsort="asc"><%= __('Name') %></th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
                         <th is="vue:v-th" sortkey="shortnameStd"><%= __('Shortname') %></th>
                         <th is="vue:v-th" sortkey="type"><%= __('Type') %></th>
                         <th is="vue:v-th" sortkey="indoor"><%= __('indoor') %></th>
@@ -573,7 +628,7 @@
                                 <option value="relay"><%= __("Relay") %></option>
                             </select>
                         </template>
-                        <template v-if="!(newTrackType=='hurdles' && newType==3) && newType!=2">
+                        <template v-if="!(newTrackType=='hurdles' && newType==3)  && newType!='2b'"> <!-- && newType!='2a' -->
                             <label>
                                 <%= __("Sortorder") %>
                                 <input type="number" v-model.number="newSortorder" min="0">
@@ -583,22 +638,61 @@
                                 <%= __("Active") %>
                             </label>
                         </template>
+                        <label>
+                            <input type="checkbox" v-model="newIndoor">
+                            <%= __("Indoor discipline") %>
+                        </label>
+                        <label>
+                            <%= __("Appeal time offset") %>
+                            <input type="time" v-model="newTimeAppeal">
+                        </label>
+                        <label>
+                            <%= __("Call time offset") %>
+                            <input type="time" v-model="newTimeCall">
+                        </label>
+                        <template v-if="newTrackType=='relay' && newType==3">
+                            <label>
+                                <%= __('Maximum number of athletes (including substitute athletes)') %>
+                                <input type="number" min="2" v-model.number="newNumAthletes">
+                            </label>
+                            <label>
+                                <%= __('Number of athletes running') %>
+                                <input type="number"
+                                min="2" v-bind:max="newNumAthletes" v-model.number="newNumAthletesCompeting">
+                            </label>
+                            <label>
+                                <input type="checkbox" v-model="newAssignLegs">
+                                <%= __("Assign athletes to a single leg") %>
+                            </label>
+                            <template v-if="newAssignLegs">
+                                <table>
+                                    <tr>
+                                        <th>#</th>
+                                        <th><%= __("Length / name") %></th>
+                                    </tr>
+                                    <tr v-for="(l,i) in newLegs">
+                                        <td>{{i+1}}</td>
+                                        <td><input type="text" v-model="newLegs[i]"></td>
+                                    </tr>
+                                </table>
+                            </template>
+                        </template>
                         <template v-if="newTrackType=='hurdles' && newType==3">
                             <h3><%= __("Hurdle heights & distances") %></h3>
-                            <button class="btn btnGrey" type="button" v-on:click="addHurdle"><%= __("New hurdle configuration") %></button>
+                            <button class="btn btnGrey" type="button" v-on:click="addHurdle"><%= __("Add hurdle configuration") %></button>
                             <!-- show entries for the hurdles -->
                             <v-table :data="newDisciplines">
                                 <template #head>
                                     <thead>
                                         <tr>
                                             <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
                                             <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
                                             <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
                                             <th is="vue:v-th" sortkey="configuration.height"><%= __("Height") %></th>
                                             <th is="vue:v-th" sortkey="configuration.d1"><%= __("Distance to H1") %></th>
                                             <th is="vue:v-th" sortkey="configuration.d2"><%= __("Distance between H") %></th>
                                             <th is="vue:v-th" sortkey="configuration.d3"><%= __("Distance to finish") %></th>
-                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
                                             <th><!-- Buttons --></th>
                                         </tr>
                                     </thead>
@@ -607,13 +701,13 @@
                                     <tbody>
                                         <tr v-for="row in displayData" :key="row.xDiscipline">
                                             <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.info}}</td>
                                             <td>{{row.sortorder}}</td>
                                             <td>{{row.active}}</td>
                                             <td>{{row.configuration.height}}</td>
                                             <td>{{row.configuration.d1}}</td>
                                             <td>{{row.configuration.d2}}</td>
                                             <td>{{row.configuration.d3}}</td>
-                                            <td>{{row.info}}</td>
                                             <td>
                                                 <button class="btn btnGrey" type="button" v-on:click="modHurdle(row)"><%= __("Change") %></button>
                                                 <button class="btn btnRed" type="button" v-on:click="deleteHurdle(row)"><%= __("Delete") %></button>
@@ -632,10 +726,10 @@
                                     <thead>
                                         <tr>
                                             <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
                                             <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
                                             <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
                                             <th is="vue:v-th" sortkey="configuration.weight"><%= __("Weight") %></th>
-                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
                                             <th><!-- Buttons --></th>
                                         </tr>
                                     </thead>
@@ -644,30 +738,29 @@
                                     <tbody>
                                         <tr v-for="row in displayData" :key="row.xDiscipline">
                                             <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.info}}</td>
                                             <td>{{row.sortorder}}</td>
                                             <td>{{row.active}}</td>
                                             <td>{{row.configuration.weight}}</td>
-                                            <td>{{row.info}}</td>
                                             <td><button class="btn btnGrey" type="button" v-on:click="modWeight(row)"><%= __("Change") %></button></td>
                                         </tr>
                                     </tbody>
                                 </template>
                             </v-table>
                         </template>
-                        <template v-if="newType=='2a'">
+                        <!--<template v-if="newType=='2a'">
                             <h3><%= __("Distance (optional)") %></h3>
                             <button class="btn btnGrey" type="button" v-on:click="addDistance"><%= __("New distance") %></button>
-                            <!-- show entries for the different distances -->
                             <v-table :data="newDisciplines">
                                 <template #head>
                                     <thead>
                                         <tr>
                                             <th v-if="showFullDetails" is="vue:v-th" sortkey="xDiscipline">xDiscipline</th>
+                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
                                             <th is="vue:v-th" sortkey="sortorder"><%= __("Sortorder") %></th>
                                             <th is="vue:v-th" sortkey="active"><%= __("Active") %></th>
                                             <th is="vue:v-th" sortkey="configuration.distance"><%= __("Distance") %></th>
-                                            <th is="vue:v-th" sortkey="info"><%= __("Label") %></th>
-                                            <th><!-- Buttons --></th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                 </template>
@@ -675,28 +768,16 @@
                                     <tbody>
                                         <tr v-for="row in displayData" :key="row.xDiscipline">
                                             <td v-if="showFullDetails">{{row.xDiscipline}}</td>
+                                            <td>{{row.info}}</td>
                                             <td>{{row.sortorder}}</td>
                                             <td>{{row.active}}</td>
                                             <td>{{row.configuration.distance}}</td>
-                                            <td>{{row.info}}</td>
                                             <td><button class="btn btnGrey" type="button" v-on:click="modDistance(row)"><%= __("Change") %></button></td>
                                         </tr>
                                     </tbody>
                                 </template>
                             </v-table>
-                        </template>
-                        <label>
-                            <input type="checkbox" v-model="newIndoor">
-                            <%= __("Indoor discipline") %>
-                        </label>
-                        <label>
-                            <%= __("Appeal time offset") %>
-                            <input type="time" v-model="newTimeAppeal">
-                        </label>
-                        <label>
-                            <%= __("Call time offset") %>
-                            <input type="time" v-model="newTimeCall">
-                        </label>
+                        </template>-->
                         <template v-if="newType==1">
                             <!-- options for vertical jumps -->
                             <label>
@@ -755,8 +836,7 @@
                                 <%= __("Measure wind") %>
                             </label>
                         </template>
-    
-                        <button type="button" class="btn btnGreen" v-on:click="createBaseDiscipline" v-bind:disabled="newBaseName==undefined || newBaseShortname==undefined ">
+                        <button type="button" class="btn btnGreen" v-on:click="createBaseDiscipline" v-bind:disabled="newBaseName==undefined || newBaseShortname==undefined || (newType=='2b' && newDisciplines.length==0) || (newType==3 && newTrackType=='hurdles' && newDisciplines.length==0)">
                             <div v-if="bdModID==-1"><%= __("Create discipline") %></div>
                             <div v-if="bdModID>-1"><%= __("Update discipline") %></div>
                         </button>
@@ -805,7 +885,7 @@
                                 </tbody>
                             </template>
                         </v-table>
-                        <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button><!--TODO: on abort, reset the fields-->
+                        <button type="button" class="btn" v-on:click="overlay = undefined"><%= __("Close") %></button>
                     </div>
                 </form>
             </div>
@@ -907,7 +987,7 @@
                             <%= __("Active") %>
                         </label>
                         <label>
-                            <%= __("Weight") %>
+                            <%= __("Weight in g") %>
                             <input type="number" v-model.number="newDiscipline.configuration.weight" min="0" step="0.01">
                         </label>
     
@@ -921,8 +1001,8 @@
             </div>
         </div>
 
-        <!-- mod jump distance -->
-        <div class="overlay shown" v-if="overlay2=='distance'">
+        <!-- currently not used: mod jump distance -->
+        <!--<div class="overlay shown" v-if="overlay2=='distance'">
             <div class="overlayContainer">
                 <form>
                     <div class="verticalForm">
@@ -945,7 +1025,7 @@
                             <input type="number" v-model.number="newDiscipline.configuration.distance" min="0"  step="0.01">
                         </label>
     
-                        <button type="button" class="btn btnGreen" v-on:click="overlay2 = undefined" v-bind:disabled="false"> <!-- always active, since em empty configuraiton shall be ok -->
+                        <button type="button" class="btn btnGreen" v-on:click="overlay2 = undefined" v-bind:disabled="false">
                             <div v-if="newDiscipline.xDiscipline == undefined"><%= __("Create jump configuration") %></div>
                             <div v-else><%= __("Update jump configuration") %></div>
                         </button>
@@ -953,7 +1033,7 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </div>-->
 
         <!--<div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
             <div class="overlayContainer">

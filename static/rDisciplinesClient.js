@@ -29,7 +29,7 @@ export class rDisciplinesClient extends roomClient{
 
 
         // set the available functions
-        //this._addFunction('addBaseDiscipline', this.addBaseDisciplineExe);
+        this._addFunction('addBaseDiscipline', this.addBaseDisciplineExe);
         this._addFunction('deleteBaseDiscipline', this.deleteBaseDisciplineExe);
         this._addFunction('updateBaseDiscipline', this.updateBaseDisciplineExe);
         this._addFunction('updateLocalization', this.updateLocalizationExe);

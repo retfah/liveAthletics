@@ -167,6 +167,19 @@ class rDisciplines extends roomServer{
                 crouchStart: {type:"boolean"},
             }
         }
+        const schemaRelay = { // discipline
+            type:'object',
+            properties:{
+                numAthletes:{type:'integer', minimum:2},
+                numAthletesCompeting:{type:'integer', minimum:2},
+                legs: {
+                    type:['null', 'array'],
+                    items:{type:'string'},
+                }
+            },
+            additionalProperties: false,
+            required: ['numAthletes', 'numAthletesCompeting', 'legs'],
+        }
         const schemaHurdles = { // discipline
             type:'object',
             properties: {
@@ -181,7 +194,7 @@ class rDisciplines extends roomServer{
         const schemaThrows = { // discipline
             type:'object',
             properties: {
-                weight: {type:'number'}
+                weight: {type:'number'} // in g
             },
             additionalProperties: false,
             required: ['weight'],
@@ -206,6 +219,7 @@ class rDisciplines extends roomServer{
         this.validateThrows = this.ajv.compile(schemaThrows);
         this.validateHurdles = this.ajv.compile(schemaHurdles);
         this.validateJumpHor = this.ajv.compile(schemaJumpHor);
+        this.validateRelay = this.ajv.compile(schemaRelay);
     }
 
     getTranslatedDisciplines(lang){
@@ -488,6 +502,10 @@ class rDisciplines extends roomServer{
                 if (!this.validateHurdles(dc)){
                     throw {message: `Discipline configuration invalid: ${this.ajv.errorsText(this.validateHurdles.errors)}`, code: 25};
                 }
+            } else if (data.type==3 && bc.type=='relay'){
+                if (!this.validateRelay(dc)){
+                    throw {message: `Discipline configuration invalid: ${this.ajv.errorsText(this.validateRelay.errors)}`, code: 25};
+                }
             }
         }
     }
@@ -510,6 +528,9 @@ class rDisciplines extends roomServer{
         // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every function like addBaseDiscipline, updateBaseDiscipline, ... would have to actively call this function in it
         // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
         var dataTranslated = data; //this.translateBooleans(data);
+
+        // without having the property, it owuld not be included in the output 
+        dataTranslated.basedisciplinelocalizations = [];
 
         // first, try to add the base discipline
         var baseDiscipline = await this.models.basedisciplines.create(dataTranslated, {include: [{model:this.models.disciplines, as:"disciplines"}, {model:this.models.basedisciplinelocalizations, as:"basedisciplinelocalizations"}]}).catch((err)=>{throw {message: `Sequelize-problem: BaseDiscipline could not be created: ${err}`, code:26}})
