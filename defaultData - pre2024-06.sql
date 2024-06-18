@@ -8,10 +8,9 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
 
 
-INSERT INTO `countries` (`xCountry`, `countryName`, `countrySortvalue`) VALUES
+INSERT INTO `regions` (`country`, `countryName`, `countrySortvalue`) VALUES
 ('SUI', 'Switzerland', 1),
 ('AFG', 'Afghanistan', 2),
 ('ALB', 'Albania', 3),
@@ -243,17 +242,16 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
 
 
-INSERT INTO `categories` (`xCategory`, `categoryShortname`, `categoryName`, `categorySortorder`, `age`, `categoryCode`, `sex`, `active`) VALUES
-(1, 'MAN_', 'MAN', 1, 99, 'MAN_', 'm', 1),
+INSERT INTO `categories` (`xCategory`, `shortname`, `name`, `sortorder`, `ageMax`, `code`, `sex`, `active`) VALUES
+(1, 'MAN', 'MAN', 1, 99, 'MAN_', 'm', 1),
 (2, 'U20M', 'U20 M', 4, 19, 'U20M', 'm', 1),
 (3, 'U18M', 'U18 M', 5, 17, 'U18M', 'm', 1),
 (4, 'U16M', 'U16 M', 6, 15, 'U16M', 'm', 1),
 (5, 'U14M', 'U14 M', 7, 13, 'U14M', 'm', 1),
 (6, 'U12M', 'U12 M', 8, 11, 'U12M', 'm', 1),
-(7, 'WOM_', 'WOM', 10, 99, 'WOM_', 'f', 1),
+(7, 'WOM', 'WOM', 10, 99, 'WOM_', 'f', 1),
 (8, 'U20W', 'U20 W', 13, 19, 'U20W', 'f', 1),
 (9, 'U18W', 'U18 W', 14, 17, 'U18W', 'f', 1),
 (10, 'U16W', 'U16 W', 15, 15, 'U16W', 'f', 1),
@@ -287,3 +285,48 @@ INSERT INTO `categories` (`xCategory`, `categoryShortname`, `categoryName`, `cat
 (39, 'U18X', 'U18 Mixed', 19, 17, 'U18X', 'm', 1),
 (40, 'U20X', 'U20 Mixed', 20, 19, 'U20X', 'm', 1),
 (41, 'U23X', 'U23 Mixed', 21, 22, 'U23X', 'm', 1);
+
+/* Add some default disciplines (they re currently 2021-05 referenced without being actual rooms!) */
+INSERT INTO `basedisciplines` (`xBaseDiscipline`, `type`, `nameStd`, `shortnameStd`, `timeAppeal`, `timeCall`, `baseConfiguration`, `indoor`) VALUES 
+(1, '1', 'Pole vault', 'PV', '01:30:00.000000', '00:45:00.000000', '{\"heightMax\":650, \"jumpoffHeightVariation\":5}', b'0'),
+(2, '1', 'High jump', 'HJ', '01:00:00.000000', '00:30:00.000000', '{\"heightMax\":260, \"jumpoffHeightVariation\":2}', b'0'), 
+(3, '1', 'Pole vault', 'PV', '01:30:00.000000', '00:45:00.000000', '{\"heightMax\":650, \"jumpoffHeightVariation\":5}', b'1'), 
+(4, '1', 'High jump', 'HJ', '01:00:00.000000', '00:30:00.000000', '{\"heightMax\":260, \"jumpoffHeightVariation\":2}', b'1'),
+(5, '3', '60 m', '60', '01:00:00.000000', '00:15:00.000000', '{\"distance\":60, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":false, \"straight\":true, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":true}', b'1'),
+(6, '3', '200 m', '200', '01:00:00.000000', '00:15:00.000000', '{\"distance\":200, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":true}', b'1'),
+(7, '3', '400 m', '400', '01:00:00.000000', '00:15:00.000000', '{\"distance\":400, \"startInLanes\":true, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":true}', b'1'), 
+(8, '3', '600 m', '600', '01:00:00.000000', '00:15:00.000000', '{\"distance\":600, \"startInLanes\":false, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":false}', b'1'), 
+(9, '3', '800 m', '800', '01:00:00.000000', '00:15:00.000000', '{\"distance\":800, \"startInLanes\":false, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":false}', b'1'), 
+(10, '3', '1000 m', '1000', '01:00:00.000000', '00:15:00.000000', '{\"distance\":1000, \"startInLanes\":false, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":false}', b'1'), 
+(11, '3', '1500 m', '1500', '01:00:00.000000', '00:15:00.000000', '{\"distance\":1500, \"startInLanes\":false, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\, \"crouchStart\":false"}', b'1'), 
+(12, '3', '3000 m', '3000', '01:00:00.000000', '00:15:00.000000', '{\"distance\":3000, \"startInLanes\":false, \"finishInLanes\":false, \"groupSize\":1, \"wind\":false, \"straight\":false, \"heatInterval\":60, \"type\":\"regular\", \"crouchStart\":false}', b'1'), 
+(13, '3', '60 m Hurdles', '60H', '01:00:00.000000', '00:15:00.000000', '{\"distance\":60, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":false, \"straight\":true, \"heatInterval\":60, \"type\":\"hurdles\", \"crouchStart\":true}', b'1');
+
+INSERT INTO `disciplines` (`xDiscipline`, `xBaseDiscipline`, `sortorder`, `active`, `configuration`, `info`) VALUES 
+(206, 1, 101, b'1', '', ''),
+(207, 2, 102, b'1', '', ''),
+(208, 3, 103, b'1', '', ''),
+(209, 4, 104, b'1', '', ''),
+(1, 5, 1, b'1', '', ''),
+(2, 6, 2, b'1', '', ''),
+(3, 7, 3, b'1', '', ''),
+(4, 8, 4, b'1', '', ''),
+(5, 9, 5, b'1', '', ''),
+(6, 10, 6, b'1', '', ''),
+(7, 11, 7, b'1', '', ''),
+(8, 12, 8, b'1', '', ''),
+(9, 13, 9, b'1', '{\"height\":106.7, \"d1\":13.72, \"d2\":9.14, \"d3\":9.72}', '106.7'),
+(10, 13, 9, b'1', '{\"height\":99.1, \"d1\":13.72, \"d2\":9.14, \"d3\":9.72}', '99.1'),
+(11, 13, 9, b'1', '{\"height\":91.4, \"d1\":13.72, \"d2\":9.14, \"d3\":9.72}', '91.4'),
+(12, 13, 9, b'1', '{\"height\":83.8, \"d1\":13, \"d2\":8.5, \"d3\":13}', '83.8'),
+(13, 13, 9, b'1', '{\"height\":76.2, \"d1\":13, \"d2\":8.5, \"d3\":13}', '76.2/8.5'),
+(14, 13, 9, b'1', '{\"height\":76.2, \"d1\":12, \"d2\":8, \"d3\":16}', '76.2/8.0'),
+(15, 13, 9, b'1', '{\"height\":76.2, \"d1\":11.5, \"d2\":7.5, \"d3\":18.5}', '76.2/7.5'),
+(16, 13, 9, b'1', '{\"height\":68.0, \"d1\":11.5, \"d2\":7.5, \"d3\":18.5}', '68.0');
+/*(210, 5, 1, b'1', '{\"distance\":100, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":true, \"straight\":true, \"heatInterval\":60}'),
+(211, 6, 1, b'1', '{\"distance\":100, \"startInLanes\":true, \"finishInLanes\":true, \"groupSize\":1, \"wind\":true, \"straight\":true, \"heatInterval\":60}');*/
+INSERT INTO `basedisciplinelocalizations` (`xDisciplinesLocalization`, `xBaseDiscipline`, `language`, `name`, `shortname`) VALUES 
+(NULL, '1', 'de', 'Stabhochsprung', 'Stab'), 
+(NULL, '2', 'de', 'Hochsprung', 'Hoch'),
+(NULL, '3', 'de', 'Stabhochsprung', 'Stab'), 
+(NULL, '4', 'de', 'Hochsprung', 'Hoch');
