@@ -45,6 +45,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
         disciplineTranslationTableOutdoor: {
             // liveAthletics:Alabus
             // see Excel "Kategorien Disziplinen SVM" to copy data from
+
             10:10,
             20:20,
             30:30,
@@ -94,8 +95,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
             309:600,
             310:601,
             311:602,
-            207:310,
-            206:320,
+            640:310,
+            660:320,
             600:330,
             620:340,
             612:351,
@@ -133,7 +134,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
             282:820,
             500:355,
             260:374
-
 
         },
         disciplineTranslationTableIndoor: {
