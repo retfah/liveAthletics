@@ -587,7 +587,7 @@
 	"Heat": "Serie",
 	"Note": "Bemerkung",
 	"If the status of the heat changes, the rules set for adding/deleting the heat are applied to determine whether the heat shall be added to/deleted from the timing automatically.": "Wenn der Serienstatus ändert wird automatisch die gewählte Aktion (Serie hinzufügen/aktualisieren/löschen) ausgeführt.",
-	"Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests": "Aktualisiere Anmeldungsinformationen (Name, Geburtsdatum, Startnummer, PB, SB, ...) in allen all contests",
+	"Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests": "Aktualisiere Anmeldungsinformationen (Name, Geburtsdatum, Startnummer, PB, SB, ...) in allen Bewerben",
 	"Renew": "Aktualisieren",
 	"Show reaction times": "Reaktionszeiten anzeigen",
 	"Reaction time": "Reaktionszeit",
@@ -798,5 +798,9 @@
 	"Number of athletes running": "Anzahl rennende Athleten",
 	"Assign athletes to a single leg": "Athleten rennen genau eine Strecke",
 	"Length / name": "Länge / Name",
-	"Weight in g": "Gewicht in g"
+	"Weight in g": "Gewicht in g",
+	"Only fill missing performances": "Nur fehlende Werte hinzufügen",
+	"Update when improving": "Aktualisieren wenn besser",
+	"Update always": "Immer aktualisieren",
+	"Update current performance with base data": "Aktuelle Leistungen mit Basisdaten aktualisieren"
 }

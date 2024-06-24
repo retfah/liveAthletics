@@ -176,6 +176,18 @@ class rMeeting extends roomServer{
             additionalProperties:false ,
         }
 
+        const schemaRenewStartgroups = {
+            type:'object',
+            properties:{
+                perfUpdate:{
+                    type:'string',
+                    enum:['none', 'fill', 'improve', 'overwrite'],
+                    default:'none',
+                }
+            },
+            additionalProperties: false,
+        }
+
         const schemaBaseFunction = {
             type:'object',
             properties: {
@@ -190,7 +202,7 @@ class rMeeting extends roomServer{
         // this will actually be overriden when the mongo-data was read and the schemaMeeting is extended with the fee and the importExportModel schemas.
         this.validateMeetingNoOptions = this.ajv.compile(this.schemaMeeting);
         this.validateBaseFunction = this.ajv.compile(schemaBaseFunction);
-
+        this.validateRenewStartgroups = this.ajv.compile(schemaRenewStartgroups);
         
         this.ready = true; // lets the onRoomReady being run, at least as soon as mongoReady
 
@@ -283,9 +295,82 @@ class rMeeting extends roomServer{
     }
 
     // notify all rooms to renew the startgroups; this is needed e.g. when the base data were updated in another meeting, since the automatucally raised event is only received in this room 
-    renewStartgroups(data){
+    // options for perfUpdate:
+    // - none: do not update performance from base
+    // - fill: only fill values where values were lacking so far
+    // - improve: only use new data if it is an improvement
+    // - overwrite: update all performances to match those from the basedata
+    // Note: in any case, if there is no basedata, no performances will be deleted
+    async renewStartgroups(data){
+        if (!this.validateRenewStartgroups(data)){
+            throw {code: 21, message: `The sent data is not valid: ${this.ajv.errorsText(this.validateRenewStartgroups.errors)}.`}
+        }
 
-        // TODO: first, update the performances from the base data
+        // first, update the performances from the base data
+        const meetingRooms = this.rMeetings.activeMeetings[this.meeting.shortname].rooms;
+
+        if (data.perfUpdate != 'none'){
+
+            const disciplines = meetingRooms.disciplines.getTranslatedDisciplines('en');
+
+            // we must update the starts;
+            for (let s of meetingRooms.starts.data.starts){
+                // find the inscription for this start
+                let inscription = meetingRooms.inscriptions.data.inscriptions.find(i=>i.xInscription == s.xInscription);
+                if (inscription && 'athlete' in inscription && inscription.athlete.nationalBody !== null){
+
+                    // get xDiscipline and discipline type
+                    const event = meetingRooms.events.data.events.find(e=>e.xEvent == s.xEvent);
+                    // USE THE DISCIPLINES LIST INSTEAD OF BASEDISICPLINE!
+                    const discipline = disciplines.find(d=>d.xDiscipline == event.xDiscipline);
+                    let inverter = 1; // larger performance is better (tech)
+                    if (discipline.type>2){
+                        inverter = -1;
+                    }
+
+                    // get the latest data from the nationalBodyLink
+                    if (inscription.athlete.nationalBody in this.baseModules){
+                        let perfs = await this.baseModules[inscription.athlete.nationalBody].getPerformance(inscription.athlete.identifier, event.xDiscipline);
+
+                        let change = false;
+                        if (perfs.notification>0){
+                            if (data.perfUpdate == 'overwrite' || 
+                                (data.perfUpdate == 'fill' && s.notificationPerf==0) ||
+                                (data.perfUpdate == 'improve' && s.notificationPerf*inverter<perfs.notification*inverter)
+                            ){
+                                change = true;
+                                s.notificationPerf = perfs.notification;
+                            }
+                        }
+                        if (perfs.season>0){
+                            if (data.perfUpdate == 'overwrite' || 
+                                (data.perfUpdate == 'fill' && s.bestPerfLast==0) ||
+                                (data.perfUpdate == 'improve' && s.bestPerfLast*inverter<perfs.season*inverter)
+                            ){
+                                change = true;
+                                s.bestPerfLast = perfs.season;
+                            }
+                        }
+                        if (perfs.best>0){
+                            if (data.perfUpdate == 'overwrite' || 
+                                (data.perfUpdate == 'fill' && s.bestPerf==0) ||
+                                (data.perfUpdate == 'improve' && s.bestPerf*inverter<perfs.best*inverter)
+                            ){
+                                change = true;
+                                s.bestPerf = perfs.best;
+                            }
+                        }
+
+                        if (change){
+                            await s.save().catch(err=>{throw {msg: `Error during saving of start with updated performance: ${err}?`, code: 22}})
+                        }
+                    }
+                }
+                // TODO: handle relays, if they have entries in base data (currently not intended)
+            }
+        }
+
+        // TODO: continue here. Does the following work already?
 
         // make sure that all contests recreate their startgroups !
         this.eH.raise(`general@${this.meetingShortname}:renewStartgroups`);

@@ -64,6 +64,8 @@
                     modules:[{name:'swiss-athletics', defaultData:{all:'data that shall be in moduleData as a default', username:'', password: '', overlay:undefined, errConnection:false, errCredentials:false, errGeneral:false, lastUpdate:'', errNoMeetings:false, errCode:0, errMsg:'', updateNotes:'', updateCount:0, failCount:0, newCount:0, importNotes:'', deleteAthletes:0, competitions:[]}}, {name:'world-athletics', defaultData:{}}],
                     selectedModuleIndex:-1,
                     moduleData:{}, // will be filled by the selected module
+
+                    perfUpdate:'none',
                 }
             },
             methods:{
@@ -307,7 +309,7 @@
                     this.mode = 2;
                 },
                 renewStartgroups: function(){
-                    rMeet.room.renewStartgroupsInit();
+                    rMeet.room.renewStartgroupsInit(this.perfUpdate);
                 }
             },
             computed:{
@@ -402,7 +404,6 @@
                 <!-- TODO: make the list being completed from a list of modules, similar to series assignements -->
             </select>
         </label>
-        TODO: add model specific options!
         <!--<label>
             <%= __("Import/Export model") %>:
             <select v-model="meetingWorkCopy.importExportModel" v-bind:disabled="mode!=1">
@@ -411,7 +412,14 @@
             </select>
         </label>
         TODO: add model specific options!--><br>
-        <%= __("Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests") %>:
+        <h3><%= __("Renew inscription information (name, birthdate, bib, PB, SB, ...) in all contests") %></h3>
+        <%= __("Update current performance with base data") %>: 
+        <select v-model="perfUpdate">
+            <option value="none"><%= __("No") %></option>
+            <option value="fill"><%= __("Only fill missing performances") %></option>
+            <option value="improve"><%= __("Update when improving") %></option>
+            <option value="overwrite"><%= __("Update always") %></option>
+        </select>
         <button type="button" class="btn" v-on:click="renewStartgroups($event)"><%= __("Renew") %></button>
     
 

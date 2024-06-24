@@ -28,12 +28,12 @@ export class rMeetingClient extends roomClient{
         this._addFunction('updateMeeting', this.updateMeetingExe);
     }
 
-    renewStartgroupsInit(){
+    renewStartgroupsInit(perfUpdate='none'){
         const opt = {
             readOnly:true,
         }
         // actually there is no data to transmit; transmit true
-        this.addToStack('renewStartgroups', true, ()=>{}, ()=>{}, opt)
+        this.addToStack('renewStartgroups', {perfUpdate}, ()=>{}, ()=>{}, opt)
     }
 
     updateMeetingInit(meeting, funcOverride=undefined, rollBack=()=>{}){
