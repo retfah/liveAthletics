@@ -271,6 +271,14 @@ if (conf.https){
 	  };
 	var serverS = https.createServer(options, app).listen(conf.https.port)
 	serverS.on('upgrade', upgrade);
+
+	// since the key may change over time, we need to reload them regularly, e.g. daily (especially with LetsEncrypt) 
+	setInterval(()=>{
+		serverS.setSecureContext({
+			key: fs.readFileSync(conf.https.keyFilePath),
+			cert: fs.readFileSync(conf.https.certificateFilePath),
+		})
+	}, conf.https.keyReloadInterval); 
 }
 
 

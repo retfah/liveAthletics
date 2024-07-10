@@ -20,6 +20,7 @@ export default {
         port:443,
         keyFilePath: '/etc/letsencrypt/live/liveathletics.ch/privkey.pem',
         certificateFilePath: '/etc/letsencrypt/live/liveathletics.ch/fullchain.pem',
+        keyReloadInterval: 24*3600 // in s (default is daily)
     },*/
 
     // logging: set various kinds of loggers; one logger per object
