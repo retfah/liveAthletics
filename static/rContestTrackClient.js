@@ -1,6 +1,7 @@
 
+import { rContestClient } from "./rContestClient.js";
 
-export class rContestTrackClient extends roomClient{
+export class rContestTrackClient extends rContestClient{
 
     /**
      * 
@@ -15,6 +16,9 @@ export class rContestTrackClient extends roomClient{
      */
     constructor(v, wsHandler, eventHandler, rM, writing=false, storeInfos=true, datasetName='', roomName){
 
+        super(v, wsHandler, eventHandler, rM, writing, storeInfos, datasetName, roomName);
+
+        /*
         let failCB = (msg, code)=>{}
         let successCB = ()=>{}
 
@@ -24,33 +28,21 @@ export class rContestTrackClient extends roomClient{
         // the room name must include the meeting name (contest@meetingShortname)
         super(v, roomName, wsHandler, eventHandler, false, writing, successCB, failCB, storeInfos, rM, datasetName); 
 
+        */
+
         // ATTENTION: the same (!) default data must be present in the server room as well!
         this.defaultAuxData = {}
 
 
         // set the available functions
-        this._addFunction('moveSeries', this.moveSeriesExe);
         this._addFunction('updateContest2', this.updateContest2Exe);
-        this._addFunction('updatePresentState', this.updatePresentStateExe);
-        this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
-        this._addFunction('deleteStartsInGroup', this.deleteStartsInGroup);
-        this._addFunction('groupUnlinked', this.groupUnlinkedExe);
-        this._addFunction('groupLinked', this.groupLinkedExe);
-        this._addFunction('initialSeriesCreation', this.initialSeriesCreationExe);
-        this._addFunction('deleteAllSeries', this.deleteAllSeriesExe);
-        this._addFunction("deleteSSR", this.deleteSSRExe);
         this._addFunction('addSSR', this.addSSRExe);
         this._addFunction('changePosition', this.changePositionExe);
         this._addFunction('updateSSR', this.updateSSRExe);
         this._addFunction('addResult', this.addResultExe);
         this._addFunction('updateResult', this.updateResultExe);
         this._addFunction('deleteResult', this.deleteResultExe);
-        this._addFunction('updateSeries', this.updateSeriesExe);
-        this._addFunction('updateAuxData', this.updateAuxDataExe);
-        this._addFunction('addSeries', this.addSeriesExe);
-        this._addFunction('deleteSeries', this.deleteSeriesExe);
-        this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
-        this._addFunction('renewStartgroups', this.renewStartgroupsExe);
+        this._addFunction('swapPosition', this.swapPositionExe);
     }
 
     // Infos about aux data:
@@ -71,7 +63,7 @@ export class rContestTrackClient extends roomClient{
         //   - on the writing server simply set the position/positionNext to the newly calculated values; if the values have changed, broadcast the changed ausData with the new position and positionNext
         //   - on non-writing clients, compare the length of position and positionNext newly calculated locally with the data in roomAuxData. If it matches (as it always should), do not use the locally calculated data, but copy the data from the auxData. 
 
-    updateAuxDataExe(data){
+    /*updateAuxDataExe(data){
         this.propertyTransfer(data, this.data.auxData, true);
     }
 
@@ -147,7 +139,7 @@ export class rContestTrackClient extends roomClient{
             return o;
         }
 
-        // this cannot be done in propertyTransfer, since it would break the reference
+        // changes between "null" and "object" cannot be done in propertyTransfer, since it would break the reference
         if (series[prop]===null && typeof(val)=='object' && val!=null){
             series[prop] = {};
         }
@@ -167,10 +159,7 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-
-    /**
-     * n: the number of the series 
-     **/
+    //n: the number of the series 
     getStarttime(n, interval){
         const d = new Date(this.data.contest.datetimeStart);
         // set a reasonable default value! Must change when the order of series changes
@@ -208,7 +197,7 @@ export class rContestTrackClient extends roomClient{
             this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
         }
 
-    }
+    }*/
 
     deleteResultExe(data){
 
@@ -809,7 +798,7 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-    deleteSSRExe(data){
+    /*deleteSSRExe(data){
 
         let series = this.data.series.find(s=>s.xSeries == data.fromXSeries);
         if (!series){
@@ -910,7 +899,7 @@ export class rContestTrackClient extends roomClient{
 
         // now sort the series (otherwise the chnage would not be visible)
         this.data.series.sort((a,b)=>{return a.number - b.number});
-    }
+    }*/
 
 
     // this function has no direct exe equivalent
@@ -1093,7 +1082,7 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-    deleteAllSeriesExe(data){
+    /*deleteAllSeriesExe(data){
         //delete all series locally
         let l = this.data.series.length;
         for (let i=0; i<l; i++){
@@ -1106,11 +1095,9 @@ export class rContestTrackClient extends roomClient{
         }
 
         this.sortSeries();
-    }
+    }*/
 
-    deleteAllSeriesInit(){
-
-        // check that no series has a result
+    hasResults(){
         let hasResults = false;
         for (let series of this.data.series){
             // check that there are no results yet
@@ -1123,7 +1110,13 @@ export class rContestTrackClient extends roomClient{
                 break;
             }
         }
-        if (hasResults){
+        return hasResults;
+    }
+
+    /*deleteAllSeriesInit(){
+
+        // check that no series has a result
+        if (this.hasResults()){
             return;
         }
 
@@ -1240,7 +1233,7 @@ export class rContestTrackClient extends roomClient{
 
         // delete the series
         this.data.series.splice(iSeries,1);
-    }
+    }*/
 
     addSeriesInit(defaultxSite=null, datetime){
         // add an empty series
@@ -1306,7 +1299,7 @@ export class rContestTrackClient extends roomClient{
         this.sortSeries();
     }
 
-    addSeriesExe(newSeries){
+    /*addSeriesExe(newSeries){
         // add the series to the local series
         this.data.series.push(newSeries);
 
@@ -1314,7 +1307,7 @@ export class rContestTrackClient extends roomClient{
         this.data.auxData[newSeries.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
 
         this.sortSeries();
-    }
+    }*/
 
     initialSeriesCreationInit(newSeries){
         // do not only send the request, but also change the data here already.
@@ -1445,7 +1438,7 @@ export class rContestTrackClient extends roomClient{
 
     }
 
-    groupLinkedExe(data){
+    /*groupLinkedExe(data){
         this.data.relatedGroups.push(data.group);
         // push every single new startgroup (Note: concat cannot be used, since it would destroy the proxies)
         data.startgroups.forEach(SG=>{
@@ -1455,13 +1448,13 @@ export class rContestTrackClient extends roomClient{
     }
 
     groupUnlinkedExe(data){
-        let i = this.data.relatedGroups.findIndex(el=>el.number==data.number && el.xRound==data.xRound)
-        if (i>=0){
+        let i2 = this.data.relatedGroups.findIndex(el=>el.number==data.number && el.xRound==data.xRound)
+        if (i2>=0){
             // should always come here
-            this.data.relatedGroups.splice(i,1);
+            this.data.relatedGroups.splice(i2,1);
         }
         // remove startgroups
-        for (i=this.data.startgroups.length-1; i>=0; i--){
+        for (let i=this.data.startgroups.length-1; i>=0; i--){
             let SIG = this.data.startgroups[i];
             if (SIG.xRound == data.xRound && SIG.number == data.number ){
                 this.data.startgroups.splice(i,1);
@@ -1515,7 +1508,7 @@ export class rContestTrackClient extends roomClient{
             startgroup.present = data.present;
         }
         
-    }
+    }*/
 
     updateContest2Init(newContest, oldContest){
 

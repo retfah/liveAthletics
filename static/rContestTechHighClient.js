@@ -1,6 +1,6 @@
+import { rContestClient } from "./rContestClient.js";
 
-export class rContestTechHighClient extends roomClient{
-
+export class rContestTechHighClient extends rContestClient{
 
     /**
      * 
@@ -15,14 +15,16 @@ export class rContestTechHighClient extends roomClient{
      */
     constructor(v, wsHandler, eventHandler, rM, writing=false, storeInfos=true, datasetName='', roomName){
 
-        let failCB = (msg, code)=>{}
+        super(v, wsHandler, eventHandler, rM, writing, storeInfos, datasetName, roomName);
+
+        /*let failCB = (msg, code)=>{}
         let successCB = ()=>{}
 
         // call the parent constructor
         //(v, name, wsHandler, eventHandler, onlineOnly, writing, success, failure, storeInfos=false, rM, datasetName='', writingChangedCB)
         
         // the room name must include the meeting name (contest@meetingShortname)
-        super(v, roomName, wsHandler, eventHandler, false, writing, successCB, failCB, storeInfos, rM, datasetName); 
+        super(v, roomName, wsHandler, eventHandler, false, writing, successCB, failCB, storeInfos, rM, datasetName);*/ 
 
         // ATTENTION: the same (!) default data must be present in the server room as well!
         this.defaultAuxData = {
@@ -39,16 +41,16 @@ export class rContestTechHighClient extends roomClient{
 
 
         // set the available functions
-        this._addFunction('moveSeries', this.moveSeriesExe);
+        //this._addFunction('moveSeries', this.moveSeriesExe);
         this._addFunction('updateContest2', this.updateContest2Exe);
-        this._addFunction('updatePresentState', this.updatePresentStateExe);
-        this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
-        this._addFunction('deleteStartsInGroup', this.deleteStartsInGroup);
-        this._addFunction('groupUnlinked', this.groupUnlinkedExe);
-        this._addFunction('groupLinked', this.groupLinkedExe);
-        this._addFunction('initialSeriesCreation', this.initialSeriesCreationExe);
-        this._addFunction('deleteAllSeries', this.deleteAllSeriesExe);
-        this._addFunction("deleteSSR", this.deleteSSRExe);
+        //this._addFunction('updatePresentState', this.updatePresentStateExe);
+        //this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
+        //this._addFunction('deleteStartsInGroup', this.deleteStartsInGroup);
+        //this._addFunction('groupUnlinked', this.groupUnlinkedExe);
+        //this._addFunction('groupLinked', this.groupLinkedExe);
+        //this._addFunction('initialSeriesCreation', this.initialSeriesCreationExe);
+        //this._addFunction('deleteAllSeries', this.deleteAllSeriesExe);
+        //this._addFunction("deleteSSR", this.deleteSSRExe);
         this._addFunction('addSSR', this.addSSRExe);
         this._addFunction('changePosition', this.changePositionExe);
         this._addFunction('addHeight', this.addHeightExe);
@@ -57,12 +59,12 @@ export class rContestTechHighClient extends roomClient{
         this._addFunction('addResult', this.addResultExe);
         this._addFunction('updateResult', this.updateResultExe);
         this._addFunction('deleteResult', this.deleteResultExe);
-        this._addFunction('updateSeries', this.updateSeriesExe);
-        this._addFunction('updateAuxData', this.updateAuxDataExe);
-        this._addFunction('addSeries', this.addSeriesExe);
-        this._addFunction('deleteSeries', this.deleteSeriesExe);
-        this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
-        this._addFunction('renewStartgroups', this.renewStartgroupsExe);
+        //this._addFunction('updateSeries', this.updateSeriesExe);
+        //this._addFunction('updateAuxData', this.updateAuxDataExe);
+        //this._addFunction('addSeries', this.addSeriesExe);
+        //this._addFunction('deleteSeries', this.deleteSeriesExe);
+        //this._addFunction('updateHeatStarttimes', this.updateHeatStarttimesExe);
+        //this._addFunction('renewStartgroups', this.renewStartgroupsExe);
     }
 
     // Infos about aux data:
@@ -83,7 +85,7 @@ export class rContestTechHighClient extends roomClient{
         //   - on the writing server simply set the position/positionNext to the newly calculated values; if the values have changed, broadcast the changed ausData with the new position and positionNext
         //   - on non-writing clients, compare the length of position and positionNext newly calculated locally with the data in roomAuxData. If it matches (as it always should), do not use the locally calculated data, but copy the data from the auxData. 
 
-    updateAuxDataExe(data){
+    /*updateAuxDataExe(data){
         this.propertyTransfer(data, this.data.auxData, true);
     }
 
@@ -98,9 +100,9 @@ export class rContestTechHighClient extends roomClient{
         };
         let rollback = null; // currently no single rollback planned; get the full data from the server again
         this.addToStack('updateAuxData', change, success, rollback)
-    }
+    }*/
 
-    updateSeriesExe(data){
+    /*updateSeriesExe(data){
         let s = this.data.series.find(s=>s.xSeries==data.xSeries);
         if (!s){
             this.logger.log(10, `Could not find the series with xSeries=${data.xSeries}.`)
@@ -108,14 +110,19 @@ export class rContestTechHighClient extends roomClient{
         this.propertyTransfer(data,s,true);
 
         this.sortSeries();
-    }
+    }*/
 
     // keep the series always sorted
     sortSeries(){
         this.data.series.sort((s1, s2)=>s1.number-s2.number);
     }
 
-    updateSeriesInit(series, prop, val){
+    /*updateSeriesInit(series2, prop, val){
+        // series2 does not need to be the actual series object, but it shall contain all its properties
+        let series = this.data.series.find(s=>s.xSeries==series2.xSeries);
+        if (!series){
+            return;
+        }
 
         let change = ()=>{
             // do not send the heights and ssr array; therefore, copy the data
@@ -128,12 +135,21 @@ export class rContestTechHighClient extends roomClient{
                 name: series.name,
                 datetime: series.datetime,
                 id: series.id,
+                aux: series.aux,
             };
             o[prop] = val;
             return o;
         }
 
-        series[prop] = val;
+        // changes between "null" and "object" cannot be done in propertyTransfer, since it would break the reference
+        if (series[prop]===null && typeof(val)=='object' && val!=null){
+            series[prop] = {};
+        }
+        if (typeof(series[prop])==='object' && series[prop]!==null){
+            this.propertyTransfer(val,series[prop])
+        } else {
+            series[prop] = val;
+        }
 
         let success = ()=>{
             // actually there is nothing to do here, since there is no auto-created key for a result. (The key is the combination of xHeight and xResult=xSeriesStart)
@@ -143,20 +159,20 @@ export class rContestTechHighClient extends roomClient{
 
         this.sortSeries();
 
-    }
+    }*/
 
-    
+
     /**
      * n: the number of the series 
      **/
-    getStarttime(n, interval){
+    /*getStarttime(n, interval){
         const d = new Date(this.data.contest.datetimeStart);
         // set a reasonable default value! Must change when the order of series changes
         let datetime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds() + interval*(n-1));
         return datetime;
-    }    
+    }*/
 
-    updateHeatStarttimesInit(interval){
+    /*updateHeatStarttimesInit(interval){
         // interval is the interval in s
 
         // sort the series by number (should already be the case)
@@ -186,7 +202,7 @@ export class rContestTechHighClient extends roomClient{
             this.data.series[h-1].datetime = this.getStarttime(h, interval).toJSON();
         }
 
-    }
+    }*/
 
     deleteResultExe(data){
 
@@ -400,7 +416,7 @@ export class rContestTechHighClient extends roomClient{
 
     }
 
-    deleteSSRExe(data){
+    /*deleteSSRExe(data){
 
         let series = this.data.series.find(s=>s.xSeries == data.fromXSeries);
         if (!series){
@@ -502,7 +518,7 @@ export class rContestTechHighClient extends roomClient{
 
         // now sort the series (otherwise the chnage would not be visible)
         this.data.series.sort((a,b)=>{return a.number - b.number});
-    }
+    }*/
 
     addHeightInit(series, newHeight){
 
@@ -755,14 +771,14 @@ export class rContestTechHighClient extends roomClient{
             // find the SSR and delete it
             let i = series.seriesstartsresults.indexOf(SSR);
             if (i>=0){
-                series.seriesstartsresults[i].splice(i,1);
+                series.seriesstartsresults.splice(i,1);
             }
         }
         this.addToStack('addSSR', SSR, success, rollback)
 
     }
 
-    deleteAllSeriesExe(data){
+    /*deleteAllSeriesExe(data){
         //delete all series locally
         let l = this.data.series.length;
         for (let i=0; i<l; i++){
@@ -778,6 +794,11 @@ export class rContestTechHighClient extends roomClient{
     }
 
     deleteAllSeriesInit(){
+
+        // check that no series has a result
+        if (this.hasResults()){
+            return;
+        }
 
         // object for reverting the changes on failure:
         let oldData = this.data.series.slice();
@@ -892,7 +913,7 @@ export class rContestTechHighClient extends roomClient{
 
         // delete the series
         this.data.series.splice(iSeries,1);
-    }
+    }*/
 
     addSeriesInit(defaultxSite=null, datetime){
         // add an empty series
@@ -956,7 +977,7 @@ export class rContestTechHighClient extends roomClient{
 
     }
 
-    addSeriesExe(newSeries){
+    /*addSeriesExe(newSeries){
         // add the series to the local series
         this.data.series.push(newSeries);
 
@@ -964,7 +985,7 @@ export class rContestTechHighClient extends roomClient{
         this.data.auxData[newSeries.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
 
         this.sortSeries();
-    }
+    }*/
 
     initialSeriesCreationInit(newSeries){
         // do not only send the request, but also change the data here already.
@@ -1093,7 +1114,7 @@ export class rContestTechHighClient extends roomClient{
 
     }
 
-    groupLinkedExe(data){
+    /*groupLinkedExe(data){
         this.data.relatedGroups.push(data.group);
         // push every single new startgroup (Note: concat cannot be used, since it would destroy the proxies)
         data.startgroups.forEach(SG=>{
@@ -1122,14 +1143,14 @@ export class rContestTechHighClient extends roomClient{
         if (index>=0){
             this.data.startgroups.splice(index,1);
         }
-    }
+    }*/
 
-    renewStartgroupsExe(startgroups){
+    /*renewStartgroupsExe(startgroups){
         this.propertyTransfer(startgroups, this.data.startgroups, false);
-    }
+    }*/
 
     // can be add or update
-    addStartsInGroupExe(data){
+    /*addStartsInGroupExe(data){
         let i = this.data.startgroups.findIndex(SG=>SG.xStartgroup == data.xStartgroup); 
         if (i>=0){
             this.propertyTransfer(data, this.data.startgroups[i]);
@@ -1163,7 +1184,7 @@ export class rContestTechHighClient extends roomClient{
             startgroup.present = data.present;
         }
         
-    }
+    }*/
 
     updateContest2Init(newContest, oldContest){
         this.addToStack('updateContest2', newContest, ()=>{

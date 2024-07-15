@@ -319,6 +319,10 @@ class rContest extends roomServer{
         // functions used in all rooms
         this.functionsWrite.addInscription = this.addInscription.bind(this); // NOTE: the function will NOT change the ID, since the changed data is handled differently
         this.functionsWrite.addStart = this.addStart.bind(this); // NOTE: the function will NOT change the ID, since the changed data is handled differently
+        this.functionsWrite.allSeriesStatusChange = this.allSeriesStatusChange.bind(this);
+
+
+        this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
 
     }
 
@@ -528,6 +532,36 @@ class rContest extends roomServer{
 
         return ret;
 
+    }
+
+    async allSeriesStatusChange(status){
+        if (!this.validateAllSeriesStatusChange(status)){
+            throw {code:21, message: this.ajv.errorsText(this.validateAllSeriesStatusChange.errors)}
+        }
+
+        for (let series of this.data.series){
+            if (series.status != status){
+                series.status = status;
+                await series.save().catch(err=>{
+                    throw {code: 22, message: `Could not save the series ${series.xSeries} with its changed status: ${err}`}; 
+                });
+    
+                // notify the site about the change
+                if (series.xSite){
+                    this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+                }
+            }
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'allSeriesStatusChange', data: status},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
     }
 }
 

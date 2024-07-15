@@ -232,7 +232,11 @@ class rContestTechHigh extends rContest{
                     items: schemaHeights // reference to the heights
                 },
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
-                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
+                id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well,
+                aux: {
+                    type:["null", "object"], // currently always null
+                    default:null,
+                },
             },
             required: ["xContest", "status", "number", "xSite", "name", "datetime", "id", "seriesstartsresults"],
             additionalProperties: false,
