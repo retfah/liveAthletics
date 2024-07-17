@@ -2,12 +2,6 @@
 <script src="/static/vuContestTechHigh.js"></script>
 <script>
 
-    /**
-     * Series creation for track:
-     * - provide an option for swapping lanes (two atheltes change their lanes.) With draggable this can be done as shown here:https://stackoverflow.com/questions/63433028/vue-draggable-how-to-only-replace-item-chosen-to-prevent-shifting-all-other-it
-     * - provide the possibility that pressing Ctrl and or Shift change the behavior between "insert element and automatically move all others" (draggable default), "swap lanes" and "add to same lane"
-     **/
-
     // connect to the room (defined by te ID in the URL/http-GET-param)
     // class vuContestTest is imported above
 
@@ -2994,7 +2988,7 @@
                 /* !!! properties for SERIES CREATION only !!! */
 
                 seriesAssignments: function(){
-                    // filter all series assignments to show only track (ytype==3) assignements
+                    // filter all series assignments to show only tech high (ytype==1) assignements
                     return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(1)>=0);
                 },
 
