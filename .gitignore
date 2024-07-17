@@ -4,3 +4,4 @@ node_modules/*
 temp/*
 rContestTrack - pre split.js
 rContestTechHigh - pre split.js
+*.bak
