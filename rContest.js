@@ -320,9 +320,166 @@ class rContest extends roomServer{
         this.functionsWrite.addInscription = this.addInscription.bind(this); // NOTE: the function will NOT change the ID, since the changed data is handled differently
         this.functionsWrite.addStart = this.addStart.bind(this); // NOTE: the function will NOT change the ID, since the changed data is handled differently
         this.functionsWrite.allSeriesStatusChange = this.allSeriesStatusChange.bind(this);
+        this.functionsWrite.updateSeries = this.updateSeries.bind(this);
+        this.functionsWrite.updateAuxData = this.updateAuxData.bind(this);
+        this.functionsWrite.moveSeries = this.moveSeries.bind(this);
+        this.functionsWrite.deleteSSR = this.deleteSSR.bind(this);
+        this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
+        this.functionsWrite.updatePresentState = this.updatePresentState.bind(this);
+        this.functionsWrite.updateHeatStarttimes = this.updateHeatStarttimes.bind(this);
 
+        const schemaUpdatePresentState = {
+            type: "object",
+            properties: {
+                xStart: {type:"integer"},
+                xStartgroup: {type:"integer"},
+                newState: {type: "boolean"} // "present" state
+            },
+            required: ['xStart', 'xStartgroup', 'newState']
+        }
+
+        const schemaDeleteSSR = {
+            type: "object",
+            properties: {
+                xSeriesStart: {type:"integer"},
+                fromXSeries:  {type:"integer"} 
+            },
+            required: ["xSeriesStart", "fromXSeries"],
+            additionalProperties: false
+        }
+
+        const schemaChangePosition = {
+            type:"object",
+            properties:{
+                xSeriesStart: {type:"integer"},
+                fromXSeries: {type:"integer"}, // actually for simplicity only
+                toXSeries: {type:"integer"},
+                toPosition: {type:"integer"}
+            },
+            required:["xSeriesStart", "fromXSeries", "toXSeries", "toPosition"],
+            additionalProperties: false,
+        }
+
+        const schemaMoveSeries = {
+            type: "object",
+            properties: {
+                xSeries: {type:"integer"},
+                toNumber: {type:"integer"}
+            },
+            required:['xSeries', 'toNumber'],
+            additionalProperties: false
+        }
+        
+        const schemaDeleteSeries = {type:"integer"};
 
         this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
+        this.validateUpdatePresentState = this.ajv.compile(schemaUpdatePresentState);
+        this.validateChangePosition = this.ajv.compile(schemaChangePosition);
+        this.validateDeleteSSR = this.ajv.compile(schemaDeleteSSR);
+        this.validateMoveSeries = this.ajv.compile(schemaMoveSeries);
+        this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
+        this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
+
+        // the following validations must be provided by the inheriting class:
+        const missing = ()=>{throw {message: 'validation function missing in inheriting class', code: 20}}
+        this.validateUpdateSeries = missing;
+        this.validateAuxData = missing;
+
+
+    }
+
+    // internal function to store changed auxData.
+    // returns the mongoDB.collection.updateOne-promise
+    async _storeAuxDataUpdate(data){
+        // store the data to DB
+        return this.collection.updateOne({type:'auxData'}, {$set:{auxData: data}})
+        /*try {
+            await this.collection.updateOne({type:'auxData'}, {$set:{auxData: data}})
+        } catch (e){
+            this.logger.log(20, `Could not update auxData in room ${this.name}: ${e}`)
+            throw {code: 23, message: `Could not update auxData in MongoDB: ${e}`};
+        }*/
+    }
+
+    
+    async updateAuxData(data){
+        if (!this.validateAuxData(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateAuxData.errors)}
+        }
+
+        // store the data to DB
+        await this._storeAuxDataUpdate(data).catch(err=>{
+            throw {code: 23, message: `Could not update auxData in MongoDB: ${JSON.stringify(err)}`}
+        });
+        /*try {
+            this.collection.updateOne({type:'auxData'}, {$set:{auxData: data}})
+        } catch (e){
+            this.logger.log(20, `Could not update auxData in room ${this.name}: ${e}`)
+            throw {code: 23, message: `Could not update auxData in MongoDB: ${e}`};
+        }*/
+
+        // replace the data locally
+        this.data.auxData = data;
+
+        // broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateAuxData', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true,
+        };
+
+        return ret;
+
+    }
+
+    async updateSeries(data){
+        if (!this.validateUpdateSeries(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateUpdateSeries.errors)}
+        }
+
+        // find the series
+        let series = this.data.series.find(s => s.xSeries == data.xSeries);
+        if (!series){
+            throw {code:22, message:`Could not find series ${data.xSeries}.`};
+        }
+
+        let oldSite = series.xSite;
+
+        // make sure the xContest is not changed!
+        if (data.xContest != this.contest.xContest){
+            throw {message:`xContest should be ${this.contest.xContest}, but was ${series[i].xContest}`, code:24}
+        }
+
+        await series.update(data).catch(err=>{throw {code: 23, message: `Could not update the series: ${err}`}; });
+
+        // notify site about changes
+        if (oldSite != series.xSite){
+            if (oldSite != null){
+                this.eH.raise(`sites/${oldSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: series.xSeries, xContest:series.xContest});
+            }
+            if (series.xSite != null){
+                let addData = {
+                    contest: this.contest.dataValues, 
+                    series: series.dataValues,
+                    startgroups: this.data.startgroups,
+                };
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+            }
+        } else if (series.xSite != null){
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateSeries', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret;
 
     }
 
@@ -562,6 +719,263 @@ class rContest extends roomServer{
         };
 
         return ret;
+    }
+
+    
+    // change the order of series
+    async moveSeries(data){
+        if (!this.validateMoveSeries(data)){
+            throw {code: 21, message: this.ajv.errorsText(this.validateMoveSeries.errors)};
+        }
+
+        let changedSeries = this.data.series.find(s=>s.xSeries==data.xSeries);
+        if (!changedSeries){
+            let msg = "Series could not be moved, since the series was not found.";
+            this.logger.log(15, msg)
+            throw {code: 22, message:msg};
+        }
+        let oldIndex = changedSeries.number-1;
+        let newIndex = data.toNumber-1;
+
+        // all positions after the previous position of the moved series must be reduced by 1
+        this.data.series.forEach(s =>{
+            if (s.number > oldIndex){
+                s.number--;
+            }
+        })
+
+        // all positions in the new series must be increased by one after the inserted person.
+        this.data.series.forEach(s=>{
+            if (s.number>=newIndex+1){ // newIndex is zero-based, the number is one-based
+                s.number++;
+            }
+        })
+
+        // now change the actual series
+        changedSeries.number = newIndex+1;
+
+        // now sort the series
+        this.data.series.sort((a,b)=>{return a.number - b.number});
+
+        // store all changes
+        let proms = [];
+        for (let i=0;i<this.data.series.length; i++){
+            proms.push(this.data.series[i].save());
+        }
+
+        await Promise.all(proms);
+
+        // notify all rSite about the changes in the series
+        for (let si = Math.min(oldIndex, newIndex); si<=Math.max(oldIndex, newIndex); si++){
+            const s = this.data.series[si];
+            if (s.xSite != null){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {series: s, startgroups:this.data.startgroups});
+            }
+        }
+
+        // return broadcast
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'moveSeries', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret
+
+    }
+
+    
+    // delete a single entry in seriesstartsresults
+    async deleteSSR(data){
+        if (this.validateDeleteSSR(data)){
+            // get the series
+            let series = this.data.series.find(s=>s.xSeries == data.fromXSeries);
+            if (!series){
+                throw {code: 22, message: `Could not find the series ${data.fromXSeries}`};
+            }
+            let ssrIndex = series.seriesstartsresults.findIndex(s=>s.xSeriesStart==data.xSeriesStart);
+            let ssr = series.seriesstartsresults[ssrIndex];
+            if (!ssr){
+                throw {code: 23, message: `Could not find the seriesstartresult ${data.xSeriesStart}`};
+            }
+            let deletedPosition = ssr.position;
+
+            await ssr.destroy().catch(err=>{
+                throw {code: 24, message: `SSR could not be deleted, probably because the athlete already has results: ${err}`};
+            }); // delete from DB
+            series.seriesstartsresults.splice(ssrIndex, 1); // delete from local data
+
+            // change the position of the seriesstartsresults after the deleted position
+            for (let i=0; i<series.seriesstartsresults.length; i++){
+                let ssr2 = series.seriesstartsresults[i];
+                if (ssr2.position>deletedPosition){
+                    ssr2.position--;
+                    await ssr2.save();
+                }
+            }
+
+            // notify rSite
+            if (series.xSite != null){
+                this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesChanged`, {series, startgroups:this.data.startgroups});
+            }
+
+            // broadcast the change
+            let ret = {
+                isAchange: true, 
+                doObj: {funcName: 'deleteSSR', data: data},
+                undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+                response: true, 
+                preventBroadcastToCaller: true
+            };
+
+            return ret
+
+        } else {
+            throw {code: 21, message: this.ajv.errorsText(this.validateDeleteSSR.errors)}
+        }
+    }
+
+    
+    async deleteSeries(xSeries){
+        if (!this.validateDeleteSeries(xSeries)){
+            throw {code: 21, message: this.ajv.errorsText(this.validateDeleteSeries.errors)}
+        }
+
+        // first find the respective number
+        const iSeries = this.data.series.findIndex(s=>s.xSeries == xSeries);
+        const series = this.data.series[iSeries];
+        const delNumber = series.number;
+
+        // check that there are no results yet
+        let hasResults = false;
+        series.seriesstartsresults.forEach(ssr=>{
+            if (ssr.resultstrack){
+                hasResults = true;
+            }
+        }) 
+        if (hasResults){
+            throw {code: 22, message: `The series ${xSeries} has already results and can not be deleted.`}
+        }
+
+        // first, try to delete the seriesstartsresults. (This should not fail since we tested before that there are no results yet.)
+        for (let ssr of series.seriesstartsresults){
+            await ssr.destroy().catch(err=>{
+                throw {code: 23, message: `Could not delete the seriesstartresult (xSeriesStart=${ssr.xSeriesStart}). ${err}`};
+            });
+        }
+
+        // second try to delete the series (since this has a small potential to fail)
+        await series.destroy().catch(err=>{
+            throw {code: 24, message: `Could not delete the series (xSeries=${xSeries}). ${err}`};
+        });
+        this.data.series.splice(iSeries,1);
+
+        // then update all other series, which should never fail
+        const seriesToMove = this.data.series.filter(s=>s.number>delNumber);
+        for (let s of seriesToMove){
+            s.number--;
+            await s.save().catch(err=>{
+                throw {code: 25, message: `Could not save the changed series (xSeries=${s.xSeries}). This should never happen. ${err}`};
+            });
+            if (s.rSite != null){
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesChanged`, {s, startgroups:this.data.startgroups});
+            }
+        };
+        if (series.xSite != null){
+            this.eH.raise(`sites/${series.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: series.xSeries, xContest:series.xContest});
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'deleteSeries', data: xSeries},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
+
+        return ret
+
+    }
+    
+    async updatePresentState(data){
+        if (this.validateUpdatePresentState(data)){
+
+            // security check: check first that the affected row is indeed from this room
+            let SG = this.data.startgroups.find(el=> (el.xStartgroup==data.xStartgroup && el.xStart==data.xStart))
+            if (!SG){
+                throw {code: 42, message: 'xStartgroup and/or xStart not valid in this contest!'}
+            }
+
+            // if everything is fine, call the update function on the contests room
+            return this.rStartsInGroup.serverFuncWrite('updateStartsInGroup', {xStartgroup: data.xStartgroup, present: data.newState}).then(result=>{
+                // status changed in startsingroup and, thus, in DB; update the status in the local data as well
+                SG.present = data.newState;
+
+                let ret = {
+                    isAchange: true, 
+                    doObj: {funcName: 'updatePresentState', data: {xStartgroup: data.xStartgroup, present: data.newState}}, 
+                    undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+                    response: true, // no need for data to the calling client
+                    preventBroadcastToCaller: true
+                };
+
+                return ret;
+
+            }).catch(err=> {throw err})
+
+        } else {
+            throw {code: 41, message: this.ajv.errorsText(this.validateUpdatePresentState.errors)}
+        }
+    }
+
+    /**
+     * return a personalized data object, providing the precreated merged list of disciplines (merged with baseDisciplines and the translated stuff) and add also the current time on the server (to know the offset of the clients clock)
+     */
+    getPersonalizedData(client){
+
+        // we cannot add the dynamic auxilary data to the data directly, but we need to create a new object with the same properties and then add the data there
+        let data = {};
+        for (let o in this.data){
+            data[o] = this.data[o];
+        }
+
+        data.disciplines = this.rBaseDisciplines.getTranslatedDisciplines(client.session.lang);
+
+        data.serverTime = new Date();
+
+        return data;
+    }
+
+    async prepareAuxData(){
+
+        // try to get the meeting document:
+        /*let cursor = this.collection.find({type:'auxData'});
+        let len = await cursor.count();*/ // deprecated 2022-05
+        let len = await this.collection.countDocuments({type:'auxData'});
+        if (len==0){
+
+            // create a default document (default data for each series)
+            let aux = {};
+            this.data.series.forEach(s=>{
+                aux[s.xSeries] = this.defaultAuxData;
+            })
+
+            await this.collection.updateOne({type:'auxData'},{$set:{auxData: aux}},{upsert:true}) //update with upsert=insert when not exists
+            this.data.auxData = aux
+
+        } else if (len>1){
+            this.logger.log(10, `Cannot initialize mongoData in ${this.name} since there is more than one mongo document.`)
+            return;
+        } else {
+            let cursor = this.collection.find({type:'auxData'});
+            let raw = await cursor.next();
+            this.data.auxData = raw.auxData;
+        }
+
+        // now the room is ready:
+        this.ready = true;
     }
 }
 
