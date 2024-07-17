@@ -509,7 +509,7 @@ const cLRtrack = {
     },
 
     // all code below copied from trackBase; 
-    // the only change thing is the deletion of props from data
+    // the only changed thing is the deletion of props from data
     data(){
         return {
 
@@ -534,7 +534,8 @@ const cLRtrack = {
             // there will be no waiting page, but a limit to one client and this will be the first offline working page.
             burgerChecked: false, // burger menu activated
 
-            heatInfo:undefined, // keeps the seriesAsStartgroup object of the currently shown heatInfo-series
+            heatInfoX:undefined, // heatInfo keeps the seriesAsStartgroup object of the currently shown heatInfo-series; the heatInfoX is the xSeries and heatInfo is a computed property
+            heatInfoAuxCopy:undefined, // keeps a copy of the currently shown heatInfo-series-aux data, for modding.
 
             onSeriesChangeCalcNextAth: true,
 
@@ -597,11 +598,7 @@ const cLRtrack = {
 
             propagateChange: false, // if the most recent change on the data (registered and monitored via "watchers") must be propagated to the server or not. (Not is typically the case when the changes comes from the server or any other change on the data done in the room but not in the data)
 
-            updateHeightIncrease: -1, // show change-line for height increases
-            heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
             confForMod: {}, // the conf-object that is modified during conf changes. Recreated everytime conf-change is opened. At the end, the changes are either stored back to to the JSON in contest.conf (which then is applied to the computed property conf) or we just do nothing. 
-            newHeightIncreaseStart: undefined,
-            newInterval: undefined,
 
             // series assignments (the different strategies that can be applied)
             seriesAssignmentsAll: [
@@ -617,68 +614,29 @@ const cLRtrack = {
 
             /* !!! data for COMPETITION only !!! */
             
-            xHeightTemp: -1, // temporary xHeight, until the height could be written to the DB and we get the actual index, we use this. Auto-increment into negative. When the correct key arrives, we must not only change the key in xHeight, but also in every result!  
-            xResultTemp: -1, // temporary xResult (needed for identical element id's; it is not referenced somewhere)
-            updateHeightIncrease: -1, // show change-line for height increases
-            heightIncreaseBeforeUpdate: {}, // resetting to previous values on height increase change
-
-            //selectedSeries: 0, // which series we are working on. 
-            //selectedSeriesLazy: 0, // which series we were working on before
-            //allHeights:[], // contains all already fixed and all predicted heights; computed property as of 2022-06
-            //mode: 0, // 0: before all startHeights are set, 1=competition running (or is ready to be started), 2=jumpoff, 3=finished
-            currentHeight2: -1,  // in cm
-            currentJumpoffHeightInd2: -1, // during jumpoff, store here the current index in the jumpoff order
-            jumpoffHeightRequired: false, // true if a new height should be defined by the user
-            bestAtEachJumpoffHeight: [],
-            manualJumpoffHeight:0, // used to set the default next jumpoff height, before we actually see the input element
-            position:[], // array with the xStartgroup of all athletes starting on the current height, defining the order in the copetition; changed by the drag and drop part; in the jumpoff, it contains all athletes that still participate in the jumpoff, independent whether they aready jumped on the current height
-            positionNext: [], // the first element contains the index in the position array of the first athlete to come, the second element the second, and so on; during the main competition, positionNext has the same length as position; in the jumpoff, it can be smaller, since it only contains the athletes that will still jump on the current jumpoff-height, while position also contains the athletes that already jumped on the current height
-            tempRankingData: { // all data needed for ranking and for gettign the current athlete
-                //xSeriesStart
-                /*12:{
-                    totalFailedAttempts: 0, // until and with the last valid hight
-                    failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
-                    failedAttemptsOnLastValid: 0,
-                    lastValidHeight: 0,
-                    nextJumpingHeight: 0, // is this really needed? lastValidHeight should be enough..?
-                    rank: 0, // (temporary, ) locally calculated rank. 
-                },
-                13:{
-
-                }*/
-            },
-            maxLastValidHeight: 0, // store which was the heighest, last valid height; required in the jumpoff
-            attempt2: 0, // in normal mode==1: 1 to 3; in jumpoff used to announce the i-th jumpoff height
-            attemptNext2: 0, // 1 to 3; for the next athlete (not the current). It is easier to store this value than to (re)calculate it for drawing.
-            
-            currentResultChange: {}, // the result that we are currently changing in the results view 1
-            currentResultString:'',
-            currentResultStringCopy:'',
-            resultKeyPressed: -1, // the key that was pressed last inside a addResult-input. If this is the esc-key, the blur event will not be evaluated. 
             sortValue1: 1,
             sortValue2: 1, // default by rank
             fakeProperty:0, // just needed to make sure that the sortedStart's are updated when the ranks change. (Start Vue's updating process)
             temporaryDeactivation: false, // just to deactivate parts of the html form being rendered temporarily
             //timeOffset: 0,
-            roomAuxData:{
-                // uses xSeries to reference objects storing the following information:
-                // positionNext:[],
-                // position:[],
-                // attemptPeriod: 60, // s
-                // periodStartTime: undefined, // date-string of the server time when the attempt period started
-                // showAttemptPeriod: false,
-                // currentHeight
-                // currentJumpoffHeightInd
-                // attempt
-                // attemptNext 
+            roomAuxData:{ // probably not needed for track
             },
             autoAdvance: false,
             attemptTime: "1:00", // TODO: aventually as time instead of string
             attemptTimeSetting: "00:30",
             shownTime: "0:00", // shall be string
             timeUpdateInterval: undefined,
-            last15: false, // last 15 s
             //currentResultRegistered: false,
+
+            printReactionTimeCol: false,
+            printRankCol: false,
+            printResultCol: true,
+            printId: false,
+            printEmptyLanes: true,
+            printMaxSeries: 0, // 0=all
+
+            printReactionTime: false, // print reaction time in results
+            printLane: false, //print lane in results
         }
     },
     methods:{
@@ -786,45 +744,8 @@ const cLRtrack = {
             return [-1, {}];
         },
         autoManageAuxData(autoSaveToServer=true){
+        	// probably not needed for track
 
-            // this should all be done now (2022-06) in the room! It is wrong to do this in the view!
-
-            /*// based on the available series, automatically create (with default values) and delete the auxData per series.
-            // returns true if something has changed (so far 2022-06 not needed)
-
-            let changed = false;
-
-            // first make sure, that all currently available auxData have their respective series; otherwise delete them
-            for (let xSeries in this.roomAuxData){
-                let series = this.series.find(s=>s.xSeries==xSeries);
-                if (!series){
-                    delete this.roomAuxData[xSeries];
-                    changed=true;
-                }
-            }
-
-            // then check that all available series have also an entry in auxData
-            for (let series of this.series){
-                if (!(series.xSeries in this.roomAuxData)){
-                    this.roomAuxData[series.xSeries] = {
-                        positionNext:[],
-                        position:[],
-                        attemptPeriod: 60, // s; mainly related to the next athlete
-                        periodStartTime: null, // date-string of the server time when the attempt period started
-                        showAttemptPeriod: false, 
-                        currentHeight: -1,
-                        currentJumpoffHeightInd: -1,
-                        attempt: 0,
-                        attemptNext: 0,
-                    };
-                    changed = true;
-                }
-            }
-            
-            if (changed && autoSaveToServer && !this.readOnly){
-                rCTrack.room.updateAuxDataInit(this.roomAuxData);
-            }
-            return changed;*/
         },
         overlayInfo(title, content){
             this.infoTitle = title;
@@ -1491,15 +1412,6 @@ const cLRtrack = {
 
         /* !!! methods for COMPETITION only !!! */
 
-        transferAuxData(){
-            // manually transfer some of the aux properties (position and positionNext are transferred in calculateNextAthlete)
-            // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
-            /*this.currentHeight2 = this.roomAuxDataSelected.currentHeight;
-            this.currentJumpoffHeightInd2 = this.roomAuxDataSelected.currentJumpoffHeightInd;
-            this.attempt2 = this.roomAuxDataSelected.attempt;
-            this.attemptNext2 = this.roomAuxDataSelected.attemptNext;*/
-
-        },
 
         setTime(){
             // set the time for the attempt period and show it
@@ -1536,12 +1448,60 @@ const cLRtrack = {
                 this.sortAthletes(i);
             }
         },
-        showHeatInfo(series){
-            this.heatInfo = series;
-            this.overlay='HeatInfo';
+        showHeatInfo(series, $event){
+            this.prepareHeatInfo(series, $event);
+            
+            if ($event.ctrlKey && this.readOnly==false){
+                this.overlay='HeatAuxMod';
+            } else {
+            	this.overlay='HeatInfo';
+            }
         },
+        addHeatInfo(series, $event){
+            this.prepareHeatInfo(series, $event);
+            this.overlay='HeatAuxMod';
+        },
+        prepareHeatInfo(series, $event){
+            //this.heatInfo = series;
+            this.heatInfoX = series.xSeries;
+            if (series.aux===null){
+                this.heatInfoAuxCopy = {};
+            } else {
+                this.heatInfoAuxCopy = JSON.parse(JSON.stringify(series.aux));
+            }
+        },
+        saveAuxMod(){
+            rCTrack.room.updateSeriesInit(this.heatInfo, 'aux', this.heatInfoAuxCopy);
+        },
+        manualStart(){
+            let d = new Date();
+            this.heatInfoAuxCopy.starttime = d.toISOString();
+            this.heatInfoAuxCopy.isFalseStart = false;
+            this.heatInfoAuxCopy.finishtime = null;
+            if (!('starts' in this.heatInfoAuxCopy)){
+                this.heatInfoAuxCopy.starts=[];
+            }
+            this.heatInfoAuxCopy.starts.push({starttime:d.toISOString(), isFalseStart:false })
+            this.saveAuxMod();
+        },
+        manualFalseStart(){
+            this.heatInfoAuxCopy.isFalseStart = true;
+            let s = this.heatInfoAuxCopy.starts.find(el=>el.starttime == this.heatInfoAuxCopy.starttime);
+            s.isFalseStart = true;
+            this.saveAuxMod();
+        },
+        manualStop(){
+            let dStop = new Date();
+            let dStart = new Date(this.heatInfoAuxCopy.starttime);
 
-        
+            this.heatInfoAuxCopy.finishtime = (dStop-dStart)*100;
+
+            this.saveAuxMod();
+        },
+        deleteStart(index){
+            this.heatInfoAuxCopy.starts.splice(index,1);
+            this.saveAuxMod();
+        },
         replaceXResult(xSeriesStart, oldKey, newKey){
             alert('TODO')
 
@@ -1596,20 +1556,6 @@ const cLRtrack = {
             }
 
         },
-
-        changeResult(res){
-            this.currentResultChange=res;
-
-            // create a copy of the current result-string. If we are not doing it this way, the value of the html-element will instantly be changed back to the original value, before blur actually hits and we can store the changed result. Additionally, it allows not to raise an update event when there was no change.
-            let resStr = this.resultToStr(res);
-            this.currentResultString = resStr;
-            this.currentResultStringCopy = resStr;
-
-            // set the focus: problem: when the element is still hidden, it cannot get the focus. And Vue will change the hidden status with a slight delay (either just asynchronous or indeed with a delay), thus we also have to implement some delay here:
-            setTimeout(()=>{document.getElementById('resChange' + res.xResult).focus();}, 1) // time in ms (1 ms so far seems to be enough, 3-2020)
-            //document.getElementById('resChange' + res.xResult).focus();
-            //document.getElementById('resChange').focus();
-        },
         sortedResults(results){
             // sort the results by height /to make it look nice
 
@@ -1636,11 +1582,6 @@ const cLRtrack = {
         
 
         fitName(elementId, startgroup, pretext=""){
-
-            // in some cases, it seems that positionNext.length>1 is not false yet, but nextAthleteStart is already undefined; in that case just return ''
-            /*if (!startgroup){
-                return '';
-            }*/
 
             // try to fit firstname and name in a html element
             // returns the best possible name
@@ -1783,6 +1724,16 @@ const cLRtrack = {
 
             
         },
+        printContest(){
+            // call the same function outside of vue, with the respective parameters
+            printSeriesTrack(this.printReactionTimeCol, this.printResultCol, this.printRankCol, this.printId, this.printEmptyLanes, this.printMaxSeries);
+        },
+
+        printResults(){
+            // call print results track; provide the data of the required rooms, but no processed data, to allow the funciton to be reused on the server!
+            printResultsTrack(this.contest, this.series, this.startgroups, this.relatedGroups, this.disciplines, this.categories, this.meeting, this.sites,this.printLane, this.printReactionTime) // I dont know whether the last 3 items are really needed. 
+        }
+
     },
     watch:{
         series: {
@@ -2181,134 +2132,6 @@ const cLRtrack = {
             })
             return auxData;
         },
-        sortedStarts1: function(){
-            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
-            // TODO
-            //return this.series[this.selectedSeries].seriesstartsresults;
-
-            // we cannot just sort the seriesstartsresults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
-
-            // create an array with all array-indexes (0 to length-1) of the seriesstartsresults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
-            let order = Array(this.series[this.selectedSeries].seriesstartsresults.length).fill(undefined).map(function (x, i) { return i; })
-
-            let compareFn = (a,b)=>{a-b} // fallback
-            if (this.sortValue1 == 1){
-                // default sequence
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    return A.position - B.position
-                }
-            } else if (this.sortValue1 == 2){
-                // sort by rank
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let rA = this.tempRankingData[A.xSeriesStart].rank;
-                    let rB = this.tempRankingData[B.xSeriesStart].rank;
-                    if (rA==0 && rB==0){
-                        // both have no rank yet: sort by default order
-                        return A.position - B.position;
-                    } else if (rA==0){
-                        // A must be lower than B
-                        return 1;
-                    } else if (rB==0){
-                        // B must be lower than A
-                        return -1;
-                    } else {
-                        // sort by rank
-                        return rA-rB;
-                    }
-                }
-            } else if (this.sortValue1 == 3){
-                // sort by name
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
-                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
-
-                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
-                }
-            } else if (this.sortValue1 == 4){
-                // sort by bib
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
-                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
-                    
-                    return auxA.bib - auxB.bib;
-                }
-            }
-            order.sort(compareFn);
-
-            return order;
-
-        },
-        sortedStarts2: function(){
-            let i = this.fakeProperty; // just to make sure sortedStarts gets updated on rank changes
-
-            // we cannot just sort the seriesstartsresults-array as this would also change the order at several different places (especially the algorithm for 'the next athlete sequence' might not work anymore!)                            
-
-            // create an array with all array-indexes (0 to length-1) of the seriesstartsresults array; (the initialized elements are empty first and map only uses non-empty fields. Thus we first fill with undefined and then create in indices)
-            let order = Array(this.series[this.selectedSeries].seriesstartsresults.length).fill(undefined).map(function (x, i) { return i; })
-
-            let compareFn = (a,b)=>{a-b} // fallback
-            if (this.sortValue2 == 1){
-                // default sequence
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    return A.position - B.position
-                }
-            } else if (this.sortValue2 == 2){
-                // sort by rank
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let rA = this.tempRankingData[A.xSeriesStart].rank;
-                    let rB = this.tempRankingData[B.xSeriesStart].rank;
-                    if (rA==0 && rB==0){
-                        // both have no rank yet: sort by default order
-                        return A.position - B.position;
-                    } else if (rA==0){
-                        // A must be lower than B
-                        return 1;
-                    } else if (rB==0){
-                        // B must be lower than A
-                        return -1;
-                    } else {
-                        // sort by rank
-                        return rA-rB;
-                    }
-                }
-            } else if (this.sortValue2 == 3){
-                // sort by name
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
-                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
-
-                    return (auxA.athleteName + auxA.athleteForename).localeCompare(auxB.athleteName + auxB.athleteForename);
-                }
-            } else if (this.sortValue2 == 4){
-                // sort by bib
-                compareFn = (a, b)=>{
-                    let A = this.series[this.selectedSeries].seriesstartsresults[a];
-                    let B = this.series[this.selectedSeries].seriesstartsresults[b];
-                    let auxA = this.auxData.xStartgroup[A.xStartgroup];
-                    let auxB = this.auxData.xStartgroup[B.xStartgroup];
-                    
-                    return auxA.bib - auxB.bib;
-                }
-            }
-            order.sort(compareFn);
-
-            return order;
-
-        },
         disciplineConfiguration: function(){
             // get the first discipline with matching baseDiscipline and parse its configuration
             let d = this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
@@ -2330,6 +2153,10 @@ const cLRtrack = {
         discipline: function(){
             return this.disciplines.find(d=>d.xBaseDiscipline==this.contest.xBaseDiscipline);
         }, 
+
+        heatInfo: function(){
+            return this.seriesAsStartgroups.find(el=>el.xSeries==this.heatInfoX);
+        },
 
     },
     beforeMount(){
