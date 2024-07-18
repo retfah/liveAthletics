@@ -1,2 +1,0 @@
-wsExtension2019-09-15: before applying changes to the request-response schema
-wsExtensionClient2019-09-15: before applying changes to the request-response schema
