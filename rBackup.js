@@ -28,7 +28,7 @@ const doGUnzip = promisify(zlib.gunzip);
 
 class rBackup extends roomServer{
     
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rMeetings, wsManager){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, rMeetings, wsManager, mysqlPool){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false dynamicRoom=undefined, reportToSideChannel=true)
@@ -39,6 +39,7 @@ class rBackup extends roomServer{
         this.rSideChannel = undefined; // will be defined later.
         this.meetingShortname = meetingShortname;
         this.wsManager = wsManager; // get connection to other servers
+        this.mysqlPool = mysqlPool;
 
         // the reference to the sequelize connection
         this.seq = sequelizeMeeting;
@@ -1038,6 +1039,11 @@ class rBackup extends roomServer{
             throw {code: 21, message: `The sent data is not valid: ${this.ajv.errorsText(this.validateRestore.errors)}.`}
         }
 
+        // get a mysql connection
+        const mysqlConn = await this.mysqlPool.getConnection().catch(error=>{
+            throw {message:`Could not get a mysql connection from the pool: ${error}` ,code: 30}
+        });
+
         // TODO: also add option to include to update data and configuration fo the backup (if it is included in the backup)
         
         // most of the work must be done within rMeetings probably:
@@ -1188,6 +1194,9 @@ class rBackup extends roomServer{
         })
 
         setTimeout(deleteTempFiles, this.deleteFileTimeout*1000);
+
+        // return the connection;
+        mysqlConn.end();
 
         let ret = {
             isAchange: false,

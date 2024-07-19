@@ -304,9 +304,6 @@ const mysqlPool = mariadb.createPool({
 	//charset: 'UTF8MB3_general_ci',
 }); // multiple statements is needed for table creation; ATTENTION: this is a security problem (SQL injection) --> do not use this connection 
 
-// The non-DB-specific connection to mysql (e.g. to create DBs) is opened in roomStartup, as it is async
-global.mysqlConn = undefined // the connection shall be a global variable: TODO: change this, as it is unsafe, since all modules also could use this and do a lot of bad things.
-
 // check if there is an adminDB; automatically create it if it is not available.
 const mysqlbaseConn = await mysqlPool.getConnection().catch(error=>{console.log(error)});
 
@@ -1359,10 +1356,6 @@ async function roomStartup(){
 	// Start the raw-DB connection
 	// ------------------
 
-	// new with mariaDB
-	mysqlConn = await mysqlPool.getConnection().catch(error=>{console.log(error)});
-
-
 	// wait for mongoDB-connection to startup
 	//await mongoClientPromise;
 
@@ -1375,7 +1368,7 @@ async function roomStartup(){
 	// --- Admin-DB-stuff / = Meeting-room ---
 	// Meeting-room (maybe room is here not the right word, as long as we do not push updates to clients...)
 	
-	var meetingHandling = new rMeetings(sequelizeAdmin, modelsAdmin, mongoDbAdmin, mongoclient, eH, logger, wsManager, baseModules); // if it was a room, also the websocket connection would have to be passed
+	var meetingHandling = new rMeetings(sequelizeAdmin, modelsAdmin, mongoDbAdmin, mongoclient, eH, logger, wsManager, baseModules, mysqlPool); // if it was a room, also the websocket connection would have to be passed
 	// attention: rMeetings has async components that might take longer to initialize...
 
 	// register rMeeting in the wsManager, since its requestHandler was hardcoded for simplicity and requires access to rMeetings

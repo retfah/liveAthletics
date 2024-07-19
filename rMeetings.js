@@ -61,8 +61,9 @@ class rMeetings extends roomServer{
      * @param {logger} logger A logger instance
      * @param {wsManager} wsManager Manages ws connections of the server, e.g. to secondary servers.
      * @param {object} baseModules An object storing the base modules (key=country three code letter), which may be accessed by some rooms.
+     * @param {object} mysqlPool A mariadb-pool instance, from where we can get connections from. (only needed in a few rooms)
      */
-    constructor(sequelizeAdmin, modelsAdmin, mongoDb, mongoClient, eventHandler, logger, wsManager, baseModules){
+    constructor(sequelizeAdmin, modelsAdmin, mongoDb, mongoClient, eventHandler, logger, wsManager, baseModules, mysqlPool){
 
         // NOTE: when debugging, the variable 'this' is undefined when the debugger passes here on construction. Don't know why, but it works anyway.
 
@@ -77,6 +78,7 @@ class rMeetings extends roomServer{
         // the reference to the sequelizeAdmin connection
         this.seq = sequelizeAdmin;
         this.models = modelsAdmin;
+        this.mysqlPool = mysqlPool;
 
         this.wsManager = wsManager;
         this.baseModules = baseModules;
@@ -201,6 +203,11 @@ class rMeetings extends roomServer{
         let valid = this.validateAddMeeting(data);
         if (valid) {
 
+            // get a mysql connection
+            const mysqlConn = await this.mysqlPool.getConnection().catch(error=>{
+                throw {message:`Could not get a mysql connection from the pool: ${error}` ,code: 30}
+            });
+
             // translate the boolean values; it would work in the DB (translated automatically), but in the locally stored data and returned value in 'meeting' from sequelize, it would still be the untranslated data, i.e. with true/false instead of 1/0. 
             // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every funciton like addMeeting, updateMeeting, ... would have to actively call this function in it
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
@@ -323,6 +330,9 @@ class rMeetings extends roomServer{
                 data: {}
                 // the ID will be added on resolve
             };
+
+            // return the connection;
+            mysqlConn.end();
             
             // do the rest (put on stack and report to other clients etc)
             let ret = {
@@ -346,6 +356,11 @@ class rMeetings extends roomServer{
         let valid = this.validateDeleteMeeting(data);
 
         if (valid){
+
+            // get a mysql connection
+            const mysqlConn = await this.mysqlPool.getConnection().catch(error=>{
+                throw {message:`Could not get a mysql connection from the pool: ${error}` ,code: 30}
+            });
 
             // get the meeting form the data (respectively its index first):
             let [ind, meeting] = this.findObjInArrayByProp(this.data, 'xMeeting', data)
@@ -384,6 +399,9 @@ class rMeetings extends roomServer{
                 this.logger.log(`Mongo Database '${name}' could not be deleted: ${err}`);
             });
 
+            // return the connection;
+            mysqlConn.end();
+
             // object storing all data needed to DO the change
             let doObj = {
                 funcName: 'deleteMeeting',
@@ -421,6 +439,11 @@ class rMeetings extends roomServer{
         // validate the data based on the schema
         let valid = this.validateUpdateMeeting(data);
         if (valid) {
+
+            // get a mysql connection
+            const mysqlConn = await this.mysqlPool.getConnection().catch(error=>{
+                throw {message:`Could not get a mysql connection from the pool: ${error}` ,code: 30}
+            });
 
             // get the index of the meeting in the list of meetings
             let [i,meeting] = this.findObjInArrayByProp(this.data, 'xMeeting', data.xMeeting);
@@ -566,6 +589,9 @@ class rMeetings extends roomServer{
 
                 // set the local data
                 this.data[i] = meetingChanged;
+
+                // return the connection;
+                mysqlConn.end();
 
                 let ret = {
                     isAchange: true, 
@@ -924,7 +950,7 @@ class rMeetings extends roomServer{
 
         // then start the backup room
         // IMPORTANT: keep this after the main rooms, because it assumes that the other rooms were already added to activeMeeting[shortname].rooms!
-        let backup = new rBackup(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, this, this.wsManager);
+        let backup = new rBackup(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, this, this.wsManager, this.mysqlPool);
         this.activeMeetings[shortname].rooms.backup = backup;
 
         let sideChannel = new rSideChannel(shortname, seq, modelsMeeting, meetingMongoDb, this.eH, this.logger, this, this.wsManager, backup);
