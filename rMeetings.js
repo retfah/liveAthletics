@@ -222,19 +222,29 @@ class rMeetings extends roomServer{
             // function to undo the changes done, when an error occurs at a later stage.
             var undo = async ()=>{
                 try {
+
+                    this.logger.log(50, `Starting undo 'adding new meeting.'`)
+
                     // delete the meeting again
                     await meeting.destroy();
 
                     // delete the meeting DB, if it exists
                     await mysqlConn.query(`drop database if exists ${name}`)
                 }catch(e){
+
+                    this.logger.log(20, `Undo 'adding new meeting' failed: ${e}`)
+
                     throw{message: `Something failed. Unfortunately rolling back failed as well and thus the data might be inconsistent now!: ${e}`, code:99}
                 }
                 this.logger.log(20,'Changes during meeting-add undone due to error');
             };
 
             // create the database for that meeting:
-            await mysqlConn.query(`create database if not exists ${name}`).catch(async (error)=>{await undo(); throw {message: `Database could not be created: ${error}`, code:24};})
+            await mysqlConn.query(`create database if not exists ${name}`).catch(async (error)=>{
+                this.logger.log(50, `Database could not be created: ${error}`)
+                await undo(); 
+                throw {message: `Database could not be created: ${error}`, code:24};
+            })
             // for unknown reasons, we cannot use the prepared statement syntax here; probably because it would introduce quotes around the DBname, which is not allowed?
             //await mysqlConn.execute("create database if not exists ?", [name]).catch((error)=>{this.logger.log(`ERROR here: ${error}`); throw {message: `Database could not be created: ${error}`, code:24};})
 
@@ -263,7 +273,11 @@ class rMeetings extends roomServer{
                 
             // copy the standard DB into the new DB 
             // the sql code to create the tables must be in a separate file. This code is then run on the DB. We cannot use mysqldump here, as e.g. there is no import option yet for it.
-            var emptyDbCode = await this.readFileAsync(conf.database.emptyDbPath, 'utf8').catch(async (error)=>{await undo(); throw {message: `emptyDbPath-file could not be read: ${error}`, code:25 }}) // if the encoding is ommitted, a buffer is returned whcih CANNOT be read by sequelize
+            var emptyDbCode = await this.readFileAsync(conf.database.emptyDbPath, 'utf8').catch(async (error)=>{
+                this.logger.log(50, `emptyDbPath-file could not be read: ${error}`);
+                await undo(); 
+                throw {message: `emptyDbPath-file could not be read: ${error}`, code:25 }
+            }) // if the encoding is ommitted, a buffer is returned whcih CANNOT be read by sequelize
 
             this.logger.log(99, "emptyDB code loaded")
 
@@ -272,17 +286,29 @@ class rMeetings extends roomServer{
             //await mysqlConn.query(emptyDbCode).catch(async (error)=>{await undo(); throw {message: `emptyDbPath-code failed running in mysql: ${error}`, code:36 }});
 
             // run the query in sequelize
-            await sequelizeMeeting.query(emptyDbCode, {raw:true, type:'RAW'}).catch(async (error)=>{await undo(); throw {message: `emptyDbPath-code failed running in sequelize: ${error}`, code:26 }});
+            await sequelizeMeeting.query(emptyDbCode, {raw:true, type:'RAW'}).catch(async (error)=>{
+                this.logger.log(50, `emptyDbPath-code failed running in sequelize: ${error}`);
+                await undo(); 
+                throw {message: `emptyDbPath-code failed running in sequelize: ${error}`, code:26 }
+            });
             
             this.logger.log(99, "meeting-specific DB filled with tables.")
 
             // continue the promise chain with the next file read
-            var importDataCode = await this.readFileAsync(conf.database.defaultDataDbPath, 'utf8').catch(async (error)=>{await undo(); throw {message: `defaultDataDbPath-file could not be read: ${error}`, code:27 }});
+            var importDataCode = await this.readFileAsync(conf.database.defaultDataDbPath, 'utf8').catch(async (error)=>{
+                this.logger.log(50, `defaultDataDbPath-file could not be read: ${error}`);
+                await undo(); 
+                throw {message: `defaultDataDbPath-file could not be read: ${error}`, code:27 }
+            });
 
             this.logger.log(99, "default data code loaded")
 
             // run the query in sequelize
-            await sequelizeMeeting.query(importDataCode, {raw:true, type:'RAW'}).catch(async (error)=>{await undo(); throw {message: `defaultDataDbPath-code failed running in sequelize: ${error}`, code:28 }});
+            await sequelizeMeeting.query(importDataCode, {raw:true, type:'RAW'}).catch(async (error)=>{
+                this.logger.log(50, `defaultDataDbPath-code failed running in sequelize: ${error}`);
+                await undo(); 
+                throw {message: `defaultDataDbPath-code failed running in sequelize: ${error}`, code:28 }
+            });
 
             this.logger.log(99, "meeting-specific DB filled with default data.")
             // database is set up
