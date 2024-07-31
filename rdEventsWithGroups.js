@@ -33,17 +33,30 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
 
         this.logger = rEvents.logger;
 
-        // we must know when the eventGroup room is ready, since we cannot create are dataset before
+        // we must know when the eventGroup and event room is ready, since we cannot create the dataset before
         if (rEvents.ready){
             this.onEventGroupChange();
         } else {
-            this.eGReadyListener = rEvents.eH.eventSubscribe(`${rEvents.name}:ready`, ()=>{
+            this.eReadyListener = rEvents.eH.eventSubscribe(`${rEvents.name}:ready`, ()=>{
 
                 // just recreate the dataset and send it to all clients
                 this.onEventGroupChange();
     
                 // unsubscribe now
-                rEvents.eH.eventUnsubscribe(`${rEvents.name}:ready`, this.eGReadyListener);
+                rEvents.eH.eventUnsubscribe(`${rEvents.name}:ready`, this.eReadyListener);
+                delete this.eReadyListener;
+            })
+        }
+        if (rEventGroups.ready){
+            this.onEventGroupChange();
+        } else {
+            this.eGReadyListener = rEventGroups.eH.eventSubscribe(`${rEventGroups.name}:ready`, ()=>{
+
+                // just recreate the dataset and send it to all clients
+                this.onEventGroupChange();
+    
+                // unsubscribe now
+                rEventGroups.eH.eventUnsubscribe(`${rEventGroups.name}:ready`, this.eGReadyListener);
                 delete this.eGReadyListener;
             })
         }
@@ -128,8 +141,12 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
     close(){
 
         // unsubscribe eventlisteners
+        if (this.eReadyListener){
+            this.rEvents.eH.eventUnsubscribe(`${this.rEvents.name}:ready`, this.eReadyListener);
+            delete this.eReadyListener;
+        }
         if (this.eGReadyListener){
-            this.rEvents.eH.eventUnsubscribe(`${this.rEvents.name}:ready`, this.eGReadyListener);
+            this.rEventGroups.eH.eventUnsubscribe(`${this.rEventGroups.name}:ready`, this.eGReadyListener);
             delete this.eGReadyListener;
         }
         if (this.eventGroupRoundUpdateListener){
@@ -202,6 +219,8 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
             }
 
             this.data.events = data;
+        } else {
+
         }
 
     }
