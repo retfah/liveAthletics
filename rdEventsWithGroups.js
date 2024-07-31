@@ -34,16 +34,19 @@ export default class rdEventsWithGroups extends roomDataset{ // do not rename wi
         this.logger = rEvents.logger;
 
         // we must know when the eventGroup room is ready, since we cannot create are dataset before
-
-        this.eGReadyListener = rEvents.eH.eventSubscribe(`${rEvents.name}:ready`, ()=>{
-
-            // just recreate the dataset and send it to all clients
+        if (rEvents.ready){
             this.onEventGroupChange();
+        } else {
+            this.eGReadyListener = rEvents.eH.eventSubscribe(`${rEvents.name}:ready`, ()=>{
 
-            // unsubscribe now
-            rEvents.eH.eventUnsubscribe(`${rEvents.name}:ready`, this.eGReadyListener);
-            delete this.eGReadyListener;
-        })
+                // just recreate the dataset and send it to all clients
+                this.onEventGroupChange();
+    
+                // unsubscribe now
+                rEvents.eH.eventUnsubscribe(`${rEvents.name}:ready`, this.eGReadyListener);
+                delete this.eGReadyListener;
+            })
+        }
 
         // connect event for changes in eventGroups to onEventGroupChange
         // events must be raised in the following funciton in rEventGroups:
