@@ -1697,7 +1697,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
     
                         // probably fastest approach to insert the data: create a raw insert script and insert all data at the same time. --> problem: currently the data delivered by Alabus contains multiple identical entries! --> first try to insert all in one query and if this fails, do separate inserts of the athletes in a second insert. Do the same for the performances. 
                         let athleteInsertQuery = 'insert into athletes (license, licensePaid, licenseCategory, lastname, firstname, sex, nationality, clubCode, birthdate)\n values ';
-                        let performanceInsertQuery = "insert into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ";
+                        // note: somtimes (as far as I have seen, it occurs only if one performance is a Kids cup and both have the same performance and it is the 60m), two records exist for the same discipline. Avoid duplicate entry problems by using insert ignore
+                        let performanceInsertQuery = "insert ignore into performances (license, discipline, xDiscipline, bestEffort, bestEffortDate, bestEffortEvent, seasonEffort, seasonEffortDate, seasonEffortEvent, notificationEffort, notificationEffortDate, notificationEffortEvent, season) values ";
     
                         // do a first loop where we try to run two big sql queries for the inserts
                         for (let athlete of xml.watDataset.athletes.athlete){
@@ -2596,7 +2597,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
                                             xEvent: event.xEvent,
                                             paid: ath.$.paid!="n",
                                             bestPerf: parseInt(perf.best) || 0,
-                                            bestPerfLast: parseInt(perf.notification) || 0, // there would be a .$.notificationEffort field in the import, but it seems not to be used
+                                            bestPerfLast: parseInt(perf.season) || 0, 
+                                            notificationPerf: parseInt(perf.notification) || 0, // there would be a .$.notificationEffort field in the import, but it seems not to be used
                                             //inBase:'SUI', // is this really needed and used like this? I think this field is at least for the swiss nationalBody exchenge not needed.
                                             competitive: true,
                                         };
