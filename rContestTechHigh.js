@@ -236,6 +236,7 @@ class rContestTechHigh extends rContest{
                 name: {type:"string", maxLength:50},
                 datetime: {type: ["null", "string"], format:"date-time", default:null}, // format gets only evaluated when string,
                 id: {type: ["null", "string"], format:"uuid"}, // intended to be UUID, but might be anything else as well
+                aux: {type:["null", "object"], default:null}, // not used yet for techHigh
             },
             required: ["xContest", "xSeries", "status", "number"],
             additionalProperties: false,
