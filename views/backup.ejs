@@ -499,6 +499,10 @@
                 </template>
             </v-table>
         </div>
+        <div>
+            <h3><%= __("Status") %></h3>
+            Current ID of the side channel: {{status.sideChannelId ?? "N/A"}}
+        </div>
     </form>
     <div class="overlay" v-bind:class="{shown: selectedPushTokenStatus}" v-if="selectedPushTokenStatus">
         <div class="overlayContainer">

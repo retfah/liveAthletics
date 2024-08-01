@@ -111,6 +111,26 @@ class rSideChannel extends roomServer{
     }
 
     /**
+     * Override the parent function _processChange to be able to provide the new ID to rBackup for information
+     */
+    _processChange(doObj, undoObj, tabId=undefined, id=undefined){
+        // NOTE: the only thing we do here instead of in the parent room is the definition of the new ID.
+        if (!id){
+            id = this.uuidv4();
+        }
+        // write the info to rBankup
+        this.rBackup.data.status.sideChannelId = id;
+        this.rBackup.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+
+        super._processChange(doObj, undoObj, tabId=undefined, id=undefined);
+    }
+
+    onRoomReady(){
+        this.rBackup.data.status.sideChannelId = this.ID;
+        this.rBackup.serverFuncWrite('statusChanged',undefined).catch(()=>{});
+    }
+
+    /**
      * 
      * @param {any} data The data needed to process the change done in a function in a room.
      * @returns 
