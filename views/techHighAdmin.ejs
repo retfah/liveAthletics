@@ -12,7 +12,7 @@
         <div class="nav" v-bind:class="{shown: burgerChecked}">
             <div class="navItem">
                 <%= __("Status") %>: 
-                <select class="formCtrl" v-model.number="contest.status" v-on:change="propagateChange=true; statusChanged();" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(contest.status), '--backColorHover': statusBackgroundColorHover(contest.status), color: statusTextColor(contest.status) }">
+                <select class="formCtrl" v-model.number="contest.status" v-on:focus="statusFocus" v-on:change="statusChanged($event);" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(contest.status), '--backColorHover': statusBackgroundColorHover(contest.status), color: statusTextColor(contest.status) }">
                     <template v-for="status in contestStates">
                         <option v-bind:value="status.value" v-bind:style="{ 'background-color': status.backgroundColor,  '--backColorHover': statusBackgroundColorHover(status.value), color: status.textColor }">
                             {{status.text}}

@@ -1510,7 +1510,46 @@ export class rContestTrackClient extends rContestClient{
         
     }*/
 
-    updateContest2Init(newContest, oldContest){
+    updateContest2Init(prop, newVal, oldVal){
+
+        let confOld = JSON.parse(this.data.contest.conf);
+        this.data.contest[prop] = newVal;
+
+        // if startInLanes does not change, we have a defined revert.
+        let confNew = JSON.parse(newContest.conf);
+
+        let revert;
+        if (confOld.startInLanes == confNew.startInLanes){
+            // revert:
+            revert = ()=>{
+                // revert all changes on failure!
+                this.data.contest[prop] = oldVal;
+            }
+        } else {
+            revert =  null;
+
+            // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
+            if (confOld.startInLanes === true && confNew.startInLanes === false){
+                for (let s of this.data.series){
+                    // change occured
+                    for (let ssr of s.seriesstartsresults){
+                        if (ssr.position.toString() != ssr.startConf){
+                            ssr.startConf = ssr.position.toString()
+                        }
+                    }
+                }
+            }
+
+            // Do the same in updateContestExe as well.
+        }
+
+        this.addToStack('updateContest2', newContest, ()=>{
+            // nothing to do on success
+        }, revert)
+    }
+
+    // before 2024-08-02:
+    /*updateContest2Init(newContest, oldContest){
 
         // if startInLanes does not change, we have a defined revert.
         let confOld = JSON.parse(oldContest.conf);
@@ -1544,7 +1583,7 @@ export class rContestTrackClient extends rContestClient{
         this.addToStack('updateContest2', newContest, ()=>{
             // nothing to do on success
         }, revert)
-    }
+    }*/
 
     updateContest2Exe(data){
         // applies only when the change was done on another client

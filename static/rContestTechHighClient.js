@@ -1186,12 +1186,14 @@ export class rContestTechHighClient extends rContestClient{
         
     }*/
 
-    updateContest2Init(newContest, oldContest){
-        this.addToStack('updateContest2', newContest, ()=>{
+    updateContest2Init(prop, newVal, oldVal){
+        this.data.contest[prop] = newVal; // might already be set
+
+        this.addToStack('updateContest2', this.data.contest, ()=>{
             // nothing to do on success
         }, ()=>{
             // revert all changes on failure!
-            this.propertyTransfer(oldContest, this.data.contest, true);
+            this.data.contest[prop] = oldVal
         })
     }
 

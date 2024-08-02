@@ -113,8 +113,6 @@
          * IMPORTANT NOTE: 
          * 1.) this room shall also work offline, i.e. all changes are written to a stack on the client which will be synchronized as soon as possible. However, this also needs that the changes are directly applied on the client, instead of applying them not before the answer of the server in "online-only" pages.
          * 2) If a change cannot be processed on the server, it has to be reverted on the client! This makes it necessary that the addToStack function is called with everything needed to perform a rollback of the change. This basically needs that the init-function in the room gets the new and old data. 
-         * 3) Unfortunately, basic html events such as "onchange" do not provide the old and new value, but only the new. The best function we can use instead is a vue-watcher on the property. However, this has the problem that it is not only called when a change is done through the veu-app, but also if the data is changed from the room (because both raise the Proxy...). If we simply would watch for data changes and always send a change request to the server on change, we might end in an infinite loop, where client A changes something, B gets the change and modifies its data, the B's vue-watcher is raised, send the change to the server, client A gets it and there the watcher is raised again and so on...
-         * 4) To ommit this problem, the best solution I have found is to have a special proeprty (here: propagateChange), which is set to true in an onchange event, hopefully raised before the watcher, and only if this is set to true, the change is sent to the server. The property then of course must be reset instantly.
          **/
 
         // TODO: eventually move this into vue
@@ -206,8 +204,6 @@
 
                     /* !!! data for SERIES CREATION ONLY !!! */
 
-                    propagateChange: false, // if the most recent change on the data (registered and monitored via "watchers") must be propagated to the server or not. (Not is typically the case when the changes comes from the server or any other change on the data done in the room but not in the data)
-
                     confForMod: {}, // the conf-object that is modified during conf changes. Recreated everytime conf-change is opened. At the end, the changes are either stored back to to the JSON in contest.conf (which then is applied to the computed property conf) or we just do nothing.
 
                     // series assignments (the different strategies that can be applied)
@@ -247,6 +243,8 @@
 
                     printReactionTime: false, // print reaction time in results
                     printLane: false, //print lane in results
+
+                    previousStatus: 0,
                 }
             },
             methods:{
@@ -260,8 +258,16 @@
                         return {}
                     }
                 },
-
+                statusFocus(){
+                    this.previousStatus = this.contest.status;
+                },
                 statusChanged(){
+
+                    // write the change to the room
+                    let newStatus = Number(event.target.value);
+                    rCTech.room.updateContest2Init('status', newStatus, this.previousStatus); 
+                    this.previousStatus = newStatus; 
+
                     // check whether the current "show" property is meaningful; if not, automatically set a meaningful property
                     const matchStatusShow = [
                         {from: 0, to:39, shows:['rollCall', 'contestInfo']},
@@ -685,8 +691,7 @@
                 },
                 saveUpdateConf(){
                     this.overlay3 = undefined;
-                    this.propagateChange = true; // store the change to server!
-                    this.contest.conf = JSON.stringify(this.confForMod);
+                    rCTrack.room.updateContest2Init('conf', JSON.stringify(this.confForMod), this.contest.conf); 
                     this.updateEmptyInitLanes(this.seriesObj);
                 },
                 startInLanesChanged(){
@@ -732,8 +737,7 @@
                     return d.getFullYear().toString().slice(-2);
                 },
                 endRollCallCreateSeries(){
-                    this.propagateChange = true;
-                    this.contest.status = 70;
+                    rCTrack.room.updateContest2Init('status', 70, this.contest.conf); 
                     this.show="series";
                     if(this.series.length==0){
                         this.showInitialSeriesAssignment();
@@ -1381,23 +1385,6 @@
                 selectedXSeries: function(newXSeries, oldXSeries){
                     //this.timeManager();
                 },
-                contestWatching: {
-                    // we cannot directly watch contest, because if the changes were within the object, the oldContestObj would reference the same as newContestObj. However, the contestWatching property is always a new copy and thus new and old should be correct
-                    // (The alternative would be to have watchers for each property that might change, e.g. 'contest.status', ...)
-
-                    // this is how we watch changes not only of the property "contest", but of all the properties within it:
-                    deep:true,
-                    handler: function(newContestObj, oldContestObj){
-                        // harmonized over all changes on the contest properties
-                        // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
-                        // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.
-
-                        if (this.propagateChange){
-                            rCTrack.room.updateContest2Init(newContestObj, oldContestObj);
-                            this.propagateChange = false;
-                        }
-                    }
-                },
             },
             computed:{
                 
@@ -1434,11 +1421,6 @@
                 urlFieldMonitor: function(){
                     // the url of the field monitor for the selected series
                     return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/trackBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
-                },
-
-                contestWatching: function(){
-                    // create a copy of the contest object to make sure that newContestObj and oldContestObj in the contest(Watching)-watcher are truly the old and new object, and not the same. 
-                    return JSON.parse(JSON.stringify(this.contest));
                 },
                 conf: function(){
                     return this.parseConf(this.contest.conf);
