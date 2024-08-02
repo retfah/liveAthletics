@@ -92,4 +92,6 @@ export default {
     currentRangeFrom:-2, // today minus how many days
     currentRangeTo: 7, // today plus how many days
 
+    isLiveServer: true, // is an online server; by default refer the meeting to the live results
+
 }

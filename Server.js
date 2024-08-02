@@ -1739,7 +1739,7 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 	// if path is empty, proceed either to main (main server) or liveResults (secondary server)
 	if (path==""){
 		// differentiate mode
-		if (meeting.rooms.backup.data.backup.isMain){
+		if (meeting.rooms.backup.data.backup.isMain && !conf.isLiveServer){
 			path = "main";
 		} else {
 			// go to live results
