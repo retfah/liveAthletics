@@ -30,7 +30,7 @@
                     </select>
                 </div>
                 <%= __("Series Status") %>
-                <select class="content dropdown" :value="series[selectedSeries].status" v-on:blur="seriesStatusChanged(series[selectedSeries], $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
+                <select class="content dropdown" :value="series[selectedSeries].status" v-on:change="seriesStatusChanged(series[selectedSeries], $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
                     <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
                         {{option.text}}
                     </option>
