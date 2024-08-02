@@ -5,7 +5,7 @@ const cLRtechHigh = {
     name:'cLRtechHigh',
     template:`
     
-<div id="vueSeriesAdminTech">
+<div>
 <h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h2>
 <div v-if="contest.status<90"> <!-- v-if="contest.state<90" -->
 <!--currently, the roll call is beeing done or the series are being created. Show all inscribed athletes. -->
@@ -172,7 +172,7 @@ const cLRtechHigh = {
             <option value="3"><%= __("Name") %></option>
             <option value="4"><%= __("Bib") %></option>
         </select>
-        <div id="resultsView2" style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+        <div style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
             <!-- table view of the results with a grid layout -->
             <!-- show all the heights; the column is given by height in cm + 100 -->
 
@@ -2800,17 +2800,24 @@ const cLRtechHigh = {
         },
     },
     watch:{
-        mode: function(newMode,oldMode){ 
-            if (newMode>0 && oldMode==0){
-                this.sortValue1 = 1; // keep the default order!
-                this.sortValue2 = 2;
-            } else if(newMode==0 && oldMode>0){
-                this.sortValue1 = 1;
-                this.sortValue2 = 1;
-            }
+        mode: {
+            immediate:true, // make sure this watcher is always run at startup
+            handler:function(newMode,oldMode){ 
+                if (newMode>0 && oldMode==0){
+                    this.sortValue1 = 1; // keep the default order!
+                    this.sortValue2 = 2;
+                } else if(newMode==0 && oldMode>0){
+                    this.sortValue1 = 1;
+                    this.sortValue2 = 1;
+                }
+            },
         },
         series: {
+            immediate:true, // make sure this watcher is always run at startup
             handler:function(seriesNew, seriesOld){
+                if (seriesOld===undefined){
+                    return [];
+                }
                 // if the series-data is handed over initially, try to get the selected xSeries from the url get parameter.
                 if (seriesOld.length == 0){
 
@@ -2890,6 +2897,7 @@ const cLRtechHigh = {
             this.timeManager();
         },
         selectedSeries: {
+            immediate:true, // make sure this watcher is always run at startup
             handler: function(newSeries, oldSeries){
                 // when we change the selectedSeries, we must reset position and positionNext to avoid problems in calculateNextAthlete; however, since this watcher is not always called before other watchers and computed properties (even if we set immediate=true !), we need an alternative to realize that positions should be resetted: selectedSeriesLazy: if calculateNextAthlete detects that selectedSeries != selectedSeriesLazy, then it will reset position and positionNext itself
                 this.position = [];
@@ -2907,7 +2915,9 @@ const cLRtechHigh = {
 
             // this is how we watch changes not only of the property "contest", but of all the properties within it:
             deep:true,
+            immediate:true, // make sure this watcher is always run at startup
             handler: function(newContestObj, oldContestObj){
+                console.log("contest watcher run");
                 // harmonized over all changes on the contest properties
                 // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
                 // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.

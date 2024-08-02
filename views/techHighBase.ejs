@@ -2513,6 +2513,9 @@
                     // en: 1st, 2nd, 3rd, 4th, ...
                     // de: 1., 2., 3., ...
                     // rank is always based on the number or empty (if no rank)
+                    if (rank==undefined){
+                        return '';
+                    }
                     if (rank==0){
                         // there is no rank 0! print no rank when 0
                         return '';
@@ -2607,17 +2610,24 @@
                 },
             },
             watch:{
-                mode: function(newMode,oldMode){ 
-                    if (newMode>0 && oldMode==0){
-                        this.sortValue1 = 1; // keep the default order!
-                        this.sortValue2 = 2;
-                    } else if(newMode==0 && oldMode>0){
-                        this.sortValue1 = 1;
-                        this.sortValue2 = 1;
-                    }
+                mode: {
+                    immediate:true, // make sure this watcher is always run at startup
+                    handler:function(newMode,oldMode){ 
+                        if (newMode>0 && oldMode==0){
+                            this.sortValue1 = 1; // keep the default order!
+                            this.sortValue2 = 2;
+                        } else if(newMode==0 && oldMode>0){
+                            this.sortValue1 = 1;
+                            this.sortValue2 = 1;
+                        }
+                    },
                 },
                 series: {
+                    immediate:true, // make sure this watcher is always run at startup
                     handler:function(seriesNew, seriesOld){
+                        if (seriesOld===undefined){
+                            return [];
+                        }
                         // if the series-data is handed over initially, try to get the selected xSeries from the url get parameter.
                         if (seriesOld.length == 0){
 
@@ -2697,6 +2707,7 @@
                     this.timeManager();
                 },
                 selectedSeries: {
+                    immediate:true, // make sure this watcher is always run at startup
                     handler: function(newSeries, oldSeries){
                         // when we change the selectedSeries, we must reset position and positionNext to avoid problems in calculateNextAthlete; however, since this watcher is not always called before other watchers and computed properties (even if we set immediate=true !), we need an alternative to realize that positions should be resetted: selectedSeriesLazy: if calculateNextAthlete detects that selectedSeries != selectedSeriesLazy, then it will reset position and positionNext itself
                         this.position = [];
@@ -2714,6 +2725,7 @@
 
                     // this is how we watch changes not only of the property "contest", but of all the properties within it:
                     deep:true,
+                    immediate:true, // make sure this watcher is always run at startup
                     handler: function(newContestObj, oldContestObj){
                         // harmonized over all changes on the contest properties
                         // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
