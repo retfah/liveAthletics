@@ -802,5 +802,8 @@
 	"Only fill missing performances": "Nur fehlende Werte hinzufügen",
 	"Update when improving": "Aktualisieren wenn besser",
 	"Update always": "Immer aktualisieren",
-	"Update current performance with base data": "Aktuelle Leistungen mit Basisdaten aktualisieren"
+	"Update current performance with base data": "Aktuelle Leistungen mit Basisdaten aktualisieren",
+	"Print lane": "Print lane",
+	"Print reaction time": "Print reaction time",
+	"Resultat": "Resultat"
 }

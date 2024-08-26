@@ -232,6 +232,7 @@
                     baseEntries:null,
 
                     previousStatus: 0, 
+                    touchTimeout: null,
                 }
             },
             methods:{
@@ -1039,10 +1040,41 @@
                         el.id = 'resChange' + newKey;
                     }
                 },
+                // IDEA: on desktop, allow to click with ctrl pressed to delete a startheight. On mobile, use a long touch to delete. This is a little harder to manage: use touchstart-event to trigger an timeout. Cancel the timeout on touchend (too short) and touchmove (scrolling). 
+                /*evaluateDeleteStartheightDesktop(xSeriesStartEl, $event){
+                    if ($event.ctrlKey){
+                        $event.target.size=0;
+                        this.deleteStartheight(xSeriesStartEl);
+                    };
+                },
+                evaluateDeleteStartheightMobile(xSeriesStartEl, $event){
+                    this.touchTimeout = setTimeout(()=>{
+                        this.deleteStartheight(xSeriesStartEl);
+                    }, 1000)
+                },
+                deleteStartheight(xSeriesStartEl){
+
+                    xSeriesStartEl.startConf='';
+
+                    this.evaluateHeightDeletable();
+
+                    // send the change to the server
+                    rCTech.room.updateSSRInit(xSeriesStartEl);
+
+                    if (this.mode==0){
+                        // so far not all startheights were defined, so we can easily just call:
+                        this.calculateNextAthlete();
+                    } else {
+                        // check if the competition can start already
+                        this.onSeriesChangeCalcNextAth=true;
+                    }
+                },*/
                 startHeightChanged(xSeriesStartEl){
                     // if the chosen height is not yet fixed (i.e. in the heights array of the series), add it to the heights
 
-                    this.addHeight(xSeriesStartEl.startConf); // will check if it is new automatically
+                    if (Number(xSeriesStartEl.startConf)>0){
+                        this.addHeight(xSeriesStartEl.startConf); // will check if it is new automatically
+                    }
 
                     this.evaluateHeightDeletable();
 
@@ -1375,6 +1407,8 @@
                         return
                     }
 
+                    this.calculateTemporaryRankingData();
+
                     // check if all startheights are given
                     if (this.allStartHeightsDefined()){
 
@@ -1388,8 +1422,6 @@
                         // the currentHeight is calculated automatically:
 
                         // find the lowest height, where an athlete is in competition (min(nextJumpingHeight)) (neither retired nor DQ nor DNS...) or get the next height after the last valid height of an athlete. 
-
-                        this.calculateTemporaryRankingData();
 
                         // for athletes that are not yet in competition (no results), get the startheight; for athletes that are in competition, use the lower of lastFinistedHeight+next and firstUnfinished
                         let lowestUnfinished = 1000; // here we can also include the startheight of athletes that were not in competition yet
@@ -2612,6 +2644,11 @@
                 dateChanged(series, evt){
                     rCTech.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
                 },
+                heightRef(xHeight){
+                    // return the reference string (h{jumpoffOrder}h{heightInCm}) for the given xHeight
+                    let h=this.series[this.selectedSeries].heights.find(h=>h.xHeight==xHeight);
+                    return `h${h.jumpoffOrder}h${h.height}`;
+                },
             },
             watch:{
                 mode: {
@@ -2824,6 +2861,89 @@
                     }else return [];
                 },
 
+                sortedHeightsForRes: function(){
+                    // return a sorted array with objects like {heightRef:'h0:410', label:'4.10 m'}, {heightRef:'h2:425', label:'J: 4.25 m'}, {heightRef:'intervalInfo1', label:'... +10 cm'}
+                    // mode 0 or 1: create all heights up to max(max Starttheight, currentHeight) ; additionally add interval info above
+
+                    if (this.mode<=1){
+
+                        // find the maximum startheight
+                        let maxStartheight=0;
+                        for (let ssr of this.series[this.selectedSeries].seriesstartsresults){
+                            if (ssr.startConf>maxStartheight){
+                                maxStartheight = Number(ssr.startConf); // NOTE: ssr.startConf may be a string. However, the comparison still works
+                            }
+                        }
+
+                        // find the maximum of the created heights
+                        let maxExistingHeight = 0;
+                        this.series[this.selectedSeries].heights.forEach(h=>{
+                            maxExistingHeight = Math.max(maxExistingHeight, h.height);
+                        })
+
+                        let maxShownHeight = Math.max(maxStartheight, maxExistingHeight, this.currentHeight); //currentHeight is probably never needed...
+                        let i = this.allHeights.indexOf(maxShownHeight);
+
+                        let hs = this.allHeights.slice(0, i+1);
+                        let arr = hs.map(h=>{return {heightRef: `h0h${h}`, label: this.meterStr(h)}})
+
+                        // add info about interval
+                        if (hs.length==0){
+                            // there is no current interval yet; simply add all intervals
+                            i=0;
+                            for (let hi of this.conf.heightIncreases){
+                                arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                                i++;
+                            }
+                        } else {
+                            i=0;
+                            let lastShownHeight = hs[hs.length-1];
+                            let currentInterval = 0
+                            for (let i2 in this.conf.heightIncreases){
+                                i2 = Number(i2);
+                                let hi = this.conf.heightIncreases[i2];
+                                // either show nothing, '... +10 cm' or '≥4.00 m: +10 cm'
+                                // the first is shown when the interval was already valid before and there is at least one more height with this interval before the next interval becomes effective
+                                // the latter is shown when the interval is not effective yet
+                                if (lastShownHeight<hi.heightIncreaseStartheight){
+                                    arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                                    i++;
+                                } else if (i2< this.conf.heightIncreases.length-1){
+                                    // there is one more heightInterval after
+                                    let hiNext = this.conf.heightIncreases[i2+1];
+                                    // check that the next height interval is more than the interval away
+                                    if (lastShownHeight + hi.heightIncrease < hiNext.heightIncreaseStartheight){
+                                        arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                                        i++;
+                                    } else {
+                                        // add nothing.
+                                    }
+                                } else {
+                                    // there is no other height interval or no
+                                    arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                                    i++;
+                                }
+                                //arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: ${hi.heightIncrease} cm`})
+                            }
+                        }
+
+                        return arr;
+
+                    } else {
+                        // simply show all current heights, as before
+                        return this.sortedHeights.map(h=>{
+
+                            let heightRef = `h${h.jumpoffOrder}h${h.height}`;
+                            let label = '';
+                            if (h.jumpoffOrder==0){
+                                label = this.meterStr(h.height);
+                            } else {
+                                label = 'J: ' + this.meterStr(h.height);
+                            }
+                            return {heightRef, label};
+                        });
+                    }
+                },
                 usedHeights: function(){
                     // formerly the information about whether a height can be dleeted was stored to the height itself, which is not very smart and also used a function to be called whenever this could have changed. Instead use a computed property for that.
                     
@@ -2907,7 +3027,10 @@
                     return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/techHighBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
                 },
                 conf: function(){
-                    return this.parseConf(this.contest.conf);
+                    let o = this.parseConf(this.contest.conf);
+                    // make sure that the height intervals are sorted
+                    o.heightIncreases.sort((hi1, hi2)=>hi1.heightIncreaseStartheight - hi2.heightIncreaseStartheight);
+                    return o;
                 },
                 filters: function(){
                     // create a custom filter for everything that filters by name, first name and bib at the same time. (club would be nice, but is not possible with the builtin-filters, since the club would have to be part of the object structure, but only the xClub is, but not the clubs and its name.) 
@@ -3260,18 +3383,22 @@
                     }
 
                 },
-                resultGridTemplate: function(){
+                resultGridTemplateCol: function(){
 
                     // make sure the resultGridTemplate is updated when the xHeight is exchanged
                     let i = this.fakeProperty;
 
-                    let h = this.sortedHeights;
-                    let s = '[rank] max-content [bib] max-content [athletes] max-content [result] max-content';
-                    for (let i=0;i<h.length;i++){
-                        s += ' [h' + h[i].xHeight + '] max-content'; /* the label for the line must not be a number, but a string */
+                    //let h = this.sortedHeights;
+                    let h = this.sortedHeightsForRes; // 2024-08-06
+                    let s = '[rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content';
+                    for (let h of this.sortedHeightsForRes){
+                        s += ' ['+h.heightRef+'] max-content'; /* the label for the line must not be a number, but a string */
                     }
                     s += ' [end]';
                     return s;
+                },
+                resultGridTemplateRow: function(){
+                    return `repeat(${this.sortedStarts2.length+1}, max-content)`; // plus the header row
                 },
                 disciplineConfiguration: function(){
                     // get the first discipline with matching baseDiscipline and parse its configuration

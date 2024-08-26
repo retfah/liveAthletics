@@ -402,19 +402,30 @@
                     <!-- startheights should only be changeable until an athlet has a result -->
                     <h2><%= __("Startheights") %></h2>
                     <table class="table">
-                        <tr><th class="d-none d-md-block"><%= __("Nbr.") %></th><th><%= __("Name") %></th><th class="d-none d-md-block"><%= __("Club")%></th><th></th></tr>
+                        <tr>
+                            <th class="d-none d-md-block"><%= __("Nbr.") %></th>
+                            <th><%= __("Name") %></th>
+                            <th class="d-none d-md-block"><%= __("Club")%></th>
+                            <th><!-- startheight dropdown --></th>
+                            <th><!-- participation status --></th>
+                        </tr>
                         <template v-for="(xSeriesStartEl, xSeriesStartElIndex) in series[selectedSeries].seriesstartsresults">
                             <!-- The athletes data is in the auxData! -->
                             <tr>
                                 <td class="d-none d-md-block">{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].bib}}</td>
                                 <td>{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].athleteForename}} {{auxData.xStartgroup[xSeriesStartEl.xStartgroup].athleteName}}</td>
-                                <td class="d-none d-md-block">{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].clubName}}</td>
+                                <td class="d-none d-md-block">{{auxData.xStartgroup[xSeriesStartEl.xStartgroup].clubName}} {{xSeriesStartEl.startConf}}</td>
                                 <td>
+                                    <!-- add the following if ctrl+click or long touch shall delete the startheight:  v-on:click="evaluateDeleteStartheightDesktop(xSeriesStartEl, $event)" v-on:touchstart="evaluateDeleteStartheightMobile(xSeriesStartEl, $event)" v-on:touchmove="clearTimeout(touchTimeout)" v-on:touchend="clearTimeout(touchTimeout)" -->
                                     <select class="formCtrl" :id="'startHeightSelection' + xSeriesStartEl.xStartgroup.toString()" onmousedown="if(this.options.length>6){this.size=6;}; " onchange="this.size=0" onblur="if (this.selectedIndex==-1){this.size=0; this.selectedIndex=-1} else {this.size=0;}" v-model.string="xSeriesStartEl.startConf" v-on:change="startHeightChanged(xSeriesStartEl)" :disabled="readOnly"> <!-- I dont want an extremely long dropdown, so we quickly increase the size of the select to make it not a dropdown, but a list, and then reset it: Problem in Chrome: When nothing is selected and blur is raised, changing the size back to 0 makes the first item appear selected, however it is not (no change or input event raised neither). The if in the onblur event is the workaround for that, since it corrects the problem currently 02.2020 -->
-                                    <template v-for="(height, heightIndex) in allHeights">
+                                        <option v-bind:value="''"></option>
+                                        <template v-for="(height, heightIndex) in allHeights">
                                         <option v-bind:value="height">{{height.toString()}}</option>
                                     </template>
                                 </select></td>
+                                <td>
+                                    <button type="button" :disabled="readOnly" class="btn" v-on:click="startUpdateParticipation(currentAthleteStart)"><%= __("Change participation status") %></button>
+                                </td>
                             </tr>
     
                         </template>
@@ -687,41 +698,135 @@
                 </div>
                 <div v-if="show=='resShow'">
                     <h2><%= __("Results (table view)") %>:</h2>
-                    <%= __("Sorting") %>: 
+                    <!--<%= __("Sorting") %>: 
                     <select v-model="sortValue2" class="dropdown marginS">
-                        <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
+                        <option value="1"><%= __("Default sequence") %></option>
                         <option value="2"><%= __("Rank") %></option>
                         <option value="3"><%= __("Name") %></option>
                         <option value="4"><%= __("Bib") %></option>
-                    </select>
-                    <div id="resultsView2" v-if="mode>0" style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
-                        <!-- table view of the results with a grid layout -->
-                        <!-- show all the heights; the column is given by height in cm + 100 -->
-        
-                        <!-- eventually we can also use Vue to create named lines and use those to order the items; woudl probably be faster! 
-                        grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
-        
-                        <template v-for="h in sortedHeights">
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
-                            <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
-                        </template>
-                        <template v-for="(startIndex, sortIndex) in sortedStarts2">
-                            
-                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
-                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                    </select>-->
+                    <div style="overflow-x: auto;">
+                        <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+                            <!-- table view of the results with a grid layout -->
+
+                            <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
+                            <div class="rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Rank") %>
                             </div>
-                            <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                            <div class="position placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Position") %>
                             </div>
-                            <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                            <div class="bib hideMobile placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Bib") %>
                             </div>
-                            <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                                <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
-                                    {{resultToStr(hRes)}}
+                            <div class="name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Name") %>
+                            </div>
+                            <div class="result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Result") %>
+                            </div>
+            
+                            <!-- named lines are created in Vue-->
+                            <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
+                            <template v-for="(startIndex, sortIndex) in sortedStarts2">
+
+                                <!-- indicate the startheight by applying a grey background until the height -->
+                                <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
                                 </div>
+                                
+                                <div class="rank placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                    {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                                </div>
+                                <div class="position placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                    {{series[selectedSeries].seriesstartsresults[startIndex].position}}
+                                </div>
+                                <div class="bib placeholder hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                    {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
+                                </div>
+                                <div class="name placeholder"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
+                                    {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                                </div>
+                                <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                    {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                                </div>
+                                <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
+                                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}">
+                                        {{resultToStr(hRes)}}
+                                    </div>
+                                </template>
                             </template>
-                        </template>
+
+                            <!-- top, sticky container with column lables, i.e. heights -->
+                            <div class="topContainer">
+
+                                <!-- the heights -->
+                                <template v-for="h in sortedHeightsForRes">
+                                    <div v-bind:style="{'grid-column':h.heightRef}" class="header">{{h.label}}</div>
+                                </template>
+                            </div>
+
+                            <!-- left, sticky container with shown name etc -->
+                            <div class="leftContainer">
+                                <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                                    <!-- background (show finished only as long as the competition is not finished yet)-->
+                                    <div class="fullRow"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
+                                    </div>
+                                    
+                                    <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                        {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                                    </div>
+                                    <div class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                        {{series[selectedSeries].seriesstartsresults[startIndex].position}}
+                                    </div>
+                                    <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
+                                    </div>
+                                    <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                                    </div>
+                                    <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                        {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                                    </div>
+                                </template>
+
+                                <div class="topContainer">
+                                    <div class="rank header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                                        <%= __("Rank") %>
+                                    </div>
+                                    <div class="position header clickable" style="grid-row:1" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
+                                        <%= __("Position") %>
+                                    </div>
+                                    <div class="bib header hideMobile clickable" style="grid-row:1" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
+                                        <%= __("Bib") %>
+                                    </div>
+                                    <div class="name header clickable" style="grid-row:1" v-on:click="sortValue2=3"> <!--style="justify-self: start; grid-column: rank"-->
+                                        <%= __("Name") %>
+                                    </div>
+                                    <div class="result header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                                        <%= __("Result") %>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- placeholder for top row (=header) -->
+                            <!-- titles for left columns -->
+                            <div class="header rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                Rank
+                            </div>
+                            <div class="header bib placeholder hideMobile" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                Bib
+                            </div>
+                            <div class="header name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                Name
+                            </div>
+                            <div class="header result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                                Result
+                            </div>
+                            <template v-for="h in sortedHeightsForRes">
+                                <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
+                            </template>
+
+                        </div>
                     </div>
                 </div>
 

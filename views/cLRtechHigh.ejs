@@ -165,44 +165,129 @@ const cLRtechHigh = {
                 <%= __("Next up: {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteName}}") %>
             </div>
         </div>
-        <%= __("Sorting") %>: 
-        <select v-model="sortValue2" class="dropdown marginS">
-            <option value="1"><%= __("Default sequence") %></option> <!-- means the order on the judge's sheet -->
-            <option value="2"><%= __("Rank") %></option>
-            <option value="3"><%= __("Name") %></option>
-            <option value="4"><%= __("Bib") %></option>
-        </select>
-        <div style="display:grid; column-gap: 0px; justify-items: center;" v-bind:style="{'grid-template-columns': resultGridTemplate}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
-            <!-- table view of the results with a grid layout -->
-            <!-- show all the heights; the column is given by height in cm + 100 -->
 
-            <!-- eventually we can also use Vue to create named lines and use those to order the items; woudl probably be faster! 
-            grid-template-columns: [rank] auto [] auto [names] auto [200] auto [220] auto [240] auto [end]   eventually auto should be max-content..?-->
+        <div style="overflow-x: auto;">
+            <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+                <!-- table view of the results with a grid layout -->
 
-            <template v-for="h in sortedHeights">
-                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-if="h.jumpoffOrder>0"><%= __("J:") %> {{meterStr(h.height)}}</div>
-                <div v-bind:style="{'grid-column':'h'+h.xHeight}" style="grid-row:1; padding: 0.375rem 0.375rem" v-else>{{meterStr(h.height)}}</div>
-            </template>
-            <template v-for="(startIndex, sortIndex) in sortedStarts2">
-                
-                <div class="name"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }"> <!--style="justify-self: start; grid-column: athletes"-->
-                    {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
+                <div class="rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    <%= __("Rank") %>
                 </div>
-                <!--<div class="bib" v-bind:style="{'grid-row': sortIndex+2}"> 
-                    {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup]?.bib}}
-                </div>--><!--style="justify-self: start; grid-column: bib"-->
-                <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                    {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                <div class="position placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    <%= __("Position") %>
                 </div>
-                <div class="rank" v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }"> <!--style="justify-self: start; grid-column: rank"-->
-                    {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                <div class="bib hideMobile placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    <%= __("Bib") %>
                 </div>
-                <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'h'+hRes.xHeight}">
-                        {{resultToStr(hRes)}}
+                <div class="name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    <%= __("Name") %>
+                </div>
+                <div class="result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    <%= __("Result") %>
+                </div>
+
+                <!-- named lines are created in Vue-->
+                <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
+                <template v-for="(startIndex, sortIndex) in sortedStarts2">
+
+                    <!-- indicate the startheight by applying a grey background until the height -->
+                    <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
                     </div>
+                    
+                    <div class="rank placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                    </div>
+                    <div class="position placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        {{series[selectedSeries].seriesstartsresults[startIndex].position}}
+                    </div>
+                    <div class="bib placeholder hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
+                    </div>
+                    <div class="name placeholder"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
+                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                    </div>
+                    <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                    </div>
+                    <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
+                        <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}">
+                            {{resultToStr(hRes)}}
+                        </div>
+                    </template>
                 </template>
-            </template>
+
+                <!-- top, sticky container with column lables, i.e. heights -->
+                <div class="topContainer">
+
+                    <!-- the heights -->
+                    <template v-for="h in sortedHeightsForRes">
+                        <div v-bind:style="{'grid-column':h.heightRef}" class="header">{{h.label}}</div>
+                    </template>
+                </div>
+
+                <!-- left, sticky container with shown name etc -->
+                <div class="leftContainer">
+                    <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                        <!-- background (show finished only as long as the competition is not finished yet)-->
+                        <div class="fullRow"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
+                        </div>
+                        
+                        <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                            {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                        </div>
+                        <div class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                            {{series[selectedSeries].seriesstartsresults[startIndex].position}}
+                        </div>
+                        <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                            {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
+                        </div>
+                        <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                            {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                        </div>
+                        <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                            {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                        </div>
+                    </template>
+
+                    <div class="topContainer">
+                        <div class="rank header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                            <%= __("Rank") %>
+                        </div>
+                        <div class="position header clickable" style="grid-row:1" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
+                            <%= __("Position") %>
+                        </div>
+                        <div class="bib header hideMobile clickable" style="grid-row:1" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
+                            <%= __("Bib") %>
+                        </div>
+                        <div class="name header clickable" style="grid-row:1" v-on:click="sortValue2=3"> <!--style="justify-self: start; grid-column: rank"-->
+                            <%= __("Name") %>
+                        </div>
+                        <div class="result header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                            <%= __("Result") %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- placeholder for top row (=header) -->
+                <!-- titles for left columns -->
+                <div class="header rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    Rank
+                </div>
+                <div class="header bib placeholder hideMobile" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    Bib
+                </div>
+                <div class="header name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    Name
+                </div>
+                <div class="header result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                    Result
+                </div>
+                <template v-for="h in sortedHeightsForRes">
+                    <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
+                </template>
+
+            </div>
         </div>
     </div>
 </div>
@@ -263,7 +348,7 @@ const cLRtechHigh = {
 
             developMode:false,
             //showContestInfo: false,
-                    show:'none', // will automatically show most reasonable thing at startup
+            show:'none', // will automatically show most reasonable thing at startup
             overlay: undefined, // either undefined or 'createSeries' or 'config'
             overlay2: undefined, // createSeries or undefined
             // there will be no waiting page, but a limit to one client and this will be the first offline working page.
@@ -311,7 +396,7 @@ const cLRtechHigh = {
 
             // the names and id's of series and contest states:
             // Note: the comment before the ejs-include only affects the first row of the included file; (thats why it still works)
-                    // also gets seriesStates and participationStatesTech
+            // also gets seriesStates and participationStatesTech
             //<%- include('contestStates.ejs') %>
 
             numSeries:0,
@@ -433,8 +518,16 @@ const cLRtechHigh = {
     methods:{
 
         /* !!! methods for both SERIES creation and COMPETITION !!! */
+        statusFocus(){
+            this.previousStatus = this.contest.status;
+        },
+        statusChanged(event){
 
-        statusChanged(){
+            // write the change to the room
+            let newStatus = Number(event.target.value);
+            rCTech.room.updateContest2Init('status', newStatus, this.previousStatus); 
+            this.previousStatus = newStatus; 
+
             // check whether the current "show" property is meaningful; if not, automatically set a meaningful property
             const matchStatusShow = [
                 {from: 0, to:39, shows:['rollCall', 'contestInfo']},
@@ -674,8 +767,8 @@ const cLRtechHigh = {
         },
         saveUpdateConf(){
             this.overlay = undefined;
-            this.propagateChange = true; // store the change to server!
-            this.contest.conf = JSON.stringify(this.confForMod);
+            rCTech.room.updateContest2Init('conf', JSON.stringify(this.confForMod), this.contest.conf); 
+            
             this.createAllHeights();
         },
 
@@ -706,8 +799,7 @@ const cLRtechHigh = {
             return d.getFullYear().toString().slice(-2);
         },
         endRollCallCreateSeries(){
-            this.propagateChange = true;
-            this.contest.status = 70;
+            rCTech.room.updateContest2Init('status', 70, this.contest.status); 
             this.show="series";
             if(this.series.length==0){
                 this.showInitialSeriesAssignment();
@@ -1228,10 +1320,41 @@ const cLRtechHigh = {
                 el.id = 'resChange' + newKey;
             }
         },
+        // IDEA: on desktop, allow to click with ctrl pressed to delete a startheight. On mobile, use a long touch to delete. This is a little harder to manage: use touchstart-event to trigger an timeout. Cancel the timeout on touchend (too short) and touchmove (scrolling). 
+        /*evaluateDeleteStartheightDesktop(xSeriesStartEl, $event){
+            if ($event.ctrlKey){
+                $event.target.size=0;
+                this.deleteStartheight(xSeriesStartEl);
+            };
+        },
+        evaluateDeleteStartheightMobile(xSeriesStartEl, $event){
+            this.touchTimeout = setTimeout(()=>{
+                this.deleteStartheight(xSeriesStartEl);
+            }, 1000)
+        },
+        deleteStartheight(xSeriesStartEl){
+
+            xSeriesStartEl.startConf='';
+
+            this.evaluateHeightDeletable();
+
+            // send the change to the server
+            rCTech.room.updateSSRInit(xSeriesStartEl);
+
+            if (this.mode==0){
+                // so far not all startheights were defined, so we can easily just call:
+                this.calculateNextAthlete();
+            } else {
+                // check if the competition can start already
+                this.onSeriesChangeCalcNextAth=true;
+            }
+        },*/
         startHeightChanged(xSeriesStartEl){
             // if the chosen height is not yet fixed (i.e. in the heights array of the series), add it to the heights
 
-            this.addHeight(xSeriesStartEl.startConf); // will check if it is new automatically
+            if (Number(xSeriesStartEl.startConf)>0){
+                this.addHeight(xSeriesStartEl.startConf); // will check if it is new automatically
+            }
 
             this.evaluateHeightDeletable();
 
@@ -1563,6 +1686,8 @@ const cLRtechHigh = {
                 this.mode=0;
                 return
             }
+            
+            this.calculateTemporaryRankingData();
 
             // check if all startheights are given
             if (this.allStartHeightsDefined()){
@@ -1577,8 +1702,6 @@ const cLRtechHigh = {
                 // the currentHeight is calculated automatically:
 
                 // find the lowest height, where an athlete is in competition (min(nextJumpingHeight)) (neither retired nor DQ nor DNS...) or get the next height after the last valid height of an athlete. 
-
-                this.calculateTemporaryRankingData();
 
                 // for athletes that are not yet in competition (no results), get the startheight; for athletes that are in competition, use the lower of lastFinistedHeight+next and firstUnfinished
                 let lowestUnfinished = 1000; // here we can also include the startheight of athletes that were not in competition yet
@@ -2706,6 +2829,9 @@ const cLRtechHigh = {
             // en: 1st, 2nd, 3rd, 4th, ...
             // de: 1., 2., 3., ...
             // rank is always based on the number or empty (if no rank)
+            if (rank==undefined){
+                return '';
+            }
             if (rank==0){
                 // there is no rank 0! print no rank when 0
                 return '';
@@ -2797,6 +2923,11 @@ const cLRtechHigh = {
         },
         dateChanged(series, evt){
             rCTech.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
+        },
+        heightRef(xHeight){
+            // return the reference string (h{jumpoffOrder}h{heightInCm}) for the given xHeight
+            let h=this.series[this.selectedSeries].heights.find(h=>h.xHeight==xHeight);
+            return `h${h.jumpoffOrder}h${h.height}`;
         },
     },
     watch:{
@@ -2909,24 +3040,6 @@ const cLRtechHigh = {
                 this.calculateNextAthlete();
             },
         },
-        contestWatching: {
-            // we cannot directly watch contest, because if the changes were within the object, the oldContestObj would reference the same as newContestObj. However, the contestWatching property is always a new copy and thus new and old should be correct
-            // (The alternative would be to have watchers for each property that might change, e.g. 'contest.status', ...)
-
-            // this is how we watch changes not only of the property "contest", but of all the properties within it:
-            deep:true,
-            immediate:true, // make sure this watcher is always run at startup
-            handler: function(newContestObj, oldContestObj){
-                console.log("contest watcher run");
-                // harmonized over all changes on the contest properties
-                // TODO: problem: if the full contest data is changed (e.g. after the room gets the first data or after full reload), this watch event is raised as well, which is problematic...
-                // send the request to the server. On positive return, nothing will be done. If negative, all changes from that point on will have to be reverted.
-                if (this.propagateChange){
-                    rCTech.room.updateContest2Init(newContestObj, oldContestObj);
-                    this.propagateChange = false;
-                }
-            }
-        },
     },
     computed:{
 
@@ -3028,6 +3141,89 @@ const cLRtechHigh = {
             }else return [];
         },
 
+        sortedHeightsForRes: function(){
+            // return a sorted array with objects like {heightRef:'h0:410', label:'4.10 m'}, {heightRef:'h2:425', label:'J: 4.25 m'}, {heightRef:'intervalInfo1', label:'... +10 cm'}
+            // mode 0 or 1: create all heights up to max(max Starttheight, currentHeight) ; additionally add interval info above
+
+            if (this.mode<=1){
+
+                // find the maximum startheight
+                let maxStartheight=0;
+                for (let ssr of this.series[this.selectedSeries].seriesstartsresults){
+                    if (ssr.startConf>maxStartheight){
+                        maxStartheight = Number(ssr.startConf); // NOTE: ssr.startConf may be a string. However, the comparison still works
+                    }
+                }
+
+                // find the maximum of the created heights
+                let maxExistingHeight = 0;
+                this.series[this.selectedSeries].heights.forEach(h=>{
+                    maxExistingHeight = Math.max(maxExistingHeight, h.height);
+                })
+
+                let maxShownHeight = Math.max(maxStartheight, maxExistingHeight, this.currentHeight); //currentHeight is probably never needed...
+                let i = this.allHeights.indexOf(maxShownHeight);
+
+                let hs = this.allHeights.slice(0, i+1);
+                let arr = hs.map(h=>{return {heightRef: `h0h${h}`, label: this.meterStr(h)}})
+
+                // add info about interval
+                if (hs.length==0){
+                    // there is no current interval yet; simply add all intervals
+                    i=0;
+                    for (let hi of this.conf.heightIncreases){
+                        arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                        i++;
+                    }
+                } else {
+                    i=0;
+                    let lastShownHeight = hs[hs.length-1];
+                    let currentInterval = 0
+                    for (let i2 in this.conf.heightIncreases){
+                        i2 = Number(i2);
+                        let hi = this.conf.heightIncreases[i2];
+                        // either show nothing, '... +10 cm' or '≥4.00 m: +10 cm'
+                        // the first is shown when the interval was already valid before and there is at least one more height with this interval before the next interval becomes effective
+                        // the latter is shown when the interval is not effective yet
+                        if (lastShownHeight<hi.heightIncreaseStartheight){
+                            arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                            i++;
+                        } else if (i2< this.conf.heightIncreases.length-1){
+                            // there is one more heightInterval after
+                            let hiNext = this.conf.heightIncreases[i2+1];
+                            // check that the next height interval is more than the interval away
+                            if (lastShownHeight + hi.heightIncrease < hiNext.heightIncreaseStartheight){
+                                arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                                i++;
+                            } else {
+                                // add nothing.
+                            }
+                        } else {
+                            // there is no other height interval or no
+                            arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                            i++;
+                        }
+                        //arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: ${hi.heightIncrease} cm`})
+                    }
+                }
+
+                return arr;
+
+            } else {
+                // simply show all current heights, as before
+                return this.sortedHeights.map(h=>{
+
+                    let heightRef = `h${h.jumpoffOrder}h${h.height}`;
+                    let label = '';
+                    if (h.jumpoffOrder==0){
+                        label = this.meterStr(h.height);
+                    } else {
+                        label = 'J: ' + this.meterStr(h.height);
+                    }
+                    return {heightRef, label};
+                });
+            }
+        },
         usedHeights: function(){
             // formerly the information about whether a height can be dleeted was stored to the height itself, which is not very smart and also used a function to be called whenever this could have changed. Instead use a computed property for that.
             
@@ -3110,13 +3306,11 @@ const cLRtechHigh = {
             // the url of the field monitor for the selected series
             return window.location.origin + '/' + getLanguage() + "/" + getMeetingShortname() + `/techHighBoard?xContest=${findGetParameter('xContest')}&xSeries=${this.selectedXSeries}`;
         },
-
-        contestWatching: function(){
-            // create a copy of the contest object to make sure that newContestObj and oldContestObj in the contest(Watching)-watcher are truly the old and new object, and not the same. 
-            return JSON.parse(JSON.stringify(this.contest));
-        },
         conf: function(){
-            return this.parseConf(this.contest.conf);
+            let o = this.parseConf(this.contest.conf);
+            // make sure that the height intervals are sorted
+            o.heightIncreases.sort((hi1, hi2)=>hi1.heightIncreaseStartheight - hi2.heightIncreaseStartheight);
+            return o;
         },
         filters: function(){
             // create a custom filter for everything that filters by name, first name and bib at the same time. (club would be nice, but is not possible with the builtin-filters, since the club would have to be part of the object structure, but only the xClub is, but not the clubs and its name.) 
@@ -3191,7 +3385,7 @@ const cLRtechHigh = {
         /* !!! properties for SERIES CREATION only !!! */
 
         seriesAssignments: function(){
-                    // filter all series assignments to show only tech high (ytype==1) assignements
+            // filter all series assignments to show only tech high (ytype==1) assignements
             return this.seriesAssignmentsAll.filter(sa=>sa.baseDisciplineTypes.indexOf(1)>=0);
         },
 
@@ -3469,18 +3663,22 @@ const cLRtechHigh = {
             }
 
         },
-        resultGridTemplate: function(){
+        resultGridTemplateCol: function(){
 
             // make sure the resultGridTemplate is updated when the xHeight is exchanged
             let i = this.fakeProperty;
 
-            let h = this.sortedHeights;
-            let s = '[rank] max-content [bib] max-content [athletes] max-content [result] max-content';
-            for (let i=0;i<h.length;i++){
-                s += ' [h' + h[i].xHeight + '] max-content'; /* the label for the line must not be a number, but a string */
+            //let h = this.sortedHeights;
+            let h = this.sortedHeightsForRes; // 2024-08-06
+            let s = '[rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content';
+            for (let h of this.sortedHeightsForRes){
+                s += ' ['+h.heightRef+'] max-content'; /* the label for the line must not be a number, but a string */
             }
             s += ' [end]';
             return s;
+        },
+        resultGridTemplateRow: function(){
+            return `repeat(${this.sortedStarts2.length+1}, max-content)`; // plus the header row
         },
         disciplineConfiguration: function(){
             // get the first discipline with matching baseDiscipline and parse its configuration

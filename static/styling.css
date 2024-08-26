@@ -891,29 +891,86 @@ summary {
     padding: .375rem .75rem; 
 }
 
+#resultsView2{
+    display: grid;
+    column-gap: 0px;
+    align-content: start;
+    justify-items: center;
+    width: max-content; /* if not set, the fixed part will still move as soon as we have scrolled the full width of the screen, since this container is only the full width, but not bexond this. With max.content, the container is larger.*/
+    /* TODO: add here overflox-x scroll and give it a certain width to make sure the scroll brar does not appear for the full width*/
+}
 #resultsView2 .result {
     padding: 0 .375rem;
-    justify-self: start; 
+    /*justify-self: start; */
     grid-column: result;
 }
 #resultsView2 .name{
     padding: 0 .375rem;
-    justify-self: start; 
+    /*justify-self: start; */
     grid-column: athletes;
 }
 #resultsView2 .bib{
     padding: 0 .375rem;
-    justify-self: center; 
+    /*justify-self: center; */
     grid-column: bib;
 }
 #resultsView2 .rank{
     padding: 0 .375rem;
-    justify-self: start; 
+    /*justify-self: start; */
     grid-column: rank;
+}
+#resultsView2 .position{
+    padding: 0 .375rem;
+    /*justify-self: start; */
+    grid-column: position;
 }
 #resultsView2 .res{
     justify-self: center;
     padding: 0 .375rem; 
+}
+#resultsView2 .leftContainer {
+    background-color: white;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    display: grid;
+    grid-template-columns: [rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content;
+    grid-template-rows: subgrid;
+    position: sticky;
+    left:0;
+    justify-self: start;
+    justify-content: start;
+    align-content: start;
+}
+#resultsView2 .topContainer {
+    background-color: white;
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: max-content;
+    position: sticky;
+    top:0;
+    justify-self: start;
+    justify-content: start;
+    align-content: start;
+    align-self: start;
+}
+#resultsView2 .placeholder {
+    visibility: hidden; /* hide, but use space*/
+}
+#resultsView2 .fullRow {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+}
+#resultsView2 .startHeightBG {
+    grid-column-start: 1;
+    justify-self: stretch;
+    background-color: rgb(240, 240, 240);
+}
+#resultsView2 .header {
+    grid-row:1;
+    padding: 0.375rem 0.375rem;
+    justify-self: stretch;
 }
 
 #meetingSelection div.headRow {
@@ -1127,6 +1184,7 @@ option:hover {
 .liveRes .contestsContainer {
     display: flex;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .liveRes .contestContainer {
@@ -1135,9 +1193,11 @@ option:hover {
     border:1px solid grey;
     border-radius: var(--border-radius, 4px);
     padding: 5px 10px;
-    max-width: 1000px;
-    /*width:500px;*/
+    box-sizing: border-box; /* make sure that there is no second horizontal scroll bar added when the width is increased to the max*/
+    max-width: 100%;
+    width:650px; /* initial width; can be resized*/
     overflow: auto;
+    resize: both; /* the user can resize the box; does not work on iOS safari... */
 }
 
 .liveRes .contestContainer th {
@@ -1307,6 +1367,8 @@ option:hover {
     display:flex; 
     align-items: stretch; 
     flex-direction: row;
+    width: 100%;
+    height: 100%;
 }
 
 .notWriting {
@@ -1320,6 +1382,9 @@ option:hover {
     color:white;
     /*padding: 10px;*/
     z-index: 1; /* some elements like the onOffSlider would otherwise be in front TODO: bad solution, since the overlay do not work properly like this! Better find a solution where the on-off-slider behaves as it should. */
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: content;
 }
 .nav .navItem {
     width:100%;
@@ -1335,8 +1400,12 @@ option:hover {
 }
 
 .main {
-    display:"block",
-
+    /*display:"block";*/
+    flex-grow: 1;
+    flex-shrink: 0;
+    flex-basis: 0;
+    width:100%;
+    overflow-x: auto; /* Overflow-x is needed here to make sure that the element does not simply grow larger when the content is too large. */
 }
 /* Menu Icon */
 .flexHeadline{
@@ -1455,9 +1524,9 @@ option:hover {
 
 @media(max-device-width:768px){
 
-    .contest {
+    /*.contest {
         flex-direction: row;
-    }
+    } for whatever reason this appeared twice... */
 
     .hideMobile {
         display: none;
@@ -1474,6 +1543,10 @@ option:hover {
 
     .contest {
         flex-direction: column;
+    }
+
+    .contest > .main {
+        flex-basis: auto; /* otherwise it will have height=0, since the height of the parent is not defined*/
     }
 
     .liveRes {
