@@ -5,62 +5,20 @@ const cLRtechHigh = {
     name:'cLRtechHigh',
     template:`
     
-<div>
-<h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h2>
-<div v-if="contest.status<90"> <!-- v-if="contest.state<90" -->
-<!--currently, the roll call is beeing done or the series are being created. Show all inscribed athletes. -->
-<h3><%= __("Startlist") %></h3>
-<v-table :data="startgroups" > <!-- :filters="filters"-->
-<template #head> <!-- # head is a shorthand for v-slot:head-->
-    <thead>
-        <tr>
-            <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
-            <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
-            <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
-            <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
-            <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
-            <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-            <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
-            <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
-            <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
-            <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
-        </tr>
-    </thead>
-</template>
-<template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-    <tbody>
-        <tr v-for="row in displayData" :key="row.xInscription">
-            <td>{{ row.bib }}</td>
-            <td>{{ row.athleteName }}</td>
-            <td>{{ row.athleteForename }}</td>
-            <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
-            <td>{{ row.sex }}</td>
-            <td>{{ row.clubName }}</td>
-            <!--<td>{{ row.country }}</td>-->
-            <td>{{formatHeight(row.notificationPerf)}}</td>
-            <td>{{formatHeight(row.bestPerfLast)}}</td>
-            <td>{{formatHeight(row.bestPerf)}}</td>
-        </tr>
-    </tbody>
-</template>
-
-</v-table>
-</div>
-
-<div v-if="contest.status>=90 && contest.status<140"> <!--  v-if="contest.state>=90 && contest.state<140" -->
-    <h3 v-if="series.length>1"><%= __("Series") %></h3>
-    <div v-for="(s,index) in series">
-        <template v-if="series.length>1"><%= __("SeriesSingular") %> {{index+1}}</template>
-        <v-table :data="s.seriesstartsresults">
+<div class="techFlex">
+    <h2 style="margin:0px">{{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}{{contest.name ? ' ' + contest.name : ''}} {{formatTime(contest.datetimeStart)}} </h2>
+    <div class="content" v-if="contest.status<90"> <!-- v-if="contest.state<90" -->
+    <!--currently, the roll call is beeing done or the series are being created. Show all inscribed athletes. -->
+        <h3><%= __("Startlist") %></h3>
+        <v-table :data="startgroups" > <!-- :filters="filters"-->
             <template #head> <!-- # head is a shorthand for v-slot:head-->
                 <thead>
                     <tr>
-                        <th is="vue:v-th" sortkey="position" defaultsort="asc">Pos.</th> 
-                        <th is="vue:v-th" sortkey="bib">Bib</th> 
-                        <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                        <th is="vue:v-th" sortkey="bib">Bib</th> <!-- is="vue:v-th is basically bthe same as <v-th   > , but the browser restricts the allowed tag names within tables, thus we need to use this syntax! Otherwise the browser will shift this outside"-->
+                        <th is="vue:v-th" sortkey="athleteName" defaultsort="asc"><%= __('Name') %></th>
                         <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
                         <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
-                        <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
+                        <th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>
                         <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                         <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
                         <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
@@ -72,225 +30,266 @@ const cLRtechHigh = {
             <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
                 <tbody>
                     <tr v-for="row in displayData" :key="row.xInscription">
-                        <td>{{ row.position }}</td>
-                        <td>{{auxData.xStartgroup[row.xStartgroup].bib}}</td>
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].athleteName }}</td>
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].athleteForename }}</td>
-                        <td>{{ getYearShort(auxData.xStartgroup[row.xStartgroup].birthdate) }}</td><!--only take the last two digits-->
-                        <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
-                        <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
+                        <td>{{ row.bib }}</td>
+                        <td>{{ row.athleteName }}</td>
+                        <td>{{ row.athleteForename }}</td>
+                        <td>{{ getYearShort(row.birthdate) }}</td><!--only take the last two digits-->
+                        <td>{{ row.sex }}</td>
+                        <td>{{ row.clubName }}</td>
+                        <!--<td>{{ row.country }}</td>-->
+                        <td>{{formatHeight(row.notificationPerf)}}</td>
+                        <td>{{formatHeight(row.bestPerfLast)}}</td>
+                        <td>{{formatHeight(row.bestPerf)}}</td>
                     </tr>
                 </tbody>
             </template>
-
         </v-table>
     </div>
-</div>
 
-
-<div v-if="contest.status>=140">
-    <div v-if="series.length>1">
-        <%= __("SeriesSingular") %> 
-        <select class="content dropdown" v-model="selectedSeries" v-on:change="selectedSeriesChanged">
-            <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesIndex">
-                {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
-            </option>
-        </select>
-    </div>
-
-    <div v-if="mode<1 || series[selectedSeries].status<140">
-        <v-table :data="series[selectedSeries].seriesstartsresults">
-            <template #head> <!-- # head is a shorthand for v-slot:head-->
-                <thead>
-                    <tr>
-                        <th is="vue:v-th" sortkey="position" defaultsort="asc">Position</th> 
-                        <th is="vue:v-th" sortkey="bib">Bib</th> 
-                        <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
-                        <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
-                        <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
-                        <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
-                        <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
-                        <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
-                        <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
-                        <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
-                        <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                <tbody>
-                    <tr v-for="row in displayData" :key="row.xInscription">
-                        <td>{{ row.position }}</td>
-                        <td>{{auxData.xStartgroup[row.xStartgroup].bib}}</td>
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].athleteName }}</td>
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].athleteForename }}</td>
-                        <td>{{ getYearShort(auxData.xStartgroup[row.xStartgroup].birthdate) }}</td><!--only take the last two digits-->
-                        <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
-                        <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
-                        <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
-                        <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
-                    </tr>
-                </tbody>
-            </template>
-
-        </v-table>
-    </div>
-    <div v-else><!-- competition is running -->
-    
-        <div class="dataType"><%= __("Results") %></div>
-        <div class="live" v-if="mode<3 && positionNext.length>0">
-            <div class="attempt">{{meterStr(currentHeight)}} m - <%= __("Attempt") %> {{attempt2}}</div>
-            <div class="text" v-if="(!resultOnCurrentHeight) && (!roomAuxDataSelected.periodStartTime || !roomAuxDataSelected.showAttemptPeriod)">
-                <%= __("Next up: {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}}") %>
-            </div>
-            <div class="text" v-if="(!resultOnCurrentHeight) && roomAuxDataSelected.periodStartTime && roomAuxDataSelected.showAttemptPeriod">
-                <%= __("Now jumping: {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} ...") %> {{shownTime}}
-            </div>
-            <div class="text failed" v-if="resultOnCurrentHeight=='X'">
-                <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} has failed") %>
-            </div>
-            <div class="text cleared" v-if="resultOnCurrentHeight=='O'">
-                <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} has cleared the height!") %>
-            </div>
-            <div class="text" v-if="resultOnCurrentHeight=='-'">
-                <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} passes this height") %>
-            </div>
-            <div class="text" v-if="resultOnCurrentHeight && positionNext.length>1">
-                <%= __("Next up: {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteName}}") %>
-            </div>
-        </div>
-
-        <div style="overflow-x: auto;">
-            <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
-                <!-- table view of the results with a grid layout -->
-
-                <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
-                <div class="rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    <%= __("Rank") %>
-                </div>
-                <div class="position placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    <%= __("Position") %>
-                </div>
-                <div class="bib hideMobile placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    <%= __("Bib") %>
-                </div>
-                <div class="name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    <%= __("Name") %>
-                </div>
-                <div class="result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    <%= __("Result") %>
-                </div>
-
-                <!-- named lines are created in Vue-->
-                <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
-                <template v-for="(startIndex, sortIndex) in sortedStarts2">
-
-                    <!-- indicate the startheight by applying a grey background until the height -->
-                    <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
-                    </div>
-                    
-                    <div class="rank placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                        {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
-                    </div>
-                    <div class="position placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                        {{series[selectedSeries].seriesstartsresults[startIndex].position}}
-                    </div>
-                    <div class="bib placeholder hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
-                    </div>
-                    <div class="name placeholder"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
-                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
-                    </div>
-                    <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                        {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
-                    </div>
-                    <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                        <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}">
-                            {{resultToStr(hRes)}}
-                        </div>
-                    </template>
+    <div class="content" v-if="contest.status>=90 && contest.status<140"> <!--  v-if="contest.state>=90 && contest.state<140" -->
+        <h3 v-if="series.length>1"><%= __("Series") %></h3>
+        <div v-for="(s,index) in series">
+            <template v-if="series.length>1"><%= __("SeriesSingular") %> {{index+1}}</template>
+            <v-table :data="s.seriesstartsresults">
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="position" defaultsort="asc">Pos.</th> 
+                            <th is="vue:v-th" sortkey="bib">Bib</th> 
+                            <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                            <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                            <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                            <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
+                            <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                            <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                            <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
+                            <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                            <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody>
+                        <tr v-for="row in displayData" :key="row.xInscription">
+                            <td>{{ row.position }}</td>
+                            <td>{{auxData.xStartgroup[row.xStartgroup].bib}}</td>
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].athleteName }}</td>
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].athleteForename }}</td>
+                            <td>{{ getYearShort(auxData.xStartgroup[row.xStartgroup].birthdate) }}</td><!--only take the last two digits-->
+                            <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
+                            <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
+                        </tr>
+                    </tbody>
                 </template>
 
-                <!-- top, sticky container with column lables, i.e. heights -->
-                <div class="topContainer">
+            </v-table>
+        </div>
+    </div>
 
-                    <!-- the heights -->
-                    <template v-for="h in sortedHeightsForRes">
-                        <div v-bind:style="{'grid-column':h.heightRef}" class="header">{{h.label}}</div>
-                    </template>
+
+    <template  v-if="contest.status>=140">
+        <template v-if="series.length>1">
+            <%= __("SeriesSingular") %> 
+            <select class="content dropdown" v-model="selectedSeries" v-on:change="selectedSeriesChanged">
+                <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesIndex">
+                    {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
+                </option>
+            </select>
+        </template>
+
+        <template v-if="mode<1 || series[selectedSeries].status<140">
+            <v-table :data="series[selectedSeries].seriesstartsresults">
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="position" defaultsort="asc">Position</th> 
+                            <th is="vue:v-th" sortkey="bib">Bib</th> 
+                            <th is="vue:v-th" sortkey="athleteName"><%= __('Name') %></th>
+                            <th is="vue:v-th" sortkey="athleteForename"><%= __('First name') %></th>
+                            <th is="vue:v-th" sortkey="birthdate"><%= __('Year') %></th>
+                            <!--<th is="vue:v-th" sortkey="sex"><%= __('Sex') %></th>-->
+                            <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
+                            <!--<th is="vue:v-th" sortkey="country"><%= __('Country') %></th>-->
+                            <th is="vue:v-th" sortkey="notificationPerf"><%= __("Registration value") %></th>
+                            <th is="vue:v-th" sortkey="bestPerfLast"><%= __("SB") %></th>
+                            <th is="vue:v-th" sortkey="bestPerf"><%= __("PB") %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody>
+                        <tr v-for="row in displayData" :key="row.xInscription">
+                            <td>{{ row.position }}</td>
+                            <td>{{auxData.xStartgroup[row.xStartgroup].bib}}</td>
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].athleteName }}</td>
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].athleteForename }}</td>
+                            <td>{{ getYearShort(auxData.xStartgroup[row.xStartgroup].birthdate) }}</td><!--only take the last two digits-->
+                            <!--<td>{{ auxData.xStartgroup[row.xStartgroup].sex }}</td>-->
+                            <td>{{ auxData.xStartgroup[row.xStartgroup].clubName }}</td>
+                            <!--<td>{{ auxData.xStartgroup[row.xStartgroup].country }}</td>-->
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].notificationPerf)}}</td>
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerfLast)}}</td>
+                            <td>{{formatHeight(auxData.xStartgroup[row.xStartgroup].bestPerf)}}</td>
+                        </tr>
+                    </tbody>
+                </template>
+
+            </v-table>
+        </template>
+        <template v-else><!-- competition is running -->
+        
+            <div class="dataType"><%= __("Results") %></div>
+            <div class="live" v-if="mode<3 && positionNext.length>0">
+                <div class="attempt">{{meterStr(currentHeight)}} m - <%= __("Attempt") %> {{attempt2}}</div>
+                <div class="text" v-if="(!resultOnCurrentHeight) && (!roomAuxDataSelected.periodStartTime || !roomAuxDataSelected.showAttemptPeriod)">
+                    <%= __("Next up: {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}}") %>
                 </div>
+                <div class="text" v-if="(!resultOnCurrentHeight) && roomAuxDataSelected.periodStartTime && roomAuxDataSelected.showAttemptPeriod">
+                    <%= __("Now jumping: {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} ...") %> {{shownTime}}
+                </div>
+                <div class="text failed" v-if="resultOnCurrentHeight=='X'">
+                    <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} has failed") %>
+                </div>
+                <div class="text cleared" v-if="resultOnCurrentHeight=='O'">
+                    <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} has cleared the height!") %>
+                </div>
+                <div class="text" v-if="resultOnCurrentHeight=='-'">
+                    <%= __("{{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[currentAthleteStart.xStartgroup].athleteName}} passes this height") %>
+                </div>
+                <div class="text" v-if="resultOnCurrentHeight && positionNext.length>1">
+                    <%= __("Next up: {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteForename}} {{auxData.xStartgroup[nextAthleteStart.xStartgroup].athleteName}}") %>
+                </div>
+            </div>
 
-                <!-- left, sticky container with shown name etc -->
-                <div class="leftContainer">
+            <div style="overflow: auto; height:100%;"> <!--style="overflow-x: auto;"-->
+                <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
+                    <!-- table view of the results with a grid layout -->
+
+                    <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
+                    <div class="rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        <%= __("Rank") %>
+                    </div>
+                    <div class="position placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        <%= __("Position") %>
+                    </div>
+                    <div class="bib hideMobile placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        <%= __("Bib") %>
+                    </div>
+                    <div class="name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        <%= __("Name") %>
+                    </div>
+                    <div class="result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        <%= __("Result") %>
+                    </div>
+
+                    <!-- named lines are created in Vue-->
+                    <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
                     <template v-for="(startIndex, sortIndex) in sortedStarts2">
-                        <!-- background (show finished only as long as the competition is not finished yet)-->
-                        <div class="fullRow"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
+
+                        <!-- indicate the startheight by applying a grey background until the height -->
+                        <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
                         </div>
                         
-                        <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        <div class="rank placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                             {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
                         </div>
-                        <div class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        <div class="position placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                             {{series[selectedSeries].seriesstartsresults[startIndex].position}}
                         </div>
-                        <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        <div class="bib placeholder hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                             {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
                         </div>
-                        <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                        <div class="name placeholder"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
                             {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
                         </div>
-                        <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                        <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                             {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
                         </div>
+                        <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
+                            <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}">
+                                {{resultToStr(hRes)}}
+                            </div>
+                        </template>
                     </template>
 
+                    <!-- top, sticky container with column lables, i.e. heights -->
                     <div class="topContainer">
-                        <div class="rank header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
-                            <%= __("Rank") %>
-                        </div>
-                        <div class="position header clickable" style="grid-row:1" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
-                            <%= __("Position") %>
-                        </div>
-                        <div class="bib header hideMobile clickable" style="grid-row:1" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
-                            <%= __("Bib") %>
-                        </div>
-                        <div class="name header clickable" style="grid-row:1" v-on:click="sortValue2=3"> <!--style="justify-self: start; grid-column: rank"-->
-                            <%= __("Name") %>
-                        </div>
-                        <div class="result header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
-                            <%= __("Result") %>
+
+                        <!-- the heights -->
+                        <template v-for="h in sortedHeightsForRes">
+                            <div v-bind:style="{'grid-column':h.heightRef}" class="header">{{h.label}}</div>
+                        </template>
+                    </div>
+
+                    <!-- left, sticky container with shown name etc -->
+                    <div class="leftContainer">
+                        <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                            <!-- background (show finished only as long as the competition is not finished yet)-->
+                            <div class="fullRow"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
+                            </div>
+                            
+                            <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                            </div>
+                            <div class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{series[selectedSeries].seriesstartsresults[startIndex].position}}
+                            </div>
+                            <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
+                            </div>
+                            <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
+                                {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
+                            </div>
+                            <div class="result" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
+                            </div>
+                        </template>
+
+                        <div class="topContainer">
+                            <div class="rank header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Rank") %>
+                            </div>
+                            <div class="position header clickable" style="grid-row:1" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Position") %>
+                            </div>
+                            <div class="bib header hideMobile clickable" style="grid-row:1" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Bib") %>
+                            </div>
+                            <div class="name header clickable" style="grid-row:1" v-on:click="sortValue2=3"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Name") %>
+                            </div>
+                            <div class="result header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Result") %>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- placeholder for top row (=header) -->
-                <!-- titles for left columns -->
-                <div class="header rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    Rank
-                </div>
-                <div class="header bib placeholder hideMobile" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    Bib
-                </div>
-                <div class="header name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    Name
-                </div>
-                <div class="header result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                    Result
-                </div>
-                <template v-for="h in sortedHeightsForRes">
-                    <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
-                </template>
+                    <!-- placeholder for top row (=header) -->
+                    <!-- titles for left columns -->
+                    <div class="header rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        Rank
+                    </div>
+                    <div class="header bib placeholder hideMobile" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        Bib
+                    </div>
+                    <div class="header name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        Name
+                    </div>
+                    <div class="header result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
+                        Result
+                    </div>
+                    <template v-for="h in sortedHeightsForRes">
+                        <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
+                    </template>
 
+                </div>
             </div>
-        </div>
-    </div>
-</div>
+        </template>
+    </template>
 
 </div>
     `, 

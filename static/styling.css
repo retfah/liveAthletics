@@ -1188,14 +1188,14 @@ option:hover {
 }
 
 .liveRes .contestContainer {
-    position: relative;
     margin: 5px;
     border:1px solid grey;
     border-radius: var(--border-radius, 4px);
     padding: 5px 10px;
     box-sizing: border-box; /* make sure that there is no second horizontal scroll bar added when the width is increased to the max*/
     max-width: 100%;
-    width:650px; /* initial width; can be resized*/
+    /*width:650px; /* initial width; can be resized*/
+    height:fit-content;
     overflow: auto;
     resize: both; /* the user can resize the box; does not work on iOS safari... */
 }
@@ -1213,6 +1213,16 @@ option:hover {
 .liveRes .hideDesktop .close {
 
 }
+
+.liveRes .techFlex {
+    display: flex;
+    flex-direction: column;
+    max-height:100%;
+}
+.liveRes .techFlex>h2{
+    flex:0 0 auto; /* neither shrink nor grow */
+}
+
 
 .liveRes .contestContainer:hover .close {
     display:block;
@@ -1368,7 +1378,6 @@ option:hover {
     align-items: stretch; 
     flex-direction: row;
     width: 100%;
-    height: 100%;
 }
 
 .notWriting {
@@ -1404,8 +1413,10 @@ option:hover {
     flex-grow: 1;
     flex-shrink: 0;
     flex-basis: 0;
-    width:100%;
-    overflow-x: auto; /* Overflow-x is needed here to make sure that the element does not simply grow larger when the content is too large. */
+    min-width: 1px;
+    max-height: 100vh;
+    /*width:100%;*/
+    /*overflow-x: auto; /* Overflow-x would be needed here to make sure that the element does not simply grow larger when the content is too large. However, the elements that might be voersized should better simply have its own oversize definition. */
 }
 /* Menu Icon */
 .flexHeadline{
@@ -1539,6 +1550,7 @@ option:hover {
     .nav.shown{
         max-height: 100% ; /* transitions are only possible when this is set to a fixed value; not with max-content and 100% seems to work only if we had position:fixed */
         /*height:auto !important;*/
+        display: block;
     }
 
     .contest {
@@ -1567,7 +1579,8 @@ option:hover {
         overflow: scroll; */
         max-height: 0px; /* does not work with 0%, but with 0, and 0px */
         /*height: 0px;*/
-        overflow: hidden;
+        /*overflow: hidden;*/
+        display:none;
         /*transition: max-height 1.0s ease-out;*/
     }
 }

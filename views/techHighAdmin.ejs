@@ -228,7 +228,7 @@
             
             <!-- TODO: create a general view for series assignment, apart of the initial assignment (to be shown when 60<=states<=89 and at least one series exists)  -->
             
-            <div v-if="contest.status>=60 && contest.status<=89 && show=='series'">
+            <template v-if="contest.status>=60 && contest.status<=89 && show=='series'">
                 <button class="btn" v-if="series.length==0" v-on:click="showInitialSeriesAssignment()" :disabled="readOnly"><%= __("Create Series") %></button>
                 <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
                 <button type="button" onclick="printSeriesTechHigh()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
@@ -317,7 +317,7 @@
                     </div>
         
                 </div>
-            </div> 
+            </template> 
 
             <div v-if="show=='settings'">
                 <h2><%= __('Settings') %></h2>
@@ -326,7 +326,7 @@
 
             </div>
     
-            <div v-if="contest.status>=95 && series.length>0"><!-- && contest.status<=180 -->
+            <template v-if="contest.status>=95 && series.length>0"><!-- && contest.status<=180 -->
     
     
                 <div v-if="show=='settings'" id="settings" style="width:100%">
@@ -696,7 +696,7 @@
                         </template>
                     </div>
                 </div>
-                <div v-if="show=='resShow'">
+                <template v-if="show=='resShow'">
                     <h2><%= __("Results (table view)") %>:</h2>
                     <!--<%= __("Sorting") %>: 
                     <select v-model="sortValue2" class="dropdown marginS">
@@ -705,7 +705,7 @@
                         <option value="3"><%= __("Name") %></option>
                         <option value="4"><%= __("Bib") %></option>
                     </select>-->
-                    <div style="overflow-x: auto;">
+                    <div style="overflow: auto; max-height:100vh; scrollbar-width: thin;">
                         <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
                             <!-- table view of the results with a grid layout -->
 
@@ -828,9 +828,9 @@
 
                         </div>
                     </div>
-                </div>
+                </template>
 
-            </div>
+            </template>
     
             <!-- Overlay for the initial series assignment: -->
             <div class="overlay" v-bind:class="{shown: overlay2}">
