@@ -58,6 +58,7 @@ import express from 'express';
 import parseurl from 'parseurl';
 import http from 'http';
 import https from 'https';
+import net from 'net';
 import path from 'path';
 import session from 'express-session';
 import cookieParser  from 'cookie-parser';
@@ -1513,23 +1514,28 @@ function getMeetingDataProviderData(){
 
 /**
  * Redirect the subdomain www. to the main domain and http to https, if activated
+ * ATTENTION: make sure that the local network IPs are routed correctly!
  */
 app.get ('*', (req, res, next)=>{
-	let parts = req.headers.host.split('.');
-	if(parts.length>2){ 
-		// redirect 301 (moved permanently)
-		if (conf.https===null || req.secure){
-			res.redirect(301, 'https://' + parts.slice(-2).join('.') + req.url);
-		} else {
-			res.redirect(301, 'http://' + parts.slice(-2).join('.') + req.url);
-		}
+	if (net.isIP(req.headers.host)){
+		next();
 	} else {
-		if (conf.https===null || req.secure){
-			next();
+		let parts = req.headers.host.split('.');
+		if(parts.length>2){ 
+			// redirect 301 (moved permanently)
+			if (conf.https!==null && req.secure==false){
+				res.redirect(301, 'https://' + parts.slice(-2).join('.') + req.url);
+			} else {
+				next();
+			}
 		} else {
-			res.redirect(301, 'https://' + req.hostname + req.url);
-		} 
-	}  
+			if (conf.https!==null && req.secure==false){
+				res.redirect(301, 'https://' + req.hostname + req.url);
+			} else {
+				next();
+			} 
+		}  
+	}
 })
 
 /**
