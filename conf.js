@@ -30,15 +30,15 @@ export default {
     // minLevel: optional, lowest logged level (default=0=no min)
     // path: required if type='file'; must not contain any strings that cannot be part of filenames, e.g. ':'; NOTE: it might happen that a few logs during the start of the server are not logged, since the file is opened asynchronously!
 
-    loggers: [{type:'console', maxLevel:97}, {type:'file', path:`./log/log ${(new Date).toISOString().slice(0,19).replaceAll(':','')}.txt`}], // no : in file names! (at least on windows)
+    loggers: [{type:'console', maxLevel:92}, {type:'file', path:`./log/log ${(new Date).toISOString().slice(0,19).replaceAll(':','')}.txt`}], // no : in file names! (at least on windows)
 
     // DB settings
     database: {
-        username: "athletica",
-        password: "athletica", 
+        username: "liveAthletics",
+        password: "liveAthletics", 
         host: "localhost",
-        port: "3305", // mysql on 3306, mariadb currently on 3305
-        dbBaseName: "athletica2",
+        port: "3306", // mariadb currently on 3306
+        dbBaseName: "liveAthleticsBase",
         dbMeetingPrefix: 'a2', // prefix to make sure no other database exists with the name "prefix_shortname"
         dbAdminSuffix: "admin",
         /*dbEmptySuffix: "emptyMeeting",*/
@@ -49,7 +49,7 @@ export default {
         version: 1, // i.a. stored along with data-backups
         versionMinForRestore: 1, // minimum required version for restore.
         timezone: 'Europe/Zurich', //https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-        pathToDumpScript:'C:/Program Files/MariaDB 10.6/bin/mariadb-dump', // for linux only the final name is needed
+        pathToDumpScript:'mariadb-dump', // if the folder is added to path, only the final name is needed. Otherwise the full path
     },
 
     databaseMongo: {
