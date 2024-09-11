@@ -805,5 +805,10 @@
 	"Update current performance with base data": "Aktuelle Leistungen mit Basisdaten aktualisieren",
 	"Print lane": "Print lane",
 	"Print reaction time": "Print reaction time",
-	"Resultat": "Resultat"
+	"Resultat": "Resultat",
+	"Rank abbr.": "Rng",
+	"Position abbr.": "Pos",
+	"Bib abbr.": "Stnr",
+	"Result abbr.": "Res",
+	"Name abbr.": "Name abbr."
 }

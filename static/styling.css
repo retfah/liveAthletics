@@ -898,42 +898,45 @@ summary {
     justify-items: center;
     width: max-content; /* if not set, the fixed part will still move as soon as we have scrolled the full width of the screen, since this container is only the full width, but not bexond this. With max.content, the container is larger.*/
     /* TODO: add here overflox-x scroll and give it a certain width to make sure the scroll brar does not appear for the full width*/
+    line-height: 1.1rem;
 }
 #resultsView2 .result {
-    padding: 0 .375rem;
-    /*justify-self: start; */
+    margin: .2rem;
+    justify-self: start; 
     grid-column: result;
 }
 #resultsView2 .name{
-    padding: 0 .375rem;
-    /*justify-self: start; */
+    margin: .2rem;
+    justify-self: start; 
     grid-column: athletes;
 }
 #resultsView2 .bib{
-    padding: 0 .375rem;
-    /*justify-self: center; */
+    margin: .2rem;
+    justify-self: center; 
     grid-column: bib;
 }
 #resultsView2 .rank{
-    padding: 0 .375rem;
-    /*justify-self: start; */
+    margin: .2rem;
+    justify-self: center; 
     grid-column: rank;
 }
 #resultsView2 .position{
-    padding: 0 .375rem;
-    /*justify-self: start; */
+    margin: .2rem;
+    justify-self: center;
     grid-column: position;
 }
-#resultsView2 .res{
-    justify-self: center;
-    padding: 0 .375rem; 
+#resultsView2 .res, #resultsView2 .PBhint, #resultsView2 .SBhint {
+    text-align: center;
+    padding: .2rem;
 }
 #resultsView2 .leftContainer {
     background-color: white;
-    grid-column: 1 / -1;
+    /*grid-column: 1 / -1;*/
+    grid-column: 4 / -1;
     grid-row: 1 / -1;
     display: grid;
-    grid-template-columns: [rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content;
+    /*grid-template-columns: [rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content; /* we keep the same template to make sure that we can use the regular classes for column assignment*/
+    grid-template-columns:  [athletes] max-content [result] max-content;
     grid-template-rows: subgrid;
     position: sticky;
     left:0;
@@ -962,15 +965,22 @@ summary {
     grid-column: 1 / -1;
     justify-self: stretch;
 }
+#resultsView2 .leftTitles {
+    grid-column: 1 / 6;
+    justify-self: stretch;
+}
 #resultsView2 .startHeightBG {
-    grid-column-start: 1;
+    grid-column-start: 5;
     justify-self: stretch;
     background-color: rgb(240, 240, 240);
+    border: 1px solid white;
+    /*border-bottom: 1px solid white;*/
 }
 #resultsView2 .header {
     grid-row:1;
-    padding: 0.375rem 0.375rem;
+    margin: 0.4rem 0.2rem 0.375rem;
     justify-self: stretch;
+    font-weight: bold;
 }
 
 #meetingSelection div.headRow {
@@ -1119,16 +1129,35 @@ summary {
 /* the contest class is needed to apply this only on the admin pages and not on the board (which has its own next and current) */
 .contest .current, .contestContainer .current {
     /* some formatting to highlight the current athletes in lists */
-    background-color: #20c997;
+    background-color: #699edb;
 }
 
 .contest .next, .contestContainer .next {
     /* some formatting to highlight the current athletes in lists */
-    background-color: #97e4cd;
+    background-color: #c1d8f1;
 }
-.contest .finished {
+.finished {
     /* not in competition anymore */
     background-color: rgb(207, 207, 207);
+}
+
+.PB {
+    background-color: #20c997 !important; /* important shall override SB */
+    border: 1px solid white;
+    /*border-bottom: 1px solid white;*/
+    justify-self: stretch;
+}
+.SB {
+    background-color: #97e4cd;
+    border: 1px solid white;
+    /*border-bottom: 1px solid white;*/
+    justify-self: stretch;
+}
+.PBhint {
+    color: rgba(33, 201, 151, 0.4) !important; /* important shall override SB */
+}
+.SBhint {
+    color: rgba(151, 228, 205, 0.7);
 }
 
 .selectTable{
@@ -1198,6 +1227,7 @@ option:hover {
     height:fit-content;
     overflow: auto;
     resize: both; /* the user can resize the box; does not work on iOS safari... */
+    position: relative; /* needed to make sure that absolute positioned childs (e.g. the close button) are in reference to this box*/
 }
 
 .liveRes .contestContainer th {
@@ -1565,6 +1595,9 @@ option:hover {
         display: flex;
         flex-direction: column;
         /*height: 100%;*/
+    }
+    #resultsView2 .name{
+        max-width:120px
     }
 
     .nav{

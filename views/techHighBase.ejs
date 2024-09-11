@@ -2649,6 +2649,47 @@
                     let h=this.series[this.selectedSeries].heights.find(h=>h.xHeight==xHeight);
                     return `h${h.jumpoffOrder}h${h.height}`;
                 },
+                height(xHeight){
+                    // return the height in cm for the given xHeight
+                    let h=this.series[this.selectedSeries].heights.find(h=>h.xHeight==xHeight);
+                    return h.height;
+                },
+                bgInfo(SSR){
+                    // return an array with all infoa to show in the background, e.g. PB, SB
+                    // each entry must contain the text, class and columnReference to be applied 
+                    let arr = [];
+
+                    let aux = this.auxData.xStartgroup[SSR.xStartgroup]
+                    let h;
+                    let text;
+                    // first, check if the PB can be found
+                    if (aux.bestPerf && aux.bestPerf>0){
+                        h = this.sortedHeightsForRes.find(el=>el.height && el.height>=aux.bestPerf); // the height is not necessarily shown
+                        if (h){
+                            text = "<%= __('PB') %>";
+                            if (h.height == aux.bestPerf){
+                                text = "=" + text;
+                            } 
+                            arr.push({text, class:'PBhint', columnReference:h.heightRef})
+                        }
+                    }
+
+                    // second, check for SB and only add it, if there is either no PB or the PB is shown at a higher height
+                    if (aux.bestPerfLast && aux.bestPerfLast>0){
+                        let h2 = this.sortedHeightsForRes.find(el=>el.height && el.height>=aux.bestPerfLast); // the height is not necessarily shown
+                        if (h2){
+                            text = "<%= __('SB') %>";
+                            if (h2.height == aux.bestPerfLast){
+                                text = "=" + text;
+                            } 
+                            if (h && h.height != h2.height){
+                                arr.push({text, class:'SBhint', columnReference:h2.heightRef});
+                            }
+                        }
+                    }
+
+                    return arr;
+                },
             },
             watch:{
                 mode: {
@@ -2862,7 +2903,7 @@
                 },
 
                 sortedHeightsForRes: function(){
-                    // return a sorted array with objects like {heightRef:'h0:410', label:'4.10 m'}, {heightRef:'h2:425', label:'J: 4.25 m'}, {heightRef:'intervalInfo1', label:'... +10 cm'}
+                    // return a sorted array with objects like {heightRef:'h0:410', label:'4.10 m', height:410}, {heightRef:'h2:425', label:'J: 4.25 m', height:425}, {heightRef:'intervalInfo1', label:'... +10 cm'}
                     // mode 0 or 1: create all heights up to max(max Starttheight, currentHeight) ; additionally add interval info above
 
                     if (this.mode<=1){
@@ -2885,14 +2926,14 @@
                         let i = this.allHeights.indexOf(maxShownHeight);
 
                         let hs = this.allHeights.slice(0, i+1);
-                        let arr = hs.map(h=>{return {heightRef: `h0h${h}`, label: this.meterStr(h)}})
+                        let arr = hs.map(h=>{return {heightRef: `h0h${h}`, label: this.meterStr(h), height:h}})
 
                         // add info about interval
                         if (hs.length==0){
                             // there is no current interval yet; simply add all intervals
                             i=0;
                             for (let hi of this.conf.heightIncreases){
-                                arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                                arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`, height:null});
                                 i++;
                             }
                         } else {
@@ -2906,21 +2947,21 @@
                                 // the first is shown when the interval was already valid before and there is at least one more height with this interval before the next interval becomes effective
                                 // the latter is shown when the interval is not effective yet
                                 if (lastShownHeight<hi.heightIncreaseStartheight){
-                                    arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`});
+                                    arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: +${hi.heightIncrease} cm`, height:null});
                                     i++;
                                 } else if (i2< this.conf.heightIncreases.length-1){
                                     // there is one more heightInterval after
                                     let hiNext = this.conf.heightIncreases[i2+1];
                                     // check that the next height interval is more than the interval away
                                     if (lastShownHeight + hi.heightIncrease < hiNext.heightIncreaseStartheight){
-                                        arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                                        arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`, height:null});
                                         i++;
                                     } else {
                                         // add nothing.
                                     }
                                 } else {
                                     // there is no other height interval or no
-                                    arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`});
+                                    arr.push({heightRef:`intervalInfo${i}`, label:`...+${hi.heightIncrease} cm`, height:null});
                                     i++;
                                 }
                                 //arr.push({heightRef:`intervalInfo${i}`, label:`≥${this.meterStr(hi.heightIncreaseStartheight)}: ${hi.heightIncrease} cm`})
@@ -2940,7 +2981,7 @@
                             } else {
                                 label = 'J: ' + this.meterStr(h.height);
                             }
-                            return {heightRef, label};
+                            return {heightRef, label, height:h.height};
                         });
                     }
                 },

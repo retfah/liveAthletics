@@ -710,37 +710,40 @@
                             <!-- table view of the results with a grid layout -->
 
                             <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
-                            <div class="rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                <%= __("Rank") %>
+                            <div class="rank placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Rank abbr.") %>
                             </div>
-                            <div class="position placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                <%= __("Position") %>
+                            <div v-if="contest.status<180" class="position placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Position abbr.") %>
                             </div>
-                            <div class="bib hideMobile placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                <%= __("Bib") %>
+                            <div class="bib hideMobile placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Bib abbr.") %>
                             </div>
-                            <div class="name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                <%= __("Name") %>
+                            <div class="name placeholder header" > <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Name abbr.") %>
                             </div>
-                            <div class="result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                <%= __("Result") %>
+                            <div class="result placeholder header " > <!--style="justify-self: start; grid-column: rank"-->
+                                <%= __("Result abbr.") %>
                             </div>
             
                             <!-- named lines are created in Vue-->
                             <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
                             <template v-for="(startIndex, sortIndex) in sortedStarts2">
+                                <!-- background (show finished only as long as the competition is not finished yet)-->
+                                <div class="leftTitles"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
+                                </div>
 
                                 <!-- indicate the startheight by applying a grey background until the height -->
                                 <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
                                 </div>
-                                
-                                <div class="rank placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+
+                                <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
                                 </div>
-                                <div class="position placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                <div v-if="contest.status<180" class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{series[selectedSeries].seriesstartsresults[startIndex].position}}
                                 </div>
-                                <div class="bib placeholder hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
+                                <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
                                 </div>
                                 <div class="name placeholder"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"> <!--style="justify-self: start; grid-column: athletes"-->
@@ -749,8 +752,15 @@
                                 <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
                                 </div>
+                                <!-- add remarks for PB and SB; since they are below a potential result and have the same color, they do not need to be hidden if there is a result -->
+                                <template v-for="info in bgInfo(series[selectedSeries].seriesstartsresults[startIndex])">
+                                    <div v-bind:class="info.class" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': info.columnReference}">
+                                        {{info.text}}
+                                    </div>
+                                </template>
+
                                 <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}">
+                                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}" v-bind:class="{PB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf, SB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && hRes.height>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast}">
                                         {{resultToStr(hRes)}}
                                     </div>
                                 </template>
@@ -758,6 +768,16 @@
 
                             <!-- top, sticky container with column lables, i.e. heights -->
                             <div class="topContainer">
+
+                                <div class="rank header clickable" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
+                                    <%= __("Rank abbr.") %>
+                                </div>
+                                <div v-if="contest.status<180" class="position header clickable" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
+                                    <%= __("Position abbr.") %>
+                                </div>
+                                <div class="bib header hideMobile clickable" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
+                                    <%= __("Bib abbr.") %>
+                                </div>
 
                                 <!-- the heights -->
                                 <template v-for="h in sortedHeightsForRes">
@@ -771,16 +791,6 @@
                                     <!-- background (show finished only as long as the competition is not finished yet)-->
                                     <div class="fullRow"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
                                     </div>
-                                    
-                                    <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                        {{rankLocalizer(tempRankingData[series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
-                                    </div>
-                                    <div class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                        {{series[selectedSeries].seriesstartsresults[startIndex].position}}
-                                    </div>
-                                    <div class="bib hideMobile" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                        {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}
-                                    </div>
                                     <div class="name"  v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: athletes"-->
                                         {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}
                                     </div>
@@ -790,38 +800,24 @@
                                 </template>
 
                                 <div class="topContainer">
-                                    <div class="rank header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
-                                        <%= __("Rank") %>
-                                    </div>
-                                    <div class="position header clickable" style="grid-row:1" v-on:click="sortValue2=1"> <!--style="justify-self: start; grid-column: rank"-->
-                                        <%= __("Position") %>
-                                    </div>
-                                    <div class="bib header hideMobile clickable" style="grid-row:1" v-on:click="sortValue2=4"> <!--style="justify-self: start; grid-column: rank"-->
-                                        <%= __("Bib") %>
-                                    </div>
                                     <div class="name header clickable" style="grid-row:1" v-on:click="sortValue2=3"> <!--style="justify-self: start; grid-column: rank"-->
                                         <%= __("Name") %>
                                     </div>
                                     <div class="result header clickable" style="grid-row:1" v-on:click="sortValue2=2"> <!--style="justify-self: start; grid-column: rank"-->
-                                        <%= __("Result") %>
+                                        <%= __("Result abbr.") %>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- placeholder for top row (=header) -->
                             <!-- titles for left columns -->
-                            <div class="header rank placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                Rank
+                             
+                            <!--<div class="header name placeholder" style="grid-row:1"> 
+                                <%= __("Name") %>
                             </div>
-                            <div class="header bib placeholder hideMobile" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                Bib
-                            </div>
-                            <div class="header name placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                Name
-                            </div>
-                            <div class="header result placeholder" style="grid-row:1"> <!--style="justify-self: start; grid-column: rank"-->
-                                Result
-                            </div>
+                            <div class="header result placeholder" style="grid-row:1"> 
+                                <%= __("Result abbr.") %>
+                            </div>-->
                             <template v-for="h in sortedHeightsForRes">
                                 <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
                             </template>
