@@ -1146,12 +1146,17 @@ summary {
     border: 1px solid white;
     /*border-bottom: 1px solid white;*/
     justify-self: stretch;
+    font-weight: 550;
+}
+.tie {
+    background:linear-gradient(rgba(255,255,255,0) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,1) 40%, rgba(255,255,255,1) 44%, rgba(255,255,255,0) 44%, rgba(255,255,255,0) 56%, rgba(255,255,255,1) 56%, rgba(255,255,255,1) 60%, rgba(255,255,255,0) 60%)
 }
 .SB {
     background-color: #97e4cd;
     border: 1px solid white;
     /*border-bottom: 1px solid white;*/
     justify-self: stretch;
+    font-weight: 550;
 }
 .PBhint {
     color: rgba(33, 201, 151, 0.4) !important; /* important shall override SB */

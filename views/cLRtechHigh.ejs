@@ -170,13 +170,13 @@ const cLRtechHigh = {
                     <!-- table view of the results with a grid layout -->
 
                     <!-- palceholder of the header (for the case when the header needs more space than the actual content) -->
-                    <div class="rank placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                    <div class="rank placeholder header" > <!--style="justify-self: start; grid-column: rank"-->
                         <%= __("Rank abbr.") %>
                     </div>
-                    <div v-if="contest.status<180" class="position placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                    <div v-if="contest.status<180" class="position placeholder header" > <!--style="justify-self: start; grid-column: rank"-->
                         <%= __("Position abbr.") %>
                     </div>
-                    <div class="bib hideMobile placeholder" > <!--style="justify-self: start; grid-column: rank"-->
+                    <div class="bib hideMobile placeholder header" > <!--style="justify-self: start; grid-column: rank"-->
                         <%= __("Bib abbr.") %>
                     </div>
                     <div class="name placeholder header" > <!--style="justify-self: start; grid-column: rank"-->
@@ -220,7 +220,7 @@ const cLRtechHigh = {
                         </template>
 
                         <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                            <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}" v-bind:class="{PB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf, SB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && hRes.height>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast}">
+                            <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}" v-bind:class="{PB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf, SB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast, tie: (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf) || (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && height(hRes.xHeight)==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast)}">
                                 {{resultToStr(hRes)}}
                             </div>
                         </template>
