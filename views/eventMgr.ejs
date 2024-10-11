@@ -1122,181 +1122,183 @@
 </script>
 
 <div id="vueDiv">
-    <button class="btn" v-on:click="show='events'"><%= __("Events") %></button>
-    <button class="btn" v-on:click="show='eventGroups'; selectedEventGroupId=-1"><%= __("Event groups") %></button>
-    <button class="btn" v-on:click="show='contests'"><%= __("Contests") %></button>
-    <div v-if="show=='events'">
-        <h2><%= __("List of events") %></h2>
-        <!-- TODO: add some filtering method here-->
-        <button class="btn btnGreen" v-on:click="addEvent()"><%= __("Add event") %></button>
-        <!-- show a list of events-->
-        <label class="verticalForm">
-            <%= __("Filter events") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterEvents" type="search" size="30">
-        </label>
-        <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
-
-        <v-table :data="eventsForList" :filters="eventFilter"><!-- :filters="inscriptionFilters" -->
-            <template #head> <!-- # head is a shorthand for v-slot:head-->
-                <thead>
+    <div class="tabContainer" style="--numcols:4;">
+        <input class="tabHead" type="radio" id="tab1" name="tabGroup" value="events" v-model="show">
+        <label class="tabHead" for="tab1" style="grid-column:1;"><%= __("Events") %></label>
+        <div class="tabContent">
+            <h2><%= __("List of events") %></h2>
+            <!-- TODO: add some filtering method here-->
+            <button class="btn btnGreen" v-on:click="addEvent()"><%= __("Add event") %></button>
+            <!-- show a list of events-->
+            <label class="verticalForm">
+                <%= __("Filter events") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by the category, discipline, date/time, info and the event group. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                <input v-model="filterEvents" type="search" size="30">
+            </label>
+            <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
+    
+            <v-table :data="eventsForList" :filters="eventFilter"><!-- :filters="inscriptionFilters" -->
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="xEvent" v-if="showFullDetails">xEvent</th>
+                            <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                            <th is="vue:v-th" sortkey="catName"><%= __("Category") %></th>
+                            <th><%= __("Entry fee") %></th>
+                            <th is="vue:v-th" sortkey="onlineId" v-if="showFullDetails">onlineID</th>
+                            <th is="vue:v-th" sortkey="formattedDate" defaultsort="asc"><%= __("Date and time") %></th>
+                            <th is="vue:v-th" sortkey="info"><%= __("Info") %></th>
+                            <th is="vue:v-th" sortkey="eventGroupName"><%= __("Event group") %></th> <!-- IMPORTANT: if the value of sortkey is not simply a string but should be bound to a variable, function, etc, we must use v-bind:... respectively its abbreviation :... -->
+                            <th></th><!-- Buttons-->
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody>
+                        <tr v-for="evt in displayData" :key="evt.xEvent">
+                            <td v-if="showFullDetails">{{evt.xEvent}}</td>
+                            <td>{{evt.discName}}</td>
+                            <td>{{evt.catName}}</td>
+                            <td>{{evt.entryFee}}</td>
+                            <td v-if="showFullDetails">{{evt.onlineId}}</td>
+                            <td v-if="evt.date">{{evt.formattedDate}}</td><td v-else></td>
+                            <td>{{evt.info}}</td>
+                            <td class="clickable" v-on:click="show='eventGroups'; selectedEventGroupId=evt.xEventGroup">{{evt.eventGroupName}}</td>
+                            <td>
+                                <button class="btn btnGrey" v-on:click="modEvent(evt.xEvent)" ><%= __("Change") %></button>
+                                <button class="btn btnRed" v-on:click="deleteEvent(evt.xEvent)"><%= __("Delete") %></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+        </div>
+        <input class="tabHead" type="radio" id="tab2" name="tabGroup" value="eventGroups" v-model="show">
+        <label class="tabHead" for="tab2" style="grid-column:2"><%= __("Event groups") %></label>
+        <div class="tabContent">
+            <h2><%= __("List of event groups") %></h2>
+            <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
+            <label class="verticalForm">
+                <%= __("Filter event groups") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                <input v-model="filterEventGroups" type="search" size="30">
+            </label>
+            <!--<button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>-->
+            <!-- show a list of event groups-->
+            <v-table :data="eventGroupsForList" :filters="eventGroupFilter">
+                <template #head>
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="xEventGroup" v-if="showFullDetails">xEventGroup</th>
+                            <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                            <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
+                            <th is="vue:v-th" sortkey="combined"><%= __("is combined") %></th>
+                            <th></th><!-- Buttons-->
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}">
+                    <tbody>
+                        <tr v-for="eg in displayData" :key="eg.xEventGroup">
+                            <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
+                            <td>{{eg.discName }}</td>
+                            <td>{{eg.name}}</td>
+                            <td>{{eg.combined}}</td>
+                            <td>
+                                <button v-if="eventGroupNumEvents(eg.xEventGroup)>0" class="btn" v-on:click="show='events'; filterEvents=eg.name"><%= __("Show events") %></button>
+                                <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup"><%= __("Show rounds") %></button>
+                                <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup; addRound()"><%= __("Add round") %></button>
+                                <button class="btn btnGrey" v-on:click="modEventGroup(eg.xEventGroup)" ><%= __("Change") %></button>
+                                <button class="btn btnRed" v-if="eventGroupNumEvents(eg.xEventGroup)==0 && eg.rounds.length==0" v-on:click="deleteEventGroup(eg.xEventGroup)"><%= __("Delete") %></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+            <div v-if="selectedEventGroupId!=-1"> <!-- TODO: separate from the events-->
+                <h2><%= __("List of rounds for {{selectedEventGroup.name}}") %></h2>
+                <button class="btn btnGreen" v-on:click="addRound()"><%= __("Add round") %></button>
+                <!-- show a list of rounds-->
+                <table>
                     <tr>
-                        <th is="vue:v-th" sortkey="xEvent" v-if="showFullDetails">xEvent</th>
-                        <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
-                        <th is="vue:v-th" sortkey="catName"><%= __("Category") %></th>
-                        <th><%= __("Entry fee") %></th>
-                        <th is="vue:v-th" sortkey="onlineId" v-if="showFullDetails">onlineID</th>
-                        <th is="vue:v-th" sortkey="formattedDate" defaultsort="asc"><%= __("Date and time") %></th>
-                        <th is="vue:v-th" sortkey="info"><%= __("Info") %></th>
-                        <th is="vue:v-th" sortkey="eventGroupName"><%= __("Event group") %></th> <!-- IMPORTANT: if the value of sortkey is not simply a string but should be bound to a variable, function, etc, we must use v-bind:... respectively its abbreviation :... -->
+                        <th v-if="showFullDetails">xRound</th>
+                        <!--<th><%= __("Event group") %></th>-->
+                        <th><%= __("Name") %></th>
+                        <th><%= __("order") %></th>
+                        <!--<th><%= __("# groups") %></th>-->
+                        <th><%= __("Groups") %></th>
+                        <th><%= __("Qualification") %></th>
                         <th></th><!-- Buttons-->
+                        <!-- TODO: make this list drag and droppable!-->
                     </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                <tbody>
-                    <tr v-for="evt in displayData" :key="evt.xEvent">
-                        <td v-if="showFullDetails">{{evt.xEvent}}</td>
-                        <td>{{evt.discName}}</td>
-                        <td>{{evt.catName}}</td>
-                        <td>{{evt.entryFee}}</td>
-                        <td v-if="showFullDetails">{{evt.onlineId}}</td>
-                        <td v-if="evt.date">{{evt.formattedDate}}</td><td v-else></td>
-                        <td>{{evt.info}}</td>
-                        <td class="clickable" v-on:click="show='eventGroups'; selectedEventGroupId=evt.xEventGroup">{{evt.eventGroupName}}</td>
+                    <tr v-for="r in selectedEventGroupRounds">
+                        <td v-if="showFullDetails">{{r.xRound}}</td>
+                        <td>{{r.name}}</td>
+                        <td>{{r.order}}</td>
+                        <!--<td>{{r.numGroups}}</td>-->
+                        <td><div v-for="g in r.groups">
+                            <!-- provide renaming and contest selection -->
+                            {{g.number}}{{g.name ? " - "+g.name: ""}}
+                            <!--  TODO contest selection and auto-contest creation -->
+                        </div></td>
+                        <td><button v-if="r.order>1" class="btn" v-on:click=""><%= __("Set qualification") %></button></td>
                         <td>
-                            <button class="btn btnGrey" v-on:click="modEvent(evt.xEvent)" ><%= __("Change") %></button>
-                            <button class="btn btnRed" v-on:click="deleteEvent(evt.xEvent)"><%= __("Delete") %></button>
+                            <!--<button class="btn" v-on:click="groupContestView"><%= __("Match groups to contests") %></button>-->
+                            <button class="btn btnGrey" v-on:click="modRound(r.xRound)" ><%= __("Change") %></button>
+                            <button class="btn btnRed" v-on:click="deleteRound(r.xRound, r.xEventGroup)" v-bind:disabled="r.order != selectedEventGroupRounds.length"><%= __("Delete") %></button>
                         </td>
                     </tr>
-                </tbody>
-            </template>
-        </v-table>
-    </div>
-
-    <div v-if="show=='eventGroups'">
-        <h2><%= __("List of event groups") %></h2>
-        <button class="btn btnGreen" v-on:click="addEventGroup()"><%= __("Add event group") %></button>
-        <label class="verticalForm">
-            <%= __("Filter event groups") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by discipline and event group name. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterEventGroups" type="search" size="30">
-        </label>
-        <!--<button type="button" v-on:click="filterEventGroups=''" class="btn"><%= __("Reset filter") %></button>-->
-        <!-- show a list of event groups-->
-        <v-table :data="eventGroupsForList" :filters="eventGroupFilter">
-            <template #head>
-                <thead>
-                    <tr>
-                        <th is="vue:v-th" sortkey="xEventGroup" v-if="showFullDetails">xEventGroup</th>
-                        <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
-                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
-                        <th is="vue:v-th" sortkey="combined"><%= __("is combined") %></th>
-                        <th></th><!-- Buttons-->
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}">
-                <tbody>
-                    <tr v-for="eg in displayData" :key="eg.xEventGroup">
-                        <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
-                        <td>{{eg.discName }}</td>
-                        <td>{{eg.name}}</td>
-                        <td>{{eg.combined}}</td>
-                        <td>
-                            <button v-if="eventGroupNumEvents(eg.xEventGroup)>0" class="btn" v-on:click="show='events'; filterEvents=eg.name"><%= __("Show events") %></button>
-                            <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup"><%= __("Show rounds") %></button>
-                            <button class="btn" v-on:click="selectedEventGroupId=eg.xEventGroup; addRound()"><%= __("Add round") %></button>
-                            <button class="btn btnGrey" v-on:click="modEventGroup(eg.xEventGroup)" ><%= __("Change") %></button>
-                            <button class="btn btnRed" v-if="eventGroupNumEvents(eg.xEventGroup)==0 && eg.rounds.length==0" v-on:click="deleteEventGroup(eg.xEventGroup)"><%= __("Delete") %></button>
-                        </td>
-                    </tr>
-                </tbody>
-            </template>
-        </v-table>
-    </div>
-
-    <div v-if="show=='eventGroups' && selectedEventGroupId!=-1"> <!-- TODO: separate from the events-->
-        <h2><%= __("List of rounds for {{selectedEventGroup.name}}") %></h2>
-        <button class="btn btnGreen" v-on:click="addRound()"><%= __("Add round") %></button>
-        <!-- show a list of rounds-->
-        <table>
-            <tr>
-                <th v-if="showFullDetails">xRound</th>
-                <!--<th><%= __("Event group") %></th>-->
-                <th><%= __("Name") %></th>
-                <th><%= __("order") %></th>
-                <!--<th><%= __("# groups") %></th>-->
-                <th><%= __("Groups") %></th>
-                <th><%= __("Qualification") %></th>
-                <th></th><!-- Buttons-->
-                <!-- TODO: make this list drag and droppable!-->
-            </tr>
-            <tr v-for="r in selectedEventGroupRounds">
-                <td v-if="showFullDetails">{{r.xRound}}</td>
-                <td>{{r.name}}</td>
-                <td>{{r.order}}</td>
-                <!--<td>{{r.numGroups}}</td>-->
-                <td><div v-for="g in r.groups">
-                    <!-- provide renaming and contest selection -->
-                    {{g.number}}{{g.name ? " - "+g.name: ""}}
-                    <!--  TODO contest selection and auto-contest creation -->
-                </div></td>
-                <td><button v-if="r.order>1" class="btn" v-on:click=""><%= __("Set qualification") %></button></td>
-                <td>
-                    <!--<button class="btn" v-on:click="groupContestView"><%= __("Match groups to contests") %></button>-->
-                    <button class="btn btnGrey" v-on:click="modRound(r.xRound)" ><%= __("Change") %></button>
-                    <button class="btn btnRed" v-on:click="deleteRound(r.xRound, r.xEventGroup)" v-bind:disabled="r.order != selectedEventGroupRounds.length"><%= __("Delete") %></button>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div v-if="show=='contests'">
-        <h2><%= __("List of contests") %></h2>
-        <button class="btn btnGreen" v-on:click="addContest()"><%= __("Add contest") %></button>
-        <label class="verticalForm">
-            <%= __("Filter contests") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
-            <input v-model="filterContests" type="search" size="30">
-        </label>
-        <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
-        <v-table :data="contestsForList" :filters="contestFilter">
-            <template #head> <!-- # head is a shorthand for v-slot:head-->
-                <thead>
-                    <tr>
-                        <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
-                        <th is="vue:v-th" sortkey="xBaseDiscipline" v-if="showFullDetails">xBaseDiscipline</th>
-                        <th is="vue:v-th" sortkey="baseDiscName"><%= __("Base discipline") %></th>
-                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
-                        <th is="vue:v-th" sortkey="formattedStarttime" defaultsort="asc"><%= __("Start") %></th>
-                        <th is="vue:v-th" sortkey="formattedAppealtime"><%= __("Appeal") %></th>
-                        <th is="vue:v-th" sortkey="formattedCalltime"><%= __("Call") %></th>
-                        <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
-                        <!--<th is="vue:v-th" sortkey="conf" v-if="showFullDetails"><%= __("Conf") %></th> -->
-                        <th></th><!-- Buttons-->
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                <tbody>
-                    <tr v-for="co in displayData" :key="co.xContest">
-                        <td v-if="showFullDetails">{{co.xContest}}</td>
-                        <td v-if="showFullDetails">{{co.xBaseDiscipline}}</td>
-                        <td>{{co.baseDiscName}}</td>
-                        <td>{{co.name}}</td>
-                        <td>{{co.formattedStarttime}}</td>
-                        <td>{{co.formattedAppealtime}}</td>
-                        <td>{{co.formattedCalltime}}</td>
-                        <td>{{co.status}}</td>
-                        <!--<td v-if="showFullDetails">{{co.conf}}</td>-->
-                        <td>
-                            <button class="btn btnGrey" v-on:click="modContest(co.xContest)" ><%= __("Change") %></button>
-                            <button class="btn btnRed" v-if="!referencedContests.has(co.xContest)"  v-on:click="deleteContest(co.xContest)"><%= __("Delete") %></button>
-                        </td>
-
-                    </tr>
-                </tbody>
-            </template>
-        </v-table>
-
+                </table>
+            </div>
+        </div>
+        <input class="tabHead" type="radio" id="tab3" name="tabGroup" value="contests" v-model="show">
+        <label class="tabHead" for="tab3" style="grid-column:3;"><%= __("Contests") %></label>
+        <div class="tabContent">
+            <h2><%= __("List of contests") %></h2>
+            <button class="btn btnGreen" v-on:click="addContest()"><%= __("Add contest") %></button>
+            <label class="verticalForm">
+                <%= __("Filter contests") %><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Filtering') %>:', '<%= __('Filtering is possible by base discipline, start time, appeal time and call time. Any word must be present in one of the properties.') %>')"><%= __('i') %></button>: 
+                <input v-model="filterContests" type="search" size="30">
+            </label>
+            <!--<button type="button" v-on:click="filterEvents=''" class="btn"><%= __("Reset filter") %></button>-->
+            <v-table :data="contestsForList" :filters="contestFilter">
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
+                            <th is="vue:v-th" sortkey="xBaseDiscipline" v-if="showFullDetails">xBaseDiscipline</th>
+                            <th is="vue:v-th" sortkey="baseDiscName"><%= __("Base discipline") %></th>
+                            <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
+                            <th is="vue:v-th" sortkey="formattedStarttime" defaultsort="asc"><%= __("Start") %></th>
+                            <th is="vue:v-th" sortkey="formattedAppealtime"><%= __("Appeal") %></th>
+                            <th is="vue:v-th" sortkey="formattedCalltime"><%= __("Call") %></th>
+                            <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
+                            <!--<th is="vue:v-th" sortkey="conf" v-if="showFullDetails"><%= __("Conf") %></th> -->
+                            <th></th><!-- Buttons-->
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody>
+                        <tr v-for="co in displayData" :key="co.xContest">
+                            <td v-if="showFullDetails">{{co.xContest}}</td>
+                            <td v-if="showFullDetails">{{co.xBaseDiscipline}}</td>
+                            <td>{{co.baseDiscName}}</td>
+                            <td>{{co.name}}</td>
+                            <td>{{co.formattedStarttime}}</td>
+                            <td>{{co.formattedAppealtime}}</td>
+                            <td>{{co.formattedCalltime}}</td>
+                            <td>{{co.status}}</td>
+                            <!--<td v-if="showFullDetails">{{co.conf}}</td>-->
+                            <td>
+                                <button class="btn btnGrey" v-on:click="modContest(co.xContest)" ><%= __("Change") %></button>
+                                <button class="btn btnRed" v-if="!referencedContests.has(co.xContest)"  v-on:click="deleteContest(co.xContest)"><%= __("Delete") %></button>
+                            </td>
+    
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+    
+        </div>
     </div>
 
     <div class="overlay"  v-bind:class="{shown: overlay}">

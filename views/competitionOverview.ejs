@@ -103,7 +103,7 @@
         let vueAppConfig = {
             data(){
                 return {
-                    show: 'contests', //either 'contests' or 'eventGroups'
+                    //show: 'contests', //either 'contests' or 'eventGroups'
                     showFullDetails: true,
                     eventGroups: [],
                     contestsOverview:[],
@@ -307,78 +307,80 @@
 </script>
 
 <div id="vueCompetitionOverview">
-    <button type="button" class="btn marginRight" v-on:click="show='contests'"><%= __("Contests") %></button>
-    <button type="button" class="btn marginRight" v-on:click="show='eventGroups'"><%= __("Event groups") %></button>
-
     <!--<a href="seriesAdminTech?xContest=3">Test link for series management</a>-->
 
-    <div v-if="show=='contests'">
-        <v-table :data="contestsOverviewForList" > <!-- :filters="contestFilter" -->
-            <template #head> <!-- # head is a shorthand for v-slot:head-->
-                <thead>
-                    <tr>
-                        <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
-                        <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
-                        <th is="vue:v-th" sortkey="discName"><%= __("Name") %></th>
-                        <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
-                        <th is="vue:v-th" sortkey="formattedStart" defaultsort="asc"><%= __("Start") %></th>
-                        <th is="vue:v-th" sortkey="formattedAppeal"><%= __("Appeal") %></th>
-                        <th is="vue:v-th" sortkey="formattedCall"><%= __("Call") %></th>
-                        <th ><%= __("Groups in EventGroups with Events") %></th>
-                        <!-- TODO: add here a list of all eventgroups/events/rounds/groups in this contest -->
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                <tbody class="selectTable">
-                    <tr v-for="co in displayData" :key="co.xContest" v-on:click="gotoContest(co)" v-bind:style="{ 'background-color': statusBackgroundColor(co.status), '--backColorHover': statusBackgroundColorHover(co.status), color: statusTextColor(co.status) }">
-                        <td v-if="showFullDetails">{{co.xContest}}</td>
-                        <td>{{co.discName}}</td>
-                        <td>{{co.name}}</td>
-                        <td>{{statusText(co.status)}}</td>
-                        <td>{{co.formattedStart}}</td>
-                        <td>{{co.formattedAppeal}}</td>
-                        <td>{{co.formattedCall}}</td>
-                        <td>
-                            <div v-for="g in co.groups">
-                                <template v-for="(evt, evtIndex) in g.events">
-                                    <div style="display:inline" v-if="evtIndex==0">{{getCategoryProperty(evt.xCategory, 'shortname')}}</div>
-                                    <div style="display:inline" v-else>/{{getCategoryProperty(evt.xCategory, 'shortname')}}</div>
-                                    <div style="display:inline; margin-left: 0.25em;" v-if="evt.info!=''">({{evt.info}})</div>
-                                </template><!-- all categories defined in the events -->
-                                <div style="display:inline; margin-left: 0.25em;">{{g.eventGroupName}} {{g.roundName}}</div>
-                                <div style="display:inline; margin-left: 0.25em;" v-if="g.numGroups>1 && '<%= __(`Group`) %> ' + g.number.toString() != g.groupName"><%= __('Group') %> {{g.number}} "{{g.groupName}}"</div>
-                                <div style="display:inline; margin-left: 0.25em;" v-if="g.numGroups>1 && '<%= __(`Group`) %> ' + g.number.toString() == g.groupName"><%= __('Group') %> {{g.number}}</div>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </template>
-        </v-table>
-    </div>
-
-    <div v-if="show=='eventGroups'">
-        <v-table :data="eventGroups" > <!-- :filters="contestFilter" -->
-            <template #head> <!-- # head is a shorthand for v-slot:head-->
-                <thead>
-                    <tr>
-                        <th is="vue:v-th" sortkey="xEventGroup" v-if="showFullDetails">xEventGroup</th>
-                        <th is="vue:v-th" sortkey="getDisciplineProperty(eg.xDiscipline,'shortname')"><%= __("Discipline") %></th>
-                        <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
-                <tbody class="selectTable">
-                    <tr v-for="eg in displayData" :key="eg.xEventGroup" v-on:click="gotoEventGroup(eg)" > <!-- v-bind:style="{ 'background-color': statusBackgroundColor(co.status), '--backColorHover': statusBackgroundColorHover(co.status), color: statusTextColor(co.status) }" -->
-                        <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
-                        <td>{{getDisciplineProperty(eg.xDiscipline,'shortname')}}</td>
-                        <td>{{eg.name}}</td>
-                    </tr>
-                </tbody>
-            </template>
-        </v-table>
-        TODO: make it possible that this is somehow sorted by time! The eventGroup actually has no time, so we have use eventually the time in events or the time in the contest. 
+    <div class="tabContainer" style="--numcols:3; margin-top:10px;">
+        <input class="tabHead" type="radio" id="tab1" name="tabGroup" value="contests" checked>
+        <label class="tabHead" for="tab1" style="grid-column:1;"><%= __("Contests") %></label>
+        <div class="tabContent">
+            <v-table :data="contestsOverviewForList" > <!-- :filters="contestFilter" -->
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="xContest" v-if="showFullDetails">xContest</th>
+                            <th is="vue:v-th" sortkey="discName"><%= __("Discipline") %></th>
+                            <th is="vue:v-th" sortkey="discName"><%= __("Name") %></th>
+                            <th is="vue:v-th" sortkey="status"><%= __("Status") %></th>
+                            <th is="vue:v-th" sortkey="formattedStart" defaultsort="asc"><%= __("Start") %></th>
+                            <th is="vue:v-th" sortkey="formattedAppeal"><%= __("Appeal") %></th>
+                            <th is="vue:v-th" sortkey="formattedCall"><%= __("Call") %></th>
+                            <th ><%= __("Groups in EventGroups with Events") %></th>
+                            <!-- TODO: add here a list of all eventgroups/events/rounds/groups in this contest -->
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody class="selectTable">
+                        <tr v-for="co in displayData" :key="co.xContest" v-on:click="gotoContest(co)" v-bind:style="{ 'background-color': statusBackgroundColor(co.status), '--backColorHover': statusBackgroundColorHover(co.status), color: statusTextColor(co.status) }">
+                            <td v-if="showFullDetails">{{co.xContest}}</td>
+                            <td>{{co.discName}}</td>
+                            <td>{{co.name}}</td>
+                            <td>{{statusText(co.status)}}</td>
+                            <td>{{co.formattedStart}}</td>
+                            <td>{{co.formattedAppeal}}</td>
+                            <td>{{co.formattedCall}}</td>
+                            <td>
+                                <div v-for="g in co.groups">
+                                    <template v-for="(evt, evtIndex) in g.events">
+                                        <div style="display:inline" v-if="evtIndex==0">{{getCategoryProperty(evt.xCategory, 'shortname')}}</div>
+                                        <div style="display:inline" v-else>/{{getCategoryProperty(evt.xCategory, 'shortname')}}</div>
+                                        <div style="display:inline; margin-left: 0.25em;" v-if="evt.info!=''">({{evt.info}})</div>
+                                    </template><!-- all categories defined in the events -->
+                                    <div style="display:inline; margin-left: 0.25em;">{{g.eventGroupName}} {{g.roundName}}</div>
+                                    <div style="display:inline; margin-left: 0.25em;" v-if="g.numGroups>1 && '<%= __(`Group`) %> ' + g.number.toString() != g.groupName"><%= __('Group') %> {{g.number}} "{{g.groupName}}"</div>
+                                    <div style="display:inline; margin-left: 0.25em;" v-if="g.numGroups>1 && '<%= __(`Group`) %> ' + g.number.toString() == g.groupName"><%= __('Group') %> {{g.number}}</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+        </div>
+        <input class="tabHead" type="radio" id="tab2" name="tabGroup" value="eventGroups" >
+        <label class="tabHead" for="tab2" style="grid-column:2"><%= __("Event groups") %></label>
+        <div class="tabContent">
+            <v-table :data="eventGroups" > <!-- :filters="contestFilter" -->
+                <template #head> <!-- # head is a shorthand for v-slot:head-->
+                    <thead>
+                        <tr>
+                            <th is="vue:v-th" sortkey="xEventGroup" v-if="showFullDetails">xEventGroup</th>
+                            <th is="vue:v-th" sortkey="getDisciplineProperty(eg.xDiscipline,'shortname')"><%= __("Discipline") %></th>
+                            <th is="vue:v-th" sortkey="name"><%= __("Name") %></th>
+                        </tr>
+                    </thead>
+                </template>
+                <template v-slot:body="{displayData}"> <!--v-slot:name="variables"-->
+                    <tbody class="selectTable">
+                        <tr v-for="eg in displayData" :key="eg.xEventGroup" v-on:click="gotoEventGroup(eg)" > <!-- v-bind:style="{ 'background-color': statusBackgroundColor(co.status), '--backColorHover': statusBackgroundColorHover(co.status), color: statusTextColor(co.status) }" -->
+                            <td v-if="showFullDetails">{{eg.xEventGroup}}</td>
+                            <td>{{getDisciplineProperty(eg.xDiscipline,'shortname')}}</td>
+                            <td>{{eg.name}}</td>
+                        </tr>
+                    </tbody>
+                </template>
+            </v-table>
+            TODO: make it possible that this is somehow sorted by time! The eventGroup actually has no time, so we have use eventually the time in events or the time in the contest. 
+        </div>
     </div>
     
 </div>
