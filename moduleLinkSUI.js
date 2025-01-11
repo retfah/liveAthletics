@@ -1066,6 +1066,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
         
         // add the new properties
         // create the following "total" properties to be added to the object:
+        // NOTE: the data structure fallows the tempRankingData in techHighBase. but with added results array, storing the single results (one per height, as in table "resultsHigh", but with added resultString and the data from the table "heights") as well. 
         res.rankingData = {
             totalFailedAttempts: 0, // until and with the last valid hight
             //failedAttemptsSinceLastValid: 0, // after 3, the person is out of the competition. 
@@ -1087,7 +1088,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
         */
         res.results = [];
 
-        // for the calculation of totalFailedAttempts (only until and inlcuding the last valid height in the main competition), we first need to know the last valid height in order to not count the later results
+        // for the calculation of totalFailedAttempts (only until and including the last valid height in the main competition), we first need to know the last valid height in order to not count the later results
         for (let r of results){
             if (r.jumpoffOrder==0 && r.resultsHighValid && r.height>res.rankingData.lastValidHeight){
                 res.rankingData.lastValidHeight = r.height;
@@ -1419,7 +1420,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 res.ranking = {};
             }
 
-            // rank=0 if there is a reultOverrule!
+            // rank=0 if there is a resultOverrule!
             if (res.resultOverrule>1 || res.timeRounded==null){
                 res.ranking[label] = 0;
             } else {
