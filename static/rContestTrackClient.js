@@ -1512,38 +1512,39 @@ export class rContestTrackClient extends rContestClient{
 
     updateContest2Init(prop, newVal, oldVal){
 
-        let confOld = JSON.parse(this.data.contest.conf);
         this.data.contest[prop] = newVal;
 
         // if startInLanes does not change, we have a defined revert.
-        let confNew = JSON.parse(newContest.conf);
+        let revert = ()=>{
+            // revert all changes on failure!
+            this.data.contest[prop] = oldVal;
+        };
+        if (prop=='conf'){
+            let confNew = JSON.parse(newVal);
+            let confOld = JSON.parse(this.data.contest.conf);
 
-        let revert;
-        if (confOld.startInLanes == confNew.startInLanes){
-            // revert:
-            revert = ()=>{
-                // revert all changes on failure!
-                this.data.contest[prop] = oldVal;
-            }
-        } else {
-            revert =  null;
-
-            // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
-            if (confOld.startInLanes === true && confNew.startInLanes === false){
-                for (let s of this.data.series){
-                    // change occured
-                    for (let ssr of s.seriesstartsresults){
-                        if (ssr.position.toString() != ssr.startConf){
-                            ssr.startConf = ssr.position.toString()
+            if (confOld.startInLanes != confNew.startInLanes){
+                // revert not possible; needs reload
+                revert =  null;
+    
+                // if conf.startInLanes was changed to false, change all startConf in all series.seriesstartsresutls to position.toString()
+                if (confOld.startInLanes === true && confNew.startInLanes === false){
+                    for (let s of this.data.series){
+                        // change occured
+                        for (let ssr of s.seriesstartsresults){
+                            if (ssr.position.toString() != ssr.startConf){
+                                ssr.startConf = ssr.position.toString()
+                            }
                         }
                     }
                 }
+    
+                // Do the same in updateContestExe as well.
             }
 
-            // Do the same in updateContestExe as well.
         }
 
-        this.addToStack('updateContest2', newContest, ()=>{
+        this.addToStack('updateContest2', this.data.contest, ()=>{
             // nothing to do on success
         }, revert)
     }
