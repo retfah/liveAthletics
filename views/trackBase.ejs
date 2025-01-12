@@ -265,7 +265,7 @@
 
                     // write the change to the room
                     let newStatus = Number(event.target.value);
-                    rCTech.room.updateContest2Init('status', newStatus, this.previousStatus); 
+                    rCTrack.room.updateContest2Init('status', newStatus, this.previousStatus); 
                     this.previousStatus = newStatus; 
 
                     // check whether the current "show" property is meaningful; if not, automatically set a meaningful property
@@ -273,6 +273,7 @@
                         {from: 0, to:39, shows:['rollCall', 'contestInfo']},
                         {from: 60, to:89, shows:['series', 'contestInfo']},
                         {from: 95, to:180, shows:['competition', 'resMod', 'resShow', 'settings', 'contestInfo']},
+                        {from: 181, to:600, shows:['resShow']}
                     ]; 
                     const range = matchStatusShow.find(el=>el.from<=this.contest.status && el.to>=this.contest.status);
                     // check if the current selected show makes sense
@@ -288,6 +289,8 @@
                         this.show = 'series';
                     } else if (this.contest.status<=180 && this.contest.status>=95){
                         this.show = 'competition';
+                    }else if (this.contest.status>=200){
+                        this.show = 'resShow';
                     }
                 },
 
