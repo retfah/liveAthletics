@@ -1,5 +1,5 @@
 **How to install live Athletics (tested 2021-21)**
-- install MariaDB; set max_allowed_packet to 100M; otherwise larger inserts with all performances at a time do not work efficiently.
+- install MariaDB; set max_allowed_packet to 100M or larger; otherwise larger inserts with all performances at a time do not work efficiently. Thus, add the line "max_allowed_packet=500M" in the section [client] in <MariaDB-program folder>\data\my.ini 
 - install MongoDB (for debugging, preferrably with "Compass"; there was once an error when installing together with compass. So install MongoDB without compass first and then install compass separately.)
 - install Mongo Database Tools (for dump and restore) --> the folder must be added to path!
 - install nodejs
