@@ -9,6 +9,9 @@ import { streamToStringLatin1 } from './common.js';
 const Op = Sequelize.Op;
 const QueryTypes = Sequelize.QueryTypes;
 import {Worker, isMainThread, parentPort, workerData} from  'node:worker_threads';
+import rankTrack from './static/rankTrack.js';
+import rankTechHigh from './static/rankTechHigh.js';
+import rankTechLong from './static/rankTechLong.js';
 
 /*import {promisify}  from 'util';
 const readFileAsync = promisify( fs.readFile);*/
@@ -1271,13 +1274,16 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 if (conf.ranking){
                     if (data[begin].bdCType == 1){
                         // techHigh
-                        this.rankTechHigh(resToBundle, conf.grouping);
+                        //this.rankTechHigh(resToBundle, conf.grouping);
+                        rankTechHigh(resToBundle, conf.grouping);
                     } else if (data[begin].bdCType == 2){
                         // techLong
-                        this.rankTechLong(resToBundle, conf.grouping);
+                        //this.rankTechLong(resToBundle, conf.grouping);
+                        rankTechLong(resToBundle, conf.grouping);
                     } else if (data[begin].bdCType == 3){
                         // track
-                        this.rankTrack(resToBundle, conf.grouping);
+                        //this.rankTrack(resToBundle, conf.grouping);
+                        rankTrack(resToBundle, conf.grouping);
                     }
                 }
 
