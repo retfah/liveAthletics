@@ -54,6 +54,16 @@ participationStatesTrack: [
     {value: 5, text: "<%= __('did not start') %>", abbreviation: "<%= __('DNS') %>"},
     {value: 6, text: "<%= __('disqualified') %>", abbreviation: "<%= __('DQ') %>"}
 ],
+// used for general result printing, when the discipline type is not necessarily known
+participationStatesAll: [
+    {value: 0, text: "<%= __('regular') %>", abbreviation: "<%= __('regular') %>"},
+    {value: 1, text: "<%= __('retired') %>", abbreviation: "<%= __('retiredAbbreviation') %>"},
+    // value 2 was intended to be NM (no mark/o.g.V), but is actually not a participationState
+    {value: 3, text: "<%= __('did not finish') %>", abbreviation: "<%= __('DNF') %>"},
+    {value: 4, text: "<%= __('withdrawal') %>", abbreviation: "<%= __('withdrawal') %>"},
+    {value: 5, text: "<%= __('did not start') %>", abbreviation: "<%= __('DNS') %>"},
+    {value: 6, text: "<%= __('disqualified') %>", abbreviation: "<%= __('DQ') %>"}
+],
 qualificationStates: [
     {value:0, text: "<%= __('not qualified') %>", abbreviation: ""},
     {value:1, text: "<%= __('Qualified by rank in heat') %>", abbreviation: "<%= __('Q') %>"},
