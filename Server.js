@@ -994,6 +994,9 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 			// series assignements
 			renderData.seriesAssignments = conf.seriesAssignments;
 
+			// qualification modules
+			renderData.qualificationModules = conf.qualificationModules;
+
 			// available base modules 
 			renderData.baseModules = Object.keys(baseModules);
 
@@ -1027,7 +1030,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 						var repl = {filename: data, file: ret}
 						//logger.log(99, JSON.stringify(repl));
 						responseFunc(JSON.stringify(repl));
-					}).catch((err)=>{logger.log(7, 'ERROR: could not render the file ' + data + '. The reason might be that ejs could not fill all placeholders, as not all of them are listed in "files".')})
+					}).catch((err)=>{logger.log(7, `ERROR: Could not render the file ${data}. The reason might be that ejs could not fill all placeholders, as not all of them are listed in "files". ${err}`)})
 
 				} else {
 					logger.log(7, "The sid was not stored to the socket, which should not happen! Cannot send files back to client without rendering!");
@@ -1808,6 +1811,9 @@ app.get('/:lang/:meeting/*', (req, res, next)=>{
 
 		// series assignements
 		renderData.seriesAssignments = conf.seriesAssignments;
+
+		// qualification modules
+		renderData.qualificationModules = conf.qualificationModules;
 
 		// available base modules 
 		renderData.baseModules = Object.keys(baseModules);

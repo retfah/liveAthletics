@@ -80,6 +80,10 @@ td{
 h4{
     margin-bottom: 0;
 }
+details {
+    border:1px solid black; border-radius:3px; padding: 3px;
+    margin-bottom: 1px;
+}
 
 
 .tabContainer{
@@ -731,7 +735,7 @@ option.catMismatch{
     cursor: pointer;
     /*display: inline-block;*/
     /*margin-left: 10px;*/
-    width:auto; /* TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
+    width:max-content; /* 2025-01changed from auto to max-content; TODO: some common width for all elements; currently they are all just as large as needed, i.e. different for every athlete. For small displays, we could make it fill the remaining space and for larger displays just set a certain width that is usually large enough */
 }
 .dragelementH:hover, .seriesDragH:hover {
     background-color: #007BFF !important;
@@ -868,7 +872,7 @@ summary {
     width: 1.5rem;
     height:1.5rem;
     color: white;
-    cursor: pointer;
+    /*cursor: pointer; the pointer should be given by using a button*/
 }
 
 .informationGreen{
