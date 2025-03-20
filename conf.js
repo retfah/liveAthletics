@@ -71,6 +71,7 @@ export default {
     },
 
     seriesAssignments:['techDefault.ejs', 'trackPerf.ejs', 'trackRandom.ejs'], 
+    qualificationModules:['qualiDefault.ejs'], 
 
     // define the users that are allowed to administrate the meetings (create new ones, link to master servers, getMaster, ...)
     adminUsers: {"Admin":"athletica"}, // multiple users: [{"user1": "password1"}, {"user2": "password2"}, {...}]
