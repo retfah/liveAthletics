@@ -1,0 +1,34 @@
+<% if(type=="html"){ %>
+<!-- the configuration window for this kind of qualification definition-->
+<div v-if="qualificationOverlay=='default'" class="verticalForm">
+    <h3><%= __("Configuration") %></h3>
+    <label>
+        <%= __("Number of qualified athletes in total") %>
+        <input type="number" v-model="qualificationConfiguration.default.total" size=3 min="0">
+    </label>
+    <label>
+        <%= __("Number of qualified athletes per heat") %>
+        <input type="number" v-model="qualificationConfiguration.default.perHeat" size=3 min="0">
+    </label>
+    <div class="information marginRight">i</div><%= __("The number of athletes qualified by the overall rank is given by the total number of athletes minus the number of athletes qualified per heat multiplied with the number of heats") %>
+</div>
+
+<% }else{ %> // must have a non-code line here, since it will be commented out!
+    {   
+        nameDB: 'default', // not ot be translated !!!
+        name: '<%= __("Default") %>',  // the name of the qualificaiotn module.
+        overlayName: "default", // the name of the overlay
+        qualFunc: function (args){
+            // TODO
+
+        }, // the function to call to do the qualification. TODO: specify more 
+        initFunc: function(){
+            this.qualificationConfiguration.default = {
+                total: 8,
+                perHeat: 0,
+            }
+        }, // function called on initialization of the qualification moduleseries assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
+        baseDisciplineTypes: [1,2], // the baseDisciplines-types where this series assignment option shall be present (probably only needed for track disciplines)
+    }
+
+<% } %>
