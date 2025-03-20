@@ -268,7 +268,7 @@
                 <button class="btn" v-if="series.length==0" v-on:click="showInitialSeriesAssignment()" :disabled="readOnly"><%= __("Create Series") %></button>
                 <button class="btn" v-on:click="addSeries()" :disabled="readOnly"><%= __("Add a series") %></button>
                 <button class="btn" v-if="series.length>0" v-on:click="showTimeUpdate" :disabled="readOnly"><%= __("Update heat time interval") %></button>
-                <button type="button" onclick="printContest()" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
+                <button type="button" v-on:click="printContest" class="btn btnGreen" v-if="series.length>0"><%= __("Print series") %></button>
                 <button type="button" v-on:click="seriesOfficial()" class="btn btnGreen" v-if="series.length>0"><%= __("All heats official") %></button>
                 <button type="button" v-on:click="deleteAllSeriesInit()" class="btn btnRed" :disabled="readOnly" v-if="series.length>0"><%= __("Delete all series") %></button>
                 <div v-if="series.length>0">
