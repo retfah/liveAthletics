@@ -295,6 +295,7 @@
                     newEventGroupName:'', 
                     newIsCombined: false,
                     newRoundName: "",
+                    newOrder:0,
                     newNumGroups: 0,
                     newGroups:[],
                     //addEventOverlay:false,
@@ -314,6 +315,16 @@
                     infoVisible: false,
                     contestModID: -1,
                     createContestFixedDisc: false,
+
+                    qualificationConfiguration: {}, // one entry per module, referenced with the module nameDB
+                    selectedQualificationModel:'', // the nameDB of the selected module; the first shall be selected as default; 
+                    qualificationModules: [
+                    //includes<% qualificationModules.forEach((QM)=>{ %>
+                        // next include:<%- include(QM, {type:"js"}) %>,
+                    //<% }); %>
+                    ],
+                    roundMod:undefined,
+
                 }
             }, 
             methods:{
@@ -384,6 +395,7 @@
                 addRound: function(){
                     this.roundModID = -1;
                     this.contestRadio = "new";
+                    this.newOrder = 9999; // NOTE: not used for writing, just to define whether the qualification stuff will be open or closed. always closed for new rounds
 
                     // TODO: reset datetimeAppeal/Call/Start, conf
 
@@ -398,6 +410,7 @@
                                 }];
 
                     this.overlay = "addRound";
+                    this.selectedQualificationModel = 'default';
                 },
                 createRound: function(){
 
@@ -411,6 +424,8 @@
                         }
                     })
 
+                    let qualiConf = JSON.stringify(this.qualificationConfiguration[this.selectedQualificationModel]);
+
                     if (this.roundModID==-1){
 
                         // add round
@@ -420,8 +435,8 @@
                             name: this.newRoundName,
                             order: this.selectedEventGroup.rounds.length+1,
                             numGroups: this.newNumGroups,
-                            qualiModule: '', // TODO; required
-                            qualiConf: '', // optional
+                            qualiModule: this.selectedQualificationModel, 
+                            qualiConf,
                             groups: this.newGroups, // important: groups is not mandatory! The server will automatically create the groups if they are not set or not in agreement with numGroups
                         }
 
@@ -438,8 +453,8 @@
                             //order: , // do not change currently!
                             numGroups: this.newNumGroups,
                             groups: this.newGroups, // important: groups is not mandatory! The server will automatically create the groups if they are not set or not in agreement with numGroups
-                            //qualiModule: '', // TODO; required
-                            //qualiConf: '', // optional
+                            qualiModule: this.selectedQualificationModel, 
+                            qualiConf,
                         }
 
                         rEG.room.addToStack('updateRound', data);
@@ -452,6 +467,7 @@
 
                     let r = this.selectedEventGroup.rounds.find(r=>r.xRound==id);
 
+                    this.newOrder = r.order;
                     this.newRoundName = r.name;
                     this.newNumGroups = r.numGroups;
                     // the groups must be copied; i.e. shall not be a reference!
@@ -472,7 +488,22 @@
                             this.newGroups.push(g);
                         }
                     }
-                    // TODO: quali...
+                    // qualification
+                    if (r.qualiModule === null || r.qualiModule==''){
+                        this.selectedQualificationModel = this.qualificationModules[0].nameDB;
+                        // the properties are at default
+                    } else {
+                        this.selectedQualificationModel = r.qualiModule;
+                        const qualiConf = JSON.parse(r.qualiConf);
+                        // set the properties
+                        // always loop over the properties in the default object, to make sure that eventual changes in the props get reset
+                        for (let key of Object.keys(this.qualificationConfiguration[this.selectedQualificationModel])){
+                            if (qualiConf[key]!==undefined && qualiConf[key] !== null){
+                                this.qualificationConfiguration[this.selectedQualificationModel][key] = qualiConf[key];
+                            }
+                        }
+                    }
+                    
                     
                     this.overlay = "addRound";
 
@@ -1084,6 +1115,12 @@
 
                 }
             },
+            mounted:function(){
+                // initialize all qualification modules
+                this.qualificationModules.forEach((QM)=>{
+                    QM.initFunc.bind(this)();
+                })
+            },
             components:{
                 'v-table':VTable,
                 'v-th': VTh,
@@ -1225,7 +1262,6 @@
                         <th><%= __("order") %></th>
                         <!--<th><%= __("# groups") %></th>-->
                         <th><%= __("Groups") %></th>
-                        <th><%= __("Qualification") %></th>
                         <th></th><!-- Buttons-->
                         <!-- TODO: make this list drag and droppable!-->
                     </tr>
@@ -1239,7 +1275,6 @@
                             {{g.number}}{{g.name ? " - "+g.name: ""}}
                             <!--  TODO contest selection and auto-contest creation -->
                         </div></td>
-                        <td><button v-if="r.order>1" class="btn" v-on:click=""><%= __("Set qualification") %></button></td>
                         <td>
                             <!--<button class="btn" v-on:click="groupContestView"><%= __("Match groups to contests") %></button>-->
                             <button class="btn btnGrey" v-on:click="modRound(r.xRound)" ><%= __("Change") %></button>
@@ -1458,7 +1493,26 @@
                                 </div>
                             </div>
                         </div>
-                        <div>Here will be the qualification-setups...</div>
+
+                        <!-- qualification stuff -->
+
+                        <details style="margin-top: 0.5rem;" v-bind:open="newOrder<selectedEventGroup.rounds.length">
+                            <summary><%= __("Qualification") %></summary>
+                            <!-- if there are multiple assignment algorithms, show a dropdown to select-->
+                            <div v-if="qualificationModules.length>1">
+                                <%= __("Qualification Module") %>: <!-- for track it is called heat --> 
+                                <!-- if there are multiple series assignment algorithms, show a dropdown to choose from -->
+                                <select class="formCtrl" v-model.number="selectedQualificationModel">
+                                    <template v-for="(QM, index) in qualificationModules">
+                                        <option v-bind:value="QM.nameDB">{{QM.name}}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            <!-- include the different qualificaiotn Modules configuration wizards -->
+                            <% qualificationModules.forEach((QM)=>{ %>
+                                <%- include(QM, {type:"html"}) %>
+                            <% }); %>
+                        </details>
                         <!-- TODO: set appropriate minimum requirement to set send create-->
                         <button type="submit" class="btn btnGreen" v-if="roundModID==-1" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Create round") %></button>
                         <!--<button type="submit" class="btn btnGreen" v-if="roundModID==-1 && contestRadio == 'new'" v-on:click="createRound" v-bind:disabled="newNumGroups==''"><%= __("Create round and contest") %></button>-->

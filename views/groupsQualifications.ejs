@@ -147,7 +147,7 @@
         constructor(vue, meetingShortname, xEventGroup){
             // parent constructor: initializes the room
             //(roomName, writing, storeInfos, path, className, datasetName='')
-            super(`eventGroups/${xEventGroup}@${meetingShortname}`, false, true, '/static/rEventGroupClient.js', 'rEventGroupClient', '')
+            super(`eventGroups/${xEventGroup}@${meetingShortname}`, true, true, '/static/rEventGroupClient.js', 'rEventGroupClient', '')
     
             // needed to call things in the vue class
             this.vue = vue;
@@ -501,11 +501,10 @@
                         this.selectedQualificationModel = r.round.qualiModule;
                         const qualiConf = JSON.parse(r.round.qualiConf);
                         // set the properties
-                        const QM = this.qualificationModules.find(qm=>qm.nameDB==r.round.qualiModule);
                         // always loop over the properties in the default object, to make sure that eventual changes in the props get reset
-                        for (let key of Object.keys(this.qualificationConfiguration[QM.nameDB])){
-                            if (qualiConf[key]!==undefined && qualiConf[key !== null]){
-                                this.qualificationConfiguration[QM.nameDB][key] = qualiConf[key];
+                        for (let key of Object.keys(this.qualificationConfiguration[this.selectedQualificationModel])){
+                            if (qualiConf[key]!==undefined && qualiConf[key] !== null){
+                                this.qualificationConfiguration[this.selectedQualificationModel][key] = qualiConf[key];
                             }
                         }
                     }
@@ -695,30 +694,21 @@
                 },
 
                 applyQualification(){
-                    // TODO
                     // save the potentially changed qulification setting and (re)apply the set qualification mode. The actual work will be done in the qualification module. Here, only apply the changes to the SSR in the rContest
                     const apply = ()=>{
                         // TODO
                     }
 
-                    // check if there was a change in the qualificaiton setup
-                    // only save to server in this case
+                    // this overrides the default exe fucntion in the roomClient. Thus, we need to first apply the actual changes and then actually apply the qualification.
+                    const funcOverride = (data, defaultFunc)=>{
+                        defaultFunc(data);
+                        apply();
+                    };
 
-                    let confChanged = false; // either conf or the module has changed
+                    if (this.qualificationChanged()){
 
-                    if (confChanged){
-                        // this overrides the default exe fucntion in the roomClient. Thus, we need to first apply the actual changes and then actually apply the qualification.
-                        const funcOverride = (data, defaultFunc)=>{
-                            defaultFunc(data);
-                            apply();
-                        };
+                        this.saveQualification(funcOverride);
 
-                        const rCopy = JSON.parse(JSON.stringify(this.roundMod.round))
-
-                        rCopy.qualiModule = this.qualificationModules[this.selectedQualificationModel].nameDB
-                        rCopy.qualiConf = JSON.stringify(this.)
-
-                        rEG.updateRoundInit(rCopy, funcOverride)
                     } else {
                         // apply the qualification directly
                         apply();
@@ -739,19 +729,42 @@
                         if (keys2.indexOf(entries1[i][0]) == -1) return false;
                         
                         // check for value
-                        if (o2[entries2[i][0]] != entries2[i][1]) return false
+                        if (entries1[i][1] != o2[entries1[i][0]]) return false
                     }
 
                     return true;
                 },
-                saveQualification(){
+                qualificationChanged(){
+                    // check if there was a change in the qualificaiton setup
+                    // only save to server in this case
+                    const confDB = this.roundMod.round.qualiConf ? JSON.parse(this.roundMod.round.qualiConf) : {};
+                    return !(this.compareObjects(confDB, this.qualificationConfiguration[this.selectedQualificationModel]) && this.roundMod.round.qualiModule == this.selectedQualificationModel); // either conf or the module has changed
+                },
+                saveQualification(funcOverride=undefined){
                     // save the potentially changed qulification setting
                     // do the update in rEventGroup
-                    //rEG.updateRoundInit()
+
+
+                    if (this.qualificationChanged()){
+
+                        const rCopy = JSON.parse(JSON.stringify(this.roundMod.round))
+
+                        rCopy.qualiModule = this.selectedQualificationModel
+                        rCopy.qualiConf = JSON.stringify(this.qualificationConfiguration[this.selectedQualificationModel]);
+
+                        rEG.room.updateRoundInit(rCopy, funcOverride)
+                    } 
+                    this.overlay = undefined;
+                    
                 },
 
             },
             computed:{
+
+                // whether the current QM setup is valid (null) or not (the error string)
+                QMvalidationError: function(){
+                    return this.qualificationModules.find(QM=>QM.nameDB==this.selectedQualificationModel).validationError.bind(this)();
+                },
 
                 // NOTE: Probably not needed anymore
                 // Create a datastructure as needed to use the server-side ranking and bundling functionality. This means that we first merge all data from all groups/contests and series together and split them again afterwards during bundling, based on the chosen kind of bundling. 
@@ -1470,11 +1483,6 @@
 
                     return requiredNew;
                 },*/
-
-                qualificationOverlay: function(){
-                    // show the configuration of the currently selected series assignment algorithm
-                    return this.qualificationModules[this.selectedQualificationModel].overlayName;
-                },
                 
             },
             watch:{
@@ -1827,13 +1835,16 @@
                             </template>
                         </select>
                     </div>
-                    <!-- include the different qualificaiotn Modules configuration wizards -->
+                    <!-- include the different qualification Modules configuration wizards -->
                     <% qualificationModules.forEach((QM)=>{ %>
                         <%- include(QM, {type:"html"}) %>
                     <% }); %>
+                    <div v-if="QMvalidationError" class="invalid">
+                        {{QMvalidationError}}
+                    </div>
                     <br>
-                    <button type="submit" class="btn btnGreen marginRight" v-on:click="applyQualification" v-bind:disabled="!roundMod.roundFinished"><%= __("Save and apply") %></button>
-                    <button type="button" class="btn btnGreen marginRight" v-on:click="saveQualification"><%= __("Save") %></button>
+                    <button type="submit" class="btn btnGreen marginRight" v-on:click="applyQualification" v-bind:disabled="!roundMod.roundFinished || QMvalidationError"><%= __("Save and apply") %></button>
+                    <button type="button" class="btn btnGreen marginRight" v-on:click="saveQualification()"><%= __("Save") %></button>
                     <button type="button" class="btn btnRed marginRight" v-on:click="overlay=undefined"><%= __("Abort") %></button>
                 </form>
             </div>

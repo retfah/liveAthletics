@@ -1,14 +1,13 @@
 <% if(type=="html"){ %>
 <!-- the configuration window for this kind of qualification definition-->
-<div v-if="qualificationOverlay=='default'" class="verticalForm">
-    <h3><%= __("Configuration") %></h3>
+<div v-if="selectedQualificationModel=='default'" class="verticalForm">
     <label>
         <%= __("Number of qualified athletes in total") %>
-        <input type="number" v-model="qualificationConfiguration.default.total" size=3 min="0">
+        <input type="number" v-model.number="qualificationConfiguration.default.total" size=3 min="0">
     </label>
     <label>
         <%= __("Number of qualified athletes per heat") %>
-        <input type="number" v-model="qualificationConfiguration.default.perHeat" size=3 min="0">
+        <input type="number" v-model.number="qualificationConfiguration.default.perHeat" size=3 min="0">
     </label>
     <div class="information marginRight">i</div><%= __("The number of athletes qualified by the overall rank is given by the total number of athletes minus the number of athletes qualified per heat multiplied with the number of heats") %>
 </div>
@@ -29,6 +28,27 @@
             }
         }, // function called on initialization of the qualification moduleseries assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
         baseDisciplineTypes: [1,2], // the baseDisciplines-types where this series assignment option shall be present (probably only needed for track disciplines)
+        validationError: function(){
+            // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)
+            try {
+                // if there is no value perHeat, it is always fine
+                if (this.qualificationConfiguration['default'].perHeat==0) return null;
+    
+                // otherwise, try to count the number of heats. 
+                let numHeats = 0;
+                this.roundMod.groups.forEach(g=>{
+                    if (!('contest' in g)) return ; // contest does not exist (yet)
+                    if (g.contest.status<90) return ; // series not yet finished
+                    numHeats += g.series.length;
+                })
+                if (numHeats * this.qualificationConfiguration['default'].perHeat> this.qualificationConfiguration['default'].total){
+                    return `<%- __("The total number of qualified persons (${this.qualificationConfiguration['default'].total}) must be larger or equal to the number of heats (${numHeats}) multiplied with the number of qualified athletes per heat (${this.qualificationConfiguration['default'].perHeat}).") %>`;
+                }
+            } catch (ex){
+                console.log(ex);
+            }
+            return null;
+        },
     }
 
 <% } %>

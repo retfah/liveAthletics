@@ -102,6 +102,9 @@ details {
     /*background-color:rgb(220,220,220);*/
     justify-self:stretch;
   }
+  input:out-of-range{
+    background-color: red;
+  }
   input[type="radio"]:checked + label + div.tabContent{
     display: block;
   } /* [type="radio"] */
@@ -642,7 +645,7 @@ div.crumb{
 div.changeRes{
     display: grid;
 }
-input:invalid{
+.invalid, input:invalid{
     border-color: red;
     background-color: red;
 }
