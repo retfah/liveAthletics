@@ -19,7 +19,7 @@ export default class rEventGroup extends roomServer {
         let roomName = `eventGroups/${eventGroup.xEventGroup}@${meetingShortname}`
 
         //(eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTickets=-1, conflictChecking=false, dynamicRoom=undefined, reportToSideChannel=true, keepWritingTicket=true)
-        super(eventHandler, mongoDb, logger, roomName, true, 0, false, dynamicRoom, false, false);
+        super(eventHandler, mongoDb, logger, roomName, true, -1, false, dynamicRoom, false, false);
 
         this.eventGroup = eventGroup;
 
@@ -91,6 +91,7 @@ export default class rEventGroup extends roomServer {
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateData = this.updateData.bind(this);
+        this.functionsWrite.updateRound = this.updateRound.bind(this);
 
     }
 
@@ -99,6 +100,12 @@ export default class rEventGroup extends roomServer {
         this.eH.eventUnsubscribe(`eventAddedToEventGroup${eventGroup.xEventGroup}`, this.l1);
         this.eH.eventUnsubscribe(`eventDeletedFromEventGroup${eventGroup.xEventGroup}`, this.l2);
         this.eH.eventUnsubscribe(`eventGroupUpdated${eventGroup.xEventGroup}`, this.l3);
+    }
+
+    async updateRound(data){
+        // simply let the "parent do the change"
+        // eventually, this approach leads to "double change" the data on the client; once as the answer to the call to the fuction here, and once due to updateData.
+        return await this.rEventGroups.updateRound(data);
     }
 
     async updateData(data){

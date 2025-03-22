@@ -29,10 +29,32 @@ export class rEventGroupClient extends roomClient{
 
         // set the available functions
         this._addFunction('updateData', this.updateDataExe);
+        this._addFunction('updateRound', this.updateRoundExe);
     }
 
     updateDataExe(data){
         this.propertyTransfer(data, this.data, true);
+    }
+
+    // same as in rEventGroupsClient; use the functionOverride to know when the change has been applied successfully; call the default function first!
+    updateRoundInit(round, functionOverride=undefined){
+        this.addToStack('updateRound', round, functionOverride);
+    }
+    updateRoundExe(round){
+
+        // this might not be needed for pure data updating, since the change should arrive via updateData as well. However, the change there might arrive after the answer to the call here; Thus, we still need to apply the actual change here to make sure that the function called in the vue after changing the data is run with the right props. 
+
+        // make sure that round does only contain the properties as required by rEventGroups.updateRound, and not the additional properties added in rEventGroup (note: plural/singular)
+        // order is not allowed to be transmitted
+        delete rCopy.order;
+        // the contests must be removed
+        for (let group of rCopy.groups){
+            delete group.contest;
+        }
+
+        // find the corresponding round
+        let r = this.data.rounds.find(r=>r.xRound==round.xRound);
+        this.propertyTransfer(round, r, true);
     }
 
 }
