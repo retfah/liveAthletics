@@ -2690,6 +2690,10 @@
 
                     return arr;
                 },
+
+                gotoQuali(relatedGroup){
+                    window.location = "./groupsQualifications?xEventGroup="+relatedGroup.round.eventgroup.xEventGroup; 
+                }
             },
             watch:{
                 mode: {

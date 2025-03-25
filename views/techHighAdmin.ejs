@@ -128,7 +128,7 @@
                         </tr>
                     </th>
                     <template v-for="rG in relatedGroups">
-                        <tr>               
+                        <tr class="clickable" v-on:click="gotoQuali(rG)">               
                             <td>
                                 <template v-for="(event, eventIndex) in rG.round.eventgroup.events">
                                     <br v-if="eventIndex>0">

@@ -1349,6 +1349,11 @@
                 printResults(){
                     // call print results track; provide the data of the required rooms, but no processed data, to allow the funciton to be reused on the server!
                     printResultsTrack(this.contest, this.series, this.startgroups, this.relatedGroups, this.disciplines, this.categories, this.meeting, this.sites,this.printLane, this.printReactionTime) // I dont know whether the last 3 items are really needed. 
+                },
+
+                gotoQuali(relatedGroup){
+
+                    window.location = "./groupsQualifications?xEventGroup="+relatedGroup.round.eventgroup.xEventGroup; 
                 }
 
             },
