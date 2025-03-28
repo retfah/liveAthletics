@@ -49,6 +49,23 @@ export class rContestClient extends roomClient{
         this._addFunction('addStartsInGroup', this.addStartsInGroupExe);
         this._addFunction('renewStartgroups', this.renewStartgroupsExe);
         this._addFunction('deleteStartsInGroup', this.deleteStartsInGroupExe);
+        this._addFunction('updateQualification', this.updateQualificationExe);
+    }
+
+    updateQualificationExe(data){
+        // data contains some props of the ssr
+        let series = this.data.series.find(s=>s.xSeries == data.xSeries);
+        if (!series){
+            this.logger.log(10, `Could not find the series ${data.xSeries}`);
+            return;
+        }
+        let ssr = series.seriesstartsresults.find(s=>s.xSeriesStart==data.xSeriesStart);
+        if (!ssr){
+            this.logger.log(10, `Could not find the seriesstartresult ${data.xSeriesStart}`);
+            return;
+        }
+
+        this.propertyTransfer(data, ssr, true);
     }
 
     updateAuxDataExe(data){

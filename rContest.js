@@ -327,6 +327,7 @@ class rContest extends roomServer{
         this.functionsWrite.deleteSeries = this.deleteSeries.bind(this); 
         this.functionsWrite.updatePresentState = this.updatePresentState.bind(this);
         this.functionsWrite.updateHeatStarttimes = this.updateHeatStarttimes.bind(this);
+        this.functionsWrite.updateQualification = this.updateQualification.bind(this);
 
         const schemaUpdatePresentState = {
             type: "object",
@@ -370,6 +371,17 @@ class rContest extends roomServer{
             additionalProperties: false
         }
         
+        const schemaUpdateQualification = {
+            type: 'object',
+            properties: {
+                xSeries: {type: "integer"},
+                xSeriesStart: {type: "integer"},
+                qualification: {type: "integer"},
+            },
+            additionalProperties: false,
+            required: ["xSeries", "xSeriesStart", "qualification"],
+        }
+        
         const schemaDeleteSeries = {type:"integer"};
 
         this.validateAllSeriesStatusChange = this.ajv.compile({type:'integer'});
@@ -378,6 +390,7 @@ class rContest extends roomServer{
         this.validateDeleteSSR = this.ajv.compile(schemaDeleteSSR);
         this.validateMoveSeries = this.ajv.compile(schemaMoveSeries);
         this.validateDeleteSeries = this.ajv.compile(schemaDeleteSeries);
+        this.validateUpdateQualification = this.ajv.compile(schemaUpdateQualification);
         this.validateUpdateHeatStarttimes = this.ajv.compile({type:'integer'});
 
         // the following validations must be provided by the inheriting class:
@@ -428,6 +441,40 @@ class rContest extends roomServer{
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true,
+        };
+
+        return ret;
+
+    }
+
+    async updateQualification(data){
+        if (!this.validateUpdateQualification(data)){
+            throw {code:21, message: this.ajv.errorsText(this.validateUpdateQualification.errors)}
+        }
+
+        // find the series
+        const series = this.data.series.find(s => s.xSeries == data.xSeries);
+        if (!series){
+            throw {code:22, message:`Could not find series ${data.xSeries}.`};
+        }
+
+        // find the seriesStarStartResult
+        const ssr = series.seriesstartsresults.find(ssr=>ssr.xSeriesStart==data.xSeriesStart);
+        if (!ssr){
+            throw {code:22, message:`seriesstartresult ${data.xSeriesStart} was not found in the respective series. series start result cannot be changed.`}
+        }
+
+        // update the qualification
+        await ssr.update(data).catch(err=>{
+            throw {code: 23, message: `Could not update the seriesstartresult: ${err}`}
+        });
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'updateQualification', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
         };
 
         return ret;
