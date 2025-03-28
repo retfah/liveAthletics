@@ -17,7 +17,7 @@
 
 
     // connect to the respective contest; 
-    // in contrast to the vuContestTechHigh in in the respective file, this class here assigns the data from the room to different properties in the vue instance. Additionally, we do not request writing rights
+    // in contrast to the original vuContestXY in in the respective file, this class here assigns the data from the room to different properties in the vue instance. Additionally, we do not request writing rights
     class vuContestTechHigh2 extends roomClientVue{
         constructor(vue, meetingShortname, xContest){
             // parent constructor: initializes the room
@@ -54,22 +54,12 @@
                 series: this.room.data.series,
                 auxData: this.room.data.auxData,
                 contest: this.room.data.contest,
+                room: this.room, 
             }
-            /*this.room.data.contest;
-            this.vue.series = this.room.data.series;
-            this.vue.startgroups = this.room.data.startgroups;
-            this.vue.relatedGroups = this.room.data.relatedGroups;
-            this.vue.disciplines = this.room.data.disciplines;
-            this.vue.meeting = this.room.data.meeting;
-            this.vue.categories = this.room.data.categories;
-            this.vue.roomAuxData = this.room.data.auxData;*/
             
-            
-            // this.vue.baseDisciplines = this.room.data.disciplines;
-            // this.vue.categories = this.room.data.categories;
-
-            // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
-            // no backtransfer of meeting and categories required
+            this.room.data.series = this.vue.contests[this.xContest].series;
+            this.room.data.auxData = this.vue.contests[this.xContest].auxData
+            this.room.data.contest = this.vue.contests[this.xContest].contest
         }
         
         afterFullreload(){
@@ -92,6 +82,80 @@
             
             // also update the writing status
             this.onWritingTicketChange();
+
+        }
+
+    }
+
+    class vuContestTrack2 extends roomClientVue{
+        constructor(vue, meetingShortname, xContest, writing=false){
+            // parent constructor: initializes the room
+            //(roomName, writing, storeInfos, path, className, datasetName='')
+            super(`contests/${xContest}@${meetingShortname}`, writing, true, '/static/rContestTrackClient.js', 'rContestTrackClient', '')
+
+            // needed to call things in the vue class
+            this.vue = vue;
+            this.xContest = xContest;
+        }
+
+        /**
+         * called when a a writing ticket is stored or deleted
+         */
+        onWritingTicketChange(){
+            this.vue.readOnly = this.room.writingTicketID==false;
+        }
+
+        onChange(){
+
+            // some computed properties such as resultGridTemplate are not updated when its content changes (e.g. xHeight changed from negative values to the true value); thus we need this stupid fake property
+            // is this still required?
+            this.vue.fakeProperty++;
+
+        }
+
+        setProps(){
+
+            // make sure that the series are sorted
+            this.room.sortSeries();
+
+            // set the changed data-property as data of the vue-instance
+            this.vue.contests[this.xContest] = {
+                series: this.room.data.series,
+                auxData: this.room.data.auxData,
+                contest: this.room.data.contest,
+                //room: this.room
+            }
+
+            this.room.data.series = this.vue.contests[this.xContest].series;
+            this.room.data.auxData = this.vue.contests[this.xContest].auxData
+            this.room.data.contest = this.vue.contests[this.xContest].contest
+
+        }
+        
+        afterFullreload(){
+
+            // first, calculate the time offset of the browser's time and the time on the server
+            // the offset is defiend as serverTime - timeHere; i.e. the value is positive, when the time here is lower than on the server.
+            this.vue.timeOffset = new Date(this.room.data.serverTime) - new Date();
+
+            // 
+            this.setProps()
+
+            // also update the writing status
+            this.onWritingTicketChange();
+
+        }
+        
+        dataArrived(){
+
+            // 2022-12: same as afterFullReload
+            this.afterFullreload()
+
+            // OLD: 
+            // this.setProps();
+            
+            // // also update the writing status
+            // this.onWritingTicketChange();
 
         }
 
@@ -128,7 +192,7 @@
             this.vue.clubs = this.room.data.clubs; // this will actually store a proxy of the data!
 
             // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
-            //this.room.data.clubs = this.vue.clubs;
+            this.room.data.clubs = this.vue.clubs;
         }
         
         dataArrived(){
@@ -369,7 +433,10 @@
                         // next include:<%- include(QM, {type:"js"}) %>,
                     //<% }); %>
                     ],
-                    roundMod:undefined,
+                    roundMod: undefined,
+                    qualiMod: undefined,
+                    qualiModXContest: undefined,
+                    newQState: undefined,
 
                     filters: {}, // TODO: needed?
 
@@ -403,12 +470,12 @@
                     }
                 },
 
-                // TODO: add here a formatter for the results / values
-
                 updateContests(){
-                    // TODO: put all contestsUpdate stuff here and add watchers which call this function!
-                    // changes in eventGroup --> will be called too often then, but this is better than the other way around
-                    // watch all contests
+
+                    // as long as disciplines is not available, we cannot know the type and therefore cannot call the contests
+                    if(!this.discipline){
+                        return;
+                    }
 
                     // new 2024-10: load all contests instantly; (before only the contests of the "current" round were loaded.)
 
@@ -431,7 +498,14 @@
                         // if the contest is not loaded yet, load it
                         if (oldContestsRequested.indexOf(xcNew)==-1){
                             // get the vue
-                            this.contestVUs[xcNew] = new vuContestTechHigh2(this, ms, xcNew);
+                            if (this.discipline.type==1){
+                                this.contestVUs[xcNew] = new vuContestTechHigh2(this, ms, xcNew);
+                            } else if (this.discipline.type==2){
+                                // TODO
+                            } else if (this.discipline.type==3){
+                                this.contestVUs[xcNew] = new vuContestTrack2(this, ms, xcNew);
+                            }
+                            
                         }
                     }
                     for (let xcOld of oldContestsRequested){
@@ -511,6 +585,27 @@
 
                     this.overlay = "qualificationSetup";
                 },
+
+                modQualification(resObj, xContest){
+                    this.qualiMod = resObj;
+                    this.qualiModXContest = xContest;
+                    this.newQState = resObj.qualification;
+                    this.overlay = 'modQualification';
+                },
+                saveQualificationMod(){
+                    if (this.newQState != this.qualiMod.qualification){
+                        let data = {
+                            xContest: this.qualiModXContest,
+                            xSeries: this.qualiMod.xSeries,
+                            xSeriesStart: this.qualiMod.xSeriesStart,
+                            qualification: this.newQState, 
+                        };
+                        
+                        rEG.room.updateQualificationInit(data);
+                    }
+                    this.overlay=undefined;
+                },
+
                 overlayInfo(title, content){
                     this.infoTitle = title;
                     this.infoContent = content;
@@ -696,7 +791,7 @@
                 applyQualification(){
                     // save the potentially changed qulification setting and (re)apply the set qualification mode. The actual work will be done in the qualification module. Here, only apply the changes to the SSR in the rContest
                     const apply = ()=>{
-                        // TODO
+                        this.qualificationModules.find(QM=>QM.nameDB==this.selectedQualificationModel).apply.bind(this)();
                     }
 
                     // this overrides the default exe fucntion in the roomClient. Thus, we need to first apply the actual changes and then actually apply the qualification.
@@ -713,6 +808,7 @@
                         // apply the qualification directly
                         apply();
                     }
+                    this.overlay = undefined;
 
                 },
                 compareObjects(o1, o2){
@@ -756,6 +852,16 @@
                     } 
                     this.overlay = undefined;
                     
+                },
+                contestLink(contest){
+                    if (this.discipline.type==1){
+                        return `./techHighAdmin?xContest=${contest.xContest}`
+                    } else if (this.discipline.type==2){
+                        return `./techLongAdmin?xContest=${contest.xContest}`
+                    } else if (this.discipline.type==3){
+                        return `./trackAdmin?xContest=${contest.xContest}`
+                    }
+                    return '';
                 },
 
             },
@@ -964,7 +1070,7 @@
                                     xRegion: a.xRegion,
                                     xStartgroup: sig?.xStartgroup,
                                     groupNumber: sig.number,
-                                    eventStr
+                                    eventStr,
                                 }
                             }); // all starts of this eventGroup
                         } else {
@@ -1025,6 +1131,7 @@
                                             let res = JSON.parse(JSON.stringify(ssr));
                                             //add a reference to the original object
                                             res.ssrOriginal = ssr;
+                                            res.qualification = ssr.qualification;
                                             if (this.discipline.type==1){
                                                 // techHigh
                                                 
@@ -1223,7 +1330,7 @@
                             rankTrack(resAll, 'overall')
                         }
 
-                        const roundFinished = groups.reduce((finished, g)=>finished && g.status>=200, true);
+                        const roundFinished = groups.reduce((finished, g)=>finished && g.contest?.status>=200, true);
 
                         rounds.push({
                             round:r,
@@ -1483,6 +1590,26 @@
 
                     return requiredNew;
                 },*/
+                qualificationStatesObj: function(){
+                    const o={};
+                    for (let qs of this.qualificationStates){
+                        o[qs.value] = qs;
+                    }
+                    return o;
+                },
+                qualificationStateLegend: function(){
+                    let t = '';
+                    for (let qs of this.qualificationStates){
+                        if(qs.abbreviation!=''){
+                            
+                            if (t!=''){
+                                t+=`; `
+                            }
+                            t+=`${qs.abbreviation}: ${qs.text}`;
+                        }
+                    }
+                    return t;
+                },
                 
             },
             watch:{
@@ -1507,6 +1634,10 @@
                 eventGroup: function(newVal, oldVal){
                     this.updateContests();
                 },
+                discipline: function(newVal, oldVal){
+                    // this is needed when the eventGroups arrive before the disciplines (from rStart)
+                    this.updateContests(); 
+                }
 
             },
             mounted:function(){
@@ -1559,7 +1690,7 @@
                     <li v-for="g in r.groups">
                         {{g.number}}<template v-if="g.name!=''">: "{{g.name}}"</template> 
                         <template v-if="g.contest">
-                            , <a v-bind:href="'./techHighAdmin?xContest='+g.contest.xContest" v-bind:style="{'background-color':contestStates.find(cs=>cs.value==g.contest.status).backgroundColor, color:contestStates.find(cs=>cs.value==g.contest.status).textColor}">{{formatTime(g.contest.datetimeStart)}} {{g.contest.name}}, <!--<%= __("Status") %>--> {{contestStates.find(cs=>cs.value==g.contest.status).text}}</a>
+                            , <a v-bind:href="contestLink(g.contest)" v-bind:style="{'background-color':contestStates.find(cs=>cs.value==g.contest.status).backgroundColor, color:contestStates.find(cs=>cs.value==g.contest.status).textColor}">{{formatTime(g.contest.datetimeStart)}} {{g.contest.name}}, <!--<%= __("Status") %>--> {{contestStates.find(cs=>cs.value==g.contest.status).text}}</a>
                         </template>
                         <template v-else>
                             , <%= ("No contest linked to this group.") %>
@@ -1664,6 +1795,7 @@
                         <h3><%= __('Results and qualifications') %></h3>
                         <p v-if="!r.roundFinished">The round is not yet finished. The state of all related contests need to be 'Official' or later.</p>
                         <button type="button" class="btn" v-on:click="setQualificationSetup(r)"><%= __("Qualification Assistant") %></button>
+                        <div style="display:flex"><div style="flex-grow:1; width:0;"><%= __("Legend") %>: {{qualificationStateLegend}}</div></div>
                         <div> 
                             <details v-for="g in r.groups" open="true">
                                 <summary v-bind:style="{'background-color':contestStates.find(cs=>cs.value==g.contest?.status)?.backgroundColor, color:contestStates.find(cs=>cs.value==g.contest?.status)?.textColor}">{{g.number}}{{g.name!=''? ` ${g.name}`:'' }} / {{g.contest!==null ? `${formatTime(g.contest?.datetimeStart)} ${g.contest?.name}, ${contestStates.find(cs=>cs.value==g.contest?.status).text}` : ''}}</summary>
@@ -1672,12 +1804,12 @@
                                 </div>
 
                                 <div v-for="s in g.series">
-                                    xSeries={{s.xSeries}} xSite={{s.xSite}} status={{s.status}} number={{s.number}} name={{s.name}} datetime={{formatTime(s.datetime)}} id={{s.id}} aux={{s.aux}}
+                                    <!-- xSeries={{s.xSeries}} xSite={{s.xSite}} status={{s.status}} number={{s.number}} name={{s.name}} datetime={{formatTime(s.datetime)}} id={{s.id}} aux={{s.aux}} -->
                                     <v-table :data="s.seriesstartsresults" ><!--:filters="filters"-->
                                         <template #head>
                                             <thead>
                                                 <tr>
-                                                    <th is="vue:v-th" sortkey="ranking.overall">
+                                                    <th is="vue:v-th" sortkey="ranking.overall" defaultSort="asc">
                                                         <%= __('Rank') %>
                                                         <template v-if="g.series.length>1 || r.groups.length>1"> 
                                                             <template v-if="g.series.length>1 && r.groups.length>1"> <%= __('heat') %>/<%= __('group') %></template>
@@ -1693,7 +1825,7 @@
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStart">xStart</th>
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStartgroup">xStartgroup</th>
                                                     <th is="vue:v-th" sortkey="bib"><%= __('Bib') %></th>
-                                                    <th is="vue:v-th" sortkey="lastname" defaultsort="asc"><%= __('Name') %></th>
+                                                    <th is="vue:v-th" sortkey="lastname"><%= __('Name') %></th>
                                                     <th is="vue:v-th" sortkey="forename"><%= __('First name') %></th>
                                                     <th is="vue:v-th" sortkey="clubName"><%= __('Club') %></th>
                                                     <th v-if="showEvent" is="vue:v-th" sortkey="eventStr">Events</th>
@@ -1702,6 +1834,7 @@
                                                     <th is="vue:v-th" sortkey="notificationPerf">ML</th>-->
                                                     <!-- for qualification, add here the result from the last round -->
                                                     <th is="vue:v-th" sortkey="result"><%= __('Result') %></th>
+                                                    <th><%= __('Q') %></th>
                                                     <th><!--buttons--></th>
                                                 </tr>
                                             </thead>
@@ -1736,16 +1869,15 @@
                                                     <td>{{formatPerf(row?.notificationPerf, discipline.xBaseDiscipline)}}</td>-->
                                                     <td v-if="row.resultOverrule==0">{{row.resultStr}}</td>
                                                     <td v-else>{{participationStatesAll.find(el=>el.value==row.resultOverrule)?.abbreviation}}</td>
+                                                    <td>{{qualificationStatesObj[row.ssrOriginal.qualification].abbreviation}}</td>
                                                     <td>
-                                                        <!--<button class="btn btnGrey marginRight" v-on:click="modClub(row.xClub)" ><%= __("Change") %></button>
-                                                        <button class="btn btnRed" v-on:click="deleteClub(row.xClub)"><%= __("Delete") %></button>-->
+                                                        <button class="btn btnGrey marginRight" v-on:click="modQualification(row, g.contest.xContest)" ><%= __("Qabbr") %></button>
                                                     </td>
                                                 </tr>
                                             </tbody>
                                         </template>
                                     </v-table>
                                 </div>
-                                
                             </details>
                         </div>
                     </div>
@@ -1753,73 +1885,31 @@
             </div>
             
         </details>
-
-
-        <!--<h2><%= __("List of clubs") %>:</h2>
-        <button type="button" class="btn btnGreen" v-on:click="addClub()"><%= __("Add club") %></button><br>
-        <label class="verticalForm">
-            <%= __("Filter clubs") %>: 
-            <input v-model="filterClubs" type="text" size="30">
-        </label>
-        <v-table :data="clubs" :filters="filters">
-            <template #head>
-                <thead>
-                    <tr>
-                        <th v-if="showFullDetails" is="vue:v-th" sortkey="xClub">xClub</th>
-                        <th is="vue:v-th" sortkey="name" defaultsort="asc"><%= __('Name') %></th> <th is="vue:v-th" sortkey="sortvalue"><%= __('Sortvalue') %></th>
-                        <th v-if="showFullDetails" is="vue:v-th" sortkey="deleted"><%= __('Deleted') %></th>
-                        <th></th>
-                    </tr>
-                </thead>
-            </template>
-            <template v-slot:body="{displayData}"> 
-                <tbody>
-                    <tr v-for="row in displayData" :key="row.xClub">
-                        <td v-if="showFullDetails">{{row.xClub}}</td>
-                        <td>{{ row.name }}</td>
-                        <td>{{ row.sortvalue }}</td>
-                        <td v-if="showFullDetails">{{row.deleted}}</td>
-                        <td>
-                            <button class="btn btnGrey" v-on:click="modClub(row.xClub)" ><%= __("Change") %></button>
-                            <button class="btn btnRed" v-on:click="deleteClub(row.xClub)"><%= __("Delete") %></button>
-                        </td>
-                    </tr>
-                </tbody>
-            </template>
-        </v-table>
         
-        
-        <div class="overlay" v-bind:class="{shown: overlay=='addClub'}">
+        <div class="overlay" v-bind:class="{shown: overlay=='modQualification'}" v-if="overlay=='modQualification'"> <!-- both, v-if and v-bind:class are needed: v-if since some code would create an error when qualiMod is undefined and v-bind:class cannot simply be included in "class" to prevent that it pops up quickly when the page gets loaded.-->
             <div class="overlayContainer">
                 <form>
                     <div class="verticalForm">
-                        <h3 v-if="clubModID == -1"><%= __("Add club") %>: </h3>
-                        <h3 v-if="clubModID > -1"><%= __("Update club") %>: </h3>
-                        <label>
-                            <%= __("Name") %>: 
-                            <input type="text" v-model="newClubName" maxlength="100" v-on:blur="clubChanged">
-                        </label>
-                        <label>
-                            <%= __("Name for sorting") %>: 
-                            <input type="text" v-model="newClubSortname" maxlength="100">
-                        </label>
-    
-                        <button type="button" class="btn btnGreen" v-on:click="createClub" v-bind:disabled="newClubName==undefined || newClubSortname==undefined ">
-                            <div v-if="clubModID==-1"><%= __("Create club") %></div>
-                            <div v-if="clubModID>-1"><%= __("Update club") %></div>
+                        <h3><%= __("Change qualification state for") %> {{qualiMod.forename}} {{qualiMod.lastname}}: </h3>
+                        <select class="content dropdown" v-model="newQState">
+                            <option v-for="option in qualificationStates" v-bind:value="option.value">
+                                <template v-if="option.abbreviation!=''">
+                                    {{option.abbreviation}}: {{option.text}}
+                                </template>
+                                <template v-else>
+                                    {{option.text}}
+                                </template>
+                            </option>
+                        </select>
+                        <br>
+                        <button type="button" class="btn btnGreen marginRight" v-on:click="saveQualificationMod">
+                            <%= __("Change") %>
                         </button>
                         <button type="button" class="btn btnRed" v-on:click="overlay = undefined"><%= __("Abort") %></button>
                     </div>
                 </form>
             </div>
         </div>
-
-        <div v-on:click="showDeleteFailed=false" class="overlay" v-bind:class="{shown: showDeleteFailed}">
-            <div class="overlayContainer">
-                <%= __("Club could not be deleted, because it is referenced (e.g. an athlete or team is member of this club).") %>
-                <br><button type="button" class="btn"><%= __("OK") %></button>
-            </div>
-        </div>-->
 
         <div class="overlay" v-bind:class="{shown: overlay=='qualificationSetup'}">
             <div class="overlayContainer" v-if="overlay=='qualificationSetup'"> <!-- the v-if is needed, since the properties in the modules are not present yet before mounted, which would lead to an error -->
