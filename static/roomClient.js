@@ -662,8 +662,9 @@ class roomClient {
         const request = {funcName: funcName, data: data};
 
         // check whether we should try to write or not when onlineOnly=true 
-        // this implementation where also the local stack must be empty is even stronger than what "onlineOnly" would mean alone, as it also makey sure that no stack builds up. Which would increase the chance that two clients have requests to the server at the same time.
-        if (this.onlineOnly && (!this.connected || l>0)){
+        // NOTE: before 2025-03, it was also required that the local stack must be empty. This would be an even stronger than what "onlineOnly" would mean alone, as it also makes sure that no stack builds up, since a stack  increases the chance that two clients have requests to the server at the same time. However, a client might call (yes, this happens) several functions in a row and since it can be expected that they are handled rapidly on the server with low probability of concurrent calls from other clients, the reuirtement of l=0 was released.
+        //if (this.onlineOnly && (!this.connected || l>0)){
+        if (this.onlineOnly && (!this.connected)){
 
             // virtual error codes:
             // 0: no connection

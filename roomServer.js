@@ -2493,6 +2493,7 @@ class roomServer{
      * Call a serverFunction that writes data. To be used by other server functions/other rooms to get data from this room.
      * @param {string} funcName The name of the function
      * @param {any} data The data used for processing the request
+     * !!! ATTENTION: All other properties are to be used by the sideChannel only !!!
      * @param {string} id !!! to be used only by rSideChannel !!!
      * @param {string} oldId !!! to be used only by rSideChannel !!! (the old ID to be used for the ID check; NOTE: normally, no ID check is done for serverWriteFunctions, but for teh sideChannel it must be done, since doing the check inside the sideChannel does not work, since it must be done after any previous changes are applied.)
      * @param {string} tabIdExclude The tab ID of the client which shall be excluded from the broadcast. !!! to be used only by rSideChannel !!!

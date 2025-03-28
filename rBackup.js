@@ -79,7 +79,8 @@ class rBackup extends roomServer{
                 },
                 
                 secondaryPushConnections:{},
-                secondaryPullConnections:{} // an object for every secondary server, where the token is the proeprty name; proeprties of the object are 'lastConnected' (for currently not connected secondaries; timestamp when either entred or left), connected:true/false, connection and the token. 
+                secondaryPullConnections:{}, // an object for every secondary server, where the token is the proeprty name; proeprties of the object are 'lastConnected' (for currently not connected secondaries; timestamp when either entred or left), connected:true/false, connection and the token. 
+                sideChannelId:null, // the UUID of the sideChannel. This is helpful for debugging
             }
         }; 
 
