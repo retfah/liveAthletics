@@ -92,6 +92,21 @@ export default class rEventGroup extends roomServer {
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateData = this.updateData.bind(this);
         this.functionsWrite.updateRound = this.updateRound.bind(this);
+        this.functionsWrite.updateQualification = this.updateQualification.bind(this);
+
+        let schemaUpdateQualification = {
+            type: "object",
+            properties: {
+                xContest:{type:"integer"},
+                xSeries: {type: "integer"},
+                xSeriesStart: {type: "integer"},
+                qualification: {type: "integer"},
+            },
+            required:["xContest", "xSeries", "xSeriesStart", "qualification"], 
+            additionalProperties: false,
+        }
+
+        this.validateUpdateQualification = this.ajv.compile(schemaUpdateQualification);
 
     }
 
@@ -100,6 +115,34 @@ export default class rEventGroup extends roomServer {
         this.eH.eventUnsubscribe(`eventAddedToEventGroup${eventGroup.xEventGroup}`, this.l1);
         this.eH.eventUnsubscribe(`eventDeletedFromEventGroup${eventGroup.xEventGroup}`, this.l2);
         this.eH.eventUnsubscribe(`eventGroupUpdated${eventGroup.xEventGroup}`, this.l3);
+    }
+
+    // NOTE: Actually, the groupsQualification enters the contest room as well. However, without writing rights. Adding writing rights there would also be overly restrictive, since it would require (at least for tech contest) that no other client has writing rights at the same time. Since we are only changing the qualification property, which is unlikely (but not impossible, e.g. when delting the SSR) to conflict with not yet written changes from the wirting client in the contest,  
+    async updateQualification(data){
+        if (!this.validateUpdateQualification(data)){
+            throw {message: this.ajv.errorsText(this.validateUpdateQualification.errors), code:29};
+        }
+
+        // find the respective contest room
+        const rContest = this.rContests.getSubroom(`${data.xContest}`)
+        //const rContest = this.rContests.data.find(c=>c.xContest==data.xContest);
+        if (!rContest){
+            throw {message: `Contest ${data.xContest} could not be found.`, code:28};
+        }
+
+        const data2 = {
+            xSeries: data.xSeries,
+            xSeriesStart: data.xSeriesStart,
+            qualification: data.qualification,
+        }
+        await rContest.serverFuncWrite("updateQualification", data2); // NOTE: we can/do not use updateSSR, since it (and the required properties) depends on the type of contest. updateQualification is a common function in rContest.
+        return  {
+            isAchange: true, 
+            doObj: {funcName: 'updateQualification', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true
+        };
     }
 
     async updateRound(data){
