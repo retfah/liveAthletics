@@ -863,7 +863,13 @@
                     }
                     return '';
                 },
-
+                sortRank(a,b){
+                    if (a.ranking.overall==b.ranking.overall){
+                        return (a.rank-b.rank);
+                    } else {
+                        return (a.ranking.overall - b.ranking.overall);
+                    }
+                },
             },
             computed:{
 
@@ -1809,7 +1815,7 @@
                                         <template #head>
                                             <thead>
                                                 <tr>
-                                                    <th is="vue:v-th" sortkey="ranking.overall" defaultSort="asc">
+                                                    <th is="vue:v-th" :customSort="sortRank" defaultSort="asc">
                                                         <%= __('Rank') %>
                                                         <template v-if="g.series.length>1 || r.groups.length>1"> 
                                                             <template v-if="g.series.length>1 && r.groups.length>1"> <%= __('heat') %>/<%= __('group') %></template>
@@ -1817,10 +1823,6 @@
                                                             <template v-if="g.series.length==1 && r.groups.length>1"> <%= __('group') %></template>/<%= __('round') %>
                                                         </template>
                                                     </th>
-
-                                                    <!--<th v-if="g.series.length>1" sortkey="ranking.series"><%= __('in heat') %></th>
-                                                    <th v-if="r.groups.length>1" sortkey="ranking.group"><%= __('in group') %></th>
-                                                    <th is="vue:v-th" sortkey="ranking.overall"><%= __('over all') %></th>-->
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xInscription">xInscription</th>
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStart">xStart</th>
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStartgroup">xStartgroup</th>
@@ -1844,7 +1846,7 @@
                                                 <tr v-for="row in displayData" :key="row.xInscription">
                                                     <td>
                                                         <template v-if="g.series.length>1 || r.groups.length>1"> 
-                                                            <template v-if="g.series.length>1 && r.groups.length>1"> {{row.ranking.series}}. / {{row.ranking.group}}.</template>
+                                                            <template v-if="g.series.length>1 && r.groups.length>1"> {{row.rank}}. / {{row.ranking.group}}.</template>
                                                             <template v-if="g.series.length>1 && r.groups.length==1"> {{row.ranking.series}}.</template>
                                                             <template v-if="g.series.length==1 && r.groups.length>1"> {{row.ranking.group}}.</template>
                                                             / {{row.ranking.overall}}.
@@ -1853,9 +1855,6 @@
                                                             {{row.ranking.overall}}.
                                                         </template>
                                                     </td>
-                                                    <!--<td v-if="g.series.length>1">{{row.ranking.series}}.</td>
-                                                    <td v-if="r.groups.length>1">{{row.ranking.group}}.</td>
-                                                    <td>{{row.ranking.overall}}.</td>-->
                                                     <td v-if="showFullDetails">{{row.xInscription}}</td>
                                                     <td  v-if="showFullDetails">{{ row.xStart }}</td>
                                                     <td  v-if="showFullDetails">{{ row.xStartgroup }}</td>
