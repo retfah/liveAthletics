@@ -154,9 +154,12 @@
             // if two persons have the same rank in the heat (and obviously also the same time), but only one can/could be qualified, then try to qualify both, by, 1st, try to reduce the number of persons qualified by time by 1; or 2nd, try to increase the number of total qualified athletes (e.g. 9th lane, or 2 persons per lane in 800m) (TR21.3 + TR21.4)
             if (conf.perHeat>0){
                 // if there is a tie, we cannot instantly use standbyLanes, because there could be e.g. only 1 standbylane, but more than 1 tie. Then it would not be fair, if the standby lane was simply assigned for the first tie, and the latter tie was then randomly decided. Additionally the code shall be written in a way to also handle a tie over more than 2 persons and the case, where there are >2 athletes with a rank, where we must make sure that at least perHeat number of athletes get qualified.
-                const Qtie = []; // an array of objects; one object per heat with ties; 
-                // {heat, lackingLanes:1, athletes:[1,2,3]} --> 3 athkletes and 1 lacking lane means that at least two athletes need to qualify from this heat. If randomly assigned, also the third person might get qualified. (This is needed to ensure that at least the perHeat number of athletes gets qualified.) 
+                // Thus, there are two lots: 
+                // Lot 1: for every heat, qualify (potentiallyby lot) the required number of persons. Add persons qualified by lot to QByFirstLot, add the not.qualified-by-lot to Qtie, which will be handled in Lot 2
+                // Lot 2: handles the persons loosing the first lot. Among those, potential additional lanes (qualified by time, standby lanes) qill be drawn by lot.
+                const Qtie = []; // an array of ssrs to draw by lot for the standby lanes
                 
+                const QByFirstLot = []; // we need an array to store all athletes that were qualified in the first lot, since we do not yet know wheter really a lot is needed (Q*) (when there are not enough additional lanes) or whether actually all persons can be qualified regulary (Q) (including the additioanl lanes).
 
                 for (let group of groups){
                     for (let heat of group.series){
@@ -173,16 +176,19 @@
                             withdrawalsToReplaceQ += ssrsWithdrawal.length*(conf.resignedRankReplacement=='rank');
                             
                             if (ssrs.length>conf.perHeat-i+1){
-                                // its a tie
-                                Qtie.push({
-                                    athletes: ssrs,
-                                    lackingLanes: ssrs.length - conf.perHeat+i-1,
-                                    heat,
-                                    group,
-                                })
+                                // first, qualify the minimum number of athletes per heat by lot
+                                for (let j=0; j<conf.perHeat-i+1; j++){
+                                    let k = Math.floor(Math.random()*ssrs.length); // k'th athlete gets Q*
+                                    QByFirstLot.push(ssrs[k]);
+                                    ssrs.splice(k, 1);
+                                    qualifiedAthletes++;
+                                }
+
+                                // then add all others to Qtie
+                                Qtie.push(...ssrs)
 
                             } else {
-                                // not tie; set all Q
+                                // not a tie; set all Q
                                 for (let ssr of ssrs){
                                     ssr.qualification = i<=conf.perHeat ? 1 : 3; // either regular Q or Q+;
                                     qualifiedAthletes++;
@@ -195,31 +201,32 @@
                 // handle Qties
                 // available additional lanes: 
                 const avail = conf.total - qualifiedAthletes + conf.standbyPositions;
-                const required = Qtie.reduce((req, el)=>el.lackingLanes+req, 0);
-                if (avail < required){
+                if (avail < Qtie.length){
+                    // first, we need to make sure that in each series the minimum number of 
+
                     // we need to draw by lot for the remaining positions;
                     for (let i=0; i<avail; i++){
-                        let j = Math.floor(Math.random()*(required-i)); // j'th required space is qualified 
-                        // find the j'th missing lane
-                        let n=0; 
-                        for (let tieHeat of Qtie){
-                            if (n>=j && n+tieHeat.lackingLanes-1<=j){
-                                // select the athlete in this heat
-                                tieHeat.athletes[j-n].qualification = 2 // 2= Q by lot
-                                tieHeat.athletes.splice(j-n,1); // remove athlete to not select it again
-                                qualifiedAthletes++;
-                            }
-                            n += tieHeat.lackingLanes;
-                        }
+                        let j = Math.floor(Math.random()*Qtie.length); // j'th required space is qualified 
+                        Qtie[j].qualification = 2;
+                        qualifiedAthletes++;
+                        Qtie.splice(j,1);
+                    }
+
+                    // now set QByFirstLot to Q*
+                    for (let a of QByFirstLot){
+                        a.qualification = 2;
                     }
 
                 } else {
                     // all Q-ties can be qualified without lot;
-                    for (let X of Qtie){
-                        for (let a of X.athletes){
-                            a.qualification = 1; // 1=regular Q
-                            qualifiedAthletes++;
-                        }
+                    // in this case, we also need to change back to qualified=1 for all previously 
+                    for (let a of Qtie){
+                        a.qualification = 1; // 1=regular Q
+                        qualifiedAthletes++;
+                    }
+                    // now set QByFirstLot to Q
+                    for (let a of QByFirstLot){
+                        a.qualification = 1;
                     }
                 }
             }
