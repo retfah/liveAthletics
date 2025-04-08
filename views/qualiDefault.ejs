@@ -175,7 +175,7 @@
                             unreplacedWithdrawals += ssrsWithdrawal.length*(conf.resignedRankReplacement=='none');
                             withdrawalsToReplaceQ += ssrsWithdrawal.length*(conf.resignedRankReplacement=='rank');
                             
-                            if (ssrs.length>conf.perHeat-i+1){
+                            if (ssrs.length>conf.perHeat+withdrawalsToReplaceQ-i+1){
                                 // first, qualify the minimum number of athletes per heat by lot
                                 for (let j=0; j<conf.perHeat-i+1; j++){
                                     let k = Math.floor(Math.random()*ssrs.length); // k'th athlete gets Q*
