@@ -49,7 +49,6 @@ export class laportal extends dataProvider{
 		this.intervalPast = setInterval(this.updatePastData.bind(this), this.tIntervalPast*1000);
 		this.intervalCurrent = setInterval(this.updateCurrentData.bind(this), this.tIntervalCurrent*1000);
 		this.intervalUpcoming = setInterval(this.updateUpcomingData.bind(this), this.tIntervalUpcoming*1000);
-
 	}
 
 	async onMongoConnected(){
@@ -181,7 +180,7 @@ export class laportal extends dataProvider{
 		}).then((dom)=>{ 
 			//console.log(dom);
 			let meetings = [];
-			for (let tr of dom.HTML.BODY[0].SECTION[0].DIV[0].SECTION[0].TABLE[0].TBODY[0].TR){
+			for (let tr of dom.HTML.BODY[0].SECTION[0].DIV[1].SECTION[0].TABLE[0].TBODY[0].TR){
 				if (tr.TD[0]._ == 'No competitions found'){
 					// following stuff would fail if there are no competitions
 					return {meetings, numPages:1}
@@ -246,13 +245,14 @@ export class laportal extends dataProvider{
 
 			}
 			
-			let UL = dom.HTML.BODY[0].SECTION[0].DIV[0].SECTION[0].DIV[0].DIV[0].UL[0];
+			let UL = dom.HTML.BODY[0].SECTION[0].DIV[1].SECTION[0].DIV[0].DIV[0].UL[0];
 			let numPages = parseInt(UL.LI[UL.LI.length-1].A[0]._.trim());
 			this.logger.log(97, `${path} processed. Totally ${numPages} pages present.`);
-            //console.log(meetings);
+			
 			// finally resolve
 			return {meetings, numPages}
 		}).catch((err)=>{
+			this.logger.log(20, err);
 			throw(err);
 		})
 
