@@ -51,13 +51,9 @@
 
 <% }else{ %> // must have a non-code line here, since it will be commented out!
     {   
-        nameDB: 'default', // not ot be translated !!!
+        nameDB: 'default', // not to be translated !!!
         name: '<%= __("Default") %>',  // the name of the qualificaiotn module.
         overlayName: "default", // the name of the overlay
-        qualFunc: function (args){
-            // TODO
-
-        }, // the function to call to do the qualification. TODO: specify more 
         initFunc: function(){
             this.qualificationConfiguration.default = {
                 total: 8,
@@ -66,8 +62,8 @@
                 resignedRankReplacement: 'time', // none, time or rank
                 resignedTimeReplacement: 'time', // none or time
             }
-        }, // function called on initialization of the qualification moduleseries assignment tool; shall also add the required properties to the seriesAssignmentConfiguration object within a "personal" object! 
-        baseDisciplineTypes: [1,2], // the baseDisciplines-types where this series assignment option shall be present (probably only needed for track disciplines)
+        }, // function called on initialization of the qualification module tool; shall also add the required properties to the qualificationConfiguration object within a "personal" object! 
+        baseDisciplineTypes: [3], // the baseDisciplines-types where this qualification module option shall be present
         validationError: function(){
             // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)
             try {
