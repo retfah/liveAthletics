@@ -899,6 +899,11 @@
                                 if (this.discipline.type==1){
                                     // techHigh
                                     let res = JSON.parse(JSON.stringify(ssr));
+
+                                    // rename the results array
+                                    res.results = res.resultshigh;
+                                    delete res.resultshigh;
+
                                     // to be filled
                                     res.rankingData = {
                                         totalFailedAttempts: 0, // until and with the last valid hight
@@ -1140,6 +1145,10 @@
                                             res.qualification = ssr.qualification;
                                             if (this.discipline.type==1){
                                                 // techHigh
+
+                                                // rename the results array
+                                                res.results = res.resultshigh;
+                                                delete res.resultshigh;
                                                 
                                                 // to be filled
                                                 res.rankingData = {
@@ -1616,6 +1625,9 @@
                     }
                     return t;
                 },
+                qualificationModulesFiltered: function(){
+                    return this.qualificationModules.filter(mod=>mod.baseDisciplineTypes.includes(this.discipline.type));
+                },
                 
             },
             watch:{
@@ -1868,7 +1880,7 @@
                                                     <td>{{formatPerf(row?.notificationPerf, discipline.xBaseDiscipline)}}</td>-->
                                                     <td v-if="row.resultOverrule==0">{{row.resultStr}}</td>
                                                     <td v-else>{{participationStatesAll.find(el=>el.value==row.resultOverrule)?.abbreviation}}</td>
-                                                    <td>{{qualificationStatesObj[row.ssrOriginal.qualification].abbreviation}}</td>
+                                                    <td>{{qualificationStatesObj[row.ssrOriginal.qualification].abbreviation=='' ? '-' : qualificationStatesObj[row.ssrOriginal.qualification].abbreviation}}</td>
                                                     <td>
                                                         <button class="btn btnGrey marginRight" v-on:click="modQualification(row, g.contest.xContest)" ><%= __("Qabbr") %></button>
                                                     </td>
@@ -1915,11 +1927,11 @@
                 <!-- TODO: change this from seriesAssignment module to qualificaiton module -->
                 <form onsubmit="return false">
                     <!-- if there are multiple assignment algorithms, show a dropdown to select-->
-                    <div v-if="qualificationModules.length>1">
+                    <div v-if="qualificationModulesFiltered.length>1">
                         <%= __("Qualification Module") %>: <!-- for track it is called heat --> 
                         <!-- if there are multiple series assignment algorithms, show a dropdown to choose from -->
                         <select class="formCtrl" v-model.number="selectedQualificationModel">
-                            <template v-for="(QM, index) in qualificationModules">
+                            <template v-for="(QM, index) in qualificationModulesFiltered">
                                 <option v-bind:value="QM.nameDB">{{QM.name}}</option>
                             </template>
                         </select>

@@ -1,10 +1,4 @@
 <script type="text/javascript">
-
-/**
- * TODO:
- * - add HTTP-GET parameters based on the selection of events/eventGroups/contests; the server would ignore it, while we can directly set the correct page on reload. --> is there a browser-builtin way to add and delete get parameters in document.location or similar?
- * - prevent deletion for contests that are referenced
- **/ 
     
     // when we need multiple rooms, then the actual vue-class must not inherit from roomClientVue, but we then have a class for each room instantiated within the vue-class
 
@@ -1036,6 +1030,12 @@
 
                     return filter;
                 },
+                qualificationModulesFiltered: function(){
+                    if (this.selectedEventGroup<0) return [];
+                    const d = this.disciplines.find(d=>d.xDiscipline==this.selectedEventGroup.xDiscipline);
+                    const bd = this.baseDisciplinesSeasonFiltered.find(bd=>bd.xBaseDiscipline==d.xBaseDiscipline);
+                    return this.qualificationModules.filter(mod=>mod.baseDisciplineTypes.includes(bd.type));
+                },
             },
             watch:{
                 newNumGroups: function(){
@@ -1499,11 +1499,11 @@
                         <details style="margin-top: 0.5rem;" v-bind:open="newOrder<selectedEventGroup.rounds.length">
                             <summary><%= __("Qualification") %></summary>
                             <!-- if there are multiple assignment algorithms, show a dropdown to select-->
-                            <div v-if="qualificationModules.length>1">
+                            <div v-if="qualificationModulesFiltered.length>1">
                                 <%= __("Qualification Module") %>: <!-- for track it is called heat --> 
                                 <!-- if there are multiple series assignment algorithms, show a dropdown to choose from -->
                                 <select class="formCtrl" v-model.number="selectedQualificationModel">
-                                    <template v-for="(QM, index) in qualificationModules">
+                                    <template v-for="(QM, index) in qualificationModulesFiltered">
                                         <option v-bind:value="QM.nameDB">{{QM.name}}</option>
                                     </template>
                                 </select>
