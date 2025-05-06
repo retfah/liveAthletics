@@ -14,10 +14,10 @@ export default class resultstech extends Model {
       }
     },
     result: {
-      type: DataTypes.SMALLINT,
+      type: DataTypes.MEDIUMINT.UNSIGNED,
       allowNull: false,
       defaultValue: 0,
-      comment: "in cm"
+      comment: "in mm"
     },
     attempt: {
       type: DataTypes.TINYINT.UNSIGNED,

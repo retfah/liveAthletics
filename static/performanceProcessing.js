@@ -97,13 +97,16 @@ const disciplineValueProcessors = {
         }
     },
     2: function(value){
-        // tech long disciplines: the integer value is always in cm --> change to m
-        const m = Math.floor(value/100);
-        const cm = value-100*m;
+        // tech long disciplines: the integer value is always in mm --> change to m
+        const m = Math.floor(value/1000);
+        const cm = Math.floor((value-1000*m)/10);
+        const mm = value-1000*m;
         return {
-            mcm: value/100,
+            mcm: m+cm/100,
+            mmm: value/1000,
             m,
             cm,
+            mm,
             // add here ft in etc
         }
     }, 
@@ -212,9 +215,60 @@ export const disciplineValidators = {
         }
 
     },
-    /*2:function(value, discipline){
+    2:function(value, discipline){
         // tech long
-    },*/
+        
+        // get the configuration:
+        const conf = JSON.parse(discipline.baseConfiguration);
+
+        // when there is no comma or period and the number has three digits or more, it is in cm
+
+        // new approach: 
+        // remove text (e.g. units)
+        value = value.replace(/[A-Za-z]/g, '');
+        // replace comma by period
+        value = value.replaceAll(',', '.');
+        
+
+        // try to interpret the string as a number
+        let num = Number(value);
+
+        if (isNaN(num)){
+            return {
+                valid: false,
+                value,
+                valueModified: false,
+                realistic: false 
+            }
+        }
+
+        let valueModified = false;
+
+        // if the number is below 120 or has a period, it is in m (it would be funnier "if it is in in")
+        if (num < 120 || value.indexOf('.') >= 0){
+            // change to mm
+            num = Math.round(num*1000); // despite the fact in athletics we should always round down (floor), we should use round here, because the floats might be slightly "wrong", e.g. floor(4.85*100)=484 instad of 485. 
+            valueModified = true;
+        }
+        // num is in mm now
+
+        // check whether the value is realistic
+        let realistic = true;
+        if (conf.perfMax){
+            if (num > conf.perfMax || num < conf.perfMax/25){
+                realistic = false;
+            }
+        } else {
+            console.log(`Could not check whether the value ${value} is realistic or not, since no boundaries are given for this base discipline.`);
+        }
+
+        return {
+            valid: true,
+            value: num, 
+            valueModified,
+            realistic,
+        }
+    },
     3:function(value, discipline){
         // track
         // probably we need to differentiate the disciplines...

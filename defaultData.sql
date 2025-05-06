@@ -359,18 +359,18 @@ INSERT INTO `basedisciplines` (`xBaseDiscipline`, `type`, `nameStd`, `shortnameS
 (75, 3, '3000 m Steeple 76.2', '3000St76.2', '01:00:00', '00:20:00', '{\"distance\":3000,\"startInLanes\":false,\"finishInLanes\":false,\"groupSize\":1,\"wind\":false,\"straight\":false,\"heatInterval\":360,\"type\":\"regular\",\"crouchStart\":false}', b'0'),
 (76, 3, '3000 m Steeple 91.4', '3000St91.4', '01:00:00', '00:20:00', '{\"distance\":3000,\"startInLanes\":false,\"finishInLanes\":false,\"groupSize\":1,\"wind\":false,\"straight\":false,\"heatInterval\":300,\"type\":\"regular\",\"crouchStart\":false}', b'0'),
 (77, 3, '50 km', '50k', '01:00:00', '00:20:00', '{\"distance\":50000,\"startInLanes\":false,\"finishInLanes\":false,\"groupSize\":1,\"wind\":false,\"straight\":false,\"heatInterval\":10800,\"type\":\"regular\",\"crouchStart\":false}', b'0'),
-(78, 2, 'Shot Put', 'Shot Put', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'0'),
-(79, 2, 'Javelin Throw', 'Javelin', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'0'),
-(80, 2, 'Ball Throw', 'Ball', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'0'),
-(81, 2, 'Shot Put', 'Shot Put', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'1'),
-(82, 2, 'Discus Throw', 'Discus', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'0'),
-(83, 2, 'Hammer Throw', 'Hammer', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false}', b'0'),
-(84, 2, 'Long Jump', 'Long', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":true}', b'0'),
-(85, 2, 'Long Jump', 'Long', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false}', b'1'),
-(86, 2, 'Triple Jump', 'Triple', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":true}', b'0'),
-(87, 2, 'Triple Jump', 'Triple', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false}', b'1'),
-(88, 2, 'Long Jump (Zone)', 'Long Zone', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false}', b'0'),
-(89, 2, 'Long Jump (Zone)', 'Long Zone', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false}', b'1');
+(78, 2, 'Shot Put', 'Shot Put', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":30000}', b'0'),
+(79, 2, 'Javelin Throw', 'Javelin', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":100000}', b'0'),
+(80, 2, 'Ball Throw', 'Ball', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":120000}', b'0'),
+(81, 2, 'Shot Put', 'Shot Put', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":30000}', b'1'),
+(82, 2, 'Discus Throw', 'Discus', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":100000}', b'0'),
+(83, 2, 'Hammer Throw', 'Hammer', '01:00:00', '00:30:00', '{\"type\":\"throw\",\"wind\":false, \"perfMax\":100000}', b'0'),
+(84, 2, 'Long Jump', 'Long', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":true, \"perfMax\":9500}', b'0'),
+(85, 2, 'Long Jump', 'Long', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false, \"perfMax\":9500}', b'1'),
+(86, 2, 'Triple Jump', 'Triple', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":true, \"perfMax\":20000}', b'0'),
+(87, 2, 'Triple Jump', 'Triple', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false, \"perfMax\":20000}', b'1'),
+(88, 2, 'Long Jump (Zone)', 'Long Zone', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false, \"perfMax\":9500}', b'0'),
+(89, 2, 'Long Jump (Zone)', 'Long Zone', '01:00:00', '00:30:00', '{\"type\":\"jump\",\"wind\":false, \"perfMax\":9500}', b'1');
 
 
 INSERT INTO `disciplines` (`xDiscipline`, `xBaseDiscipline`, `sortorder`, `active`, `configuration`, `info`) VALUES

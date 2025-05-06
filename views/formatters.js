@@ -11,12 +11,13 @@ formatPerf(value, xBaseDiscipline){
         return '';
     }
     
-    if (xBaseDiscipline<3){
+    if (xBaseDiscipline==1){
         // pole vault or high jump
         return (value/100).toString() + " m";
+    } else if (xBaseDiscipline==2){
+        return (value/1000).toString() + " m";
     }
     // TODO: extend with other baseDisciplines
-    // if the discipline is not known, return the value without modification
     return value;
     
 },
