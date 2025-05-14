@@ -8,6 +8,7 @@ import Sequelize  from 'sequelize';
 import { streamToStringLatin1 } from './common.js';
 const Op = Sequelize.Op;
 const QueryTypes = Sequelize.QueryTypes;
+const DataTypes = Sequelize.DataTypes;
 import {Worker, isMainThread, parentPort, workerData} from  'node:worker_threads';
 import rankTrack from './static/rankTrack.js';
 import rankTechHigh from './static/rankTechHigh.js';
@@ -298,8 +299,8 @@ export default class moduleLinkSUI extends nationalBodyLink {
         this.sequelize = seq;
         this.models = initModels(seq);
         this.logger = logger;
-        this.disciplines = disciplines.init(seq);
-        this.basedisciplines = basedisciplines.init(seq);
+        this.disciplines = disciplines.init(seq, DataTypes);
+        this.basedisciplines = basedisciplines.init(seq, DataTypes);
 
         // make the static conf available in this for non-static methods
         this.conf = this.constructor.conf;
