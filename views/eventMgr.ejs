@@ -1,3 +1,10 @@
+<script type="module">
+    import {formatCountryRegion, disciplineFormatters, validatePerformance} from '/static/performanceProcessing.js';
+
+    window.formatCountryRegion = formatCountryRegion;
+    window.disciplineFormatters = disciplineFormatters;
+    window.validatePerformance = validatePerformance;
+</script>
 <script type="text/javascript">
     
     // when we need multiple rooms, then the actual vue-class must not inherit from roomClientVue, but we then have a class for each room instantiated within the vue-class
@@ -387,7 +394,6 @@
                     rE.room.deleteEventInit(id); // indirect
                 },
                 addRound: function(){
-                    this.roundModID = -1;
                     this.contestRadio = "new";
                     this.newOrder = 9999; // NOTE: not used for writing, just to define whether the qualification stuff will be open or closed. always closed for new rounds
 
@@ -404,7 +410,10 @@
                                 }];
 
                     this.overlay = "addRound";
-                    this.selectedQualificationModel = 'default';
+                    this.selectedQualificationModel = this.qualificationModulesFiltered[0].nameDB;
+                    const qm = this.qualificationModules.find(qm=>qm.nameDB==this.selectedQualificationModel);
+                    this.qualificationConfiguration[this.selectedQualificationModel] = qm.defaultValues();
+                    this.roundModID = -1; // at the end to be able to use a watcher on roundModID to track finishing the changes on the properties
                 },
                 createRound: function(){
 
@@ -457,7 +466,6 @@
                     }
                 },
                 modRound: function(id){
-                    this.roundModID = id;
 
                     let r = this.selectedEventGroup.rounds.find(r=>r.xRound==id);
 
@@ -484,7 +492,7 @@
                     }
                     // qualification
                     if (r.qualiModule === null || r.qualiModule==''){
-                        this.selectedQualificationModel = this.qualificationModules[0].nameDB;
+                        this.selectedQualificationModel = this.qualificationModulesFiltered[0].nameDB;
                         // the properties are at default
                     } else {
                         this.selectedQualificationModel = r.qualiModule;
@@ -498,7 +506,7 @@
                         }
                     }
                     
-                    
+                    this.roundModID = id; // at the end to make it work to watch this prop as a "finished changign properties"
                     this.overlay = "addRound";
 
                 },

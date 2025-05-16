@@ -1,78 +1,88 @@
 <% if(type=="html"){ %>
 <!-- the configuration window for this kind of qualification definition-->
-<div v-if="selectedQualificationModel=='default'" class="verticalForm">
+<div v-if="selectedQualificationModel=='defaultTech'" class="verticalForm">
     <div class="marginBottom">
         <b>Regular cases</b><br>
         <label>
-            <%= __("Number of qualified athletes in total") %>
-            <input type="number" v-model.number="qualificationConfiguration.default.total" size=3 min="0">
+            <%= __("Minimum number of qualified athletes") %>
+            <input type="number" v-model.number="qualificationConfiguration.defaultTech.minAthletes" size=3 min="0">
         </label>
         <label>
-            <%= __("Number of qualified athletes per heat") %>
-            <input type="number" v-model.number="qualificationConfiguration.default.perHeat" size=3 min="0">
+            <%= __("Performance for direct qualification") %>
+            <input type="text" v-model="qualConfDefaultTech.qualConfDefaultTechPerfStr" size=3 v-on:input="qualConfDefaultTech.checkInput.bind(this)()" v-on:change="qualConfDefaultTech.checkInput.bind(this)(true)" v-bind:class="{unrealistic: !qualConfDefaultTech.qualConfDefaultTechPerfRealistic}">
         </label>
-        <div class="information marginRight">i</div><%= __("The number of athletes qualified by the overall rank is given by the total number of athletes minus the number of athletes qualified per heat multiplied with the number of heats") %>
-    </div>
-    <div>
-        <b>Rare cases</b><br>
-        <label>
-            <%= __("Number of standby lanes/positions to qualify additional athletes in cases of ties") %>
-            <input type="number" v-model.number="qualificationConfiguration.default.standbyPositions" size=3 min="0">
-        </label>
-        <fieldset>
-            <legend><%= __("Resigned athletes qualified by rank replaced by") %></legend>
-            <label>
-                <input type="radio" name="Q" value="none" v-model="qualificationConfiguration.default.resignedRankReplacement">
-                <%= __("Not replaced") %>
-            </label>
-            <label>
-                <input type="radio" name="Q" value="rank" v-model="qualificationConfiguration.default.resignedRankReplacement">
-                <%= __("By rank") %> <!-- if possible, otherwise time -->
-            </label>
-            <label>
-                <input type="radio" name="Q" value="time" v-model="qualificationConfiguration.default.resignedRankReplacement">
-                <%= __("By time") %>
-            </label>
-        </fieldset>
-        <fieldset>
-            <legend><%= __("Resigned athletes qualified by time replaced by") %></legend>
-            <label>
-                <input type="radio" name="q" value="none" v-model="qualificationConfiguration.default.resignedTimeReplacement">
-                <%= __("Not replaced") %>
-            </label>
-            <label>
-                <input type="radio" name="q" value="time" v-model="qualificationConfiguration.default.resignedTimeReplacement">
-                <%= __("By time") %>
-            </label>
-        </fieldset>
+        <div class="information marginRight">i</div><%= __("The qualification by the minimum number of qualified athletes is always based on the overall (independent of series or group) rank.") %>
     </div>
 
 </div>
 
 <% }else{ %> // must have a non-code line here, since it will be commented out!
     {   
-        nameDB: 'default', // not to be translated !!!
+        nameDB: 'defaultTech', // not to be translated !!!
         name: '<%= __("Default") %>',  // the name of the qualificaiotn module.
-        overlayName: "default", // the name of the overlay
+        overlayName: "defaultTech", // the name of the overlay
         defaultValues: function(){
             return {
-                total: 8,
-                standbyPositions: 0, // additional lanes/positions(800m) to qualify more athletes than initially intended, i.e. when there is a tie for qualification by rank and/or time.  
-                perHeat: 0,
-                resignedRankReplacement: 'time', // none, time or rank
-                resignedTimeReplacement: 'time', // none or time
+                minAthletes: 12,
+                minPerformance: 0,
             }
         },
         initFunc: function(){
-            const self = this.qualificationModules.find(qm=>qm.nameDB == 'default');
-            this.qualificationConfiguration.default = self.defaultValues();
+            const self = this.qualificationModules.find(qm=>qm.nameDB == 'defaultTech');
+            this.qualificationConfiguration.defaultTech = self.defaultValues();
+
+            // the following only works as soon as roundMOdID is set (and selectedEventGroup and discipliens is given; but this is always the case when roundMOdID exists); 
+            const watcher = 
+            this.$watch('roundModID', (newValue, oldValue) => {
+                
+                // the following shall be a separate property and not within the configuration object since it does not need to be stored in the DB
+                let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+                let val;
+                if (this.roundModID==-1){
+                    // new round --> default data
+                    val = self.defaultValues().minPerformance;
+                } else {
+                    // change
+                    val = this.qualificationConfiguration.defaultTech.minPerformance
+                }
+                let validity = self.validateInput(val, disc);
+                //validity={valid, value, modified, realistic}
+                self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, disc); 
+                self.qualConfDefaultTechPerfRealistic = validity.realistic;
+            
+            });
+
+            this.qualConfDefaultTech = self; // this property is not observed!
         }, // function called on initialization of the qualification module tool; shall also add the required properties to the qualificationConfiguration object within a "personal" object! 
-        baseDisciplineTypes: [3], // the baseDisciplines-types where this qualification module option shall be present
+        baseDisciplineTypes: [1,2], // the baseDisciplines-types where this qualification module option shall be present
+        formatValue: function(value, disc){
+            return window.disciplineFormatters[disc.type](value, disc, true, false);
+        },
+        validateInput: function(value, disc){
+            return window.validatePerformance(value, disc);
+        },
+        qualConfDefaultTechPerfStr:'',
+        qualConfDefaultTechPerfRealistic:false,
+        checkInput: function(apply=false){
+            const self = this.qualConfDefaultTech;
+            // if apply is set to true, then the value shown might be changed since it will then also show the unit
+
+            // get the discipline first
+            let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+            let validity = self.validateInput(self.qualConfDefaultTechPerfStr, disc);
+            //validity={valid, value, modified, realistic}
+            if (apply){
+                self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, disc); 
+                this.qualificationConfiguration.defaultTech.minPerformance = validity.value;
+            }
+            self.qualConfDefaultTechPerfRealistic = validity.realistic;
+        },
         validationError: function(){
+            /*
             // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)
             try {
                 // if there is no value perHeat, it is always fine
-                if (this.qualificationConfiguration['default'].perHeat==0) return null;
+                if (this.qualificationConfiguration['defaultTech'].perHeat==0) return null;
     
                 // otherwise, try to count the number of heats. 
                 let numHeats = 0;
@@ -86,7 +96,7 @@
                 }
             } catch (ex){
                 console.log(ex);
-            }
+            }*/
             return null;
         },
         apply: function(){
@@ -98,7 +108,8 @@
             - starts (inscription to the event/eventGroup, including best+notification perfs)
             */
 
-            const conf = this.qualificationConfiguration['default'];
+            const conf = this.qualificationConfiguration['defaultTech'];
+            /*
             let qualifiedAthletes = 0; 
             let unreplacedWithdrawals = 0; // used when resignedRankReplacement==None
             let manualQualifications = 0; // by referee or jury
@@ -309,7 +320,7 @@
                         }
                     }
                 }
-            }
+            }*/
         },
     }
 
