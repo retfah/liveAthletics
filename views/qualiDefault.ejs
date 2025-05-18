@@ -67,6 +67,7 @@
             const self = this.qualificationModules.find(qm=>qm.nameDB == 'default');
             this.qualificationConfiguration.default = self.defaultValues();
         }, // function called on initialization of the qualification module tool; shall also add the required properties to the qualificationConfiguration object within a "personal" object! 
+        updateFunc: function(disc){}, // nothing to do here
         baseDisciplineTypes: [3], // the baseDisciplines-types where this qualification module option shall be present
         validationError: function(){
             // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)

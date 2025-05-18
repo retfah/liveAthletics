@@ -411,8 +411,12 @@
 
                     this.overlay = "addRound";
                     this.selectedQualificationModel = this.qualificationModulesFiltered[0].nameDB;
-                    const qm = this.qualificationModules.find(qm=>qm.nameDB==this.selectedQualificationModel);
-                    this.qualificationConfiguration[this.selectedQualificationModel] = qm.defaultValues();
+                    // reset the properties for all models
+                    const d = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+                    for (let qm of this.qualificationModules){
+                        this.qualificationConfiguration[qm.nameDB] = qm.defaultValues();
+                        qm.updateFunc.bind(this)(d);
+                    }
                     this.roundModID = -1; // at the end to be able to use a watcher on roundModID to track finishing the changes on the properties
                 },
                 createRound: function(){
@@ -493,18 +497,29 @@
                     // qualification
                     if (r.qualiModule === null || r.qualiModule==''){
                         this.selectedQualificationModel = this.qualificationModulesFiltered[0].nameDB;
-                        // the properties are at default
                     } else {
                         this.selectedQualificationModel = r.qualiModule;
-                        const qualiConf = JSON.parse(r.qualiConf);
-                        // set the properties
-                        // always loop over the properties in the default object, to make sure that eventual changes in the props get reset
-                        for (let key of Object.keys(this.qualificationConfiguration[this.selectedQualificationModel])){
-                            if (qualiConf[key]!==undefined && qualiConf[key] !== null){
-                                this.qualificationConfiguration[this.selectedQualificationModel][key] = qualiConf[key];
-                            }
+                    }
+                    const d = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+
+                    // reset the properties for all models
+                    for (let qm of this.qualificationModules){
+                        this.qualificationConfiguration[qm.nameDB] = qm.defaultValues();
+                        qm.updateFunc.bind(this)(d);
+                    }
+                    
+                    // for the selected model, try to get the data from the configuration
+                    const qualiConf = r.qualiConf ? JSON.parse(r.qualiConf) : {};
+                    // set the properties
+                    // always loop over the properties in the default object, to make sure that eventual changes in the props get reset
+                    for (let key of Object.keys(this.qualificationConfiguration[this.selectedQualificationModel])){
+                        if (qualiConf[key]!==undefined && qualiConf[key] !== null){
+                            this.qualificationConfiguration[this.selectedQualificationModel][key] = qualiConf[key];
                         }
                     }
+                    // udpate special props for the selected qualificaiton module again.
+                    const qm = this.qualificationModules.find(qm=>qm.nameDB==this.selectedQualificationModel);
+                    qm.updateFunc.bind(this)(d);
                     
                     this.roundModID = id; // at the end to make it work to watch this prop as a "finished changign properties"
                     this.overlay = "addRound";

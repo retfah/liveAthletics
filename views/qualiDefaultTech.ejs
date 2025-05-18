@@ -31,29 +31,31 @@
             const self = this.qualificationModules.find(qm=>qm.nameDB == 'defaultTech');
             this.qualificationConfiguration.defaultTech = self.defaultValues();
 
-            // the following only works as soon as roundMOdID is set (and selectedEventGroup and discipliens is given; but this is always the case when roundMOdID exists); 
-            const watcher = 
-            this.$watch('roundModID', (newValue, oldValue) => {
+            // the following only works as soon as selectedEventGroup and disciplines is given; but this is always the case when roundMOdID exists; 
+            /*this.$watch('roundModID', (newValue, oldValue) => {
                 
                 // the following shall be a separate property and not within the configuration object since it does not need to be stored in the DB
-                let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
-                let val;
-                if (this.roundModID==-1){
-                    // new round --> default data
-                    val = self.defaultValues().minPerformance;
-                } else {
-                    // change
-                    val = this.qualificationConfiguration.defaultTech.minPerformance
-                }
-                let validity = self.validateInput(val, disc);
+                //let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+                let validity = self.validateInput(this.qualificationConfiguration.defaultTech.minPerformance, disc);
                 //validity={valid, value, modified, realistic}
                 self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, disc); 
                 self.qualConfDefaultTechPerfRealistic = validity.realistic;
             
-            });
+            });*/
 
-            this.qualConfDefaultTech = self; // this property is not observed!
+            this.qualConfDefaultTech = self; // this property is not observed, but its ok for what it is needed!
         }, // function called on initialization of the qualification module tool; shall also add the required properties to the qualificationConfiguration object within a "personal" object! 
+        updateFunc: function(disc){
+            const self = this.qualConfDefaultTech;
+            // the following shall be a separate property and not within the configuration object since it does not need to be stored in the DB
+            //let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
+            let validity = self.validateInput(this.qualificationConfiguration.defaultTech.minPerformance, disc);
+            //validity={valid, value, modified, realistic}
+            self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, disc); 
+            self.qualConfDefaultTechPerfRealistic = validity.realistic;
+            self.disc = disc;
+
+        }, // function called when the configuration has changed (including the initial time)
         baseDisciplineTypes: [1,2], // the baseDisciplines-types where this qualification module option shall be present
         formatValue: function(value, disc){
             return window.disciplineFormatters[disc.type](value, disc, true, false);
@@ -68,11 +70,10 @@
             // if apply is set to true, then the value shown might be changed since it will then also show the unit
 
             // get the discipline first
-            let disc = this.disciplines.find(el=>el.xDiscipline==this.selectedEventGroup.xDiscipline);
-            let validity = self.validateInput(self.qualConfDefaultTechPerfStr, disc);
+            let validity = self.validateInput(self.qualConfDefaultTechPerfStr, self.disc);
             //validity={valid, value, modified, realistic}
             if (apply){
-                self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, disc); 
+                self.qualConfDefaultTechPerfStr = self.formatValue(validity.value, self.disc); 
                 this.qualificationConfiguration.defaultTech.minPerformance = validity.value;
             }
             self.qualConfDefaultTechPerfRealistic = validity.realistic;

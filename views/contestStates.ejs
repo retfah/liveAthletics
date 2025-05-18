@@ -64,10 +64,9 @@ participationStatesAll: [
     {value: 5, text: "<%= __('did not start') %>", abbreviation: "<%= __('DNS') %>"},
     {value: 6, text: "<%= __('disqualified') %>", abbreviation: "<%= __('DQ') %>"}
 ],
-qualificationStates: [
+qualificationStatesTrack: [
     {value:0, text: "<%= __('not qualified') %>", abbreviation: ""},
     {value:11, text: "<%= __('withdrawal') %>", abbreviation: "<%= __('w') %>"}, // mentioned e.g. in Rule 25.125
-
     {value:1, text: "<%= __('Qualified by rank in heat') %>", abbreviation: "<%= __('Q') %>"},
     {value:2, text: "<%= __('Qualified by rank in heat by lot') %>", abbreviation: "<%= __('QD') %>"}, // Q* in DACH; Rule 21.3. note1: may only occur on the last ranking place per heat. Note 2: if possible (additional qualification by time, additional lanes available or multiple athletes per lane possible), both athletes shall be qualified with Q. If there is qualification by time, the number of qualifications by time is reduced.   
     {value:3, text: "<%= __('Qualified by rank due to withdrawal') %>", abbreviation: "<%= __('Q+') %>"}, // mentioned e.g. in 
@@ -76,6 +75,14 @@ qualificationStates: [
     {value:7, text: "<%= __('Qualified by time by lot') %>", abbreviation: "<%= __('qD') %>"}, // q* in DACH; Rule 21.5 Note: if possible (additional lanes available or multiple athletes per lane possible), lots should be avoided and both athletes shall be qualified
     {value:8, text: "<%= __('Qualified by time due to withdrawal') %>", abbreviation: "<%= __('q+') %>"}, // mentioned e.g. in Rule 25.12; eventually not used here, since replacements are shown in the same way as regular ones.
     // reserve 9-10
+    {value:12, text: "<%= __('qualified by Referee') %>", abbreviation: "<%= __('qR') %>"},
+    {value:13, text: "<%= __('qualified by Jury of Appeal') %>", abbreviation: "<%= __('qJ') %>"},
+],
+qualificationStatesTech: [
+    {value:0, text: "<%= __('not qualified') %>", abbreviation: ""},
+    {value:11, text: "<%= __('withdrawal') %>", abbreviation: "<%= __('w') %>"}, // mentioned e.g. in Rule 25.125
+    {value:1, text: "<%= __('Qualified by performance') %>", abbreviation: "<%= __('Q') %>"},
+    {value:6, text: "<%= __('Qualified by number of athletes') %>", abbreviation: "<%= __('q') %>"}, // Q* in DACH; Rule 21.3. note1: may only occur on the last ranking place per heat. Note 2: if possible (additional qualification by time, additional lanes available or multiple athletes per lane possible), both athletes shall be qualified with Q. If there is qualification by time, the number of qualifications by time is reduced.   
     {value:12, text: "<%= __('qualified by Referee') %>", abbreviation: "<%= __('qR') %>"},
     {value:13, text: "<%= __('qualified by Jury of Appeal') %>", abbreviation: "<%= __('qJ') %>"},
 ],
