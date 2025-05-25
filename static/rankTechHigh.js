@@ -96,11 +96,11 @@ function rankTechHigh(results, label="default"){
             if (r2.lastValidHeight){ // if there is no valid height, it will be 0
                 results[i].ranking[label] = rank;
             }else{
-                results[i].ranking[label] = 0
+                results[i].ranking[label] = 99999;
             }
             
         } else {
-            results[i].ranking[label] = 0; // TODO: eventually, no rank is something undefined instead of 0 or we use rank as a string and tranlate the overrule-code here to DQ, DNS, DNF, ...
+            results[i].ranking[label] = 99999+results[i].resultOverrule; 
         }
         
     }

@@ -78,29 +78,45 @@
             }
             self.qualConfDefaultTechPerfRealistic = validity.realistic;
         },
-        validationError: function(){
-            /*
-            // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)
-            try {
-                // if there is no value perHeat, it is always fine
-                if (this.qualificationConfiguration['defaultTech'].perHeat==0) return null;
-    
-                // otherwise, try to count the number of heats. 
-                let numHeats = 0;
-                this.roundMod.groups.forEach(g=>{
-                    if (!('contest' in g)) return ; // contest does not exist (yet)
-                    if (g.contest.status<90) return ; // series not yet finished
-                    numHeats += g.series.length;
-                })
-                if (numHeats * this.qualificationConfiguration['default'].perHeat> this.qualificationConfiguration['default'].total){
-                    return `<%- __("The total number of qualified persons (${this.qualificationConfiguration['default'].total}) must be larger or equal to the number of heats (${numHeats}) multiplied with the number of qualified athletes per heat (${this.qualificationConfiguration['default'].perHeat}).") %>`;
+        validate: function(){
+            // return an object with error (boolean) and message (string). Message is displayed whenever given, either in green (error=false) or red (error=true)
+            // qualification cannot be done if the qualifications are not finished yet; only applies to tech high, not tech long
+            
+            if (this.discipline.type==1){
+                let msg='';
+                // tech high
+                // count the number of persons which are still in the competitions; if this number (sum over all contests) is lower than the minAthletes, the conntests shall be finihed, since the qualification can be done. (In any case, the qualification would also be finished if the qualificaiotn height was reached.) Show a green text when this is the case
+
+                let inCompetition = 0;
+                let numPerfFulfilled = 0;
+                for (let g of this.roundMod.groups){
+                    for (let s of g.series){
+                        for (let ssr of s.seriesstartsresults){
+                            inCompetition += ssr.rankingData.inCompetition;
+                            if (ssr.rankingData.lastValidHeight>=this.qualificationConfiguration.defaultTech.minPerformance){
+                                numPerfFulfilled++;
+                            }
+                        }
+                    }
                 }
-            } catch (ex){
-                console.log(ex);
-            }*/
-            return null;
+                if (numPerfFulfilled>0){
+                    msg = `${numPerfFulfilled} athletes have fulfilled the required performance.`;
+                }
+                if (inCompetition<=this.qualificationConfiguration.defaultTech.minAthletes){
+                    return {error:false, message:'There are less (or equal) persons left in the competition then are allowed in maximum. ' + msg};
+                } else {
+                    if (numPerfFulfilled==0){
+                        return {error:true, message:'There are more persons left in the competition then are allowed at maximum. The competition must be continued.' + msg};
+                    } 
+                }
+                return {error:false, message:''+msg};
+            } else {
+                // for tech long, the qualification is a regular competition that ends as usual (i.e. everybody has n attempts). There is no early end as in vertical jumps, which would require a notification that the taregt number of athletes was already reached. 
+                return {error:false, message:''};
+            }
         },
         apply: function(){
+            // NOTE: must also work when there were already qualification stated defined.  
             // NOTE: roundMod contains all required info of the currently selected round, as provided by the computed property "roundData"
             /*
             - groups: a computed object, containing also references to the contests with the results 
@@ -110,214 +126,75 @@
             */
 
             const conf = this.qualificationConfiguration['defaultTech'];
-            /*
-            let qualifiedAthletes = 0; 
-            let unreplacedWithdrawals = 0; // used when resignedRankReplacement==None
-            let manualQualifications = 0; // by referee or jury
 
-            // create a copy of the required data, to allow for local changes before sending it to the server
-            const groups = JSON.parse(JSON.stringify(this.roundMod.groups));
-
-            // remove all qualification states, except the manual ones. 
-            let heatCount = 0;
-            for (let g of groups){
-                heatCount += g.series.length;
-                for (let heat of g.series){
-                    for (let ssr of heat.seriesstartsresults){
-                        if (ssr.qualification<11 ) { 
-                            ssr.qualification = 0;
-                        } 
-                        if (ssr.qualification>11) {
-                            manualQualifications++;
-                        }
-
-                    }
+            function setStatus(ssr, qualification, xContest){
+                if (ssr.qualification != qualification){
+                    let data = {
+                        xContest,
+                        xSeries: ssr.xSeries,
+                        xSeriesStart: ssr.xSeriesStart,
+                        qualification, 
+                    };
+                    rEG.room.updateQualificationInit(data);
                 }
-            } 
-
-            // make sure that the total number of qualificaiton is sufficient
-            if (heatCount*conf.perHeat>conf.total){
-                alert(`<%= __("The total umber of qualified athletes (${conf.total}) is less than shall be qualified by rank (${heatCount*conf.perHeat}). The qualifications cannot be applied.") %>`)
-                return;
             }
 
-            // for draw with times:
-            function shuffle(array) {
-                var m = array.length, t, i;
-              
-                // While there remain elements to shuffle…
-                while (m) {
-              
-                  // Pick a remaining element…
-                  i = Math.floor(Math.random() * m--);
-              
-                  // And swap it with the current element.
-                  t = array[m];
-                  array[m] = array[i];
-                  array[i] = t;
+            // first count all withdrawals, to know up to which rank people can get qualified:
+            let maxQualRank = conf.minAthletes;
+            for (let g of this.roundMod.groups){
+                for (let s of g.series){
+                    for (let ssr of s.seriesstartsresults){
+                        if (ssr.qualification == 11){
+                            // withdrawal
+                            maxQualRank++;
+                        }
+                    }
                 }
-              
-                return array;
-              }
+            }
 
-            // NOTE: the regulations currently (2025) do not specify how to handle if an athlete resigns from the next round, i.e. whether the athlete is replaced or not and how. Thus, we provide options for this.  
+            // we need to differentiate between techLong and techHigh
+            //if (this.discipline.type==1){
+                // tech high
 
-            // first, handle qualified by rank;
-            // if two persons have the same rank in the heat (and obviously also the same time), but only one can/could be qualified, then try to qualify both, by, 1st, try to reduce the number of persons qualified by time by 1; or 2nd, try to increase the number of total qualified athletes (e.g. 9th lane, or 2 persons per lane in 800m) (TR21.3 + TR21.4)
-            if (conf.perHeat>0){
-                // if there is a tie, we cannot instantly use standbyLanes, because there could be e.g. only 1 standbylane, but more than 1 tie. Then it would not be fair, if the standby lane was simply assigned for the first tie, and the latter tie was then randomly decided. Additionally the code shall be written in a way to also handle a tie over more than 2 persons and the case, where there are >2 athletes with a rank, where we must make sure that at least perHeat number of athletes get qualified.
-                // Thus, there are two lots: 
-                // Lot 1: for every heat, qualify (potentiallyby lot) the required number of persons. Add persons qualified by lot to QByFirstLot, add the not.qualified-by-lot to Qtie, which will be handled in Lot 2
-                // Lot 2: handles the persons loosing the first lot. Among those, potential additional lanes (qualified by time, standby lanes) qill be drawn by lot.
-                const Qtie = []; // an array of ssrs to draw by lot for the standby lanes
-                
-                const QByFirstLot = []; // we need an array to store all athletes that were qualified in the first lot, since we do not yet know wheter really a lot is needed (Q*) (when there are not enough additional lanes) or whether actually all persons can be qualified regulary (Q) (including the additioanl lanes).
-
-                for (let group of groups){
-                    for (let heat of group.series){
-                        // first, sort the seriesstartsresults
-                        heat.seriesstartsresults.sort((a,b)=>a.rank-b.rank);
-    
-                        // set the qualification Q for the first conf.perHeat
-                        let withdrawalsToReplaceQ = 0;
-                        for (let i=1; i<=conf.perHeat + withdrawalsToReplaceQ; i++){
-                            // get all SSR with this rank
-                            const ssrs = heat.seriesstartsresults.filter(s=>s.rank==i && s.qualification!=11);
-                            const ssrsWithdrawal = heat.seriesstartsresults.filter(s=>s.rank==i && s.qualification==11);
-                            unreplacedWithdrawals += ssrsWithdrawal.length*(conf.resignedRankReplacement=='none');
-                            withdrawalsToReplaceQ += ssrsWithdrawal.length*(conf.resignedRankReplacement=='rank');
-                            
-                            if (ssrs.length>conf.perHeat+withdrawalsToReplaceQ-i+1){
-                                // first, qualify the minimum number of athletes per heat by lot
-                                for (let j=0; j<conf.perHeat-i+1; j++){
-                                    let k = Math.floor(Math.random()*ssrs.length); // k'th athlete gets Q*
-                                    QByFirstLot.push(ssrs[k]);
-                                    ssrs.splice(k, 1);
-                                    qualifiedAthletes++;
-                                }
-
-                                // then add all others to Qtie
-                                Qtie.push(...ssrs)
-
+                // set qualification status
+                for (let g of this.roundMod.groups){
+                    for (let s of g.series){
+                        for (let ssr of s.seriesstartsresults){
+                            if (ssr.qualification >= 11){
+                                // manually qualified by referr or judge or ithdrawal
+                                // never overwrite any manual status!
+                                continue
+                            }
+                            if ((this.discipline.type==1 && ssr.rankingData.lastValidHeight>=conf.minPerformance) || (this.discipline.type==2 && ssr.rankingData.bestResult>=conf.minPerformance)){
+                                setStatus(ssr, 1, g.contest.xContest);
+                            } else if (ssr.ranking.overall>0 && ssr.ranking.overall <=maxQualRank){ // rank is zero when there is no rank
+                                setStatus(ssr, 6, g.contest.xContest);
                             } else {
-                                // not a tie; set all Q
-                                for (let ssr of ssrs){
-                                    ssr.qualification = i<=conf.perHeat ? 1 : 3; // either regular Q or Q+;
-                                    qualifiedAthletes++;
-                                }
+                                setStatus(ssr, 0, g.contest.xContest);
                             }
                         }
                     }
                 }
+                
+            /*} else {
+                // tech long
 
-                // handle Qties
-                // available additional lanes: 
-                const avail = conf.total - qualifiedAthletes + conf.standbyPositions;
-                if (avail < Qtie.length){
-                    // first, we need to make sure that in each series the minimum number of 
-
-                    // we need to draw by lot for the remaining positions;
-                    for (let i=0; i<avail; i++){
-                        let j = Math.floor(Math.random()*Qtie.length); // j'th required space is qualified 
-                        Qtie[j].qualification = 2;
-                        qualifiedAthletes++;
-                        Qtie.splice(j,1);
-                    }
-
-                    // now set QByFirstLot to Q*
-                    for (let a of QByFirstLot){
-                        a.qualification = 2;
-                    }
-
-                } else {
-                    // all Q-ties can be qualified without lot;
-                    // in this case, we also need to change back to qualified=1 for all previously 
-                    for (let a of Qtie){
-                        a.qualification = 1; // 1=regular Q
-                        qualifiedAthletes++;
-                    }
-                    // now set QByFirstLot to Q
-                    for (let a of QByFirstLot){
-                        a.qualification = 1;
-                    }
-                }
-            }
-
-            // then qualified by time 
-            // NOTE: the rank within the heat has no influence; e.g. is two persons have the same time to 0.001s, but a different rank (in the same heat), it is still the draw that decides! (TR21.5)
-            
-            // how many athletes do we need to qualify by time?
-            let qTime = conf.total - manualQualifications - qualifiedAthletes - unreplacedWithdrawals; 
-
-            // create an array with all persons that could potentially be qualified.
-            let athletesForTime = [];
-            for (let group of groups){
-                for (let heat of group.series){
-                    for (let ssr of heat.seriesstartsresults){
-                        if (ssr.resultOverrule==0 && (ssr.qualification==0 || ssr.qualification==11)){ // we include withdrawal here, since we need to count how many withdrawals before X
-                            athletesForTime.push(ssr);
-                        }
-                    }
-                }
-            }
-            // sort the array by timeRounded
-            athletesForTime.sort((a,b)=>a.timeRounded-b.timeRounded);
-            //qWithdrawals = 0;
-            if (athletesForTime.length<qTime){
-                // qualify all
-                for (let a of athletesForTime){
-                    if (a.qualification != 11){ 
-                        a.qualification = 6;
-                    }
-                }
-            } else {
-                qWithdrawalsToReplace = 0;
-                for (let i=0; i<qTime+qWithdrawalsToReplace; i++){
-                    //console.log(i)
-                    // get athlete i and find all subsequent athetes with the same time
-                    const af = athletesForTime.filter(a=>a.timeRounded==athletesForTime[i].timeRounded && a.qualification==0); // want to qualify
-                    const afWithdrawal = athletesForTime.filter(a=>a.timeRounded==athletesForTime[i].timeRounded && a.qualification==11); // withdrawal
-                    //qWithdrawals += afWithdrawal.length;
-                    qWithdrawalsToReplace += afWithdrawal.length * (conf.resignedTimeReplacement=='time');
-    
-                    if (af.length+i <= qTime + qWithdrawalsToReplace + conf.standbyPositions){
-                        // not draw needed
-                        for (let a of af){
-                            const status = i<qTime ? 6 : 8// q or q+;
-                            a.qualification = status;
-                        }
-                    } else {
-                        // draw needed
-                        // number of persons that can get qualified: 
-                        const numq = qTime + qWithdrawalsToReplace + conf.standbyPositions -i;
-                        // we simply shuffle the athletes and use the first nunmq
-                        shuffle(af);
-                        for (let j=0; j<numq;j++){
-                            af[j].qualification = 7; // qD
-                        }
-                    }
-                    i += af.length + afWithdrawal.length - 1; // 1 is always added in the loop
-                } 
-                //console.log('here2'); 
-            }
-            // NOTE: actually, there should be a qualification state QD+ and qD+ ("due to withdrawal, by lot"). However, currently it is shown as QD and qD.
-            // finally, compare all qualification states in groups with roundMod.groups and call the funciton on the server to change the data.
-            for (let g of groups){
-                const gOrig = this.roundMod.groups.find(g2=>g2.number==g.number);
-                for (let heat of g.series){
-                    const heatOrig = gOrig.series.find(s=>s.xSeries == heat.xSeries);
-                    for (let ssr of heat.seriesstartsresults){
-                        const ssrOrig = heatOrig.seriesstartsresults.find(ssr2=>ssr2.xSeriesStart==ssr.xSeriesStart);
-                        if (ssrOrig.qualification != ssr.qualification){
-                            let data = {
-                                xContest: heat.xContest,
-                                xSeries: heat.xSeries,
-                                xSeriesStart: ssr.xSeriesStart,
-                                qualification: ssr.qualification, 
-                            };
-                            
-                            rEG.room.updateQualificationInit(data);
-                            //console.log(data);
+                // set qualification status
+                for (let g of this.roundMod.groups){
+                    for (let s of g.series){
+                        for (let ssr of s.seriesstartsresults){
+                            if (ssr.qualification >= 11){
+                                // manually qualified by referr or judge or ithdrawal
+                                // never overwrite any manual status!
+                                continue
+                            }
+                            if (ssr.rankingData.bestResult>=conf.minPerformance){
+                                setStatus(ssr, 1, g.contest.xContest);
+                            } else if (ssr.ranking.overall <=maxQualRank){
+                                setStatus(ssr, 6, g.contest.xContest);
+                            } else {
+                                setStatus(ssr, 0, g.contest.xContest);
+                            }
                         }
                     }
                 }
