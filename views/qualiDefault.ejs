@@ -69,26 +69,26 @@
         }, // function called on initialization of the qualification module tool; shall also add the required properties to the qualificationConfiguration object within a "personal" object! 
         updateFunc: function(disc){}, // nothing to do here
         baseDisciplineTypes: [3], // the baseDisciplines-types where this qualification module option shall be present
-        validationError: function(){
-            // return null if there is no error OR if the validaiton cannot be performed, e.g. due to lacking data (e.g. series not created yet)
+        validate: function(){
+            // return an object with error (boolean) and message (string). Message is displayed whenever given, either in green (error=false) or red (error=true)
             try {
                 // if there is no value perHeat, it is always fine
-                if (this.qualificationConfiguration['default'].perHeat==0) return null;
+                if (this.qualificationConfiguration['default'].perHeat==0) return {error: true, message:''};
     
                 // otherwise, try to count the number of heats. 
                 let numHeats = 0;
                 this.roundMod.groups.forEach(g=>{
-                    if (!('contest' in g)) return ; // contest does not exist (yet)
-                    if (g.contest.status<90) return ; // series not yet finished
+                    if (!('contest' in g)) return {error: true, message:''}; // contest does not exist (yet)
+                    if (g.contest.status<90) return {error: true, message:''}; // series not yet finished
                     numHeats += g.series.length;
                 })
                 if (numHeats * this.qualificationConfiguration['default'].perHeat> this.qualificationConfiguration['default'].total){
-                    return `<%- __("The total number of qualified persons (${this.qualificationConfiguration['default'].total}) must be larger or equal to the number of heats (${numHeats}) multiplied with the number of qualified athletes per heat (${this.qualificationConfiguration['default'].perHeat}).") %>`;
+                    return {error:true, message:`<%- __("The total number of qualified persons (${this.qualificationConfiguration['default'].total}) must be larger or equal to the number of heats (${numHeats}) multiplied with the number of qualified athletes per heat (${this.qualificationConfiguration['default'].perHeat}).") %>`};
                 }
             } catch (ex){
                 console.log(ex);
             }
-            return null;
+            return {error:false, message:''};
         },
         apply: function(){
             // NOTE: roundMod contains all required info of the currently selected round, as provided by the computed property "roundData"

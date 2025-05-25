@@ -655,6 +655,10 @@ div.changeRes{
     border-color: red;
     background-color: red;
 }
+.valid{
+    border-color: rgb(0,200,0);
+    background-color: rgb(0,200,0);;
+}
 
 input.unrealistic{
     border-color: rgb(240, 110, 63);
