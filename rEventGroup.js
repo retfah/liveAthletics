@@ -91,8 +91,8 @@ export default class rEventGroup extends roomServer {
         // the name of the funcitons must be unique over BOTH objects!
         // VERY IMPORTANT: the variables MUST be bound to this when assigned to the object. Otherwise they will be bound to the object, which means they only see the other functions in functionsWrite or functionsReadOnly respectively!
         this.functionsWrite.updateData = this.updateData.bind(this);
-        this.functionsWrite.updateRound = this.updateRound.bind(this);
-        this.functionsWrite.updateQualification = this.updateQualification.bind(this);
+        this.functionsWrite.updateQualification = this.updateQualification.bind(this); // could also be readOnly
+        this.functionsReadOnly.updateRound = this.updateRound.bind(this);
 
         let schemaUpdateQualification = {
             type: "object",
@@ -137,7 +137,7 @@ export default class rEventGroup extends roomServer {
         }
         await rContest.serverFuncWrite("updateQualification", data2); // NOTE: we can/do not use updateSSR, since it (and the required properties) depends on the type of contest. updateQualification is a common function in rContest.
         return  {
-            isAchange: true, 
+            isAchange: false, // 2025-05: it is actually not necessary that this is a change, since the actual change is done anyway in the contest room.
             doObj: {funcName: 'updateQualification', data: data},
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
@@ -146,9 +146,17 @@ export default class rEventGroup extends roomServer {
     }
 
     async updateRound(data){
-        // simply let the "parent do the change"
-        // eventually, this approach leads to "double change" the data on the client; once as the answer to the call to the fuction here, and once due to updateData.
-        return await this.rEventGroups.updateRound(data);
+        // until 2025-05, the parent function was called directly: 
+        //return await this.rEventGroups.updateRound(data);
+        // this is problematic, since it does not create a new ID in the actual "parent" function (rEventGroups.updateRound), but an ID here. This resulted in two problems: (1) the change is not reported on the sideCHannel, since processChange gets called here only, and this is a fully dynamic room without reportToSideChannel! And (2), the ID here was changed twice, since the change in the parent room raises "eventGroupUpdated", which itself raises "updateData" in this room, resulting in a broadcast of the new data.
+        // Therefore: updateRound shall be a non-writing change, but call the "parent" function (rEventGroups.updateRound) through the regular server func write, which will then generate an ID in the parent room and here we only get a new ID for the "updateData" call, but not for updateRound here.
+
+        // either throws the error as given in eEventGroups.updateRound or returns solely the result
+        // NOTE: returning the updated round is actually useless, since the requesting client as well as all others will anyway get the change through updateData. 
+        return this.rEventGroups.serverFuncWrite('updateRound', data);
+        /*const ret = await this.rEventGroups.serverFuncWrite('updateRound', data);
+
+        return ret;*/
     }
 
     async updateData(data){

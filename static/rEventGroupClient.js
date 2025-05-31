@@ -1,8 +1,5 @@
 
 
-
-
-
 export class rEventGroupClient extends roomClient{
 
 
@@ -48,7 +45,7 @@ export class rEventGroupClient extends roomClient{
             delete group.contest;
         }
 
-        this.addToStack('updateRound', round, functionOverride);
+        this.addToStack('updateRound', round, functionOverride, ()=>{}, {readOnly:true});
     }
     updateRoundExe(round){
 

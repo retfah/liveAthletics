@@ -1878,6 +1878,7 @@
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xInscription">xInscription</th>
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStart">xStart</th>
                                                     <th v-if="showFullDetails" is="vue:v-th" sortkey="xStartgroup">xStartgroup</th>
+                                                    <th v-if="showFullDetails" is="vue:v-th" sortkey="xSeriesStart">xSeriesStart</th>
                                                     <th is="vue:v-th" sortkey="bib"><%= __('Bib') %></th>
                                                     <th is="vue:v-th" sortkey="lastname"><%= __('Name') %></th>
                                                     <th is="vue:v-th" sortkey="forename"><%= __('First name') %></th>
@@ -1912,6 +1913,7 @@
                                                     <td v-if="showFullDetails">{{row.xInscription}}</td>
                                                     <td  v-if="showFullDetails">{{ row.xStart }}</td>
                                                     <td  v-if="showFullDetails">{{ row.xStartgroup }}</td>
+                                                    <td  v-if="showFullDetails">{{ row.xSeriesStart }}</td>
                                                     <td>{{row.bib}}</td>
                                                     <td>{{row.lastname}}</td>
                                                     <td>{{row.forename}}</td>
