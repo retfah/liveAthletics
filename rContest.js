@@ -26,7 +26,7 @@ class rContest extends roomServer{
      * @param {object} rCategories
      * @param {object} rInscriptions
      */
-    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, contest, rContests, rStartsInGroup, rBaseDisciplines, rMeeting, rCategories, rInscriptions, rStarts){
+    constructor(meetingShortname, sequelizeMeeting, modelsMeeting, mongoDb, eventHandler, logger, dynamicRoom, contest, rContests, rStartsInGroup, rBaseDisciplines, rMeeting, rCategories, rInscriptions, rStarts, rEventGroups){
 
         // call the parents constructor FIRST (as it initializes some variables to {}, that are extended here)
         // (eventHandler, mongoDb, logger, name, storeReadingClientInfos=false, maxWritingTicktes=-1, conflictChecking=false, dynamicRoom)
@@ -50,6 +50,7 @@ class rContest extends roomServer{
         this.rCategories = rCategories;
         this.rInscriptions = rInscriptions;
         this.rStarts = rStarts;
+        this.rEventGroups = rEventGroups;
 
         /**
          * The data needed:
@@ -464,10 +465,56 @@ class rContest extends roomServer{
             throw {code:22, message:`seriesstartresult ${data.xSeriesStart} was not found in the respective series. series start result cannot be changed.`}
         }
 
+        // the qualification status before
+        const qualificationBefore = ssr.qualification;
+
         // update the qualification
         await ssr.update(data).catch(err=>{
             throw {code: 23, message: `Could not update the seriesstartresult: ${err}`}
         });
+
+        // add / delete the startInGroup for the next round
+        // adding/deleting the startsInGroup fails silently. (should actually never fail) It would have to be fixed manually on the client.
+        const sg = this.data.startgroups.find(s=>s.xStartgroup==ssr.xStartgroup);
+        if (sg){
+            // find the next (x)round.
+            const rG = this.data.relatedGroups.find(g=>g.xRound==sg.xRound);
+            if (rG){
+                // find the eventGroup and get the next round
+                const eG = this.rEventGroups.data.find(eg=>eg.xEventGroup==rG.round.xEventGroup);
+                if (eG){
+                    const nextRound = eG.rounds.find(r=>r.order==rG.round.order+1);
+                    if (nextRound){
+                        if ([0,11].includes(qualificationBefore) && [0,11].includes(data.qualification)==false){
+                            
+                            // add the startInGroup
+                            const d = {
+                                xRound: nextRound.xRound,
+                                number: 1, // always group 1 initially
+                                xStart:sg.xStart,
+                                present: true,
+                            }
+                            this.rStartsInGroup.serverFuncWrite('addStartsInGroup', d).catch(err=>{
+                                this.logger.log(25, `Could not add startsInGroup ${JSON.stringify(d)}: ${JSON.stringify(err)}`)
+                            })
+
+                        } else if ([0,11].includes(qualificationBefore)==false && [0,11].includes(data.qualification)){
+                            
+                            // delete the startInGroup
+                            // find the xStartgroup
+                            const sig = this.rStartsInGroup.data.startsInGroups.find(sig => sig.xRound == nextRound.xRound && sig.xStart == sg.xStart);
+                            if (sig){
+                                this.rStartsInGroup.serverFuncWrite('deleteStartsInGroup', sig.xStartgroup).catch(err=>{
+                                    this.logger.log(25, `Could not delete xStartgroup ${sig.xStartgroup}: ${JSON.stringify(err)}`)
+                                })
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
 
         let ret = {
             isAchange: true, 

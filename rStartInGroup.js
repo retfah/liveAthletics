@@ -1011,6 +1011,17 @@ class rStartsInGroup extends roomServer{
         }
     }
 
+    // make sure that xRound and xStart are related with each other. Otherwise, no startInGroup should be added
+    async relationCheckRoundStart(xRound, xStart, errorCode=30){
+        // find xEventGroup for the given xRound; then find xEventGroup for the given xStart and compare the two. (This approach is probably faster than having joins all the way through from start to round.)
+        const eG1 = await this.models.starts.findOne({attributes: ["event.xEventGroup"], include: {model: this.models.events, as:'event'}, where: {xStart: xStart}});
+        const eG2 = await this.models.rounds.findOne({attributes: ["xEventGroup"], where: {xRound: xRound}});
+        if (eG1.event.xEventGroup != eG2.xEventGroup){
+            throw {message:'xRound and xStart and not related (though event and eventGroup) with each other.', code:errorCode}
+        }
+        return true;
+    }
+
     /**
      * add an startsInGroup
      * @param {object} data This data shall already be in the format as can be used by Sequelize to insert the data. It will be checked with the schema first.
@@ -1025,6 +1036,9 @@ class rStartsInGroup extends roomServer{
             // Method 1: manually translate the booleans with the translateBooleans-function in roomServer --> not very efficient if executed on the whole data and every function like addStartsInGroup, updateStartsInGroup, ... would have to actively call this function in it
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
+
+            // check that the xStart is in fact related to xRound via event and eventGroup 
+            await this.relationCheckRoundStart(data.xRound, data.xStart);
 
             var startsInGroup = await this.models.startsingroup.create(dataTranslated).catch((err)=>{throw {message: `Sequelize-problem: StartsInGroup could not be created: ${err}`, code:22}})
 
@@ -1085,13 +1099,13 @@ class rStartsInGroup extends roomServer{
             // NOTE: also arrives here when the event actually did not exist (anymore!); However, should always exist!
 
             // delete the entry locally from the data:
-            [ind, startsingroup] = this.findObjInArrayByProp(this.data.startsInGroups, 'xStartgroup', data) // must be reqpeated, since the index could have changed due to the async call.
+            [ind, startsInGroup] = this.findObjInArrayByProp(this.data.startsInGroups, 'xStartgroup', data) // must be repeated, since the index could have changed due to the async call.
             if (ind>=0){
                 this.data.startsInGroups.splice(ind,1);
             }
 
             // raise event to notify e.g. contests
-            this.eH.raise(`${this.name}:deletedAthleteForRound/GrpNbr${startsingroup.xRound}/${startsingroup.number}`, startsingroup.xStartgroup)
+            this.eH.raise(`${this.name}:deletedAthleteForRound/GrpNbr${startsInGroup.xRound}/${startsInGroup.number}`, startsInGroup.xStartgroup)
 
             // object storing all data needed to DO the change
             let doObj = {
@@ -1143,8 +1157,8 @@ class rStartsInGroup extends roomServer{
                 throw {code:25, message:"The group cannot be changed, since the person is already assigned to a series. "};
             }
             
-            // TODO: check all other functions whether sometinhg similar is needed.
-
+            // check that the xStart is in fact related to xRound via event and eventGroup 
+            await this.relationCheckRoundStart(data.xRound, data.xStart);
 
             // cannot just assign dataValues to startsInGroup old, since "update" does not create a new object, but modifies the old one!
             let startsInGroupOld = copyObject(o.dataValues);

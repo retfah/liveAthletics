@@ -336,11 +336,11 @@ class rContests extends roomServer{
         try{
             let subroom;
             if (type==1){
-                subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)
+                subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)
             } else if (type==3) {
-                subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)
+                subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)
             /*} else if (type==2){
-                subroom = new rContestTechLong(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts)*/
+                subroom = new rContestTechLong(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)*/
             } else {
                 this.logger.log(22, `Could not create the subroom for contest ${xContest} in meeting ${this.meetingShortname} since the contest type ${type} is not supported.`);
                 return false;

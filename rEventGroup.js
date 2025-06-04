@@ -136,6 +136,9 @@ export default class rEventGroup extends roomServer {
             qualification: data.qualification,
         }
         await rContest.serverFuncWrite("updateQualification", data2); // NOTE: we can/do not use updateSSR, since it (and the required properties) depends on the type of contest. updateQualification is a common function in rContest.
+
+        // updateQualification in rContest will also add/remove the startingroup for the next round 
+
         return  {
             isAchange: false, // 2025-05: it is actually not necessary that this is a change, since the actual change is done anyway in the contest room.
             doObj: {funcName: 'updateQualification', data: data},
