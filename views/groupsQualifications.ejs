@@ -420,7 +420,8 @@
                     meeting: [],
                     showFullDetails: false,
                     //assignmentForRound: 0, // 0 if there is nothing to change currently and the round number for the round to do the change
-                    showEvent: true, // whether to show the event (and category) of each entry
+                    showEvent: false, // whether to show the event (and category) of each entry
+                    showPrevRound: true, // whether to show the result, rank and qualification in the previous round
 
                     infoTitle:'',
                     infoContent:'',
@@ -1051,6 +1052,9 @@
                     }
                     let rounds = [];
 
+                    // sort rounds first to make sure that we have allready processed previous round, since this is very helpful to create the "starts" data for rounds.order>1
+                    this.eventGroup.rounds.sort((a,b)=>a.order-b.order);
+
                     for (let r of this.eventGroup.rounds){
                         // Note: we cannot define here, whether overview=group assignment or results=qualification shall be shown, since this shall not be "reset" on every change.
                         
@@ -1100,13 +1104,62 @@
                                     xAthlete: a.xAthlete,
                                     xRegion: a.xRegion,
                                     xStartgroup: sig?.xStartgroup,
-                                    groupNumber: sig.number,
+                                    groupNumber: sig?.number,
                                     eventStr,
                                 }
                             }); // all starts of this eventGroup
                         } else {
-                            // TODO: get all starts based on the qualifications set in the previous round.
-                            // then simply create the same data as above
+                            // we use the already created data of the previous round to create the start data based on the qualifications. 
+                            const prevRound = rounds[rounds.length-1];
+                            for (let g of prevRound.groups){    
+                                if (!('series' in g)){
+                                    // at first, the contests are not loaded and there is no series data yet 
+                                    continue;
+                                }
+                                for (let s of g.series){
+                                    for (let ssr of s.seriesstartsresults){
+                                        if (ssr.qualification!=0 && ssr.qualification!=11){
+
+                                            // try to find the startsingroup entry for this person
+                                            const sig = this.startsInGroups.find(sig2=>sig2.xRound==r.xRound && sig2.xStart==ssr.xStart) ?? null;
+
+                                            // also add the performance in the previous round, including the rank
+
+                                            // most data can be copied from the previous "ssr"
+                                            starts.push({
+                                                xStart: ssr.xStart,
+                                                xInscription: ssr.xInscription,
+                                                paid: ssr.paid,
+                                                notificationPerf: ssr.notificationPerf,
+                                                bestPerf: ssr.bestPerf,
+                                                bestPerfLast: ssr.bestPerfLast,
+                                                competitive: ssr.competitive,
+                                                xCategory: ssr.xCategory,
+                                                bib: ssr.bib,
+                                                birthdate: ssr.birthdate,
+                                                forename: ssr.forename,
+                                                lastname: ssr.lastname,
+                                                identifier: ssr.identifier,
+                                                nationalBody: ssr.nationalBody,
+                                                sex: ssr.sex,
+                                                clubName: ssr.clubName,
+                                                xClub: ssr.xClub,
+                                                xAthlete: ssr.xAthlete,
+                                                xRegion: ssr.xRegion,
+                                                xStartgroup: sig?.xStartgroup, 
+                                                groupNumber: sig?.number, 
+                                                eventStr: ssr.eventStr, 
+                                                ranking: ssr.ranking,
+                                                rankingData: ssr.rankingData,
+                                                resultStr: ssr.resultStr,
+                                                qualification: ssr.qualification, // e.g. to show whether the person was qualified by time or rank
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+                            
+
                         }
                         
                         let groups = [];
@@ -1387,7 +1440,7 @@
                     }
 
                     rounds.sort((a,b)=>{
-                        return a.order-b.order;
+                        return a.round.order-b.round.order;
                     })
                     return rounds;
                 },
@@ -1771,22 +1824,32 @@
               (B) A results view, which is also used to set qualifications (and eventually the group) for the next round. In this view, we might provide the option to view the results merged over all contests and series or seaprately. -->
 
             <div>
-                <label>
-                    <input type="checkbox" v-model="showEvent">
-                    <%= __("Show event") %>
-                </label> 
+                <!-- TODO: remove for production -->
                 <label>
                     <input type="checkbox" v-model="showFullDetails">
                     Show full details (for debugging)
                 </label> 
-                
                 <div class="tabContainer" style="--numcols:3;">
                     <input class="tabHead" type="radio" v-bind:id="'tab1'+r.round.xRound" v-bind:name="'tabGroup'+r.round.xRound" value="overview" v-model="tabSelection[r.round.xRound]" checked>
                     <label class="tabHead" v-bind:for="'tab1'+r.round.xRound" style="grid-column:1;"><%= __("Overview") %><template v-if="r.round.groups.length>1"> / <%= __("Group assignment") %></template></label>
                     <div class="tabContent">
-                        <h3><%= __('Group assignment') %></h3>
-                        <!--<div style="width:95vw">{{starts}}</div>
-                        <div style="width:95vw">{{roundData}}</div>-->
+                        <div style="display: flex;">
+                            <div style="flex-grow: 1;">
+                                <h3><%= __('Group assignment') %></h3>
+                            </div>
+                            <div style="flex-grow: 0; margin: 1em 0; align-self: center;">
+                                <label>
+                                    <input type="checkbox" v-model="showEvent">
+                                    <%= __("Show event") %>
+                                </label> 
+                                <template v-if="r.round.order>1">
+                                    <label>
+                                        <input type="checkbox" v-model="showPrevRound">
+                                        <%= __("Show previous round data") %>
+                                    </label> 
+                                </template>
+                            </div>
+                        </div>
 
                         <v-table :data="r.starts" ><!--:filters="filters"-->
                             <template #head>
@@ -1803,7 +1866,9 @@
                                         <th is="vue:v-th" sortkey="bestPerf">PB</th>
                                         <th is="vue:v-th" sortkey="bestPerfLast">SB</th>
                                         <th is="vue:v-th" sortkey="notificationPerf">ML</th>
-                                        <!-- for qualification, add here the result from the last round -->
+                                        <th v-if="r.round.order>1 && showPrevRound" is="vue:v-th" sortkey="resultStr"><%= __('Result') %></th> 
+                                        <th v-if="r.round.order>1 && showPrevRound" is="vue:v-th" sortkey="ranking.overall"><%= __('Rank') %></th> <!-- provide the different ranks if needed -->
+                                        <th v-if="r.round.order>1 && showPrevRound"><%= __('Q') %></th>
                                         <th is="vue:v-th" sortkey="group.number"><%= __('Group') %></th>
                                         <th><!--buttons--></th>
                                     </tr>
@@ -1823,6 +1888,11 @@
                                         <td>{{formatPerf(row?.bestPerf, discipline.xBaseDiscipline)}}</td>
                                         <td>{{formatPerf(row?.bestPerfLast, discipline.xBaseDiscipline)}}</td>
                                         <td>{{formatPerf(row?.notificationPerf, discipline.xBaseDiscipline)}}</td>
+
+                                        <td v-if="showPrevRound">{{row.resultStr}}</td>
+                                        <td v-if="showPrevRound">{{row.ranking?.overall}}</td>
+                                        <td v-if="showPrevRound">{{qualificationStatesObj[row.qualification]?.abbreviation=='' ? '-' : qualificationStatesObj[row.qualification]?.abbreviation}}</td>
+
                                         <td v-if="r.round.numGroups==1">{{row?.groupNumber}}</td>
                                         <td v-if="r.round.numGroups>1">
                                             <select class="select" v-on:change="groupChanged(row, $event, r)"> <!-- do not use v-model="row.group.number" here to not change the data until it is changed on the server -->
@@ -1852,9 +1922,19 @@
                     <div class="tabContent">
                         <h3><%= __('Results and qualifications') %></h3>
                         <p v-if="!r.roundFinished">The round is not yet finished. The state of all related contests need to be 'Official' or later.</p>
-                        <button type="button" class="btn" v-on:click="setQualificationSetup(r)"><%= __("Qualification Assistant") %></button>
-                        <div style="display:flex"><div style="flex-grow:1; width:0;"><%= __("Legend") %>: {{qualificationStateLegend}}</div></div>
-                        <div> 
+                        <div style="display: flex;">
+                            <div style="flex-grow: 1;">
+                                <button type="button" class="btn" v-on:click="setQualificationSetup(r)"><%= __("Qualification Assistant") %></button>
+                            </div>
+                            <div style="flex-grow: 0; margin: 1em 0; align-self: center;">
+                                <label>
+                                    <input type="checkbox" v-model="showEvent">
+                                    <%= __("Show event") %>
+                                </label>
+                            </div>
+                        </div>
+                        <!--<div style="display:flex"><div style="flex-grow:1; width:0;"><%= __("Legend") %>: {{qualificationStateLegend}}</div></div>
+                        <div> -->
                             <details v-for="g in r.groups" open="true">
                                 <summary v-bind:style="{'background-color':contestStates.find(cs=>cs.value==g.contest?.status)?.backgroundColor, color:contestStates.find(cs=>cs.value==g.contest?.status)?.textColor}">{{g.number}}{{g.name!=''? ` ${g.name}`:'' }} / {{g.contest!==null ? `${formatTime(g.contest?.datetimeStart)} ${g.contest?.name}, ${contestStates.find(cs=>cs.value==g.contest?.status).text}` : ''}}</summary>
                                 <div v-if="g.contest==null || g.contest.status<200">
@@ -1888,9 +1968,9 @@
                                                     <th is="vue:v-th" sortkey="bestPerfLast">SB</th>
                                                     <th is="vue:v-th" sortkey="notificationPerf">ML</th>-->
                                                     <!-- for qualification, add here the result from the last round -->
-                                                    <th is="vue:v-th" sortkey="result"><%= __('Result') %></th>
+                                                    <th is="vue:v-th" :customSort="sortRank"><%= __('Result') %></th>
                                                     <th><%= __('Q') %></th>
-                                                    <th><!--buttons--></th>
+                                                    <th><!--buttons--><button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Qualification states') %>:', qualificationStateLegend)"><%= __('i') %></button></th>
                                                 </tr>
                                             </thead>
                                         </template>
