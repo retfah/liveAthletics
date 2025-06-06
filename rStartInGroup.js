@@ -1158,7 +1158,7 @@ class rStartsInGroup extends roomServer{
             }
             
             // check that the xStart is in fact related to xRound via event and eventGroup 
-            await this.relationCheckRoundStart(data.xRound, data.xStart);
+            await this.relationCheckRoundStart(o.xRound, o.xStart);
 
             // cannot just assign dataValues to startsInGroup old, since "update" does not create a new object, but modifies the old one!
             let startsInGroupOld = copyObject(o.dataValues);
