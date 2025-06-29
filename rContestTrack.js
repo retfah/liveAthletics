@@ -1419,6 +1419,10 @@ class rContestTrack extends rContest{
 
     }
 
+    hasResults(ssr){
+        return ssr.resultstrack; // if resultstrack exists, there is a result
+    }
+
 }
 
 export default rContestTrack;

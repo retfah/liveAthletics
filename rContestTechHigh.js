@@ -1045,6 +1045,10 @@ class rContestTechHigh extends rContest{
 
     }
 
+    hasResults(ssr){
+        return (ssr.resultshigh && ssr.resultshigh.length>0);
+    }
+
 }
 
 export default rContestTechHigh;

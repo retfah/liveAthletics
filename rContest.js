@@ -931,6 +931,10 @@ class rContest extends roomServer{
         }
     }
 
+    hasResults(ssr){
+        throw 'hasResults must be implemented by the inheriting class!';
+    }
+
     
     async deleteSeries(xSeries){
         if (!this.validateDeleteSeries(xSeries)){
@@ -945,7 +949,7 @@ class rContest extends roomServer{
         // check that there are no results yet
         let hasResults = false;
         series.seriesstartsresults.forEach(ssr=>{
-            if (ssr.resultstrack){
+            if (this.hasResults(ssr)){
                 hasResults = true;
             }
         }) 
