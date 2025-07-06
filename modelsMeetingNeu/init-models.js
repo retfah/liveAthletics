@@ -181,8 +181,8 @@ export default function initModels(sequelize) {
   series.hasOne(seriestrack, { as: "seriestrack", foreignKey: "xSeries"});
   resultshigh.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
   seriesstartsresults.hasMany(resultshigh, { as: "resultshighs", foreignKey: "xResult"});
-  resultstech.belongsTo(seriesstartsresults, { as: "xResultTech_seriesstartsresult", foreignKey: "xResultTech"});
-  seriesstartsresults.hasOne(resultstech, { as: "resultstech", foreignKey: "xResultTech"});
+  resultstech.belongsTo(seriesstartsresults, { as: "xResult_seriesstartsresult", foreignKey: "xResult"});
+  seriesstartsresults.hasMany(resultstech, { as: "resultsteches", foreignKey: "xResult"});
   resultstrack.belongsTo(seriesstartsresults, { as: "xResultTrack_seriesstartsresult", foreignKey: "xResultTrack"});
   seriesstartsresults.hasOne(resultstrack, { as: "resultstrack", foreignKey: "xResultTrack"});
   disciplinesonsite.belongsTo(sites, { as: "xSite_site", foreignKey: "xSite"});
