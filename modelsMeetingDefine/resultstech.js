@@ -4,7 +4,7 @@ const { Model, Sequelize } = _sequelize;
 export default class resultstech extends Model {
   static init(sequelize, DataTypes) {
   return sequelize.define('resultstech', {
-    xResultTech: {
+    xResult: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       primaryKey: true,
@@ -22,6 +22,7 @@ export default class resultstech extends Model {
     attempt: {
       type: DataTypes.TINYINT.UNSIGNED,
       allowNull: false,
+      primaryKey: true,
       comment: "which attempt (start from 1)"
     },
     wind: {
@@ -38,7 +39,8 @@ export default class resultstech extends Model {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "xResultTech" },
+          { name: "xResult" },
+          { name: "attempt" },
         ]
       },
     ]
