@@ -6,6 +6,7 @@
 
 import roomServer from './roomServer.js';
 import rContestTechHigh from './rContestTechHigh.js';
+import rContestTechLong from './rContestTechLong.js';
 import rContestTrack from './rContestTrack.js';
 
 /**
@@ -124,7 +125,44 @@ class rContests extends roomServer{
                     data.conf = JSON.stringify({heightIncreases:[], jumpoff:false});
                 } else if (bd?.type == 2){
                     // tech long
-                    // TODO
+
+                    /*
+                        Sort:
+                        0: position
+                        1: position reversed
+                        2: by rank (best first)
+                        3: by rank (best last)
+
+                        FilterRank: 
+                        0: all
+                        N: best N after M attempts 
+
+                        filterAttempt: M
+                    */
+                    const attemptSetting3plus3 = [
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:0},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:1},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:2},
+                        {sort: 3, sortRankAfterAttempt:3, filterRank:8, filterAttempt:3},
+                        {sort: 3, sortRankAfterAttempt:3, filterRank:8, filterAttempt:3},
+                        {sort: 3, sortRankAfterAttempt:3, filterRank:8, filterAttempt:3},
+                    ];
+                    
+                    const attemptSettingContinuously = [
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:0},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:1},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:2},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:3},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:3},
+                        {sort: 0, sortRankAfterAttempt:1, filterRank:0, filterAttempt:3},
+                    ];
+
+                    data.conf = JSON.stringify({
+                        preset:0, // 0 = 3+3, 1 = N attempts for all, 2 = expert setting; used only for information on the client; the actual code will always use the expert setting!
+                        attempts: 6,
+                        attemptSettings:attemptSetting3plus3,
+                        mergeSeries: 4, // merge multiple series starting with attempt
+                    })
                 } else if (bd?.type == 3){
                     // track
                     // try to get default values for number of persons per heat first from a track site and second from the discipline
@@ -339,8 +377,8 @@ class rContests extends roomServer{
                 subroom = new rContestTechHigh(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)
             } else if (type==3) {
                 subroom = new rContestTrack(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)
-            /*} else if (type==2){
-                subroom = new rContestTechLong(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)*/
+            } else if (type==2){
+                subroom = new rContestTechLong(this.meetingShortname, this.seq, this.models, this.mongoDB, this.eH, this.logger, dynamicRoom, contest, this, this.rStartsInGroup, this.rBaseDisciplines, this.rMeeting, this.rCategories, this.rInscriptions, this.rStarts, this.rEventGroups)
             } else {
                 this.logger.log(22, `Could not create the subroom for contest ${xContest} in meeting ${this.meetingShortname} since the contest type ${type} is not supported.`);
                 return false;

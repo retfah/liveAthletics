@@ -267,6 +267,25 @@ export default {
         injections: {content:{file:"techHighAdmin.ejs"}},
         onLoad: "startSeriesAdminTech",
     },
+    
+    // contains all javascript-vue logic for techLong disciplines. Does not contain the actual drawings
+    techLongBase: {
+        name: 'techLongBase',
+        title: 'techLongBase',
+        parent: 'main',
+        preload: [],
+        injections: {child1: {file:"techLongBase.ejs"}},
+        onLoad: "", // call startSeriesAdminTech in the child pages to make it work
+    },
+
+    techLongAdmin: {
+        name: "techLongAdmin",
+        title: "Tech Long Admin",
+        parent: "techLongBase",
+        preload: ['competition'],
+        injections: {content:{file:"techLongAdmin.ejs"}},
+        onLoad: "startSeriesAdminTechLong",
+    },
 
     // TODO: do not use techHighBase as a parent page, but use techHighBase.ejs as an include in this page and set the parent of this page to root, so that it fills the screen
     techHighBoard: {

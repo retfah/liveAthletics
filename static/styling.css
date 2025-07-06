@@ -1565,6 +1565,10 @@ option:hover {
     top:0;
 }
 
+.greyedOut {
+    opacity: 50%;
+}
+
 /**
 * Animations
 **/
