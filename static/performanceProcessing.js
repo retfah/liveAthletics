@@ -5,6 +5,9 @@
 // OPTION: dynamically extend this list with discipline types imported from modules
 export const disciplineFormatters = {
     1: function (value, discipline, showUnit=false){
+        if (value==0){
+            return '';
+        }
         const valObj = disciplineValueProcessors[1](value);
         if (showUnit){
             return `${valObj.m}.${valObj.cm.toString().padStart(2,0)} m`;    
@@ -12,6 +15,9 @@ export const disciplineFormatters = {
         return `${valObj.m}.${valObj.cm.toString().padStart(2,0)}`;
     },
     2: function (value, discipline, showUnit=false){
+        if (value==0){
+            return '';
+        }
         const valObj = disciplineValueProcessors[2](value);
         if (showUnit){
             return `${valObj.m}.${valObj.cm.toString().padStart(2,0)} m`;    
