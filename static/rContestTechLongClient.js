@@ -1,6 +1,6 @@
 import { rContestClient } from "./rContestClient.js";
 
-export class rContestTechHLongClient extends rContestClient{
+export class rContestTechLongClient extends rContestClient{
 
     /**
      * 
