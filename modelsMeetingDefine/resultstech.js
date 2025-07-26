@@ -15,9 +15,9 @@ export default class resultstech extends Model {
     },
     result: {
       type: DataTypes.MEDIUMINT.UNSIGNED,
-      allowNull: false,
-      defaultValue: 0,
-      comment: "in mm"
+      allowNull: true,
+      defaultValue: null,
+      comment: "in mm; null if not valid; inexistant if not done yet"
     },
     attempt: {
       type: DataTypes.TINYINT.UNSIGNED,
