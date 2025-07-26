@@ -12,7 +12,7 @@ export const disciplineFormatters = {
         return `${valObj.m}.${valObj.cm.toString().padStart(2,0)}`;
     },
     2: function (value, discipline, showUnit=false){
-        const valObj = disciplineValueProcessors[1](value);
+        const valObj = disciplineValueProcessors[2](value);
         if (showUnit){
             return `${valObj.m}.${valObj.cm.toString().padStart(2,0)} m`;    
         }
@@ -244,11 +244,14 @@ export const disciplineValidators = {
 
         let valueModified = false;
 
-        // if the number is below 120 or has a period, it is in m (it would be funnier "if it is in in")
+        // if the number is below 120 or has a period, it is in m (it would be funnier "if it is in in"), otherwise in cm
         if (num < 120 || value.indexOf('.') >= 0){
             // change to mm
             num = Math.round(num*1000); // despite the fact in athletics we should always round down (floor), we should use round here, because the floats might be slightly "wrong", e.g. floor(4.85*100)=484 instad of 485. 
             valueModified = true;
+        } else {
+            // cm to mm
+            num*=10;
         }
         // num is in mm now
 
