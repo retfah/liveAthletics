@@ -20,8 +20,6 @@ import {readFile} from 'node:fs/promises';
 import {writeFile} from 'node:fs/promises';
 
 import initModels from "./modelsBaseSUI/init-models.js"; // es6 with define syntax (based on modified sequelize-auto functions, run as es5 but creating es6-import with define)
-import disciplines from "./modelsMeetingDefine/disciplines.js";
-import basedisciplines from "./modelsMeetingDefine/basedisciplines.js";
 
 import nationalBodyLink from "./nationalBodyLink.js";
 
@@ -299,8 +297,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
         this.sequelize = seq;
         this.models = initModels(seq);
         this.logger = logger;
-        this.disciplines = disciplines.init(seq, DataTypes);
-        this.basedisciplines = basedisciplines.init(seq, DataTypes);
 
         // make the static conf available in this for non-static methods
         this.conf = this.constructor.conf;
@@ -479,10 +475,16 @@ export default class moduleLinkSUI extends nationalBodyLink {
         // the xDiscipline is useless, since the interpretation is fully dependent on the alabus type, and not xDiscipline of live athletics. However, for alabus it is simple: there are just two formats: one for tech, one for track; they can easily be differentiated
 
         // figure out the kind of discipline
-        const d = await this.disciplines.findOne({where:{xDiscipline}, logging:false});
-        const bd = await this.basedisciplines.findOne({where:{xBaseDiscipline:d.xBaseDiscipline}, logging:false})
+        let type;
+        if (xDiscipline<500){
+            type=3; // track
+        } else if ([640, 641, 660, 661].includes(xDiscipline)){
+            type=1; // tech vertical
+        } else {
+            type=2; // tech horizontal
+        }
 
-        if (bd.type==3){ // change 2025-05: it was ; instead of : before, but ; can hardly be correct
+        if (type==3){ // change 2025-05: it was ; instead of : before, but ; can hardly be correct
             // is a time
             // according to the an interface definition, the times should look as follows: HH:MM:SS.ZZZ
             // in fact, it looks like times are HH:MM:SS:ZZZ
@@ -493,7 +495,7 @@ export default class moduleLinkSUI extends nationalBodyLink {
                 return ((3600*parseInt(parts[0])+60*parseInt(parts[1])+parseInt(parts[2]))*1000+parseInt(parts[3]))*100; // in 1/100000s
             }
             return 0;
-        } else if (bd.type==2){
+        } else if (type==2){
             // tech long
             const parts = perf.split(/[.]/);
             if (parts.length==2){
