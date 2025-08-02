@@ -923,7 +923,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 						}
 
 					} else {
-						logger.log(7, "The sid was not stored to the socket, which should not happen! Cannot send translated text and title back to client!");
+						logger.log(7, `The sid ${ws.sid} was not stored to the socket, which should not happen! Cannot send translated text and title back to client!`);
 					}
 					
 					// send the data
@@ -1033,7 +1033,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 					}).catch((err)=>{logger.log(7, `ERROR: Could not render the file ${data}. The reason might be that ejs could not fill all placeholders, as not all of them are listed in "files". ${err}`)})
 
 				} else {
-					logger.log(7, "The sid was not stored to the socket, which should not happen! Cannot send files back to client without rendering!");
+					logger.log(7, `The sid ${ws.sid} was not stored to the socket, which should not happen! Cannot send files back to client without rendering!`);
 				}
 			})
 		} else if (name=='room'){
@@ -1070,7 +1070,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 
 				// new 2022-02: finding the room is handled elsewhere
 				findRoom(data.roomName, rooms.meetings, rooms, logger).then(room=>{
-					room.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
+					return room.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
 
 				}).catch(err=>{
 					// findRoom throws the right errors:
@@ -1096,14 +1096,14 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 
 							// differentiate: we want a subroom OR the mainroom:
 							if (subrooms==''){
-								room.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
+								return room.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
 							} else {
 								let subroom = room.getSubroom(subrooms); // return false on failure
 								if (!subroom){
 									logger.log(75, 'The subroom "' + subrooms + '" does not exist in the respective meeting.');
 									responseFunc('The subroom "' + subrooms + '" does not exist in the respective meeting.', 11);
 								} else {
-									subroom.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
+									retur subroom.wsRequestIncoming(ws.tabID, wsProcessor, responseFunc, data.arg, data.opt, ws.session);
 								}
 							}
 							
