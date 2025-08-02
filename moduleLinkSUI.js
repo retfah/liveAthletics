@@ -23,6 +23,8 @@ import initModels from "./modelsBaseSUI/init-models.js"; // es6 with define synt
 
 import nationalBodyLink from "./nationalBodyLink.js";
 
+// NOTE: an ECONNRESET -4077 error may be caused by on overly large query (e.g. when insertign all performances at once). Set the max_allowed_packet in the DB settings (e.g. my.cnf) to something large, e.g. =500M.
+
 // link to alabus
 export default class moduleLinkSUI extends nationalBodyLink {
 
@@ -472,7 +474,6 @@ export default class moduleLinkSUI extends nationalBodyLink {
      * @return {numeric} integer or whatever is correct for liveAthletics
      */
     async perfAlabus2LA(perf, xDiscipline){
-        // the xDiscipline is useless, since the interpretation is fully dependent on the alabus type, and not xDiscipline of live athletics. However, for alabus it is simple: there are just two formats: one for tech, one for track; they can easily be differentiated
 
         // figure out the kind of discipline
         let type;
