@@ -3510,6 +3510,21 @@
 
                 // register event for keys x, o, -
                 addEventListener('keydown', (evt)=>{
+
+                    // TODO resultRemark überall (in competition) abdecken!
+                    // jumpof und regular 
+                    // 479, mode 1
+                    // 561, mode 2
+                    // resMod
+
+                    // do NOT handle this when NOT in competition mode
+                    // both id's apply to both regular and jumpoff mode
+                    const remark = document.getElementById('competitionRemark'); 
+                    const time = document.getElementById('attemptTimeRegular');
+                    if (this.show != 'competition' || document.activeElement==remark || document.activeElement==time){
+                        return;
+                    }
+
                     // only handle the event once
                     if (evt.repeat) return;
                     // only on writing clients

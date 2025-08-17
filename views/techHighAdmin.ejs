@@ -476,14 +476,14 @@
                                     </div>
                                 </div>
     
-                                <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)"
+                                <input id="competitionRemark" class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)"
                                 v-bind:disabled="readOnly">
                             </div>
                             <div class="row2" v-if="autoAdvance==false && resultOnCurrentHeight==false">
                                 <!-- time period stuff: -->
                                 <div class="el2">
                                     <!-- Note: we use hours as minutes and minutes as seconds -->
-                                    <input style="padding:6px 12px; border-radius: 4px; border: 1px solid rgb(206,212,218); line-height:24px; font-size: 16px;" type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
+                                    <input id="attemptTimeRegular" style="padding:6px 12px; border-radius: 4px; border: 1px solid rgb(206,212,218); line-height:24px; font-size: 16px;" type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
                                     <button type="button" class="el" v-on:click="setTime" v-if="!readOnly"><%= __("Set") %></button>
                                 </div>
                                 <div class="el2">
@@ -558,7 +558,22 @@
                                     <button class="el" v-on:click="failedJumpoff()">X</button> <!-- athletes must jump (thus only options cleared or failed), or they can retire => change status to retired -->
                                 </div>
     
-                                <input class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)" v-bind:disabled="readOnly">
+                                <input id="competitionRemark" class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="updateSSR(currentAthleteStart)" v-bind:disabled="readOnly">
+                            </div>
+                            <div class="row2" v-if="autoAdvance==false && resultOnCurrentHeight==false">
+                                <!-- time period stuff: -->
+                                <div class="el2">
+                                    <!-- Note: we use hours as minutes and minutes as seconds -->
+                                    <input id="attemptTimeRegular" style="padding:6px 12px; border-radius: 4px; border: 1px solid rgb(206,212,218); line-height:24px; font-size: 16px;" type="time" max="6:00:00" v-model="attemptTimeSetting" v-if="!readOnly">
+                                    <button type="button" class="el" v-on:click="setTime" v-if="!readOnly"><%= __("Set") %></button>
+                                </div>
+                                <div class="el2">
+                                    <div style="display: inline-block;" v-if="roomAuxData[selectedXSeries].showAttemptPeriod">
+                                        <button type="button" class="el width3" v-on:click="startPeriod" v-if="!readOnly">&#9654;</button>
+                                        <button type="button" class="el width3" v-on:click="hidePeriod" v-if="!readOnly">&#9209;</button>
+                                        <div style="display: inline-block; font-weight: bold; font-size:1rem; padding: 6px 12px; border: 1px solid rgb(206,212,218); border-radius: 4px;" v-bind:class="{yellowBg: last15}">{{shownTime}}</div>
+                                    </div>
+                              </div>
                             </div>
     
                             <div class="row2 athRes">
