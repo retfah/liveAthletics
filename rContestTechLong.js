@@ -56,15 +56,12 @@ class rContestTechLong extends rContest{
 
         // ATTENTION: the same (!) default data must be present in the client room as well!
         this.defaultAuxData = {
-            /*positionNext: [],
+            positionNext: [],
             position: [],
             attemptPeriod: 60, // s; mainly related to the next athlete
             periodStartTime: null, // date-string of the server time when the attempt period started
             showAttemptPeriod: false, 
-            currentHeight: -1,
-            currentJumpoffHeightInd: -1,
-            attempt: 0,
-            attemptNext: 0,*/
+            currentAttempt: -1,
         }
 
         // add the functions to the respective object of the parent
@@ -86,7 +83,7 @@ class rContestTechLong extends rContest{
         const schemaAuxDataPerSeries = {
             type:"object",
             properties:{
-                /*positionNext:{
+                positionNext:{
                     type:'array',
                     items: {type:"integer"},
                 },
@@ -97,10 +94,7 @@ class rContestTechLong extends rContest{
                 attemptPeriod: {type:"integer", minimum:0}, // s; mainly related to the next athlete
                 periodStartTime: {type:["null", "string"]}, // date-string of the server time when the attempt period started
                 showAttemptPeriod: {type:"boolean"}, 
-                currentHeight: {type:"integer"},
-                currentJumpoffHeightInd: {type:"integer"},
-                attempt: {type:"integer"},
-                attemptNext: {type:"integer"},*/
+                currentAttempt: {type:"integer"},
             }, 
             required:[],//["positionNext", "attemptPeriod", "periodStartTime", "showAttemptPeriod", "position"],
             additionalProperties: false,
@@ -140,8 +134,9 @@ class rContestTechLong extends rContest{
             properties: {
                 xResult: {type:"integer"}, // reference to xSeriesStart! 
                 attempt: {type:"integer", minimum:1}, 
-                result:{type:"integer"},
+                result:{type:["null", "integer"]},
                 wind:{type:['null', 'integer'], default:null},
+                status:{type:"integer", minimum:0, maximum:255},
             },
             additionalProperties: false,
             required:["xResult", "attempt", "result"],
@@ -597,6 +592,16 @@ class rContestTechLong extends rContest{
         }
     }
 
+    async deleteSeries(data){
+        return super.deleteSeries(data).then((ret)=>{
+            
+            // if needed, update the aux data for the merged series
+            this.mergedFinalAuxData();
+            
+            return ret;
+        })
+    }
+
     async deleteAllSeries(data){
         // data is simply true
 
@@ -641,6 +646,9 @@ class rContestTechLong extends rContest{
                     this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesDeleted`, {xSeries: s.xSeries, xContest:s.xContest})
                 }
             }
+
+            // if needed, update the aux data for the merged series
+            this.mergedFinalAuxData();
 
             let ret = {
                 isAchange: true, 
@@ -711,6 +719,9 @@ class rContestTechLong extends rContest{
                 this.data.series.push(s);
 
             }).catch(ex=>{throw {message: `Could not create series: ${ex}.`, code:24}})
+
+            // if needed, update the aux data for the merged series
+            this.mergedFinalAuxData();
 
             let ret = {
                 isAchange: true, 
@@ -794,6 +805,9 @@ class rContestTechLong extends rContest{
                 }
             }
 
+            // if needed, update the aux data for the merged series
+            this.mergedFinalAuxData();
+
             // return the xSeries and xSeriesStart to the calling client; 
             // broadcast the full data to all other clients
 
@@ -814,6 +828,27 @@ class rContestTechLong extends rContest{
         }
     }
 
+    // add/delete auxdata for the merged final, if it is now needed or not anymore needed
+    mergedFinalAuxData(){
+        if ('merged' in this.data.auxData && this.data.series.length<2){
+            // delete auxData for merged series
+            delete this.data.auxData['merged'];
+            // store the change to DB
+            this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
+                // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
+                this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
+            })
+        } else if (!('merged' in this.data.auxData) && this.data.series.length>1){
+            // add auxData for merged series
+            this.data.auxData['merged'] = JSON.parse(JSON.stringify(this.defaultAuxData));
+            // store the change to DB
+            this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
+                // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
+                this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
+            })
+        }
+    }
+
     /**
      * update a contest's properties (but not the contest itself!)
      */
@@ -829,6 +864,9 @@ class rContestTechLong extends rContest{
             // TODO: check that a status change is allowed:
             // - need at least one series to allow series defined
             // - must not have results to go back from the competition part to series definition
+
+            // if needed, update the aux data for the merged series
+            this.mergedFinalAuxData();
 
             /*const confBeforeRaw = this.data.contest.conf;
             let confBefore = JSON.parse(this.data.contest.conf);

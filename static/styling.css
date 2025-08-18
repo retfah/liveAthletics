@@ -813,7 +813,7 @@ summary {
     margin: 2px;
 }
 
-.row2 button.el {
+.row2 button.el, #techResModContainer button.el {
     margin-right:3px;
     background-color: #6c757d;
     color: white;
@@ -1056,6 +1056,44 @@ summary {
     background-color: rgb(200, 200, 200);
     /*cursor: pointer;
     font: inherit; /* also sets the line height to 24px */
+}
+
+#techResModContainer {
+    display:grid; 
+    column-gap: 5px;
+    row-gap: 2px;
+}
+#techResModContainer .rank {
+    grid-column: rank;
+}
+#techResModContainer .bib {
+    grid-column: bib;
+}
+#techResModContainer .name {
+    grid-column: name;
+    font-weight: bold;
+}
+#techResModContainer .birthyear {
+    grid-column: birthyear;
+}
+#techResModContainer .club {
+    grid-column: club;
+}
+#techResModContainer .bestPerf {
+    grid-column: bestPerf;
+}
+#techResModContainer .remark {
+    grid-column: remark;
+}
+#techResModContainer .resultOverrule {
+    grid-column: resultOverrule;
+}
+#techResModContainer .result {
+    justify-self: stretch;
+}
+#techResModContainer .header {
+    font-weight: bold;
+    grid-row:1;
 }
 
 .centerContainer {

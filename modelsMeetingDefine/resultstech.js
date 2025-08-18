@@ -29,6 +29,12 @@ export default class resultstech extends Model {
       type: DataTypes.SMALLINT,
       allowNull: true,
       comment: "unfortunately Wind must appear twice in the column-name\n\nmust be signed (+-)!\nin m\/s\n"
+    },
+    status: {
+      type: DataTypes.TINYINT.UNSIGNED,
+      allowNull:false,
+      comment: "regular result \n1 = X / invalid (also set result to null)\n2 = - / passed \nif not regular, result and wind shall be null!",
+      defaultValue: 0,
     }
   }, {
     tableName: 'resultstech',

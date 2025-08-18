@@ -28,15 +28,12 @@ export class rContestTechLongClient extends rContestClient{
 
         // ATTENTION: the same (!) default data must be present in the server room as well!
         this.defaultAuxData = {
-            /*positionNext: [],
+            positionNext: [],
             position: [],
             attemptPeriod: 60, // s; mainly related to the next athlete
             periodStartTime: null, // date-string of the server time when the attempt period started
             showAttemptPeriod: false, 
-            currentHeight: -1,
-            currentJumpoffHeightInd: -1,
-            attempt: 0,
-            attemptNext: 0,*/
+            currentAttempt: -1,
         }
 
 
@@ -122,6 +119,12 @@ export class rContestTechLongClient extends rContestClient{
     }
 
     addResultInit(resulttech, ssr){
+
+        if (ssr.resultstech.find(el=>el.attempt==resulttech.attempt)){
+            throw("Result cannot be added, sicne it already exists");
+        }
+
+        ssr.resultstech.push(resulttech);
         
         let change = ()=>{
             return {
@@ -157,6 +160,17 @@ export class rContestTechLongClient extends rContestClient{
     }
 
     updateResultInit(resulttech, ssr){
+        const res = ssr.resultstech.find(el=>el.attempt==resulttech.attempt);
+        if (!res){
+            throw("Result does not exist yet and cannot be updated");
+        }
+
+        // check the PK does not change
+        if (res.xResult != resulttech.xResult || res.attempt != resulttech.attempt || resulttech.xResult != ssr.xSeriesStart){
+            throw("Invalid primary key.")
+        }
+
+        this.propertyTransfer(resulttech, res);
 
         let change = ()=>{
             return {
@@ -347,6 +361,30 @@ export class rContestTechLongClient extends rContestClient{
 
     }
 
+    deleteSeriesInit(data){
+        super.deleteSeriesInit(data);
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+    }
+    deleteSeriesExe(data){
+        super.deleteSeriesExe(data);
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+    }
+
+    deleteAllSeriesInit(data){
+        super.deleteAllSeriesInit(data);
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+    }
+    deleteAllSeriesExe(data){
+        super.deleteAllSeriesExe(data);
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+    }
+
     deleteSSR(series, ssr){
 
         // all positions after the previous position of the moved person must be reduced by 1 
@@ -494,10 +532,19 @@ export class rContestTechLongClient extends rContestClient{
             delete this.data.auxData[xSeriesMin];
         }
         
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+        
         this.addToStack('addSeries', newSeriesServer, executeSuccess, revert);
 
         this.sortSeries();
 
+    }
+    addSeriesExe(data){
+        super.addSeriesExe(data);
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
     }
 
     initialSeriesCreationInit(newSeries){
@@ -619,10 +666,20 @@ export class rContestTechLongClient extends rContestClient{
         
         let change = this.data.series;
 
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
+
         this.addToStack('initialSeriesCreation', change, executeSuccess, revert)
 
         this.sortSeries();
 
+    }
+
+    initialSeriesCreationExe(data){
+        super.initialSeriesCreationExe(data);
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
     }
 
     updateContest2Init(prop, newVal, oldVal){
@@ -634,11 +691,27 @@ export class rContestTechLongClient extends rContestClient{
             // revert all changes on failure!
             this.data.contest[prop] = oldVal
         })
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
     }
 
     updateContest2Exe(data){
         // applies only when the change was done on another client
         this.propertyTransfer(data, this.data.contest, true);
+        
+        // if needed, update the aux data for the merged series
+        this.mergedFinalAuxData();
     }
 
+    // add/delete auxdata for the merged final, if it is now needed or not anymore needed
+    mergedFinalAuxData(){
+        if ('merged' in this.data.auxData && this.data.series.length<2){
+            // delete auxData for merged series
+            delete this.data.auxData['merged'];
+        } else if (!('merged' in this.data.auxData) && this.data.series.length>1){
+            // add auxData for merged series
+            this.data.auxData['merged'] = JSON.parse(JSON.stringify(this.defaultAuxData));
+        }
+    }
 }

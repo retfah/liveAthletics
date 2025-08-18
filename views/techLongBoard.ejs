@@ -1,0 +1,80 @@
+
+<!-- TODO: this is still the fiel for techHigh, not long!!!! Modify it. -->
+<%- include( 'techLongBase', {content:content}) %>
+<div style="display:hidden" id="aConnection"></div>
+
+<div id="vueSeriesAdminTech" class="board">
+    <!-- some divs that are not shown (opacity=0) to find out whteher the name has to be shortened. We cannot set display:none, becasue then the measuring stuff does not work anymore -->
+    <div class="name" id="currentAthleteNameMeasuring" style="opacity: 0; position:absolute; width:100%; "> Placeholder for fake text</div>
+    <div class="next" id="nextAthleteNameMeasuring" style="opacity: 0; position:absolute; width:100%; "> Placeholder for fake text</div>
+    <template v-if="mode==0 || series[selectedSeries].status<140">
+        <!-- before the competition can be started -->
+        <div class="disc">
+            {{disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name}}
+        </div>
+        <div style="height:15%"></div>
+        <div class="starttime"><%= __('StartComp') %>: {{formatTime(contest.datetimeStart, false, true)}}</div>
+        <div class="starttime"><%= __('Time') %>: {{timeHours}}:{{timeMinutes}}:{{timeSeconds}}</div>
+        <!-- alternative with blinking semicolon (eventually use this only without the seconds) -->
+        <!--<div class="starttime"><%= __('Time') %>: {{timeHours}}<div v-if="timeOdd" class="timeSemicolon">:</div><div v-else class="timeSemicolon"></div>{{timeMinutes}}<div v-if="timeOdd" class="timeSemicolon">:</div><div v-else class="timeSemicolon"></div>{{timeSeconds}}</div>-->
+
+        <!-- TODO: eventually add here the involved categories, events, eventGroups, ... (for inspiration see ventually the competitionOverview in the live results) -->
+    </template>
+    <template v-if="(mode==1 || mode==2) && series[selectedSeries].status>=140">
+        <!-- consider using upper case only (eventually as small-caps), because then there is no space needed below the baseline -->
+        <div class="name" >
+            <!-- name -->
+            {{fitName('currentAthleteNameMeasuring', auxData.xStartgroup[currentAthleteStart.xStartgroup])}}
+        </div>
+        <div class="attempt">
+            <!-- height, attempt and clock -->
+            <div class="height">{{meterStr(currentHeight)}}</div>
+            <div class="attempts">
+                <template v-for="i of [1,2,3]">
+                    <template v-if="i==attempt">
+                        <template v-if="resultOnCurrentHeight">
+                            <div class="single" v-bind:data-val="resultOnCurrentHeight">{{resultOnCurrentHeight}}</div>
+                        </template>
+                        <template v-else>
+                            <div class="single current">_</div>
+                        </template>
+                    </template>
+                    <template v-if="i<attempt">
+                        <div class="single">X</div>
+                    </template>
+                    <template v-if="i>attempt">
+                        <div class="single next">_</div>
+                    </template>
+                </template>
+            </div>
+            <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
+        </div>
+        <div class="ranking">
+            <div class="rank">
+                <!-- rank: language specific: german: ., english: th/nd/rd -->
+                <template v-if="tempRankingData[currentAthleteStart.xSeriesStart].rank>0">
+                    {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                </template>
+            </div>
+            <div class="results">
+                <template v-for="(res, ind) in sortedResults(currentAthleteStart.resultshigh).slice().reverse()">
+                    <div class="result" v-if="ind<=4 && getHeight(res.xHeight, '') != meterStr(currentHeight)"><!-- do not show if the result is for the current height; we cannot simply take the index 0, since there is no result entry until a first result was entered, i.e. typically in the first attempt-->
+                        {{getHeight(res.xHeight, '')}}<br>{{resultToStr(res)}}
+                    </div>
+                </template>
+            </div>
+            <!-- ranking and previous results -->
+        </div>
+        <div class="next">
+            <!-- next athlete -->
+            <!-- Basically it might be interesting to show the height and attempt of the next athlete here as well. But since the information shown here is always for the same height ("position" and "positionNext" do not include the next height), we do not include the height here and for simplicity probably also not the attempt -->
+            <template v-if="positionNext.length>1">
+                {{fitName('nextAthleteNameMeasuring', auxData.xStartgroup[nextAthleteStart.xStartgroup], `➤ `)}} <!-- ${attemptNext} -->
+            </template>
+        </div>
+    </template>
+    <template v-if="mode==3">
+        <%= __("The competition is finished") %>
+        <!-- Show best results -->
+    </template>
+</div>
