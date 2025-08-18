@@ -238,6 +238,9 @@ export default class roomClient {
                     if (!(this.dataPresent)){
                         this.dataPresent = true;
                         
+                        // raise dataArrived-event in the room
+                        this.dataArrived();
+
                         // raise dataArrived-events on all vues
                         this.vues.forEach(el=>el.dataArrived()) 
                     } else {
@@ -481,17 +484,17 @@ export default class roomClient {
     }
 
     /**
-     * revoke the writingTicket of the client with the given sidhash. 
-     * @param {} sidHash 
+     * revoke the writingTicket of the client with the given tabIdHash. 
+     * @param {} tabIdHash 
      */
-    revokeWritingTicket(sidHash){
+    revokeWritingTicket(tabIdHash){
 
         let data = {
             roomName: this.name,
             arg: 'revokeWritingTicket',
             opt:{
                 writingRequested: (this.writingWanted && !(this.writingTicketID)), // if we already have a writingTicket, we do not need another one...
-                sidHash: sidHash
+                tabIdHash
             }
         }
 
@@ -509,7 +512,7 @@ export default class roomClient {
             });
 
         }else{
-            // just revoke the ticket of sidHash, but do not gather a ticket; nothing todo when the answer arrives
+            // just revoke the ticket of tabIdHash, but do not gather a ticket; nothing todo when the answer arrives
             this.wsHandler.emitRequest('room', data, ()=>{}, (code, msg)=>{});
         }
     }
@@ -606,12 +609,13 @@ export default class roomClient {
             this.logger.log(35, "Incoming change for function '" + change.funcName + "', which does not exist. Do full reload.")
 
             // full reload
-            this.getFullData(()=>{}, (msg, code)=>{
+            const fail = (msg, code)=>{
                 if (code<20){
                     // if it fails due to connection, simply try again after 5s
-                    setTimeout(this.getFullData, 5000);
+                    setTimeout(this.getFullData, 5000, ()=>{}, fail);
                 }
-            });
+            }
+            this.getFullData(()=>{}, fail);
         }
     }
 
@@ -681,15 +685,33 @@ export default class roomClient {
 
         let l = this.stack.length;
 
+        const request = {funcName: funcName, data: data};
+
         // check whether we should try to write or not when onlineOnly=true 
-        // this implementation where also the local stack must be empty is even stronger than what "onlineOnly" would mean alone, as it also makey sure that no stack builds up. Which would increase the chance that two clients have requests to the server at the same time.
-        if (this.onlineOnly && (!this.connected || l>0)){
-            /*window.alert("There is no connection to the server OR there is another request going on and thus requests/changes are not possible currently. "); // TODO: translation! --> ideally via a div-html-Element that is shown when the alert is raised. This way the alert can be translated in the usual way via ejs and i18n.*/
+        // NOTE: before 2025-03, it was also required that the local stack must be empty. This would be an even stronger than what "onlineOnly" would mean alone, as it also makes sure that no stack builds up, since a stack  increases the chance that two clients have requests to the server at the same time. However, a client might call (yes, this happens) several functions in a row and since it can be expected that they are handled rapidly on the server with low probability of concurrent calls from other clients, the reuirtement of l=0 was released.
+        //if (this.onlineOnly && (!this.connected || l>0)){
+        if (this.onlineOnly && (!this.connected)){
+
+            // virtual error codes:
+            // 0: no connection
+            // 0.5: request pending; not accepting more than one request at a time.
+
+            // if readOnly: deleteContinue; otherwise delteRollback (this is equivalend to smartDelete)
+            let handling = 'deleteRollbackNoFail';
+            if (opt.readOnly){
+                handling = 'delete';
+            }
+            
+            if (!this.connected){
+                this.rM?.messageNoConnection(this, this.stack[0].info, request, handling, handling == 'deleteRollbackNoFail');
+            } else {
+                this.rM?.messageRequestPending(this, this.stack[0].info, request, handling, handling == 'deleteRollbackNoFail');
+            }
+
+            this.logger.log(8, `Could not send request "${JSON.stringify(info)}" because another request is pending or because there is no connection to server. Delete request and continue. (Room: ${this.name}, request content: ${request})`);
+
             return false;
         }
-
-        // like this the server and also the clients can process the change
-        let request = {funcName: funcName, data: data}
 
         // add an element to the stack
         this.stack.push({request: request, functionOverride: functionOverride, funcRollback: funcRollback, info:info, opt:opt})
@@ -880,12 +902,19 @@ export default class roomClient {
                     }
 
                     this.fullStackRollback();
-                    this.getFullData(()=>{}, (msg, code)=>{
+                    const succ = ()=>{
+                        // reset the stack on success
+                        while (this.stack.length){
+                            this.stack.pop();
+                        }
+                    };
+                    const fail = (msg, code)=>{
                         if (code<20){
                             // if it fails due to connection, simply try again after 5s
-                            setTimeout(this.getFullData, 5000);
+                            setTimeout(this.getFullData, 5000, succ, fail);
                         }
-                    });
+                    };
+                    this.getFullData(succ, fail);
                 }
 
                 // there is one special case: errCode=13 means that the client is outdated and needs a fullReload. This ALWAYS results in a fullReload and a fullRollback
@@ -1025,17 +1054,35 @@ export default class roomClient {
      */
     fullStackRollback(){
         let el;
+        const reloadData = ()=>{
+            const succ = ()=>{
+                // reset the stack on success (there might still be some elements on the stack)
+                while (this.stack.length){
+                    this.stack.pop();
+                }
+            }
+
+            const fail = (msg, code)=>{
+                if (code<20){
+                    // if it fails due to connection, simply try again after 5s
+                    setTimeout(this.getFullData, 5000, succ, fail);
+                }
+            }
+
+            this.getFullData(succ, fail);
+        };
         while (el=this.stack.pop()){
             if (el.funcRollback){
-                el.funcRollback();
+                try {
+                    el.funcRollback();
+                } catch(err){
+                    this.logger.log(20, `Get all data from server again and delete the satck since a  rollback-function failed with err ${err}`);
+                    reloadData();
+                }
+                    
             } else {
                 this.logger.log(20, "At least one rollback-function on the stack to do a full rollback on is undefined, i.e. the full data must be reloaded.")
-                this.getFullData(()=>{}, (msg, code)=>{
-                    if (code<20){
-                        // if it fails due to connection, simply try again after 5s
-                        setTimeout(this.getFullData, 5000);
-                    }
-                });
+                reloadData();
                 break;
             }
             
@@ -1065,6 +1112,14 @@ export default class roomClient {
         if (this.leaveWhenNoVue){
             this.leave();
         }
+    }
+
+    /**
+     * Event called when the full data set has arrived
+     * Note: the same event is called in every registered vue
+     */
+    dataArrived(){
+
     }
 
     /**

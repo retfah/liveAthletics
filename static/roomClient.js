@@ -313,7 +313,7 @@ class roomClient {
                     this.connecting = false;
                     let msg2 = `Connecting to room ${this.name} failed with the following code and message: ${code}: ${msg}`;
                     this.logger.log(3, msg2);
-                    failure(msg2, code)
+                    failure(msg2, code);
                 }
             });
         }
@@ -584,12 +584,13 @@ class roomClient {
             this.logger.log(35, "Incoming change for function '" + change.funcName + "', which does not exist. Do full reload.")
 
             // full reload
-            this.getFullData(()=>{}, (msg, code)=>{
+            const fail = (msg, code)=>{
                 if (code<20){
                     // if it fails due to connection, simply try again after 5s
-                    setTimeout(this.getFullData, 5000);
+                    setTimeout(this.getFullData, 5000, ()=>{}, fail);
                 }
-            });
+            }
+            this.getFullData(()=>{}, fail);
         }
     }
 
@@ -876,12 +877,19 @@ class roomClient {
                     }
 
                     this.fullStackRollback();
-                    this.getFullData(()=>{}, (msg, code)=>{
+                    const succ = ()=>{
+                        // reset the stack on success
+                        while (this.stack.length){
+                            this.stack.pop();
+                        }
+                    };
+                    const fail = (msg, code)=>{
                         if (code<20){
                             // if it fails due to connection, simply try again after 5s
-                            setTimeout(this.getFullData, 5000);
+                            setTimeout(this.getFullData, 5000, succ, fail);
                         }
-                    });
+                    };
+                    this.getFullData(succ, fail);
                 }
 
                 // there is one special case: errCode=13 means that the client is outdated and needs a fullReload. This ALWAYS results in a fullReload and a fullRollback
@@ -1021,17 +1029,35 @@ class roomClient {
      */
     fullStackRollback(){
         let el;
+        const reloadData = ()=>{
+            const succ = ()=>{
+                // reset the stack on success (there might still be some elements on the stack)
+                while (this.stack.length){
+                    this.stack.pop();
+                }
+            }
+
+            const fail = (msg, code)=>{
+                if (code<20){
+                    // if it fails due to connection, simply try again after 5s
+                    setTimeout(this.getFullData, 5000, succ, fail);
+                }
+            }
+
+            this.getFullData(succ, fail);
+        };
         while (el=this.stack.pop()){
             if (el.funcRollback){
-                el.funcRollback();
+                try {
+                    el.funcRollback();
+                } catch(err){
+                    this.logger.log(20, `Get all data from server again and delete the satck since a  rollback-function failed with err ${err}`);
+                    reloadData();
+                }
+                    
             } else {
                 this.logger.log(20, "At least one rollback-function on the stack to do a full rollback on is undefined, i.e. the full data must be reloaded.")
-                this.getFullData(()=>{}, (msg, code)=>{
-                    if (code<20){
-                        // if it fails due to connection, simply try again after 5s
-                        setTimeout(this.getFullData, 5000);
-                    }
-                });
+                reloadData();
                 break;
             }
             
