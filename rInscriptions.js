@@ -313,11 +313,16 @@ class rInscriptions extends roomServer{
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
 
-            var inscription = await this.models.inscriptions.create(dataTranslated, {include: [
+            // since we do nested create, we need to use a transaction. Otherwise, it could be that the nested create fails, but the outer element persists!
+            var inscription = await this.seq.transaction(async t=>{
+
+            return await this.models.inscriptions.create(dataTranslated, {transaction:t, include: [
                 {model:this.models.athletes, as:"athlete"}, 
                 {model:this.models.relays, as:"relay", include:[ // relays are currently loaded but there are no functions yet for CUD. 
                     {model:this.models.relayathletes, as:"relayathletes"}]}
-                ]}).catch((err)=>{throw {message: `Sequelize-problem: Inscription could not be created: ${err}`, code:22}})
+                ]})
+
+            }).catch((err)=>{throw {message: `Sequelize-problem: Inscription could not be created: ${err}`, code:22}})
 
             this.data.inscriptions.push(inscription); 
 
