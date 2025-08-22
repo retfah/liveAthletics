@@ -1992,6 +1992,8 @@ class roomServer{
                         return;
                     }
                 }
+
+                this.logger.log(97, `Write function ${this.name}.${request.funcName} with data (${JSON.stringify(request.data)}) successfully processed.`)
                 
                 // the request could include reading only and thus no new ID and no broadcast of any changes must be sent to other clients.
                 if (ret.isAchange){
@@ -2041,17 +2043,16 @@ class roomServer{
         }).catch((err)=>{
             // catch for the writeFunction defined in the respective room
 
+            // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
+            let errStr;
+            if (err instanceof(Error)){
+                errStr = err;
+            } else {
+                errStr = JSON.stringify(err);
+            }
             
             // check schema
             if(!(this.validateFail(err))){
-
-                // if it was not an error we have created but a regular node error, then JSON.stringify is empty. --> make sure this is not the case
-                let errStr;
-                if (err instanceof(Error)){
-                    errStr = err;
-                } else {
-                    JSON.stringify(request.funcName);
-                }
 
                 let text = "Error: The error-object returned from the room-function '"+ request.funcName +"' in room '"+ this.name +"' does not fulfill the failure-schema. Error: " + errStr;
                 this.logger.log(3, text)
@@ -2063,6 +2064,7 @@ class roomServer{
                     // use the code 99 for wrong error codes in the room implementation
                     err.code = 99;
                 }
+                this.logger.log(90, `Error during execution of ${this.name}.${request.funcName} (${JSON.stringify(request.data)}): ${errStr}`)
                 respFunc(err.message, err.code);
             }
 

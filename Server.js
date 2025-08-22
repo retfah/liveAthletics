@@ -723,7 +723,7 @@ wss.on('connection', (ws, req)=>{ // ws is the websocket object, req= the reques
 		} else if (errCode==2){ //unused
 			logger.log(50, errMsg)
 		} else if (errCode==3){ //every message sent/arriving, except ping
-			logger.log(90, errMsg)
+			logger.log(98, errMsg)
 		} else if (errCode==4){ //even ping/pong
 			logger.log(99, errMsg)
 		} else {
