@@ -878,5 +878,6 @@
 	"Participation State": "Teilnahmestatus",
 	"Performance": "Leistung",
 	"Change PS": "TS ändern",
-	"add abbr.": "hinzuf."
+	"add abbr.": "hinzuf.",
+	"Attempt abbr.": "V"
 }

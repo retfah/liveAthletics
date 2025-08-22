@@ -1095,6 +1095,12 @@ summary {
     font-weight: bold;
     grid-row:1;
 }
+#techResModContainer .background {
+    font-weight: bold;
+    z-index:-1;
+    grid-column: 1 / -1;
+    border-radius: 3px;
+}
 
 .centerContainer {
     display: flex;
@@ -1672,7 +1678,7 @@ option:hover {
     } for whatever reason this appeared twice... */
 
     .hideMobile {
-        display: none;
+        display: none !important;
     }
 
     .hamb {

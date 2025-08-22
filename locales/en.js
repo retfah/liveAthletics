@@ -246,5 +246,7 @@
 	"Sites": "Sites",
 	"Print setup": "Print setup",
 	"Data exchange": "Data exchange",
-	"Backup and Replication": "Backup and Replication"
+	"Backup and Replication": "Backup and Replication",
+	"Attempt abbr.": "A",
+	"Tech Long Admin": "Tech Long Admin"
 }
