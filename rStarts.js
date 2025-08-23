@@ -250,7 +250,6 @@ class rStarts extends roomServer{
             let startOld = {};
             this.propertyTransfer(o.dataValues, startOld);
 
-            // for nested changes it is probably best if we manually change all properties and call save instead of using update, which has some shortcomings currently (e.g. does not save changes of nested entries (here: athlete), returns only the properties that were aprt of the update-object, ...)
             this.propertyTransfer(data, o, true);
 
             // save all (if saving to DB is not necessary, sequelize will not do it and directly resolve the promise)

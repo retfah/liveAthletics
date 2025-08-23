@@ -199,7 +199,10 @@ class rSites extends roomServer{
             // Method 2: implement setter on sequelize level. Better solution, as only implemented once for all possible functions.
             var dataTranslated = data; //this.translateBooleans(data);
 
-            var site = await this.models.sites.create(dataTranslated, {include:[{model:this.models.disciplinesonsite, as: "disciplinesonsite"}]}).catch((err)=>{throw {message: `Sequelize-problem: Site could not be created: ${err}`, code:22}})
+            // since we might do a nested insert as well, use transaction to ensure all or nothing is done.
+            var site = await this.seq.transaction(async t=>{
+                return await this.models.sites.create(dataTranslated, {transaction: t, include:[{model:this.models.disciplinesonsite, as: "disciplinesonsite"}]});
+            }).catch((err)=>{throw {message: `Sequelize-problem: Site could not be created: ${err}`, code:22}})
 
             this.data.sites.push(site); 
 

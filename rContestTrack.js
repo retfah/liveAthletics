@@ -1199,39 +1199,41 @@ class rContestTrack extends rContest{
 
             let dataReturn, dataBroadcast;
             // note: the subtable "seriestrack" is currently not used; the information is stored in series.aux!
-            await this.models.series.create(series, {include:[
-                {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
-                ]}).then(async (s)=>{
+            // use transactrion to handle nested create in away to either do all or nothing.
+            const s = await this.seq.transaction(async t=>{
+                return await this.models.series.create(series, {transaction:t, include:[
+                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
+                    ]})
+            }).catch(ex=>{throw {message: `Could not create series: ${ex}.`, code:24}});
 
-                // broadcast the new series object
-                dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+            // broadcast the new series object
+            dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
 
-                // notify the site, if given
-                if (s.xSite != null){
-                    let addData = {
-                        contest: this.contest.dataValues, 
-                        series: s.dataValues,
-                        startgroups: this.data.startgroups,
-                    };
-                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
-                }
+            // notify the site, if given
+            if (s.xSite != null){
+                let addData = {
+                    contest: this.contest.dataValues, 
+                    series: s.dataValues,
+                    startgroups: this.data.startgroups,
+                };
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+            }
 
-                // return the xSeries
-                dataReturn = s.xSeries;
+            // return the xSeries
+            dataReturn = s.xSeries;
 
-                // create the auxData for the series 
-                // note: we do not need to send this to the clients, since the same default data is known to them as well.
-                this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
-                // store the change to DB
-                await this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
-                    // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
-                    this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
-                })
+            // create the auxData for the series 
+            // note: we do not need to send this to the clients, since the same default data is known to them as well.
+            this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
+            // store the change to DB
+            await this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
+                // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
+                this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
+            })
 
-                // add to the local data
-                this.data.series.push(s);
+            // add to the local data
+            this.data.series.push(s);
 
-            }).catch(ex=>{throw {message: `Could not create series: ${ex}.`, code:24}})
 
             let ret = {
                 isAchange: true, 
@@ -1281,30 +1283,31 @@ class rContestTrack extends rContest{
                 // IMPORTANT: there MUST be no sorting at all! The order of seriesstartsresults must stay the same to ensure the requesting client gets the correct order of the indices!
 
                 // note: the subtable "seriestrack" is currently not used; the information is stored in series.aux!
-                await this.models.series.create(series[i], {include:[
-                    {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
-                    ]}).then((s)=>{
 
-                    // add the series to the broadcast array 
-                    dataBroadcast.push(s.get({plain:true})); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+                // use transaction here since we have nested creates
+                const s = await this.seq.transaction(async t=>{
+                    return await this.models.series.create(series[i], {transaction:t, include:[
+                        {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstrack, as:"resultstrack"}]}, {model:this.models.seriestrack, as:"seriestrack"}
+                        ]});
+                }).catch(ex=>{throw {message: `Could not create series and/or seriesstartsresults: ${ex}.`, code:24}});
 
-                    // create the auxData for the series 
-                    // note: we do not need to send this to the clients, since the same default data is known to them as well.
-                    this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
-                    
+                // add the series to the broadcast array 
+                dataBroadcast.push(s.get({plain:true})); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
 
-                    // add only the indices to the return object; they must have the same order as in the input!
-                    dataReturn.push({
-                        xSeries:s.xSeries,
-                        seriesstartsresults: s.seriesstartsresults.map((el)=>el.xSeriesStart)
-                    });
+                // create the auxData for the series 
+                // note: we do not need to send this to the clients, since the same default data is known to them as well.
+                this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
+                
 
-                    // add to the local data
-                    this.data.series.push(s);
+                // add only the indices to the return object; they must have the same order as in the input!
+                dataReturn.push({
+                    xSeries:s.xSeries,
+                    seriesstartsresults: s.seriesstartsresults.map((el)=>el.xSeriesStart)
+                });
 
-                    // eventually raise an event
+                // add to the local data
+                this.data.series.push(s);
 
-                }).catch(ex=>{throw {message: `Could not create series and/or seriesstartsresults: ${ex}.`, code:24}})
             }
 
             // store the change to DB

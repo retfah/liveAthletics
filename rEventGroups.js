@@ -232,9 +232,11 @@ class rEventGroups extends roomServer{
             // make sure that there is an empty rounds property; otherwise sequelize will not return the rounds property, which we need
             dataTranslated.rounds = [];
 
-            // nested "eager" create work!
-            var eventGroup = await this.models.eventgroups.create(dataTranslated, {include:[{model:this.models.rounds, as:"rounds", include: [{model:this.models.groups, as:"groups"}]}]}).catch((err)=>{throw {message: `Sequelize-problem: EventGroup could not be created: ${err}`, code:22}})
-
+            // nested "eager" create work, but we need to use transactions to make sure either everythign or nothing is inserted
+            var eventGroup = this.seq.transaction(async t=>{
+                return await this.models.eventgroups.create(dataTranslated, {include:[{model:this.models.rounds, as:"rounds", include: [{model:this.models.groups, as:"groups"}]}]})
+            }).catch((err)=>{throw {message: `Sequelize-problem: EventGroup could not be created: ${err}`, code:22}})
+            
             this.data.push(eventGroup); 
 
             // the data to be sent back to the client requesting the add is the full data

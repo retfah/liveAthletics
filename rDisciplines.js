@@ -532,8 +532,10 @@ class rDisciplines extends roomServer{
         // without having the property, it owuld not be included in the output 
         dataTranslated.basedisciplinelocalizations = [];
 
-        // first, try to add the base discipline
-        var baseDiscipline = await this.models.basedisciplines.create(dataTranslated, {include: [{model:this.models.disciplines, as:"disciplines"}, {model:this.models.basedisciplinelocalizations, as:"basedisciplinelocalizations"}]}).catch((err)=>{throw {message: `Sequelize-problem: BaseDiscipline could not be created: ${err}`, code:26}})
+        // nested insert; need to use a transaction here, otherwise it might happen that only basediscipline is created, but no discipline
+        var baseDiscipline = await this.seq.transaction(async t=>{
+            return await this.models.basedisciplines.create(dataTranslated, {transaction:t, include: [{model:this.models.disciplines, as:"disciplines"}, {model:this.models.basedisciplinelocalizations, as:"basedisciplinelocalizations"}]})
+        }).catch((err)=>{throw {message: `Sequelize-problem: BaseDiscipline could not be created: ${err}`, code:26}});
 
         this.data.push(baseDiscipline); 
 

@@ -686,39 +686,42 @@ class rContestTechLong extends rContest{
             }
 
             let dataReturn, dataBroadcast;
-            await this.models.series.create(series, {include:[
+
+            // since series may contain ssrs already which causes a nested create, we should use a transaction
+            const s = await this.seq.transaction(async t=>{
+                return await this.models.series.create(series, {transaction:t, include:[
                 {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstech, as:"resultstech"}]}
-                ]}).then(async (s)=>{
-
-                // broadcast the new series object
-                dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
-
-                // notify the site, if given
-                if (s.xSite != null){
-                    let addData = {
-                        contest: this.contest.dataValues, 
-                        series: s.dataValues,
-                        startgroups: this.data.startgroups,
-                    };
-                    this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
-                }
-
-                // return the xSeries
-                dataReturn = s.xSeries;
-
-                // create the auxData for the series 
-                // note: we do not need to send this to the clients, since the same default data is known to them as well.
-                this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
-                // store the change to DB
-                await this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
-                    // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
-                    this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
-                })
-
-                // add to the local data
-                this.data.series.push(s);
-
+                ]})
             }).catch(ex=>{throw {message: `Could not create series: ${ex}.`, code:24}})
+
+            // broadcast the new series object
+            dataBroadcast = s.get({plain:true}); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+
+            // notify the site, if given
+            if (s.xSite != null){
+                let addData = {
+                    contest: this.contest.dataValues, 
+                    series: s.dataValues,
+                    startgroups: this.data.startgroups,
+                };
+                this.eH.raise(`sites/${s.xSite}@${this.meetingShortname}:seriesAdded`, addData);
+            }
+
+            // return the xSeries
+            dataReturn = s.xSeries;
+
+            // create the auxData for the series 
+            // note: we do not need to send this to the clients, since the same default data is known to them as well.
+            this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
+            // store the change to DB
+            await this._storeAuxDataUpdate(this.data.auxData).catch(err=>{
+                // I decided not to raise an error if this does not work, since otherwise I would have to revert the mysql-DB changes as well, which i do not want. An error should actually anyway not occure.
+                this.logger.log(5, `Critical error: Could not update the auxData. The previous auxData will remain in the DB and the mysql and mongoDBs are now out of sync! ${err}`);
+            })
+
+            // add to the local data
+            this.data.series.push(s);
+
 
             // if needed, update the aux data for the merged series
             this.mergedFinalAuxData();
@@ -761,30 +764,28 @@ class rContestTechLong extends rContest{
             for (let i=0; i<series.length; i++){
                 // IMPORTANT: there MUST be no sorting at all! The order of seriesstartsresults must stay the same to ensure the requesting client gets the correct order of the indices!
 
-                await this.models.series.create(series[i], {include:[
+                // since series contain ssrs already which causes a nested create, we should use a transaction
+                const s = await this.seq.transaction(async t=>{
+                    return await this.models.series.create(series[i], {transaction:t, include:[
                     {model:this.models.seriesstartsresults, as: "seriesstartsresults", include: [{model:this.models.resultstech, as:"resultstech"}]}
-                    ]}).then((s)=>{
+                    ]})
+                }).catch(ex=>{throw {message: `Could not create series and/or seriesstartsresults: ${ex}.`, code:24}});
 
-                    // add the series to the broadcast array 
-                    dataBroadcast.push(s.get({plain:true})); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
+                // add the series to the broadcast array 
+                dataBroadcast.push(s.get({plain:true})); // gets only the object, without the model stuff; otherwise the serialization of mongodb would crash!
 
-                    // create the auxData for the series 
-                    // note: we do not need to send this to the clients, since the same default data is known to them as well.
-                    this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
-                    
+                // create the auxData for the series 
+                // note: we do not need to send this to the clients, since the same default data is known to them as well.
+                this.data.auxData[s.xSeries] = JSON.parse(JSON.stringify(this.defaultAuxData));
 
-                    // add only the indices to the return object; they must have the same order as in the input!
-                    dataReturn.push({
-                        xSeries:s.xSeries,
-                        seriesstartsresults: s.seriesstartsresults.map((el)=>el.xSeriesStart)
-                    });
+                // add only the indices to the return object; they must have the same order as in the input!
+                dataReturn.push({
+                    xSeries:s.xSeries,
+                    seriesstartsresults: s.seriesstartsresults.map((el)=>el.xSeriesStart)
+                });
 
-                    // add to the local data
-                    this.data.series.push(s);
-
-                    // eventually raise an event
-
-                }).catch(ex=>{throw {message: `Could not create series and/or seriesstartsresults: ${ex}.`, code:24}})
+                // add to the local data
+                this.data.series.push(s);
             }
 
             // store the change to DB
