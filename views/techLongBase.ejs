@@ -1459,7 +1459,7 @@
 
                         let [status, result] = this.strToResult(this.currentResultString, true);
                         let wind = null;
-                        if (status==0){
+                        if (this.wind && status==0){
                             wind = this.currentWind*100; // to cm/s
                         }
 
@@ -2480,7 +2480,6 @@
                     }
                 },
                 wind: function(){
-                    return true; // TODO: remove
                     return this.disciplineConfiguration.wind;
                 },
                 resultInCurrentAttempt: function(){
