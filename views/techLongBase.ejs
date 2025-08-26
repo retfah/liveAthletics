@@ -710,7 +710,7 @@
                             resultRemark:'',
                             qualification: 0,
                             startConf: '',
-                            resultshigh:[],
+                            resultstech:[],
                         }
 
                     }
@@ -1223,8 +1223,16 @@
                         }
                     }
 
-                    // transfer position, ssrCurrent and ssrNext to the auxData, if this client is a writing client
-                    if (this.readOnly==false) {
+                    // transfer position, ssrCurrent and ssrNext to the auxData, if this client is a writing client; othwise transafer this data back
+                    if (this.readOnly){
+                        // we actually do not use the position and positionNext data that we just have created, but we use the data that was given via the aux data. But we compare the length of the array in order to detect problems (which should never happen.)
+                        if (position.length != this.roomAuxData[series.xSeries].position.length || positionNext.length != this.roomAuxData[series.xSeries].positionNext.length){
+                            console.log('Note: the number of athletes on the current attempt was calculated differently by this browser than given by the data from the server. This may regulary hapen when the result has already arrived on reading clients, but not the new aus data. If this happens in other constellations, please report the constellation, where this happened, to the developers.')
+                        }
+                        this.positionNext = this.roomAuxData[series.xSeries].positionNext.slice(); // we use slice to create a copy!
+                        this.position = this.roomAuxData[series.xSeries].position;
+                        this.currentAttempt = this.roomAuxData[series.xSeries].currentAttempt;
+                    }else {
                         // writing client. Set position and positionNext. If they have changed, send the changes to the server.
                         if (JSON.stringify(this.position) != JSON.stringify(position) || JSON.stringify(this.positionNext) != JSON.stringify(positionNext) || this.roomAuxData[series.xSeries].currentAttempt != this.currentAttempt ) {
                             this.autoManageAuxData(false);
@@ -1350,6 +1358,8 @@
                         return 'X';
                     } else {
                         // regular result
+                        console.log(showUnit)
+                        console.log(this.formatDistance(res.result, showUnit))
                         return this.formatDistance(res.result, showUnit);
                     }
                 },
@@ -1865,14 +1875,14 @@
                     window.location = "./groupsQualifications?xEventGroup="+relatedGroup.round.eventgroup.xEventGroup; 
                 },
 
-                sortedRes(ssr){
+                sortedRes(ssr, addEmpty=true){
                     // all results and empty objects for non exiting attempts 
                     const r = []
                     for (let i=0; i<this.conf.attempts; i++){
                         let res = ssr.resultstech.find(el=>el.attempt==i+1);
                         if (res){
                             r.push(res);
-                        } else {
+                        } else if(addEmpty) {
                             r.push({
                                 xResult: ssr.xSeriesStart,
                                 attempt: i+1,
@@ -2480,6 +2490,7 @@
                     }
                 },
                 wind: function(){
+                    return true;
                     return this.disciplineConfiguration.wind;
                 },
                 resultInCurrentAttempt: function(){
@@ -2492,19 +2503,19 @@
                     let res = this.currentAthleteStart.resultstech.find(r=>r.attempt == this.currentAttempt);
                     if (res==undefined){
                         return false;
+                    } else {
+                        return res;
                     }
-                    if (res.result == null || res.status==1){
-                        return 'X';
-                    } 
-                    if (res.status == 2){
-                        return '-';
-                    }
-                    if (res.result){
-                        return this.formatDistance(res.result); 
-                    }
-                    return false;
  
                 },
+                // windInCurrentAttempt: function(){
+                //     let res = this.currentAthleteStart.resultstech.find(r=>r.attempt == this.currentAttempt);
+                //     if (res==undefined || this.wind==false){
+                //         return false;
+                //     } else {
+                //         return this.resultToWind(res, true, true)
+                //     }
+                // }
 
             },
             beforeMount(){

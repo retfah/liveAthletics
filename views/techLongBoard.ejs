@@ -28,39 +28,35 @@
         </div>
         <div class="attempt">
             <!-- height, attempt and clock -->
-            <div class="height">{{meterStr(currentHeight)}}</div>
-            <div class="attempts">
-                <template v-for="i of [1,2,3]">
-                    <template v-if="i==attempt">
-                        <template v-if="resultOnCurrentHeight">
-                            <div class="single" v-bind:data-val="resultOnCurrentHeight">{{resultOnCurrentHeight}}</div>
-                        </template>
-                        <template v-else>
-                            <div class="single current">_</div>
-                        </template>
-                    </template>
-                    <template v-if="i<attempt">
-                        <div class="single">X</div>
-                    </template>
-                    <template v-if="i>attempt">
-                        <div class="single next">_</div>
-                    </template>
-                </template>
-            </div>
+            <div class="attempt2">{{currentAttempt}}</div>
+            <div class="result"><template v-if="resultInCurrentAttempt">{{resultToStr(resultInCurrentAttempt, false)}}</template></div>
+            <div class="wind"><template v-if="wind && resultInCurrentAttempt">{{resultToWind(resultInCurrentAttempt, false, true)}}</template></div>
             <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
         </div>
         <div class="ranking">
             <div class="rank">
                 <!-- rank: language specific: german: ., english: th/nd/rd -->
-                <template v-if="tempRankingData[currentAthleteStart.xSeriesStart].rank>0">
-                    {{rankLocalizer(tempRankingData[currentAthleteStart.xSeriesStart].rank, "<%- _lang %>")}}
+                <template v-if="tempRankingData[selectedSeries][currentAthleteStart.xSeriesStart].rankUntil[conf.attempts-1]>0">
+                    {{rankLocalizer(tempRankingData[selectedSeries][currentAthleteStart.xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}}
                 </template>
             </div>
             <div class="results">
-                <template v-for="(res, ind) in sortedResults(currentAthleteStart.resultshigh).slice().reverse()">
-                    <div class="result" v-if="ind<=4 && getHeight(res.xHeight, '') != meterStr(currentHeight)"><!-- do not show if the result is for the current height; we cannot simply take the index 0, since there is no result entry until a first result was entered, i.e. typically in the first attempt-->
-                        {{getHeight(res.xHeight, '')}}<br>{{resultToStr(res)}}
+                <template v-for="(res, ind) in sortedRes(currentAthleteStart, false)">
+                    <div v-if="wind" class="resultWindContainer">
+                        <template v-if="res.attempt != currentAttempt">
+                            <div class="result" v-bind:style="{'text-decoration': res.status==0 && res.result==tempRankingData[selectedSeries][currentAthleteStart.xSeriesStart].bestPerfOverall ? 'underline' : 'none'}"><!-- do not show if the result is for the current attempt-->
+                                {{resultToStr(res, false)}}
+                            </div>
+                            <div class="resultWind">
+                                {{resultToWind(res, false, true)}}
+                            </div>
+                        </template>
                     </div>
+                    <template v-else>
+                        <div class="resultNoWind" v-if="res.attempt != currentAttempt" v-bind:style="{'text-decoration': res.status==0 && res.result==tempRankingData[selectedSeries][currentAthleteStart.xSeriesStart].bestPerfOverall ? 'underline' : 'none'}"><!-- do not show if the result is for the current attempt-->
+                            {{resultToStr(res, false)}}
+                        </div>
+                    </template>
                 </template>
             </div>
             <!-- ranking and previous results -->

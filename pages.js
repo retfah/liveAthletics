@@ -298,6 +298,16 @@ export default {
         //injections: {content:{file:"techHighBoard.ejs"}},
         onLoad: "startSeriesAdminTechRead",
     },
+       techLongBoard: {
+        name: "techLingBoard",
+        title: "Tech Long Board",
+        parent: "root", //"techLongBase",
+        preload: [],
+        injections: {body:{file:"techLongBoard.ejs"}},
+        injectionsSelf: {content:{text:"The content"}},
+        //injections: {content:{file:"techLongBoard.ejs"}},
+        onLoad: "startSeriesAdminTechRead",
+    },
 
     // contains all javascript-vue logic for techHigh disciplines. Does not contain the actual drawings
     trackBase: {

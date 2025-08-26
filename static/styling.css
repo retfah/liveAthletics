@@ -1439,6 +1439,7 @@ option:hover {
     font-size: 25vh;
     border: 1px solid yellowgreen;
     display: flex;
+    align-items: baseline;
 }
 .board > .attempt > .height {
     width: 30%;
@@ -1449,6 +1450,19 @@ option:hover {
     display: flex;
     justify-content: center;
     text-align: center;
+}
+.board > .attempt > .attempt2 {
+    width: 25%;
+    /*text-align: center;*/
+}
+.board > .attempt > .result {
+    width: 25%;
+    text-align: center;
+}
+.board > .attempt > .wind {
+    width: 20%;
+    text-align: center;
+    font-size: 20vh;
 }
 .board > .attempt > .attempts .single {
     padding-left: 2vh;
@@ -1484,17 +1498,33 @@ option:hover {
     display: flex;
 }
 .board > .ranking > .rank {
-    width: 25%;
+    width: 20%;
 }
 .board > .ranking > .results {
-    width: 75%;
+    width: 80%;
     display: flex;
     justify-content: flex-start;
-    flex-direction: row-reverse;
     align-items: center;
+}
+.board > .ranking > .reverse {
+    flex-direction: row-reverse;
 }
 .board > .ranking > .results > .result {
     font-size: 12vh;
+    text-align: center;
+    padding: 0 2vh 0 2vh;
+}
+.board > .ranking > .results > .resultNoWind, .board > .ranking > .results > .resultWindContainer > .result {
+    font-size: 15vh;
+    text-align: center;
+    padding: 0 2vh 0 2vh;
+}
+.board > .ranking > .results > .resultWindContainer {
+    display: flex;
+    flex-direction: column;
+}
+.board > .ranking > .results > .resultWindContainer > .resultWind {
+    font-size: 10vh;
     text-align: center;
     padding: 0 2vh 0 2vh;
 }

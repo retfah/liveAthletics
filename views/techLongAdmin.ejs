@@ -395,7 +395,7 @@
                                     <div v-if="resultInCurrentAttempt">
                                         <template v-if="readOnly">
                                             <!-- add some formatting -->
-                                            {{resultInCurrentAttempt}}
+                                            {{resultToStr(resultInCurrentAttempt, true)}}
                                         </template>
                                         <template v-else>
                                             <button class="btn" type="button" v-on:click="calculateNextAthlete"><%= __("Advance") %></button> 

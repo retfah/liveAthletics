@@ -879,5 +879,6 @@
 	"Performance": "Leistung",
 	"Change PS": "TS ändern",
 	"add abbr.": "hinzuf.",
-	"Attempt abbr.": "V"
+	"Attempt abbr.": "V",
+	"Tech Long Board": "Tech Long Board"
 }

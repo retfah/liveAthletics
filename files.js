@@ -69,6 +69,10 @@ export default {
         childs:['content'],
         description: "Must be inserted in techHighBase.ejs, since it contains Vue-code only working with techHighBase."
     },
+    "techLongBoard.ejs":{
+        childs:['content'],
+        description: "Must be inserted in techLongBase.ejs, since it contains Vue-code only working with techLongBase."
+    },
     "headline.ejs":{
         childs: ['child1'],
         description: 'the top line of the page, including the child1, storing the content of the page.',
