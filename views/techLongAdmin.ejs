@@ -641,13 +641,7 @@
                 </div>
                 <template v-if="show=='resShow'">
                     <h2><%= __("Results (table view)") %>:</h2>
-                    <!--<%= __("Sorting") %>: 
-                    <select v-model="sortValue2" class="dropdown marginS">
-                        <option value="1"><%= __("Default sequence") %></option>
-                        <option value="2"><%= __("Rank") %></option>
-                        <option value="3"><%= __("Name") %></option>
-                        <option value="4"><%= __("Bib") %></option>
-                    </select>-->
+                    <!-- sorting is selected by clicking on table headers -->
                     <div style="overflow: auto; max-height:100vh; scrollbar-width: thin;">
                         <div id="resultsView2" v-if="mode>0" v-bind:style="{'grid-template-columns': resultGridTemplateCol, 'grid-template-rows': resultGridTemplateRow}"> <!-- max-content means, that the column is maximum as wide as the contents require, i.e. there is no filling with empty space when there would be additional space to use; min-content means that the column is at least as wide as required by an element (i.e. the longest word that cannot be wrapped). grid-auto-columns: min-content;  -->
                             <!-- table view of the results with a grid layout -->
@@ -668,6 +662,12 @@
                             <div class="result placeholder header " > <!--style="justify-self: start; grid-column: rank"-->
                                 <%= __("Result abbr.") %>
                             </div>
+
+                            <!--<template v-for="i in attempts">
+                                <div class="placeholder header res" v-bind:style="{'grid-column': 'a'+i}">
+                                    <%= __('Attempt abbr.') %>{{i}}
+                                </div>
+                            </template>-->
             
                             <!-- named lines are created in Vue-->
                             <!-- the results must be on top, to make sure they are behind the actual top and left content. The invisible placeholders for top and left can also be added already -->
@@ -676,12 +676,8 @@
                                 <div class="leftTitles"  v-bind:style="{'grid-row': sortIndex+2}" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, finished: mode<3 && tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].finished }"><!--style="justify-self: start; grid-column: athletes"-->
                                 </div>
 
-                                <!-- indicate the startheight by applying a grey background until the height -->
-                                <div class="startHeightBG"  v-bind:style="{'grid-row': sortIndex+2, 'grid-column-end': 'h0h'+series[selectedSeries].seriesstartsresults[startIndex].startConf}" ><!--style="justify-self: start; grid-column: athletes"-->
-                                </div>
-
                                 <div class="rank" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
-                                    {{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rank, "<%- _lang %>")}}
+                                    {{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}}
                                 </div>
                                 <div v-if="contest.status<180" class="position" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{series[selectedSeries].seriesstartsresults[startIndex].position}}
@@ -695,16 +691,12 @@
                                 <div class="result placeholder" v-bind:style="{'grid-row': sortIndex+2}"> <!--style="justify-self: start; grid-column: rank"-->
                                     {{resultLocalizer(series[selectedSeries].seriesstartsresults[startIndex], "<%- _lang %>")}}
                                 </div>
-                                <!-- add remarks for PB and SB; since they are below a potential result and have the same color, they do not need to be hidden if there is a result -->
-                                <template v-for="info in bgInfo(series[selectedSeries].seriesstartsresults[startIndex])">
-                                    <div v-bind:class="info.class" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': info.columnReference}">
-                                        {{info.text}}
-                                    </div>
-                                </template>
 
-                                <template v-for="hRes in series[selectedSeries].seriesstartsresults[startIndex].resultshigh">
-                                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': heightRef(hRes.xHeight)}" v-bind:class="{PB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf, SB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && height(hRes.xHeight)>=auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast, tie: (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && height(hRes.xHeight)==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf) || (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && height(hRes.xHeight)==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast)}">
-                                        {{resultToStr(hRes)}}
+                                <!-- TODO: add remarks for PB and SB -->
+
+                                <template v-for="res in series[selectedSeries].seriesstartsresults[startIndex].resultstech">
+                                    <div class="res" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': 'a'+res.attempt}" v-bind:class="{PB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && res.result>auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf, SB: auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && res.result>auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast, tie: (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf>0 && res.result==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerf) || (auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast>0 && res.result==auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bestPerfLast)}">
+                                        {{resultToStr(res)}}<template v-if="wind && res.status==0">&nbsp;({{resultToWind(res, false, true)}})</template>
                                     </div>
                                 </template>
                             </template>
@@ -722,10 +714,12 @@
                                     <%= __("Bib abbr.") %>
                                 </div>
 
-                                <!-- the heights -->
-                                <template v-for="h in sortedHeightsForRes">
-                                    <div v-bind:style="{'grid-column':h.heightRef}" class="header">{{h.label}}</div>
+                                <template v-for="i in attempts">
+                                    <div class="header res" v-bind:style="{'grid-column': 'a'+i}">
+                                        <%= __('Attempt abbr.') %>{{i}}
+                                    </div>
                                 </template>
+
                             </div>
 
                             <!-- left, sticky container with shown name etc -->
@@ -761,8 +755,11 @@
                             <div class="header result placeholder" style="grid-row:1"> 
                                 <%= __("Result abbr.") %>
                             </div>-->
-                            <template v-for="h in sortedHeightsForRes">
-                                <div class='header placeholder' v-bind:style="{'grid-column':h.heightRef}" >{{h.label}}</div>
+
+                            <template v-for="i in attempts">
+                                <div class="header placeholder res" v-bind:style="{'grid-column': 'a'+i}">
+                                    <%= __('Attempt abbr.') %>{{i}}
+                                </div>
                             </template>
 
                         </div>

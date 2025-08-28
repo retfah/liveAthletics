@@ -823,6 +823,7 @@
                     array of objects for each series; if required, the fake series for the merged final as well
                         12:{ // identified by ssr
                             bestPerfOverall:
+                            bestPerfPverallWind:
                             bestPerfUntil: [4.55, 4.76, 4.76, 4.76, 4.88, 4.88], // until (and including) each attempt; can only increase
                             perf: [4.55, 4.67, -2, 4.35, 4.88, -1], // could be received from data actual data too, but eventually it makes sense to have it here as well
                             perfSorted: [4.88, 4.67, 4.55, 4.35, -1, -2], // also include -1 and -2 to be able to compare/sort/rank
@@ -848,6 +849,7 @@
 
                             let r = {
                                 bestPerfOverall:0,
+                                bestPerfOverallWind:null,
                                 bestPerfUntil: (new Array(l)).fill(-1),
                                 perf: (new Array(l)).fill(-1), 
                                 perfSorted: (new Array(l)).fill(-1), 
@@ -865,7 +867,12 @@
                                         r.perf[n-1] = -2; // X or -
                                     } else {
                                         r.perf[n-1] = rt.result;
-                                        r.bestPerfOverall = Math.max(r.bestPerfOverall, rt.result);
+                                        if (r.bestPerfOverall<rt.result){
+                                            r.bestPerfOverall = rt.result;
+                                            r.bestPerfOverallWind = rt.wind;
+                                        } else if (r.bestPerfOverall==rt.result && r.bestPerfOverallWind>rt.wind){
+                                            r.bestPerfOverallWind = rt.wind;
+                                        }
                                     }
                                     r.bestPerfUntil[n-1] = Math.max(...r.perf.slice(0,n))
                                     
@@ -1358,8 +1365,6 @@
                         return 'X';
                     } else {
                         // regular result
-                        console.log(showUnit)
-                        console.log(this.formatDistance(res.result, showUnit))
                         return this.formatDistance(res.result, showUnit);
                     }
                 },
@@ -1368,20 +1373,24 @@
                     const wind = Math.ceil(res.wind/10)/10; // round up to the next dm/s
                     if (showUnit || showSign){
                         // return a string
-                        let sign='';
-                        let unit='';
-                        if (showSign && wind>=0){
-                            sign='+';
-                        }
-                        if (showUnit){
-                            unit=' m/s';
-                        }
-                        return `${sign}${wind.toFixed(1)}${unit}`;
+                        return this.windToStr(res.wind, showUnit, showSign)
                     } else {
-                        // return a float
-                        return wind;
+                        // return a float in m/s
+                        return Math.ceil(res.wind/10)/10; // round up to the next dm/s; (wind originally is in cm/s)
                     }
-                    
+                },
+                windToStr(windRaw, showUnit=true, showSign=false){
+                    // wind is in cm/s; must be scaled to m/s
+                    const wind = Math.ceil(windRaw/10)/10; // round up to the next dm/s
+                    let sign='';
+                    let unit='';
+                    if (showSign && wind>=0){
+                        sign='+';
+                    }
+                    if (showUnit){
+                        unit=' m/s';
+                    }
+                    return `${sign}${wind.toFixed(1)}${unit}`;
                 },
                 strToResult(resStr, showAlert=false){
                     let status = 0;
@@ -1781,19 +1790,24 @@
                         return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                     }
 
+                    let wind='';
+                    if (this.wind){
+                        wind = ` (${this.windToStr(tempRankingData.bestPerfOverallWind, false, true)})`;
+                    }
+
                     // retired
                     if (resultOverrule==1){
                         // if the athlete had a result then show the last height together with the abbreviaiton for retired
-                        if (tempRankingData.lastValidHeight>0){
-                            return this.meterStr(tempRankingData.lastValidHeight) + " m, " + this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
+                        if (tempRankingData.bestPerfOverall>0){
+                            return this.resultToStr({status:0, result:tempRankingData.bestPerfOverall}, true) + wind + this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                         } else {
                             return this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                         }
                     }
 
                     // regular:
-                    if (tempRankingData.lastValidHeight>0){
-                        return this.meterStr(tempRankingData.lastValidHeight) + ' m';
+                    if (tempRankingData.bestPerfOverall>0){
+                        return this.resultToStr({status:0, result:tempRankingData.bestPerfOverall}, true) + wind;
                     } else {
                         if (finished){
                             // no valid result
@@ -1833,42 +1847,6 @@
                 },
                 dateChanged(series, evt){
                     rCTech.room.updateSeriesInit(series, 'datetime', (new Date(evt.target.value).toISOString()));
-                },
-                bgInfo(SSR){
-                    // return an array with all infoa to show in the background, e.g. PB, SB
-                    // each entry must contain the text, class and columnReference to be applied 
-                    let arr = [];
-
-                    let aux = this.auxData.xStartgroup[SSR.xStartgroup]
-                    let h;
-                    let text;
-                    // first, check if the PB can be found
-                    if (aux.bestPerf && aux.bestPerf>0){
-                        h = this.sortedHeightsForRes.find(el=>el.height && el.height>=aux.bestPerf); // the height is not necessarily shown
-                        if (h){
-                            text = "<%= __('PB') %>";
-                            if (h.height == aux.bestPerf){
-                                text = "=" + text;
-                            } 
-                            arr.push({text, class:'PBhint', columnReference:h.heightRef})
-                        }
-                    }
-
-                    // second, check for SB and only add it, if there is either no PB or the PB is shown at a higher height
-                    if (aux.bestPerfLast && aux.bestPerfLast>0){
-                        let h2 = this.sortedHeightsForRes.find(el=>el.height && el.height>=aux.bestPerfLast); // the height is not necessarily shown
-                        if (h2){
-                            text = "<%= __('SB') %>";
-                            if (h2.height == aux.bestPerfLast){
-                                text = "=" + text;
-                            } 
-                            if (h && h.height != h2.height){
-                                arr.push({text, class:'SBhint', columnReference:h2.heightRef});
-                            }
-                        }
-                    }
-
-                    return arr;
                 },
 
                 gotoQuali(relatedGroup){
@@ -2462,11 +2440,9 @@
                     // make sure the resultGridTemplate is updated when the xHeight is exchanged
                     let i = this.fakeProperty;
 
-                    //let h = this.sortedHeights;
-                    let h = this.sortedHeightsForRes; // 2024-08-06
                     let s = '[rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content';
-                    for (let h of this.sortedHeightsForRes){
-                        s += ' ['+h.heightRef+'] max-content'; /* the label for the line must not be a number, but a string */
+                    for (let i=1; i<= this.conf.attempts; i++){
+                        s += ' [a'+i+'] max-content'; /* the label for the line must not be a number, but a string */
                     }
                     s += ' [end]';
                     return s;
@@ -2490,7 +2466,6 @@
                     }
                 },
                 wind: function(){
-                    return true;
                     return this.disciplineConfiguration.wind;
                 },
                 resultInCurrentAttempt: function(){
