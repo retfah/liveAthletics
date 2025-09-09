@@ -371,7 +371,7 @@
                 <div v-if="show=='competition'" id="competition" style="margin-right:auto">
                     <h2><%= __("Competition") %></h2>
                     <div v-if="mode == 0"><%= __("Nothing to show here") %></div>
-                    <div v-if="mode == 1" style="display:inline-block"> 
+                    <div v-if="mode == 1 || mode == 3" style="display:inline-block"> 
                         <div id="currentAth" v-if="position.length>0" class="athlete">
                             <div class="row2">                            
                                 <div class="el"><%= __("Current athlete") %>: </div>
@@ -473,7 +473,10 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="mode == 3">
+                    <div v-if="mode == 2">
+                        <%= __("This series is finished. Continue in merged final as soon as all series are finished.") %>
+                    </div>
+                    <div v-if="mode == 4">
                         <%= __("The competition is finished.") %>
                     </div>
                 </div>
@@ -555,12 +558,11 @@
                                 <div v-if="series[selectedSeries].seriesstartsresults[startIndex]==nextAthleteStart" class="next background" v-bind:style="{'grid-row': sortIndex+2}"></div>
                                 <div class="rank" v-bind:style="{'grid-row': sortIndex+2}">{{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}} </div>
                                 <div class="bib" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
-                                <div class="name" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
+                                <div class="name" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}<template v-if="showFullDetails">{{series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart}}</template></div>
                                 <div class="birthyear" v-bind:style="{'grid-row': sortIndex+2}">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
                                 <div class="club" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
                                 <div class="bestPerf" v-bind:style="{'grid-row': `${sortIndex+2}`}">{{formatDistance(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].bestPerfOverall)}}</div>
                                 <template v-for="res in series[selectedSeries].seriesstartsresults[startIndex].resultstech">
-                                    <div class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}">{{resultToStr(res)}}</div>
 
                                     <div class="result" v-bind:class="{hidden: res==currentResultChange}" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}">
                                         <button style="width:100%" class="btn btnGrey" v-on:click="changeResult(res)" :disabled="readOnly">{{resultToStr(res, true)}}

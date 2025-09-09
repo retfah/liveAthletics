@@ -683,7 +683,11 @@ export class rContestTechLongClient extends rContestClient{
     }
 
     updateContest2Init(prop, newVal, oldVal){
-        this.data.contest[prop] = newVal; // might already be set
+        if (typeof(oldVal)=='object'){
+            this.propertyTransfer(newVal,  this.data.contest[prop])
+        } else {
+            this.data.contest[prop] = newVal; // might already be set
+        }
 
         this.addToStack('updateContest2', this.data.contest, ()=>{
             // nothing to do on success

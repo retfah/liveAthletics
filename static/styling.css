@@ -960,11 +960,6 @@ summary {
     justify-self: start; 
     grid-column: result;
 }
-#resultsView2 .resultCentered {
-    margin: .2rem;
-    justify-self: center; 
-    grid-column: result;
-}
 #resultsView2 .name{
     margin: .2rem;
     justify-self: start; 
