@@ -45,6 +45,7 @@ export class rContestTechLongClient extends rContestClient{
         this._addFunction('addResult', this.addResultExe);
         this._addFunction('updateResult', this.updateResultExe);
         this._addFunction('deleteResult', this.deleteResultExe);
+        this._addFunction('deleteManyResults', this.deleteManyResultsExe);
     }
 
     // Infos about aux data:
@@ -673,6 +674,34 @@ export class rContestTechLongClient extends rContestClient{
 
         this.sortSeries();
 
+    }
+
+    deleteManyResultsInit(attempts=[], xSeries=null){
+        // to delete all results in the merged final, set attenmpts to the final attempts (e.g. [4,5,6])¨and xSeries=null
+
+        const data = {attempts, xSeries};
+
+        this.deleteManyResultsExe(data);
+
+        this.addToStack('deleteManyResults', data, ()=>{});
+
+    }
+
+    deleteManyResultsExe(data){
+
+        for (let s of this.data.series){
+            if (data.xSeries!=null && s.xSeries!=data.xSeries){
+                continue;
+            }
+            for (let ssr of s.seriesstartsresults){
+                for (let i=ssr.resultstech.length-1; i>=0; i--){
+                    const r = ssr.resultstech[i];
+                    if (data.attempts.includes(r.attempt)){
+                        ssr.resultstech.splice(i,1);
+                    }
+                }
+            }
+        }
     }
 
     initialSeriesCreationExe(data){

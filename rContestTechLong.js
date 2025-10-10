@@ -77,7 +77,8 @@ class rContestTechLong extends rContest{
         this.functionsWrite.updateResult = this.updateResult.bind(this);
         this.functionsWrite.deleteResult = this.deleteResult.bind(this);
         this.functionsWrite.addSeries = this.addSeries.bind(this);
-        // TODO: delete series; also copy this funciton to rContestTechHigh
+        this.functionsWrite.deleteManyResults = this.deleteManyResults.bind(this);
+        // TODO: delete series; also copy this function to rContestTechHigh
 
         // define, compile and store the schemas:
         const schemaAuxDataPerSeries = {
@@ -250,6 +251,15 @@ class rContestTechLong extends rContest{
             }
         }
 
+        const schemaDeleteManyResults = {
+            type: ["object"],
+            properties: {
+                xSeries: {type:['integer', 'null']},
+                attempts: {type:'array', items:{type:'integer'}},
+            },
+            additionalProperties: false,
+        }
+
         const schemaUpdateResult = schemaAddResult;
 
         const schemaAddSSR = schemaSeriesStartsResults;
@@ -264,6 +274,7 @@ class rContestTechLong extends rContest{
         this.validateUpdateSeries = this.ajv.compile(schemaUpdateSeries);
         this.validateAuxData = this.ajv.compile(schemaAuxData);
         this.validateAddSeries = this.ajv.compile(schemaAddSeries);
+        this.validateDeleteManyResults = this.ajv.compile(schemaDeleteManyResults);
 
     }
 
@@ -338,6 +349,38 @@ class rContestTechLong extends rContest{
             undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
             response: true, 
             preventBroadcastToCaller: true
+        };
+
+        return ret;
+
+    }
+
+    async deleteManyResults(data){
+        if (!this.validateDeleteManyResults(data)){
+            throw {code: 21, message:this.ajv.errorsText(this.validateDeleteManyResults.errors)};
+        }
+
+        for (let s of this.data.series){
+            if (data.xSeries!=null && s.xSeries!=data.xSeries){
+                continue;
+            }
+            for (let ssr of s.seriesstartsresults){
+                for (let i=ssr.resultstech.length-1; i>=0; i--){
+                    const r = ssr.resultstech[i];
+                    if (data.attempts.includes(r.attempt)){
+                        await r.destroy().catch(err=>{throw {code: 22, message: `Could not delete result: ${err}`}});
+                        ssr.resultstech.splice(i,1);
+                    }
+                }
+            }
+        }
+
+        let ret = {
+            isAchange: true, 
+            doObj: {funcName: 'deleteManyResults', data: data},
+            undoObj: {funcName: 'TODO', data: {}, ID: this.ID},
+            response: true, 
+            preventBroadcastToCaller: true,
         };
 
         return ret;
