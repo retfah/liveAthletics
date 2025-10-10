@@ -298,8 +298,8 @@ export default {
         //injections: {content:{file:"techHighBoard.ejs"}},
         onLoad: "startSeriesAdminTechRead",
     },
-       techLongBoard: {
-        name: "techLingBoard",
+    techLongBoard: {
+        name: "techLongBoard",
         title: "Tech Long Board",
         parent: "root", //"techLongBase",
         preload: [],
