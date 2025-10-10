@@ -29,9 +29,21 @@
         <div class="attempt">
             <!-- height, attempt and clock -->
             <div class="attempt2">{{currentAttempt}}</div>
-            <div class="result"><template v-if="resultInCurrentAttempt">{{resultToStr(resultInCurrentAttempt, false)}}</template></div>
-            <div class="wind"><template v-if="wind && resultInCurrentAttempt">{{resultToWind(resultInCurrentAttempt, false, true)}}</template></div>
-            <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
+            <template v-if="resultInCurrentAttempt==-1"><!-- just time -->
+                <div class="result"></div>
+                <div class="wind"></div>
+                <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
+            </template>
+            <template v-else-if="resultInCurrentAttempt==0">
+                <div class="result" style="color:green">O</div>
+                <div class="wind"></div>
+                <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
+            </template>
+            <template v-else>
+                <div class="result">{{resultToStr(resultInCurrentAttempt, false)}}</div>
+                <div class="wind"><template v-if="wind">{{resultToWind(resultInCurrentAttempt, false, true)}}</template></div>
+                <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
+            </template>
         </div>
         <div class="ranking">
             <div class="rank">

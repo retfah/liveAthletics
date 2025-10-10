@@ -248,6 +248,11 @@
                     previousStatus: 0, 
                     touchTimeout: null,
 
+                    warningAcctepted: false, // show a checkbox to be 
+                    delResAttempts:[], // shall contain which attempts to delete
+                    delResAllSeries:true, // all or single
+                    delResSeries:undefined, // xSeries
+
                     leftWithTab: 0, // is set to +1 (advance) or -1 (return, shift+tab) on some elements, before they lose focus due to a tabkey event 
                     remarkBefore:'',
                 }
@@ -334,7 +339,6 @@
                     return status;
                 },
 
-
                 selectedSeriesChanged(){
 
                     let u = new URL(window.location.href)
@@ -361,54 +365,10 @@
                     }
                     return [-1, {}];
                 },
-                autoManageAuxData(autoSaveToServer=true){
-
-                    // this should all be done now (2022-06) in the room! It is wrong to do this in the view!
-
-                    /*// based on the available series, automatically create (with default values) and delete the auxData per series.
-                    // returns true if something has changed (so far 2022-06 not needed)
-
-                    let changed = false;
-
-                    // first make sure, that all currently available auxData have their respective series; otherwise delete them
-                    for (let xSeries in this.roomAuxData){
-                        let series = this.series.find(s=>s.xSeries==xSeries);
-                        if (!series){
-                            delete this.roomAuxData[xSeries];
-                            changed=true;
-                        }
-                    }
-
-                    // then check that all available series have also an entry in auxData
-                    for (let series of this.series){
-                        if (!(series.xSeries in this.roomAuxData)){
-                            this.roomAuxData[series.xSeries] = {
-                                positionNext:[],
-                                position:[],
-                                attemptPeriod: 60, // s; mainly related to the next athlete
-                                periodStartTime: null, // date-string of the server time when the attempt period started
-                                showAttemptPeriod: false, 
-                                currentHeight: -1,
-                                currentJumpoffHeightInd: -1,
-                                attempt: 0,
-                                attemptNext: 0,
-                            };
-                            changed = true;
-                        }
-                    }
-                    
-                    if (changed && autoSaveToServer && !this.readOnly){
-                        rCTech.room.updateAuxDataInit(this.roomAuxData);
-                    }
-                    return changed;*/
-                },
                 overlayInfo(title, content){
                     this.infoTitle = title;
                     this.infoContent = content;
                     this.infoVisible = true;
-                },
-                sortSeries(){
-                    //this.series.sort((s1, s2)=>s1.number-s2.number);
                 },
 
                 /* !!! methods for SERIES creation only !!! */
@@ -437,9 +397,6 @@
                 seriesChanged(evt){
                     // TODO: implement reordering of series here
                     let test
-                },
-                seriesStateChanged(evt){
-                    // not needed for series assignment
                 },
                 presentChanged(affectedRow){
                     // the present status of an athlete was changed. Hand over the request to the room. 
@@ -555,7 +512,7 @@
                 saveInitSeries: function(){
                     // save the initial series assignment
                     
-                    // TODO: manually populate the actual series object; as soon as the change is processed on the server, the IDs will be replaced here with the actual IDs. 
+                    // manually populate the actual series object; as soon as the change is processed on the server, the IDs will be replaced here with the actual IDs. 
                     // DIFFICULTY: Assume a client without connection, a series is (locally) generated, then it is deleted again. As soon as we have connection, the changes are sent to the server. However, the answer for the series creation cannot be processed completely, because the series was deleted meanwhile in the local data. HOW CAN THIS PROBLEM BE SOLVED?:
                     // IDEA 1: fail-safe programming. If an object does not exist anymore, simply do not care and just continue. This only works when we do not try to know, what element must be updated on data arrival via e.g. the series number, when we have a unique identifier, e.g. a temporary ID or we have function where the objects are referenced (not the position in the array or the array itself!)
                     
@@ -866,7 +823,10 @@
                                 const rt = start.resultstech.find(rt=>rt.attempt==n);
                                 if (rt){
                                     if (rt.result==null){
-                                        r.perf[n-1] = -2; // X or -
+                                        if (rt.status!=0){
+                                            r.perf[n-1] = -2; // X or -
+                                        }
+                                        // if here, there is an empty result, i.e. valid, but no result entered yet; -1 is the default value, which is correct for this
                                     } else {
                                         r.perf[n-1] = rt.result;
                                         if (r.bestPerfOverall<rt.result){
@@ -885,8 +845,8 @@
                             r.perfSorted = r.perf.toSorted().reverse(); // best first
                             
                             // resultOverrule is >0 (i.e. DNS, DQ, retired) then the athlete is 'finished' (nextAttempt=0); it is also finished, when all attempts are through
-                            if (start.resultOverrule>0 || l==start.resultstech.length){
-                                r.nextAttempt = 0
+                            if (start.resultOverrule>0 || (l==start.resultstech.length && start.resultstech.every(el=>el.status>0 || el.result!==null))){
+                                r.nextAttempt = 0;
                             } else {
                                 // find the index of the first element in r.perf that is -1
                                 r.nextAttempt = r.perf.findIndex(el=>el==-1)+1; // is automatically 0=finished when no index was found.
@@ -961,7 +921,7 @@
                             for (let i=0; i<sortedStarts.length; i++){
                                 let rank;
                                 const start = sortedStarts[i];
-                                if (this.tempRankingData[this.selectedSeries][start.xSeriesStart].bestPerfOverall<=0){
+                                if (this.tempRankingData[is][start.xSeriesStart].bestPerfOverall<=0){
                                     rank = 0;
                                 } else if (i==0){
                                     if (start.resultOverrule<2){
@@ -1081,8 +1041,8 @@
                         for (let a=1; a<=this.conf.attempts; a++){
 
                             // check that all athletes in this attempt have finished the attempt already
-                            const allFinishedUntilA = currentStarts(a).every(el=>{
-                                return this.tempRankingData[i][el.xSeriesStart].nextAttempt>a || this.tempRankingData[i][el.xSeriesStart].nextAttempt==0; // nextAttempt=0 if finished
+                            const allFinishedUntilA = Object.values(this.tempRankingData[i]).every(el=>{
+                                return el.nextAttempt>a || el.nextAttempt==0; // nextAttempt=0 if finished
                             });
 
                             if (allFinishedUntilA){
@@ -1267,7 +1227,6 @@
                     }else {
                         // writing client. Set position and positionNext. If they have changed, send the changes to the server.
                         if (JSON.stringify(this.position) != JSON.stringify(position) || JSON.stringify(this.positionNext) != JSON.stringify(positionNext) || this.roomAuxData[series.xSeries].currentAttempt != this.currentAttempt ) {
-                            this.autoManageAuxData(false);
                             this.roomAuxData[series.xSeries].positionNext = positionNext;
                             this.roomAuxData[series.xSeries].position = position;
 
@@ -1288,7 +1247,7 @@
 
                 },
                 addResultToCurrent(res){
-                    // res must be either passed, failed or regular
+                    // res must be either passed, failed, valid or regular
                     // find the seriesStart of the current athlete and the result for the current height. If this result does not exist yet, it will automatically be generated. 
                     // if sendChangeToServer
 
@@ -1306,6 +1265,8 @@
                         status = 2;
                     } else if (res=='failed'){
                         status = 1;
+                    } else if (res=='valid'){
+                        // nothing to do; defaults are correct
                     } else if (res=='regular'){
                         // it may still be x or -, but through text input instead of the buttons
 
@@ -1368,6 +1329,12 @@
                     this.competitionWind = null;
                     this.competitionDistance = '';
                 },
+                valid(){
+                    // O, before the actual result is defined.
+                    this.addResultToCurrent('valid');
+                    this.hidePeriod();
+                    // calling this.calculateTemporaryRankingData(); should not have any effect. TODO: test this
+                },
                 passed(){
                     // current athlete passes this height
                     // new 2022-03: do all changes in addResultToCurrent
@@ -1389,8 +1356,17 @@
                     } else if (res.status ==1){
                         return 'X';
                     } else {
-                        // regular result
-                        return this.formatDistance(res.result, showUnit);
+                        if (res.result==null){
+                            return 'O';
+                        } else {
+                            // regular result
+                            if (res.result==0){
+                                // should actually never be the case
+                                return "0 m";
+                            } else {
+                                return this.formatDistance(res.result, showUnit);
+                            }
+                        }
                     }
                 },
                 resultToWind(res, showUnit=true, showSign=false){
@@ -1420,7 +1396,10 @@
                 strToResult(resStr, showAlert=false){
                     let status = 0;
                     let result = null;
-                    if (resStr.toLowerCase().includes("x")){
+                    if (resStr.toLowerCase().trim() == 'o'){
+                        // on purpose direct comparison with "o" and not "includes", because handling via the regular performance validation does not work, since we want to have an alert there is the numeric input is not meaningful and it should not simply/auomatically be treated as O.
+                        // nothing to do here  
+                    } else if (resStr.toLowerCase().includes("x")){
                         status = 1;
                     } else if (resStr.toLowerCase().includes("-")){
                         status = 2;
@@ -1503,7 +1482,7 @@
 
                         let [status, result] = this.strToResult(this.currentResultString, true);
                         let wind = null;
-                        if (this.wind && status==0){
+                        if (this.wind && status==0 && result!=null){
                             wind = this.currentWind*100; // to cm/s
                         }
 
@@ -1905,6 +1884,21 @@
                         }  
                     }
                     return missingAttempts;
+                },
+                deleteManyResultsInit(){
+                    this.delResSeries = this.series[0]?.xSeries;
+                    if (this.series.length>1){
+                        this.delResAllSeries = false;
+                    } else {
+                        this.delResAllSeries = true;
+                    }
+                    this.delResAttempts = [];
+                    this.overlay = 'deleteManyResults';
+                },
+                deleteManyResultsExe(){
+                    this.overlay = undefined;
+                    rCTech.room.deleteManyResultsInit(this.delResAttempts, this.delResAllSeries ? null : this.delResSeries);
+                    //return false;
                 },
             },
             watch:{
@@ -2506,7 +2500,9 @@
                     // check whether there is already a result for the current athlete on the current height
                     let res = this.currentAthleteStart.resultstech.find(r=>r.attempt == this.currentAttempt);
                     if (res==undefined){
-                        return false;
+                        return -1;
+                    } else if (res.result==null && res.wind==null){
+                        return 0;
                     } else {
                         return res;
                     }

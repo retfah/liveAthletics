@@ -390,9 +390,21 @@
                                 <div class="elText">{{currentAttempt}}. <%= __("Attempt") %>: </div>
                                 <div class="el2">
                                     <!-- 
-                                        if not result yet: select XO- 
-                                        if result entered: select "vorlegen/stage/advance/next" -->
-                                    <div v-if="resultInCurrentAttempt">
+                                        if no result yet (-1): select XO-
+                                        if emtpy result (0): show entra for distance and wind 
+                                        if result entered (res): select "vorlegen/stage/advance/next" -->
+                                    <div v-if="resultInCurrentAttempt==-1"> 
+                                        <button type="button" class="el width3" v-on:click="passed()" v-bind:disabled="readOnly">-</button>
+                                        <button type="button" class="el width3" v-on:click="failed()" v-bind:disabled="readOnly">X</button>
+                                        <button type="button" class="el width3" v-on:click="valid()" v-bind:disabled="readOnly">O</button>
+                                        
+                                    </div>
+                                    <div v-else-if="resultInCurrentAttempt==0">
+                                        <input class="formCtrl" type="text" placeholder="<%= __('Distance') %>" v-model="competitionDistance" size="4" inputmode="decimal">
+                                        <input v-if="wind" class="el" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="competitionWind" style="width:80px" inputmode="decimal" id="windCompetitionInput"> <!-- v-if="wind" -->
+                                        <button type="button" class="el" v-on:click="saveResult()" v-bind:disabled="readOnly || competitionDistance=='' || (wind && competitionWind == null) "><%= __("Save") %></button>
+                                    </div>
+                                    <div v-else>
                                         <template v-if="readOnly">
                                             <!-- add some formatting -->
                                             {{resultToStr(resultInCurrentAttempt, true)}}
@@ -401,19 +413,12 @@
                                             <button class="btn" type="button" v-on:click="calculateNextAthlete"><%= __("Advance") %></button> 
                                         </template>
                                     </div>
-                                    <div v-else> 
-                                        <button type="button" class="el width3" v-on:click="passed()" v-bind:disabled="readOnly">-</button>
-                                        <button type="button" class="el width3" v-on:click="failed()" v-bind:disabled="readOnly">X</button>
-                                        <input class="formCtrl" type="text" placeholder="<%= __('Distance') %>" v-model="competitionDistance" size="4" inputmode="decimal">
-                                        <input v-if="wind" class="el" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="competitionWind" style="width:80px" inputmode="decimal" id="windCompetitionInput"> <!-- v-if="wind" -->
-                                        <button type="button" class="el" v-on:click="saveResult()" v-bind:disabled="readOnly || competitionDistance=='' || (wind && competitionWind == null) "><%= __("Save") %></button>
-                                    </div>
                                 </div>
     
                                 <input id="competitionRemark" class="el2 formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="currentAthleteStart.resultRemark" v-on:blur="blurRemark(currentAthleteStart)" v-on:focus="focusRemark(currentAthleteStart)"
                                 v-bind:disabled="readOnly">
                             </div>
-                            <div class="row2" v-if="autoAdvance==false && resultInCurrentAttempt==false">
+                            <div class="row2" v-if="autoAdvance==false && resultInCurrentAttempt==-1">
                                 <!-- time period stuff: -->
                                 <div class="el2">
                                     <!-- Note: we use hours as minutes and minutes as seconds -->
@@ -527,6 +532,7 @@
                         <option value="3"><%= __("Name") %></option>
                         <option value="4"><%= __("Bib") %></option>
                     </select><br />
+                    <button class="btn" type="button" v-on:click="deleteManyResultsInit"><%= __('Delete results dialog') %></button>
                     <!-- 
                     Two different styles, based on the display size (mobile/desktop):
                     Desktop:
@@ -536,110 +542,113 @@
                     Currently, the idea is to show a button for each result (also the missing ones). For the selected result, instead show a text field for the reuslt and if needed a number field for the wind. Store by hitting Enter (save), click elsewhere (save) or Tabulator (save and go to next result in edit mode.)
                     Style: rank, bib, name, birthyear, club, bestperf,  <attempts>, status, participationState 
                     -->
-                    <div style="display:inline-block" >
-                        <!-- Desktop view -->
-                        <div class="hideMobile" id="techResModContainer" v-bind:style="{'grid-template-columns': techResModColTemplate}">
-                            
-                            <!--  header elements -->
-                            <div class="header rank"><%= __('Rank') %></div>
-                            <div class="header bib"><%= __('Bib abbr.') %></div>
-                            <div class="header name"><%= __('Name') %></div>
-                            <div class="header birthyear"><%= __('YoB') %></div>
-                            <div class="header club"><%= __('Club') %></div>
-                            <div class="header bestPerf"><%= __('Performance') %></div>
-                            <div class="header remark" v-bind:style="{'grid-row': 1}"><%= __('Remark') %></div>
-                            <div class="header resultOverrule" v-bind:style="{'grid-row': 1}"><%= __('Participation State') %></div>
-                            <div v-for="att in attempts">
-                                <div class="header result" v-bind:style="{'grid-row': 1, 'grid-column':`att${att}`}"><%= __('Attempt') %> {{att}}</div>
-                            </div>
-                            <template v-for="(startIndex, sortIndex) in sortedStarts1">
-                                <!-- the +2 considers the header row and the fact that the numbering in css starts at 1, not 0. -->
-                                <div v-if="series[selectedSeries].seriesstartsresults[startIndex]==currentAthleteStart" class="current background" v-bind:style="{'grid-row': sortIndex+2}"></div>
-                                <div v-if="series[selectedSeries].seriesstartsresults[startIndex]==nextAthleteStart" class="next background" v-bind:style="{'grid-row': sortIndex+2}"></div>
-                                <div class="rank" v-bind:style="{'grid-row': sortIndex+2}">{{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}} </div>
-                                <div class="bib" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
-                                <div class="name" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}<template v-if="showFullDetails">{{series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart}}</template></div>
-                                <div class="birthyear" v-bind:style="{'grid-row': sortIndex+2}">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
-                                <div class="club" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
-                                <div class="bestPerf" v-bind:style="{'grid-row': `${sortIndex+2}`}">{{formatDistance(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].bestPerfOverall)}}</div>
-                                <template v-for="res in series[selectedSeries].seriesstartsresults[startIndex].resultstech">
-
-                                    <div class="result" v-bind:class="{hidden: res==currentResultChange}" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}">
-                                        <button style="width:100%" class="btn btnGrey" v-on:click="changeResult(res)" :disabled="readOnly">{{resultToStr(res, true)}}
-                                            <template v-if="wind && res.status==0">
-                                                ({{resultToWind(res, false, true)}})
-                                            </template>
-                                        </button>
-                                    </div>
-                                    <div class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}" v-bind:class="{hidden: res!=currentResultChange}" >
-                                        <input  class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + res.xResult + ':' + res.attempt" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
-                                        <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt" v-on:keydown="tabOutRes($event)">
-                                    </div>
-                                </template>
-                                <template v-for="att in missingRes(series[selectedSeries].seriesstartsresults[startIndex].resultstech)">
-                                    <div v-if="currentResultChange.attempt!= att || currentResultChange.xResult != series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${att}`}">
-                                        <button style="width:100%" class="btn btnGrey" v-on:click="addResult(series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart, att)" :disabled="readOnly">&nbsp;</button> <!-- (<%= __("add abbr.") %>) -->
-                                    </div>
-                                    <div v-else class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${att}`}">
-                                        <input class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + att" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
-                                        <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + att" v-on:keydown="tabOutRes($event)">
-                                    </div>
-
-                                </template>
-                                <div class="remark" v-bind:style="{'grid-row': sortIndex+2}"><input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="blurRemark(series[selectedSeries].seriesstartsresults[startIndex])" v-on:focus="focusRemark(series[selectedSeries].seriesstartsresults[startIndex])"></div>
-                                <div class="resultOverrule" v-bind:style="{'grid-row': sortIndex+2}"><button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(series[selectedSeries].seriesstartsresults[startIndex])"><%= __("Change PS") %></button></div>
-                            </template>
-                        </div>
-                        <!-- mobile view -->
-                        <template v-for="(startIndex, sortIndex) in sortedStarts1">
-                            <div class="athlete hideDesktop" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }">
-                                <div class="row2">
-                                    <div class="elText">{{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}} </div>
-                                    <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
-                                    <div class="elText" style="font-weight: bold">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
-                                    <div class="elText">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
-                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].countryCode}}</div>
-                                    <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
+                    <div>
+                        <div style="display:inline-block" >
+                            <!-- Desktop view -->
+                            <div class="hideMobile" id="techResModContainer" v-bind:style="{'grid-template-columns': techResModColTemplate}">
+                                
+                                <!--  header elements -->
+                                <div class="header rank"><%= __('Rank') %></div>
+                                <div class="header bib"><%= __('Bib abbr.') %></div>
+                                <div class="header name"><%= __('Name') %></div>
+                                <div class="header birthyear"><%= __('YoB') %></div>
+                                <div class="header club"><%= __('Club') %></div>
+                                <div class="header bestPerf"><%= __('Performance') %></div>
+                                <div class="header remark" v-bind:style="{'grid-row': 1}"><%= __('Remark') %></div>
+                                <div class="header resultOverrule" v-bind:style="{'grid-row': 1}"><%= __('Participation State') %></div>
+                                <div v-for="att in attempts">
+                                    <div class="header result" v-bind:style="{'grid-row': 1, 'grid-column':`att${att}`}"><%= __('Attempt') %> {{att}}</div>
                                 </div>
-                                <div class="row2">
-                                    <template v-for="res in sortedRes(series[selectedSeries].seriesstartsresults[startIndex])">
-                                        <template v-if="res.status==-1">
-                                            <!-- result does not exist yet -->
-                                            <div  v-if="currentResultChange.attempt!= res.attempt || currentResultChange.xResult != series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" class="result el2">
-                                                <button style="width:100%" class="btn btnGrey" v-on:click="addResult(series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart, res.attempt)" :disabled="readOnly"><%= __('Attempt abbr.') %>{{res.attempt}}</button> <!-- (<%= __("add abbr.") %>) -->
-                                            </div>
-                                            <div v-else class="el2 result" >
-                                                <input class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + res.attempt + 'M'" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
-                                                <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt + 'M'" v-on:keydown="tabOutRes($event)">
-                                            </div>
-                                        </template>
-                                        <template v-else>
-                                            <!--  result exists -->
+                                <template v-for="(startIndex, sortIndex) in sortedStarts1">
+                                    <!-- the +2 considers the header row and the fact that the numbering in css starts at 1, not 0. -->
+                                    <div v-if="series[selectedSeries].seriesstartsresults[startIndex]==currentAthleteStart" class="current background" v-bind:style="{'grid-row': sortIndex+2}"></div>
+                                    <div v-if="series[selectedSeries].seriesstartsresults[startIndex]==nextAthleteStart" class="next background" v-bind:style="{'grid-row': sortIndex+2}"></div>
+                                    <div class="rank" v-bind:style="{'grid-row': sortIndex+2}">{{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}} </div>
+                                    <div class="bib" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
+                                    <div class="name" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}<template v-if="showFullDetails">{{series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart}}</template></div>
+                                    <div class="birthyear" v-bind:style="{'grid-row': sortIndex+2}">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
+                                    <div class="club" v-bind:style="{'grid-row': sortIndex+2}">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
+                                    <div class="bestPerf" v-bind:style="{'grid-row': `${sortIndex+2}`}">{{formatDistance(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].bestPerfOverall)}}</div>
+                                    <template v-for="res in series[selectedSeries].seriesstartsresults[startIndex].resultstech">
 
-                                            <div class="result el2" v-bind:class="{hidden: res==currentResultChange}" >
-                                                <button style="width:100%" class="btn btnGrey" v-on:click="changeResult(res)" :disabled="readOnly"><%= __('Attempt abbr.') %>{{res.attempt}}: {{resultToStr(res, true)}}
+                                        <div class="result" v-bind:class="{hidden: res==currentResultChange}" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}">
+                                            <button style="width:100%" class="btn btnGrey" v-on:click="changeResult(res)" :disabled="readOnly">{{resultToStr(res, true)}}
                                                 <template v-if="wind && res.status==0">
-                                                ({{resultToWind(res, false, true)}})
-                                            </template></button>
-                                            </div>
-                                            <div class="result el2" v-bind:class="{hidden: res!=currentResultChange}" >
-                                                <input  class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + res.xResult + ':' + res.attempt + 'M'" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
-                                                <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt + 'M'" v-on:keydown="tabOutRes($event)">
-                                            </div>
-                                        </template>
+                                                    ({{resultToWind(res, false, true)}})
+                                                </template>
+                                            </button>
+                                        </div>
+                                        <div class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${res.attempt}`}" v-bind:class="{hidden: res!=currentResultChange}" >
+                                            <input  class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + res.xResult + ':' + res.attempt" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
+                                            <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt" v-on:keydown="tabOutRes($event)">
+                                        </div>
+                                    </template>
+                                    <template v-for="att in missingRes(series[selectedSeries].seriesstartsresults[startIndex].resultstech)">
+                                        <div v-if="currentResultChange.attempt!= att || currentResultChange.xResult != series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${att}`}">
+                                            <button style="width:100%" class="btn btnGrey" v-on:click="addResult(series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart, att)" :disabled="readOnly">&nbsp;</button> <!-- (<%= __("add abbr.") %>) -->
+                                        </div>
+                                        <div v-else class="result" v-bind:style="{'grid-row': sortIndex+2, 'grid-column': `att${att}`}">
+                                            <input class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + att" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
+                                            <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + att" v-on:keydown="tabOutRes($event)">
+                                        </div>
 
                                     </template>
-                                </div>
-                                <div class="row2" v-if="readOnly==false">
-                                    <div class="marginLeft">
-                                        <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="blurRemark(series[selectedSeries].seriesstartsresults[startIndex])" v-on:focus="focusRemark(series[selectedSeries].seriesstartsresults[startIndex])">
-                                    </div>
-                                    <button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(series[selectedSeries].seriesstartsresults[startIndex])"><%= __("Change participation status") %></button>
-                                </div>
+                                    <div class="remark" v-bind:style="{'grid-row': sortIndex+2}"><input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="blurRemark(series[selectedSeries].seriesstartsresults[startIndex])" v-on:focus="focusRemark(series[selectedSeries].seriesstartsresults[startIndex])"></div>
+                                    <div class="resultOverrule" v-bind:style="{'grid-row': sortIndex+2}"><button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(series[selectedSeries].seriesstartsresults[startIndex])"><%= __("Change PS") %></button></div>
+                                </template>
                             </div>
-                            <br />
-                        </template>
+                            <!-- mobile view -->
+                            <template v-for="(startIndex, sortIndex) in sortedStarts1">
+                                <div class="athlete hideDesktop" v-bind:class="{ current: currentAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup, next: nextAthleteStart?.xStartgroup==series[selectedSeries].seriesstartsresults[startIndex].xStartgroup }">
+                                    <div class="row2">
+                                        <div class="elText">{{rankLocalizer(tempRankingData[selectedSeries][series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart].rankUntil[conf.attempts-1], "<%- _lang %>")}} </div>
+                                        <div class="elText">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].bib}}</div>
+                                        <div class="elText" style="font-weight: bold">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteName}} {{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].athleteForename}}</div>
+                                        <div class="elText">{{birthdayToXX(auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].birthdate)}}</div>
+                                        <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].countryCode}}</div>
+                                        <div class="elText Sl_hide">{{auxData.xStartgroup[series[selectedSeries].seriesstartsresults[startIndex].xStartgroup].clubName}}</div>
+                                    </div>
+                                    <div class="row2">
+                                        <template v-for="res in sortedRes(series[selectedSeries].seriesstartsresults[startIndex])">
+                                            <template v-if="res.status==-1">
+                                                <!-- result does not exist yet -->
+                                                <div  v-if="currentResultChange.attempt!= res.attempt || currentResultChange.xResult != series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart" class="result el2">
+                                                    <button style="width:100%" class="btn btnGrey" v-on:click="addResult(series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart, res.attempt)" :disabled="readOnly"><%= __('Attempt abbr.') %>{{res.attempt}}</button> <!-- (<%= __("add abbr.") %>) -->
+                                                </div>
+                                                <div v-else class="el2 result" >
+                                                    <input class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + series[selectedSeries].seriesstartsresults[startIndex].xSeriesStart + ':' + res.attempt + 'M'" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
+                                                    <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt + 'M'" v-on:keydown="tabOutRes($event)">
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <!--  result exists -->
+
+                                                <div class="result el2" v-bind:class="{hidden: res==currentResultChange}" >
+                                                    <button style="width:100%" class="btn btnGrey" v-on:click="changeResult(res)" :disabled="readOnly"><%= __('Attempt abbr.') %>{{res.attempt}}: {{resultToStr(res, true)}}
+                                                    <template v-if="wind && res.status==0">
+                                                    ({{resultToWind(res, false, true)}})
+                                                </template></button>
+                                                </div>
+                                                <div class="result el2" v-bind:class="{hidden: res!=currentResultChange}" >
+                                                    <input  class="formCtrl" type="text" size=4 name="result" v-bind:id="'resChange' + res.xResult + ':' + res.attempt + 'M'" v-model="currentResultString"  :disabled="readOnly" placeholder="<%= __('Distance') %>" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-on:keydown="tabOutRes($event)"> <!-- inputmode="decimal" -->
+                                                    <input class="formCtrl" v-if="wind" type="number" step=0.1 placeholder="<%= __('Wind') %>" v-model.number="currentWind" style="width:80px" inputmode="decimal" v-on:blur=" saveCurrentResChange(series[selectedSeries].seriesstartsresults[startIndex], $event, startIndex);" v-bind:id="'resChangeWind' + res.xResult + ':' + res.attempt + 'M'" v-on:keydown="tabOutRes($event)">
+                                                </div>
+                                            </template>
+
+                                        </template>
+                                    </div>
+                                    <div class="row2" v-if="readOnly==false">
+                                        <div class="marginLeft">
+                                            <input class="formCtrl" placeholder="<%= __('Remarks') %>" type="text" v-model="series[selectedSeries].seriesstartsresults[startIndex].resultRemark" :disabled="readOnly" v-on:blur="blurRemark(series[selectedSeries].seriesstartsresults[startIndex])" v-on:focus="focusRemark(series[selectedSeries].seriesstartsresults[startIndex])">
+                                        </div>
+                                        <button type="button" v-if="!readOnly" class="el" v-on:click="startUpdateParticipation(series[selectedSeries].seriesstartsresults[startIndex])"><%= __("Change participation status") %></button>
+                                    </div>
+                                </div>
+                                <br />
+                            </template>
+                        </div>  
                     </div>
+
                 </div>
                 <template v-if="show=='resShow'">
                     <h2><%= __("Results (table view)") %>:</h2>
@@ -939,6 +948,45 @@
                                 <button type="submit" class="btn btnGreen" v-on:click="saveUpdateParticipation" :disabled="readOnly">
                                     <%= __("Save") %>
                                 </button>
+                                <button type="button" class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="overlay=='deleteManyResults'">
+                        <form>
+                            <div class="verticalForm">
+                                <h3><%= __("Delete all results matching the following criteria") %></h3>
+                                <!-- allow to select the attempt(s) and the xSeries (either one series or all) -->
+                                <template v-if="series.length>1">
+                                    <%= __('Series') %>
+                                    <label>
+                                        <input type="radio" name="delRes" v-model="delResAllSeries" v-bind:value="true">
+                                        <%= __("All series") %>
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="delRes" v-model="delResAllSeries" v-bind:value="false" >
+                                        <%= __("Single series") %>
+                                    </label>
+                                    <template v-if="delResAllSeries==false">
+                                        <select class="formCtrl" v-model.number="delResSeries">
+                                            <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesEl.xSeries">
+                                                <%= __('SeriesSingular') %> {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
+                                            </option>
+                                        </select>
+                                    </template>
+                                </template>
+
+                                <%= __('Attempt(s)') %> <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Select multiple') %>:', '<%= __('To select multiple attempts press Ctrl while clicking.') %>')"><%= __('i') %></button>
+                                <select multiple class="formCtrl" v-model="delResAttempts">
+                                    <template v-for="att in attempts">
+                                        <option v-bind:value="att"><%= __("Attempt") %> {{att}}</option>
+                                    </template>
+                                </select>
+
+                                <label style="background-color: --warning;"><input type="checkbox" name="warningAccept" v-model="warningAcctepted" /> <%= __('I know that deleting the results cannot be revoked!') %></label>   
+
+                                <button type="button" class="btn btnGreen" v-on:click="deleteManyResultsExe" v-bind:disabled="warningAcctepted==false"><%= __("Delete results (irrevocable)") %></button>
                                 <button type="button" class="btn btnRed" v-on:click="overlay=undefined"><%= __("Abort") %></button>
                             </div>
                         </form>
