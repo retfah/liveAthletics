@@ -869,7 +869,7 @@
 	"Rank (best first)": "Rank (best first)",
 	"Rank (best last)": "Rank (best last)",
 	"Rank after": "Rank after",
-	"Merged final": "Merged final",
+	"Merged final": "Zusammengeführter Final",
 	"Nothing to show here": "Nothing to show here",
 	"\"${resStr}\" cannot be interpreted as a distance.": "\"${resStr}\" cannot be interpreted as a distance.",
 	"YoB": "JG",
@@ -880,5 +880,16 @@
 	"Change PS": "TS ändern",
 	"add abbr.": "hinzuf.",
 	"Attempt abbr.": "V",
-	"Tech Long Board": "Tech Long Board"
+	"Tech Long Board": "Tech Long Board",
+	"This series is finished. Continue in merged final as soon as all series are finished.": "Diese Serie ist beendet. Sobald alle serien beendet sind kann im zusammengeführten Final weiter gemacht werden.",
+	"I know that deleting the results cannot be revoked!": "Ich bin mir bewusst, dass das Löschen nicht rückgängig gemacht werden kann!",
+	"Delete results (irrevocable)": "Resultate unwiederbringlich löschen",
+	"Delete all results matching the following criteria": "Lösche alle Resultate welche folgenden Kriterien entsprechen",
+	"All series": "Alle Seriesn",
+	"Single series": "Einzelne Serie",
+	"Attempt(s)": "Versuch(e)",
+	"Select multiple": "Mehrere auswählen",
+	"To select multiple on the computer press Ctrl while clicking.": "Cltl-Taste gedrückt haleten um auf dem Computer mehrere auszuwählen.",
+	"To select multiple attempts press Ctrl while clicking.": "Um mehrere auszuwählen, halte Ctrl gedrückt während dem Klicken. ",
+	"Delete results dialog": "Mehrere Resultate löschen"
 }
