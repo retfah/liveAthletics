@@ -371,7 +371,7 @@
                 <div v-if="show=='competition'" id="competition" style="margin-right:auto">
                     <h2><%= __("Competition") %></h2>
                     <div v-if="mode == 0"><%= __("Nothing to show here") %></div>
-                    <div v-if="mode == 1 || mode == 3" style="display:inline-block"> 
+                    <div v-if="(mode == 1 || mode == 3) && currentAthleteStart" style="display:inline-block"> 
                         <div id="currentAth" v-if="position.length>0" class="athlete">
                             <div class="row2">                            
                                 <div class="el"><%= __("Current athlete") %>: </div>
@@ -879,7 +879,9 @@
                                     <%= __("Manual configuration") %>
                                 </label>
                                 <div v-if="confForMod.preset==2">
-                                    <h3><%= __("Manual configuration") %></h3>
+                                    <h3>
+                                        <%= __("Manual configuration") %>
+                                        <button type="button" tabindex="-1" class="information" v-on:click="overlayInfo('<%= __('Manual configuration') %>:', '<%= __('Define for each attempt, how the persons shall be sorted and eventually filtered based on previous results. If there are multiple series, it is possibe to merge them starting with a certain attemp, e.g. for the last 3 attempts. In this case, the filter setting for those attempts are applied to the combined results over all series. Otherwise, the filter setting is applied for each series separately.') %>')"><%= __('i') %></button></h3>
                                     <label>
                                         <%= __("Number of attempts") %>:
                                         <input type="number" min="1" style="width:4em" v-bind:value="confForMod.attempts" v-on:change="confAttemptsChange">

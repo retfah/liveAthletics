@@ -860,7 +860,7 @@
                     // create another fake trd with all elements to have an overall ranking.
                     const totalTrd = this.tempRankingData.reduce((tt, trd)=>{
                         for (let [key, value] of Object.entries(trd)){
-                            tt[key] = value;
+                            tt[key] = JSON.parse(JSON.stringify(value)); // create a copy, sicne the ranking is finally nto the same!
                         };
                         return tt;
                     }, {})
@@ -953,18 +953,23 @@
                     // forcePositionRecreate is needed when the attemptSettings change and e.g. only the sorting is changed. In that case, the position array would yb default not be recreated (forcePositionRecreate=false).
 
                     // always only refers to the selected series, and not all series! (In contrast to calculateTemporaryRankingData)
-                    let series;
-                    if (this.selectedSeries<this.series.length){
-                        series = this.series[this.selectedSeries];
-                    } else {
-                        // the special series for the merged final is selected; create a virtual series object with xSeries = 'merged' and all seriesstartsresults from all series
-                        series = {
-                            xSeries: 'merged'
+                    const getSeries = (iSeries)=>{
+                        let series;
+                        if (iSeries<this.series.length){
+                            series = this.series[iSeries];
+                        } else {
+                            // the special series for the merged final is selected; create a virtual series object with xSeries = 'merged' and all seriesstartsresults from all series
+                            series = {
+                                xSeries: 'merged'
+                            }
+                            series.seriesstartsresults = this.series.reduce((total, value)=>{
+                                total.push(...value.seriesstartsresults)
+                                return total;
+                            }, [])
                         }
-                        series.seriesstartsresults = this.series.reduce((total, value)=>{
-                            return total.push(...value.seriesstartsresults)
-                        }, [])
+                        return series;
                     }
+                    const series = getSeries(this.selectedSeries);
 
                     // if the selectedSeries changes, we must reset position and positionNext to make sure the algorithm trying to alter the position array as little as possible when athletes are added or removed works as it should. 
                     if (this.selectedSeries != this.selectedSeriesLazy) {
@@ -992,7 +997,8 @@
                     }
 
                     // this function used to be further below; but since we need to be able to get the "current"starts already to determine the nextAttempt (if not all athletes start), it was moved up to here
-                    const currentStarts = (iAttempt)=>{
+                    const currentStarts = (iAttempt, iSeries=this.selectedSeries)=>{
+                        let series = getSeries(iSeries);
                         // returns an array with all ssr jumping in the selected series in the current attempt.
                         const setting = this.conf.attemptSettings[iAttempt-1]; // -1 due to 0-based vs 1-based
 
@@ -1002,7 +1008,7 @@
                             // all ssr
                             return ssrs;
                         } else {
-                            return ssrs.filter(el=> this.tempRankingData[this.selectedSeries][el.xSeriesStart].rankUntil[setting.filterAttempt-1]<=setting.filterRank);// -1 due to 0-based vs 1-based
+                            return ssrs.filter(el=> this.tempRankingData[iSeries][el.xSeriesStart].rankUntil[setting.filterAttempt-1]<=setting.filterRank);// -1 due to 0-based vs 1-based
                         }
                     }
                     const sortStarts = (ssrs)=>{
@@ -1037,13 +1043,17 @@
                         })
                     }*/
                     // check for each attempt, if it is already finished, until an unfinished attempt is found. (It is not possible to use trd.nextAttempt, since it does not consider whether an athlete is actually allowed to particpate in an attempt or not.
+                    // TODO: this approach is wrong! It does not consider that some athletes do not participate in the next round anymore. nextAttempt=0 is only the case if an athlete has done all potential attempts, including those in finals. 
                     for (let i=0; i<this.tempRankingData.length; i++){
                         for (let a=1; a<=this.conf.attempts; a++){
 
                             // check that all athletes in this attempt have finished the attempt already
-                            const allFinishedUntilA = Object.values(this.tempRankingData[i]).every(el=>{
-                                return el.nextAttempt>a || el.nextAttempt==0; // nextAttempt=0 if finished
+                            const allFinishedUntilA = currentStarts(a, i).every(el=>{
+                                return this.tempRankingData[i][el.xSeriesStart].nextAttempt>a || this.tempRankingData[i][el.xSeriesStart].nextAttempt==0; // nextAttempt=0 if finished
                             });
+                            /*const allFinishedUntilA = Object.values(this.tempRankingData[i]).every(el=>{
+                                return el.nextAttempt>a || el.nextAttempt==0; // nextAttempt=0 if finished
+                            });*/
 
                             if (allFinishedUntilA){
                                 nextAttempts[i] = a+1; // always set to the next attempt
@@ -1067,7 +1077,7 @@
                             }
                         } else {
                             // check if selected series is still ongoing
-                            if (nextAttempts[this.selectedSeries]>this.mergeSeries){
+                            if (nextAttempts[this.selectedSeries]>=this.mergeSeries){
                                 this.mode = 2; // finished, awaiting other series to finish
                             } else {
                                 // regular mode
@@ -2043,7 +2053,7 @@
                     if (this.series.length<=1){
                         return 0;
                     } else {
-                        this.conf.mergeSeries;
+                        return this.conf.mergeSeries;
                     }
                 },
 
@@ -2501,7 +2511,7 @@
                     let res = this.currentAthleteStart.resultstech.find(r=>r.attempt == this.currentAttempt);
                     if (res==undefined){
                         return -1;
-                    } else if (res.result==null && res.wind==null){
+                    } else if (res.status==0 && res.result==null && res.wind==null){
                         return 0;
                     } else {
                         return res;
@@ -2558,6 +2568,8 @@
                     if (this.show=='competition'){
                         if (evt.key=='x'){
                             this.failed();
+                        } else if (evt.key=='o'){
+                            this.valid();
                         } else if (evt.key=='-'){
                             // only handle as passed if not a wind entry is selected (then it simply is a regular -)
                             if (!document.activeElement.id.includes('wind')){

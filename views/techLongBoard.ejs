@@ -20,7 +20,7 @@
 
         <!-- TODO: eventually add here the involved categories, events, eventGroups, ... (for inspiration see ventually the competitionOverview in the live results) -->
     </template>
-    <template v-if="(mode==1 || mode==2) && series[selectedSeries].status>=140">
+    <template v-if="(mode==1 || mode==2) && series[selectedSeries].status>=140 && currentAthleteStart">
         <!-- consider using upper case only (eventually as small-caps), because then there is no space needed below the baseline -->
         <div class="name" >
             <!-- name -->
@@ -40,7 +40,7 @@
                 <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
             </template>
             <template v-else>
-                <div class="result">{{resultToStr(resultInCurrentAttempt, false)}}</div>
+                <div class="result" v-bind:style="{color: resultInCurrentAttempt.status==1 ? 'red' : 'inherit' } ">{{resultToStr(resultInCurrentAttempt, false)}}</div>
                 <div class="wind"><template v-if="wind">{{resultToWind(resultInCurrentAttempt, false, true)}}</template></div>
                 <div class="time" v-if="roomAuxData[selectedXSeries].showAttemptPeriod" v-bind:class="{last15: last15}">{{shownTime}}</div>
             </template>
