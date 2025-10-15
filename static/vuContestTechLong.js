@@ -33,7 +33,7 @@ class vuContestTechLong extends roomClientVue{
 
         // set the changed data-property as data of the vue-instance
         this.vue.contest = this.room.data.contest;
-        this.vue.series = this.room.data.series;
+        this.vue.seriesRaw = this.room.data.series;
         this.vue.startgroups = this.room.data.startgroups;
         this.vue.relatedGroups = this.room.data.relatedGroups;
         this.vue.disciplines = this.room.data.disciplines;
@@ -48,7 +48,7 @@ class vuContestTechLong extends roomClientVue{
         // backtransfer the "proxied" data from the vue, so that changing data in the room runs through the proxy
         this.room.data.contest = this.vue.contest;
         this.room.data.startgroups = this.vue.startgroups;
-        this.room.data.series = this.vue.series;
+        this.room.data.series = this.vue.seriesRaw;
         this.room.data.relatedGroups = this.vue.relatedGroups;
         this.room.data.disciplines = this.vue.disciplines;
         this.room.data.auxData = this.vue.roomAuxData;

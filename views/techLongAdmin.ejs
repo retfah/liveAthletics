@@ -21,13 +21,13 @@
                 </select>
             </div>
             <div class="navItem" v-if="contest.status>=95 && contest.status<=180 && series.length>0">
-                <div v-if="series.length>1" style="padding-bottom:5px;">
+                <div v-if="series.length>2" style="padding-bottom:5px;">
                     <%= __("Series Selection") %>
                     <select class="content dropdown" v-model="selectedSeries" v-on:change="selectedSeriesChanged">
-                        <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesIndex">
+                        <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesIndex" v-if="mergeSeries>0">
                             {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
                         </option>
-                        <option v-if="mergeSeries>0"><%= __("Merged final") %></option v-bind:value="series.length"><!-- extra option for the merged final -->
+                        <!--<option v-if="mergeSeries>0"><%= __("Merged final") %></option v-bind:value="series.length-1"> extra option for the merged final -->
                     </select>
                 </div>
                 <%= __("Series Status") %>
@@ -371,7 +371,10 @@
                 <div v-if="show=='competition'" id="competition" style="margin-right:auto">
                     <h2><%= __("Competition") %></h2>
                     <div v-if="mode == 0"><%= __("Nothing to show here") %></div>
-                    <div v-if="(mode == 1 || mode == 3) && currentAthleteStart" style="display:inline-block"> 
+                    <div v-else-if="mode == 4">
+                        <%= __("The competition is finished.") %>
+                    </div>
+                    <div v-else-if="((mode == 1 && selectedSeries<series.length-1) || (mode == 3 && selectedSeries==series.length-1)) && currentAthleteStart" style="display:inline-block"> 
                         <div id="currentAth" v-if="position.length>0" class="athlete">
                             <div class="row2">                            
                                 <div class="el"><%= __("Current athlete") %>: </div>
@@ -478,11 +481,11 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="mode == 2">
-                        <%= __("This series is finished. Continue in merged final as soon as all series are finished.") %>
+                    <div v-else-if="mode < 3">
+                        <%= __("The merged series cannot start until all separate series were finished.") %>
                     </div>
-                    <div v-if="mode == 4">
-                        <%= __("The competition is finished.") %>
+                    <div v-else>
+                        <%= __("This series is finished. Continue in merged final as soon as all series are finished.") %>
                     </div>
                 </div>
                 <div v-if="show=='order'" id="orderPosition" style="display:block">
@@ -972,7 +975,7 @@
                                     </label>
                                     <template v-if="delResAllSeries==false">
                                         <select class="formCtrl" v-model.number="delResSeries">
-                                            <option v-for="(seriesEl, seriesIndex) in series" v-bind:value="seriesEl.xSeries">
+                                            <option v-for="(seriesEl, seriesIndex) in seriesRaw" v-bind:value="seriesEl.xSeries">
                                                 <%= __('SeriesSingular') %> {{seriesEl.number}} <div v-if="seriesEl.name">{{seriesEl.name}}</div> <!--if undefined, the name shall not be shown-->
                                             </option>
                                         </select>
