@@ -20,7 +20,11 @@
 
         <!-- TODO: eventually add here the involved categories, events, eventGroups, ... (for inspiration see ventually the competitionOverview in the live results) -->
     </template>
-    <template v-if="(mode==1 || mode==2) && series[selectedSeries].status>=140 && currentAthleteStart">
+    <template v-if="(mode==2 || mode==4) && !currentAthleteStart">
+        <%= __("The competition is finished") %>
+        <!-- Show best results -->
+    </template>
+    <template v-else-if="mode>0 && series[selectedSeries].status>=140 && currentAthleteStart">
         <!-- consider using upper case only (eventually as small-caps), because then there is no space needed below the baseline -->
         <div class="name" >
             <!-- name -->
@@ -80,9 +84,5 @@
                 {{fitName('nextAthleteNameMeasuring', auxData.xStartgroup[nextAthleteStart.xStartgroup], `➤ `)}} <!-- ${attemptNext} -->
             </template>
         </div>
-    </template>
-    <template v-if="mode==3">
-        <%= __("The competition is finished") %>
-        <!-- Show best results -->
     </template>
 </div>

@@ -1483,6 +1483,7 @@ option:hover {
 }
 .board > .attempt > .time {
     width: 30%;
+    height: 100%;
     text-align:right;
     background-color: #007bff;
 }

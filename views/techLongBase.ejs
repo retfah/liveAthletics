@@ -122,8 +122,7 @@
                     /* !!! data for SERIES CREATION and COMPETITION !!! */
                     categories:[],
                     meeting:{},     // informational only
-                    disciplines:[], // informational only, to be able to show the name of the discipline and get some conf-data about the discipline, such as the max-reasonable height used to create the limit until where the heights shall be created
-                    // TODO
+                    disciplines:[], // informational only, to be able to show the name of the discipline and get some conf-data about the discipline
 
                     //activateLate: false, // thing that cannot be drawn at startup, e.g. because they rely 
                     readOnly: false, // whether we can do changes or not (have a writingTicket or not)
@@ -179,13 +178,10 @@
 
                     selectedSeries: 0, // which series we are working on. 
                     selectedSeriesLazy: 0, // which series we were working on before
-                    //allHeights:[], // contains all already fixed and all predicted heights; computed property as of 2022-06
                     mode: 0, // 0: before the data is ready for competition, 1= regular part of competition running (or is ready to be started), 2=selected series is finished in regular part, awaiting other series to finish in regular part as well, 3=merged final, 4=finished
                     position:[], // array with the xStartgroup of all athletes starting in the current attempt, defining the order in the competition; changed by the drag and drop part;
                     positionNext: [], //ATTENTION: positionNext here is different from the one on techHigh! It stores the xSeriesStart of the next persons (in the current attempt only, it does not include the athletes in the next attempt)
-                    // keep track of the next two persons; will also be stored to the auxData and transmitted to the other clients:
-                    //ssrCurrent:null, 
-                    //ssrNext: null, 
+                    
                     tempRankingData: { // all data needed for ranking and for gettign the current athlete
                         // structure see below at calculateTemporaryRankingData
                     },
@@ -518,9 +514,8 @@
                     
                     // The series structure should look like this
                     // series : all series objects
-                    // series[0].heights : the heights jumped in this series
                     // series[0].seriesstartsresults : all athletes in this series
-                    // series[0].seriesstartsresults[0].resultshigh : the results of the athletes
+                    // series[0].seriesstartsresults[0].resultstech : the results of the athletes
 
                     // do all the data managament in the room and not within vue!
                     rCTech.room.initialSeriesCreationInit(this.seriesObj);
@@ -618,13 +613,7 @@
                 /* !!! methods for COMPETITION only !!! */
 
                 transferAuxData(){
-                    // manually transfer some of the aux properties (position and positionNext are transferred in calculateNextAthlete)
-                    // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
-                    /*this.currentHeight2 = this.roomAuxDataSelected.currentHeight;
-                    this.currentJumpoffHeightInd2 = this.roomAuxDataSelected.currentJumpoffHeightInd;
-                    this.attempt2 = this.roomAuxDataSelected.attempt;
-                    this.attemptNext2 = this.roomAuxDataSelected.attemptNext;*/
-
+                    // still used?
                 },
 
                 setTime(){
@@ -1011,26 +1000,6 @@
                             return ssrs.filter(el=> this.tempRankingData[iSeries][el.xSeriesStart].rankUntil[setting.filterAttempt-1]<=setting.filterRank);// -1 due to 0-based vs 1-based
                         }
                     }
-                    const sortStarts = (ssrs)=>{
-                        // sort the array of ssr based on the setting for the current attempt
-                        // sorts in place, but returns the value to allow for chaining
-                        const setting = this.conf.attemptSettings[nextAttempt-1]; // -1 due to 0-based vs 1-based
-                        ssrs.sort((a,b)=>{
-                            if (setting.sort<=1){
-                                // by position (0=regular, 1=reversed)
-                                return a.position-b.position;
-                            } else {
-                                // by rank after sortRankAfterAttempt attempts, (2=best first, 3=best last)
-                                // if rank are equal, use position; this is simply to make sure that always the same order results
-                                return this.tempRankingData[this.selectedSeries][a.xSeriesStart].rankUntil[setting.sortRankAfterAttempt-1] - this.tempRankingData[this.selectedSeries][b.xSeriesStart].rankUntil[setting.sortRankAfterAttempt-1]; // -1 due to 0-based vs 1-based
-                            } 
-                        })
-                        if (setting.sort==1 || setting.sort==3){
-                            // reversed, comapred to the sorting above
-                            ssrs.reverse();
-                        }
-                        return ssrs;
-                    }
 
                     // calculate the next attempt and then recreate/update the position array, if a new attempt is next.
                     // next attempt must be calculated for all series to find out whether we are in mode 1 (regular) or mode 2 (merged final)
@@ -1095,136 +1064,157 @@
                         }
                     }
 
-
+                    let position = [];
+                    let positionNext = [];
+                    let nextAttempt = this.currentAttempt; // keep the same for now (needed in board, where calcNextAthlete is called when the result arrives, but we want to stay within the same attempt until the changed auxData is.)
                     if (this.mode==4 || this.mode==2){
                         // currently nothing to change for positions
-                        this.position = [];
-                        this.positionNext = [];
-                        return;
-                    }
-
-                    let nextAttempt = nextAttempts[this.selectedSeries];
-
-                    // if the attempt will increase by 1, we (might) need to update position and positionNext; 
-                    // the positions only change, when
-                    // - mergedSeries begins
-                    // - filter (filterRank, filterAttempt) or sort (sort, sortRankAfterAttempt) change from the previous to the current attempt 
-
-                    // (When) are we able to make sure that manual changes are kept?
-                    // - whenever sort changes, we cannot / do not keep any previous manual changes but simply create the new order
-                    // - when we switch to mergedSeries, also sort will change and a new order is needed anyway
-                    // - when filter gets more strict (filterRankNew <(=*) filterRankBefore and filterAttemptNew >= filterAttemptBefore), (but no switch to mergedSeries and no sort change), we basically can/could simply delete the atheletes that are not in the competition anymore. 
-                    //    * could be <=, but when equal, it does not have any effect
-                    // => since the only case where changing the position array instead of recreating it is extremely rare, we always recreate the array, if anything (sort or filter) changes from one to the next attempt. 
-
-                    // -------------
-                    // IMPORTANT:
-                    // => generally, simply recreate the position array except for the rare case mentioned above, where only deleting is needed. 
-                    // nevertheless, we also need to take care of cases where athletes get deleted or added (byparticipation state change) => how to handle this? Eventually see the code from techHigh
-                    // -------------
-
-                    // I think the position array should always contain all xStartgroup in the current attempt, and not delete those that are finished already
-
-                    // if the last person in a certain attempt is competing, we know the next person only if neither sort nor filter changes 
-
-                    // calculate the new position array; however, do NOT directly store them to this, but do this copy at the end, based on whether this client is writing or not!
-
-                    let position=[];
-                    if (forcePositionRecreate || (nextAttempt != this.currentAttempt && compareObject(this.conf.attemptSettings[nextAttempt], this.conf.attemptSettings[this.currentAttempt])==false)){
-                        // the attempt has changed and the attempt configuration is not the same => always simply recreate the position array.
-
-                        position = sortStarts(currentStarts(nextAttempt)).map(el=>el.xSeriesStart);
-
+                        position = [];
+                        positionNext = [];
+                        //return
                     } else {
-                        // update the position array, without recreating it in order not to lose the current changes to it. 
-                        // check for every athlete that has (had*) the right to jump in this attempt whether he is in the position array or not. finally delete all those entries that should not be present
-                        // * includes also all persons that already jumped in the current attempt
-                        // NOTE: this funtionality is important e.g. when the participation status changes
+                        nextAttempt = nextAttempts[this.selectedSeries];
 
-                        // list of current positions; ssrs that shall still be in it get removed and at the end only those to be deleted remain.
-                        let posCopy = this.position.slice(); 
+                        // if the attempt will increase by 1, we (might) need to update position and positionNext; 
+                        // the positions only change, when
+                        // - mergedSeries begins
+                        // - filter (filterRank, filterAttempt) or sort (sort, sortRankAfterAttempt) change from the previous to the current attempt 
 
-                        // start with the current position array
-                        position = this.position.slice();
+                        // (When) are we able to make sure that manual changes are kept?
+                        // - whenever sort changes, we cannot / do not keep any previous manual changes but simply create the new order
+                        // - when we switch to mergedSeries, also sort will change and a new order is needed anyway
+                        // - when filter gets more strict (filterRankNew <(=*) filterRankBefore and filterAttemptNew >= filterAttemptBefore), (but no switch to mergedSeries and no sort change), we basically can/could simply delete the atheletes that are not in the competition anymore. 
+                        //    * could be <=, but when equal, it does not have any effect
+                        // => since the only case where changing the position array instead of recreating it is extremely rare, we always recreate the array, if anything (sort or filter) changes from one to the next attempt. 
 
-                        // make sure all currentStarts exist in position; if not, add them at the ideal position
-                        currentStarts(nextAttempt).forEach(el=>{
-                                
-                            let ind = this.position.findIndex(el2=>el2==el.xSeriesStart)
-                            if (ind == -1){
-                                // start must be added on the best position!
-                                // first create an array with the default positions of the athletes in the current positions-list
-                                let positionDefault = Array(this.position.length);
-                                for (let i=0;i<this.position.length;i++){
-                                    let start = series.seriesstartsresults.find(el=>el.xSeriesStart==this.position[i])
-                                    if (!start){
-                                        alert('Error: Something went terribly wrong.');
-                                    }
-                                    positionDefault[i] = start.position;
+                        // -------------
+                        // IMPORTANT:
+                        // => generally, simply recreate the position array except for the rare case mentioned above, where only deleting is needed. 
+                        // nevertheless, we also need to take care of cases where athletes get deleted or added (byparticipation state change) => how to handle this? Eventually see the code from techHigh
+                        // -------------
+
+                        // I think the position array should always contain all xStartgroup in the current attempt, and not delete those that are finished already
+
+                        // if the last person in a certain attempt is competing, we know the next person only if neither sort nor filter changes 
+
+                        // calculate the new position array; however, do NOT directly store them to this, but do this copy at the end, based on whether this client is writing or not!
+
+                        if (forcePositionRecreate || (nextAttempt != this.currentAttempt && compareObject(this.conf.attemptSettings[nextAttempt], this.conf.attemptSettings[this.currentAttempt])==false)){
+                            // the attempt has changed and the attempt configuration is not the same => always simply recreate the position array.
+
+                            const sortStarts = (ssrs)=>{
+                                // sort the array of ssr based on the setting for the current attempt
+                                // sorts in place, but returns the value to allow for chaining
+                                const setting = this.conf.attemptSettings[nextAttempt-1]; // -1 due to 0-based vs 1-based
+                                ssrs.sort((a,b)=>{
+                                    if (setting.sort<=1){
+                                        // by position (0=regular, 1=reversed)
+                                        return a.position-b.position;
+                                    } else {
+                                        // by rank after sortRankAfterAttempt attempts, (2=best first, 3=best last)
+                                        // if rank are equal, use position; this is simply to make sure that always the same order results
+                                        return this.tempRankingData[this.selectedSeries][a.xSeriesStart].rankUntil[setting.sortRankAfterAttempt-1] - this.tempRankingData[this.selectedSeries][b.xSeriesStart].rankUntil[setting.sortRankAfterAttempt-1]; // -1 due to 0-based vs 1-based
+                                    } 
+                                })
+                                if (setting.sort==1 || setting.sort==3){
+                                    // reversed, comapred to the sorting above
+                                    ssrs.reverse();
                                 }
-
-                                // go through the possible positions (number of positions: position.length+1)
-                                // best position is where most of the athletes would be correctly before and after according to the position default
-                                let minSortedWrong = this.position.length+10;
-                                let minSortedWrongIndex = -1;
-                                for (let i=0; i<=this.position.length;i++){
-                                    let sortedWrong = 0;
-                                    // before:
-                                    for (let j=0;j<i;j++){
-                                        if (positionDefault[j]>el.position){
-                                            sortedWrong++;
-                                        }
-                                    }
-                                    // after: 
-                                    for (let j=i;j<this.position.length; j++){
-                                        if (positionDefault[j]<el.position){
-                                            sortedWrong++;
-                                        }
-                                    }
-                                    if (sortedWrong<minSortedWrong){
-                                        minSortedWrong = sortedWrong;
-                                        minSortedWrongIndex = i;
-                                    }
-                                }
-
-                                // add the element at the best position
-                                position.splice(minSortedWrongIndex,0,el.xSeriesStart);
-
-                            } else {
-                                // remove from posCopy
-                                let ind = posCopy.indexOf(el.xSeriesStart);
-                                if (ind==-1){
-                                    alert('Error: Should not happen...');
-                                }else{
-                                    posCopy.splice(ind,1);
-                                }
+                                return ssrs;
                             }
-                            
-                        })
 
-                        // delete all elements in position that are still in posCopy
-                        posCopy.forEach(el=>{
-                            let ind = position.indexOf(el);
-                            position.splice(ind,1);
-                        })
-                        // done.
+                            position = sortStarts(currentStarts(nextAttempt)).map(el=>el.xSeriesStart);
 
-                    }
-                    // position is created
-                    
+                        } else {
+                            // update the position array, without recreating it in order not to lose the current changes to it. 
+                            // check for every athlete that has (had*) the right to jump in this attempt whether he is in the position array or not. finally delete all those entries that should not be present
+                            // * includes also all persons that already jumped in the current attempt
+                            // NOTE: this funtionality is important e.g. when the participation status changes
 
-                    // who is current and who is next?
-                    // loop over the position array, check if the persons already have a result for the current attempt
-                    let ssrCurrent = null;
-                    let ssrNext = null;
-                    let positionNext = [];
-                    for (let xSeriesStart of position){
-                        if (this.tempRankingData[this.selectedSeries][xSeriesStart].perf[nextAttempt-1]==-1){
-                            positionNext.push(xSeriesStart);
+                            // list of current positions; ssrs that shall still be in it get removed and at the end only those to be deleted remain.
+                            let posCopy = this.position.slice(); 
+
+                            // start with the current position array
+                            position = this.position.slice();
+
+                            // make sure all currentStarts exist in position; if not, add them at the ideal position
+                            currentStarts(nextAttempt).forEach(el=>{
+                                    
+                                let ind = this.position.findIndex(el2=>el2==el.xSeriesStart)
+                                if (ind == -1){
+                                    // start must be added on the best position!
+                                    // first create an array with the default positions of the athletes in the current positions-list
+                                    let positionDefault = Array(this.position.length);
+                                    for (let i=0;i<this.position.length;i++){
+                                        let start = series.seriesstartsresults.find(el=>el.xSeriesStart==this.position[i])
+                                        if (!start){
+                                            alert('Error: Something went terribly wrong.');
+                                        }
+                                        positionDefault[i] = start.position;
+                                    }
+
+                                    // go through the possible positions (number of positions: position.length+1)
+                                    // best position is where most of the athletes would be correctly before and after according to the position default
+                                    let minSortedWrong = this.position.length+10;
+                                    let minSortedWrongIndex = -1;
+                                    for (let i=0; i<=this.position.length;i++){
+                                        let sortedWrong = 0;
+                                        // before:
+                                        for (let j=0;j<i;j++){
+                                            if (positionDefault[j]>el.position){
+                                                sortedWrong++;
+                                            }
+                                        }
+                                        // after: 
+                                        for (let j=i;j<this.position.length; j++){
+                                            if (positionDefault[j]<el.position){
+                                                sortedWrong++;
+                                            }
+                                        }
+                                        if (sortedWrong<minSortedWrong){
+                                            minSortedWrong = sortedWrong;
+                                            minSortedWrongIndex = i;
+                                        }
+                                    }
+
+                                    // add the element at the best position
+                                    position.splice(minSortedWrongIndex,0,el.xSeriesStart);
+
+                                } else {
+                                    // remove from posCopy
+                                    let ind = posCopy.indexOf(el.xSeriesStart);
+                                    if (ind==-1){
+                                        alert('Error: Should not happen...');
+                                    }else{
+                                        posCopy.splice(ind,1);
+                                    }
+                                }
+                                
+                            })
+
+                            // delete all elements in position that are still in posCopy
+                            posCopy.forEach(el=>{
+                                let ind = position.indexOf(el);
+                                position.splice(ind,1);
+                            })
+                            // done.
+
+                        }
+                        // position is created
+                        
+
+                        // who is current and who is next?
+                        // loop over the position array, check if the persons already have a result for the current attempt
+                        for (let xSeriesStart of position){
+                            if (this.tempRankingData[this.selectedSeries][xSeriesStart].perf[nextAttempt-1]==-1){
+                                positionNext.push(xSeriesStart);
+                            }
                         }
                     }
 
-                    // transfer position, ssrCurrent and ssrNext to the auxData, if this client is a writing client; othwise transafer this data back
+                    
+
+                    // transfer position to the auxData, if this client is a writing client; othwise transafer this data back
                     if (this.readOnly){
                         // we actually do not use the position and positionNext data that we just have created, but we use the data that was given via the aux data. But we compare the length of the array in order to detect problems (which should never happen.)
                         if (position.length != this.roomAuxData[series.xSeries].position.length || positionNext.length != this.roomAuxData[series.xSeries].positionNext.length){
@@ -1257,7 +1247,7 @@
                 },
                 addResultToCurrent(res){
                     // res must be either passed, failed, valid or regular
-                    // find the seriesStart of the current athlete and the result for the current height. If this result does not exist yet, it will automatically be generated. 
+                    // find the seriesStart of the current athlete and the result for the current attempt. If this result does not exist yet, it will automatically be generated. 
                     // if sendChangeToServer
 
                     let series = this.series[this.selectedSeries];
@@ -1321,7 +1311,7 @@
                 },
                 saveResult(){
 
-                    // value was entered for the current height
+                    // value was entered for the current attempt
                     // new 2022-03: do all changes in addResultToCurrent
                     this.addResultToCurrent('regular');
 
@@ -1345,7 +1335,7 @@
                     // calling this.calculateTemporaryRankingData(); should not have any effect. TODO: test this
                 },
                 passed(){
-                    // current athlete passes this height
+                    // current athlete passes this attempt
                     // new 2022-03: do all changes in addResultToCurrent
                     this.addResultToCurrent('passed');
 
@@ -1785,9 +1775,9 @@
                 },
                 // resultLOcalizer: create the result string for the given result (inlcuding the resultOverrule)
                 // the result is 
-                // - empty until there is a first cleared height
-                // - the last valid height
-                // - NM_: no valid height, and three failed attempts
+                // - empty until there is a first attempt done
+                // - the best result so far
+                // - NM_: no valid attmpt, and three failed attempts
                 // - DISQ
                 // - DNS
                 resultLocalizer(ssr, lang="en"){
@@ -1810,7 +1800,6 @@
 
                     // retired
                     if (resultOverrule==1){
-                        // if the athlete had a result then show the last height together with the abbreviaiton for retired
                         if (tempRankingData.bestPerfOverall>0){
                             return this.resultToStr({status:0, result:tempRankingData.bestPerfOverall}, true) + wind + this.participationStatesTech.find(el=>el.value==resultOverrule)?.abbreviation;
                         } else {
@@ -1935,12 +1924,16 @@
                             // get the selected series from the GET parameter
                             let u = new URL(window.location.href);
                             if (u.searchParams.has('xSeries')){
-                                let xSeries = Number(u.searchParams.get('xSeries'))
-
-                                // get the index of the respective series
-                                let ind = this.series.findIndex(s=>s.xSeries==xSeries);
-                                if (ind>=0){
-                                    this.selectedSeries = ind;
+                                let xSeriesRaw = u.searchParams.get('xSeries');
+                                if (xSeriesRaw=='merged'){
+                                    this.selectedSeries = this.seriesRaw.length;
+                                } else {
+                                    let xSeries = Number(xSeriesRaw);
+                                    // get the index of the respective series
+                                    let ind = this.series.findIndex(s=>s.xSeries==xSeries);
+                                    if (ind>=0){
+                                        this.selectedSeries = ind;
+                                    }
                                 }
                             }
 
@@ -2042,10 +2035,29 @@
                     if (this.seriesRaw.length==0){
                         return [];
                     }
+
+                    // the status of the merged series cannot be changed, but is automatically set based on the status of the regular series and the mode. ATTENTION: Since it depends on the mode and to mode depends on series, we have a loop dependency, which might result in repeated execution of this function and calculateNextAthlete.
+                    console.log('created computed series');
+                    let status = 10;
+                    if (this.mode<3){
+                        // while the single series are occuring, the status of hte merged series is always the lowest status of the regular series, but max 130 (preparing competition)
+                        status = this.seriesRaw.reduce((total, s)=>{
+                            return Math.min(total, s.status);
+                        },130)
+                    } else if (this.mode==3){
+                        status = 150;
+                    } else {
+                        // finished
+                        // status shall be the lowest of the single series
+                        status = this.seriesRaw.reduce((total, s)=>{
+                            return Math.min(total, s.status);
+                        },1000)
+                    };
                     const mergedSeries = {
                         xSeries: 'merged',
                         name: '<%= __("Merged final") %>',
                         number:'',
+                        status: status
                     }
                     mergedSeries.seriesstartsresults = this.seriesRaw.reduce((total, value)=>{
                         total.push(...value.seriesstartsresults)
@@ -2105,23 +2117,6 @@
                         }catch(ex){
                             logger.log(10, 'The site configuration object is not a valid JSON.')
                         }
-                    }
-                },
-
-                // transfer some of the aux properties form the writing room, if this room is a readOnly room (position and positionNext are transferred in calculateNextAthlete)
-                    // this is needed when the positionNext and position do not change (when a change arrives on reading clients), because normally those properties are transferred there
-                currentHeight: function(){
-                    if (this.readOnly){
-                        return this.roomAuxDataSelected.currentHeight;
-                    } else {
-                        return this.currentHeight2; // locally calculated
-                    }
-                },
-                currentJumpoffHeightInd: function(){
-                    if (this.readOnly){
-                        return this.roomAuxDataSelected.currentJumpoffHeightInd;
-                    } else {
-                        return this.currentJumpoffHeightInd2;// locally calculated
                     }
                 },
                 /*attempt(){
@@ -2416,7 +2411,7 @@
                             let rB = this.tempRankingData[this.selectedSeries][B.xSeriesStart].rankUntil[this.conf.attempts-1];
                             if (rA==0 && rB==0){
                                 // both have no rank (yet):
-                                // the order should be: in competition without valid height < retired NM < regular NM < DNS < DQ < not started yet
+                                // the order should be: in competition without valid res < retired NM < regular NM < DNS < DQ < not started yet
                                 const assignVal = function(X, rX){
                                     if (X.resultOverrule==0 && !rX.finished){
                                         // differentiate with result and without result
@@ -2491,7 +2486,7 @@
                 },
                 resultGridTemplateCol: function(){
 
-                    // make sure the resultGridTemplate is updated when the xHeight is exchanged
+                    // make sure the resultGridTemplate is updated 
                     let i = this.fakeProperty;
 
                     let s = '[rank] max-content [position] max-content [bib] max-content [athletes] max-content [result] max-content';
@@ -2528,7 +2523,7 @@
 
                     let x = this.fakeProperty;
 
-                    // check whether there is already a result for the current athlete on the current height
+                    // check whether there is already a result for the current athlete on the current attempt
                     let res = this.currentAthleteStart.resultstech.find(r=>r.attempt == this.currentAttempt);
                     if (res==undefined){
                         return -1;

@@ -31,11 +31,18 @@
                     </select>
                 </div>
                 <%= __("Series Status") %>
-                <select class="content dropdown" :value="series[selectedSeries].status" v-on:change="seriesStatusChanged(series[selectedSeries], $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
-                    <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
-                        {{option.text}}
-                    </option>
-                </select><br>
+                <template v-if="selectedSeries<series.length-1">
+                    <select class="content dropdown" :value="series[selectedSeries].status" v-on:change="seriesStatusChanged(series[selectedSeries], $event)" :disabled="readOnly" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">
+                        <option v-for="option in seriesStates" v-bind:value="option.value" v-bind:style="{ 'background-color': option.backgroundColor,  '--backColorHover': statusBackgroundColorHover(option.value, seriesStates), color: option.textColor }">
+                            {{option.text}}
+                        </option>
+                    </select>
+                </template>
+                <template v-else>
+                    <!-- status of merged series cannot be changed -->
+                     <div style="display: inline-block; padding: 6px 12px; border-radius: var(--border-radius, 4px);" v-bind:style="{ 'background-color': statusBackgroundColor(series[selectedSeries].status, seriesStates), '--backColorHover': statusBackgroundColorHover(series[selectedSeries].status, seriesStates), color: statusTextColor(series[selectedSeries].status, seriesStates) }">{{seriesStates.find(el=>el.value==series[selectedSeries].status)?.text}}</div>
+                </template>
+                <br>
             </div>
             <a class="navItem" v-on:click="show='contestInfo'; burgerChecked=false" v-bind:class="{active: show=='contestInfo'}">
                 <%= __('Contest info') %>
