@@ -19,18 +19,21 @@ Up and running:
 - flexible seeding
 - vertical technical events (high jump and pole vault)
 - track events (including automatic and live exchange with timing softwares*) (* currently only ALGE is supported, but further implementations are easily possible, since the main logic is in a base class to inhereit from)
-- horizontal technical events (all throws, long jump and triple jump) [partially in development]
+- horizontal technical events (all throws, long jump and triple jump) [except live results and printing stuff]
 - qualification between rounds
 - automatic exchange with national bodies (currently: swiss-athletics)
 - backup and restoration to/from file
 
 TODO:
+- seeding for round >=2 considering previous results 
 - Login for Admins
 - combined events
+- seeding in combined events based on current combined ranking.
 - team events
 - centralized control over displays
 - automatic input from electronic distance measurement and wind measurement
 - payment control + receipt module
+- server side printing with flexible sorting/filtering/grouping
 - many more optional ideas
 
 It currently is a one-person-hobby-project, but support is highly appreciated. 
