@@ -1380,7 +1380,8 @@
                     }
                 },
                 windToStr(windRaw, showUnit=true, showSign=false){
-                    // wind is in cm/s; must be scaled to m/s
+                    return window.disciplineFormatters['2wind'](windRaw, showUnit, showSign)
+                    /*// wind is in cm/s; must be scaled to m/s
                     const wind = Math.ceil(windRaw/10)/10; // round up to the next dm/s
                     let sign='';
                     let unit='';
@@ -1390,7 +1391,7 @@
                     if (showUnit){
                         unit=' m/s';
                     }
-                    return `${sign}${wind.toFixed(1)}${unit}`;
+                    return `${sign}${wind.toFixed(1)}${unit}`; */
                 },
                 strToResult(resStr, showAlert=false){
                     let status = 0;

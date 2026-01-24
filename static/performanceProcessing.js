@@ -83,6 +83,20 @@ export const disciplineFormatters = {
             }
             return `${valObj.minutes}:${valObj.seconds}`;  
         }
+    },
+    '2wind': function (value, showUnit=true, showSign=false){
+        // wind for tech long (long jump, triple jump)
+        // wind is in cm/s; must be scaled to m/s
+        const wind = Math.ceil(value/10)/10; // round up to the next dm/s
+        let sign='';
+        let unit='';
+        if (showSign && wind>=0){
+            sign='+';
+        }
+        if (showUnit){
+            unit=' m/s';
+        }
+        return `${sign}${wind.toFixed(1)}${unit}`;
     }
 }
 
@@ -239,7 +253,7 @@ export const disciplineValidators = {
         // try to interpret the string as a number
         let num = Number(value);
 
-        if (isNaN(num)){
+        if (isNaN(num) || num<=0){
             return {
                 valid: false,
                 value,
