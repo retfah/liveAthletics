@@ -575,7 +575,7 @@ export class printingGeneral {
     * @param {string / array} cellConf.text alias for cellConf.t
     * @param {string / array} cellConf.pt name of a property, which value will be translated
     * @param {string / array} cellConf.translatedProperty alias for cellConf.pt
-    * @param {string / array} cellConf.p The name(s) of proeprty/ies in the data object that shall be shown.
+    * @param {string / array} cellConf.p The name(s) of property/ies in the data object that shall be shown.
     * @param {string / array} cellConf.prop alias for p
     * @param {number} cellConf.ms maximum margin scale (<=1), default=1 (i.e. no scaling)
     * @param {number} cellConf.maxMarginScale alias for ms
@@ -844,6 +844,7 @@ export class printingGeneral {
      * @param {array} conf.linesHorizontal // two entries: [topWidth, bottomWidth]. See also comment at linesVertical.
      * @param {number} conf.rowHeight the height of the row; null (default) if it shall be calculated automatically
      * @param {array} conf.cells storing the configuratrions for each cell; reference see inside function for printCell
+     * @param {number} conf.opacity The opacity used in printCell if it is not specified for the respective cell. (Defaults to 1)
      * @param {object} data Object with the data (typically of type dContainer)
      * @param {PDFPage} page The page to print on
      * @param {number} posY The y-position where to start drawing (i.e. the upper (!) end of the drawing)
@@ -1552,7 +1553,7 @@ export class pContestSheetHigh extends printingGeneral {
     }
 
     containerHeaderHeight(){
-        return 60 + this.conf.contestSheetTrack.sizeContestInfo*1.2*this.data.relatedGroups.length;
+        return 60 + this.conf.contestSheetHigh.sizeContestInfo*1.2*this.data.relatedGroups.length;
     }
 
 
@@ -1568,6 +1569,124 @@ export class pContestSheetHigh extends printingGeneral {
 
     async childSeparatorPrePageBreakHeight(){
         let conf = this.conf.contestSheetHigh;
+        return conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+    }
+}
+
+export class pContestSheetLong extends printingGeneral {
+    
+    constructor (conf, data){
+        super(conf, data)
+
+    }
+
+    async printContainerHeader(page, pG){
+
+        // TODO: eventually include here begin/end times of the series
+
+        let conf = this.conf.contestSheetLong;
+        let font = this.conf.font ?? 'Helvetica';
+
+        // create a string with all involved categories. Make sure no category is appearing twice.
+        let categories = [];
+        this.data.relatedGroups.forEach(group=>{
+            group.round.eventgroup.events.forEach(e=>{
+                if (categories.indexOf(e.xCategory)==-1){
+                    categories.push(e.xCategory);
+                }
+            })
+        })
+
+        // sort all categories, translate them to strings and combine them
+        categories.sort((a,b)=>{
+            return this.data.categories.find(el=>el.xCategory==a)?.sortorder - this.data.categories.find(el=>el.xCategory==b)?.sortorder;
+        })
+
+        let categoriesText = categories.map((el)=>{
+            return this.data.categories.find(cat=>cat.xCategory==el)?.shortname;
+        })
+
+        let categoriesStr = categoriesText.join(', ');
+        let name = this.data.name ? " " + this.data.name : '';
+
+        // print contest name, time, category etc
+        // the name does not exist yet in the data!
+        //page.drawText(this.data.baseDiscipline, {font:fontHeader, size: conf.sizeContestHeader, x:this.conf.marginLeft, y:pG.positionY-20})
+        let usableWidth = this.conf.pageSize[0]-this.conf.marginLeft-this.conf.marginRight;
+        let tabConf = {
+            font:conf.fontContestHeader, 
+            size: conf.sizeContestHeader, 
+            cells:[
+                {p: ['baseDiscipline',], t:[, " " + categoriesStr + name]},
+                {p: 'datetimeStartDateTime', alignmentH:'R'},
+            ], 
+            columns:[usableWidth*0.7, usableWidth*.3],
+        };
+        this.printTabularRow(tabConf, this.data, page, this.conf.marginLeft, pG.positionY);
+        tabConf = {
+            font:conf.font, 
+            size: conf.size, 
+            cells:[
+                {t: conf.strCall+': ', p: 'datetimeCallTime', alignmentH:'R'},
+            ], 
+            columns:[usableWidth],
+        };
+        this.printTabularRow(tabConf, this.data, page, this.conf.marginLeft, pG.positionY-conf.sizeContestHeader*1.2);
+        //page.drawText(`${this.data.datetimeStart}`, {font:fontHeader, size: conf.sizeContestHeader, x:this.conf.marginLeft, y:pG.positionY-20})
+
+        pG.positionY -= 30;
+
+        let groupLines = 0;
+        if (this.data.showRelatedGroups){
+            for (let rg of this.data.relatedGroups){
+                groupLines++;
+                // create the string: round name, event group name, ev. hurdle height, categories (from events), group name
+                // additionally we could include the event info field
+
+                // get all categories
+                let xCats = rg.round.eventgroup.events.map(e=>e.xCategory);
+                let cats = this.data.categories.filter(c=>xCats.includes(c.xCategory));
+                cats.sort((a,b)=>a.sortorder - b.sortorder);
+
+                let s = `${rg.round.name} ${rg.round.eventgroup.name} ${cats.map(c=>c.shortname).join('/')}`;
+                // include group name only when there is more than one group
+                if (rg.round.numGroups>1){
+                    s += ` ${rg.name}`;
+                }
+
+                // print!
+                page.drawText(s, {font:fontInstance, size: conf.sizeContestInfo, x:this.conf.marginLeft, y:pG.positionY-conf.sizeContestInfo*1.2*groupLines})
+            }
+        }
+
+        pG.positionY -= conf.sizeContestInfo*1.2*groupLines;
+
+        // print information about using the paper
+        // TODO: change to printCell, as soon as this is not within the table anymore
+        this.printTabularRow({font:font, size: conf.sizeContestInfo, cells:[{t:conf.strHelp, nf:'wordWrap'}], columns:[this.conf.pageSize[0]-this.conf.marginLeft-this.conf.marginRight]}, {}, page, this.conf.marginLeft, pG.positionY);
+
+        pG.positionY -= 30;
+
+        return [page, pG];
+    }
+
+    containerHeaderHeight(){
+        return 60 + this.conf.contestSheetLong.sizeContestInfo*1.2*this.data.relatedGroups.length;
+    }
+
+
+    async printChildSeparatorPrePageBreak(page, pG){
+
+        let conf = this.conf.contestSheetLong;
+        let font = await page.doc.getFont(conf.fontSeries);
+        page.drawText(conf.strFurtherSeries, {x:this.conf.marginLeft, y: pG.positionY - conf.marginTopSeries - conf.size, size:conf.size, font: font})
+        pG.positionY -= conf.marginTopSeries + conf.size + conf.marginBottomSeries;
+
+        return [page, pG];
+    }
+
+    async childSeparatorPrePageBreakHeight(){
+        let conf = this.conf.contestSheetLong;
         return conf.marginTopSeries + conf.size + conf.marginBottomSeries;
     }
 }
@@ -2108,6 +2227,191 @@ export class pSeriesContestSheetHigh extends printingGeneral{
     }
 }
 
+// adds all stuff to tableConf
+function longTableCreator(tableConf, cellConf, conf, attempts, rankingAfterAttempts, showBestResCol){
+
+    for (let i=1; i<=attempts; i++){
+
+        const attemptString = conf.strAttemptAbbr.replace('${i}', i)
+
+        tableConf.columns.push(conf.maxColWidthResults);
+        var cc = {...cellConf}
+        cc.t= attemptString;
+        tableConf.cells.push(cc);
+
+        if (i in rankingAfterAttempts){
+            if (showBestResCol){
+                tableConf.columns.push(conf.maxColWidthResults);
+                var cc = {...cellConf}
+                cc.t = conf.strBestRes;
+                tableConf.cells.push(cc);
+            }
+            tableConf.columns.push(conf.maxColWidthResults/conf.colWidthRatioResulToRank);
+            var cc = {...cellConf}
+            cc.t = conf.strRank;
+            tableConf.cells.push(cc);
+        }
+    }
+
+}
+
+// originally copied from techHigh
+export class pSeriesContestSheetLong extends printingGeneral{
+
+    constructor (conf, data){
+        super(conf, data)
+
+        // at least 2 children shall be printed on one page; otherwise, add a page break before
+        this.minimumChildrenPrint = 2;
+    }
+
+    async printContainerHeader(page, pG){
+        // draw the name+number of the series, eventually how many athletes on this page
+
+        let globalConf = this.conf;
+        let conf = globalConf.contestSheetLong;
+
+        let fontSeries = await page.doc.getFont(conf.fontSeries);
+
+        // we need to translate the result if it is an resultoverrule: 
+        const translator = (result)=>{
+            if (result in this.conf.staticTranslations){
+                return this.conf.staticTranslations[result];
+            }
+            return result;
+        }
+
+        // draw the series name
+        let text = '';
+        if (this.data.name){
+            text = conf.strSeries+ ' '+this.data.name;
+        } else {
+            text = conf.strSeries+ ' '+ this.data.number;
+        }
+        page.drawText(text, {x:globalConf.marginLeft, y: pG.positionY-conf.marginTopSeries-conf.sizeSeries, size:conf.sizeSeries, font:fontSeries});
+
+        pG.positionY -= conf.sizeSeries + conf.marginBottomSeries + conf.marginTopSeries;
+
+        // draw the stuff for the heights and results
+        // make the exact width dependent on the width of the "results" and "heights" texts:
+        let font = conf.font ?? 'Helvetica';
+        let size = conf.size ?? 10;
+        let f = await page.doc.getFont(font);
+        let l2 = f.widthOfTextAtSize(conf.strResults + ':', size);
+        let l1 = f.widthOfTextAtSize(conf.strHeights + ':', size);
+        
+        let leftOffset = 0;
+
+        const attempts = this.data.attempts;
+        const rankingAfterAttempts = this.data.rankingAfterAttempts;
+        const showBestResCol = this.data.showBestResCol;
+        const opacity = 1;
+        //const maxWidthAvail = globalConf.pageSize[0]-leftOffset-globalConf.marginLeft - globalConf.marginRight;
+        
+        // width based on maxWidths
+        // const maxWidthReq = (attempts + rankingAfterAttempts.length*showBestResCol)*conf.maxColWidthResults + rankingAfterAttempts.length*conf.maxColWidthResults/conf.colWidthRatioResulToRank;
+
+        // calculate the regular column width
+        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol)
+
+        // we have three different kinds of columns: reesults, ranks and bestresults. We should store begin and end of each in an array. Probably this should already be the printTableConfiguration. 
+        // Thus create for printtable configurations: one with all cells (used to print the lines) and one for each content OR create only the overall one and store which cell is what separately
+        // OR: provide the content and style of each kind of cell as input and create the final table here
+        const tableConf = {
+            cells:[],
+            margin:2,
+            columns:[], // width in points; to be done below.
+            totalWidth: globalConf.pageSize[0]-leftOffset-globalConf.marginLeft - globalConf.marginRight, // automatic scaling if needed
+            linesVertical: new Array(nCol+1).fill(conf.lineWidth),
+            linesHorizontal: new Array(2).fill(conf.lineWidth),
+            rowHeight: conf.rowHeight,
+            opacity,
+        };
+
+        const cellConf = {
+            //t is define below
+            ms: 0.5,
+            hs:0.5,
+            nf: 'scale',
+            font,
+            size,
+            alignmentH:'C',
+            //opacity will be used from the tableConf
+        }
+        
+
+        /*for (let i=1; i<=attempts; i++){
+            if (attemptString instanceof Function){
+                attemptString = attemptString(i);
+            }
+            tableConf.columns.push(conf.maxColWidthResults);
+            var cc = {...cellConf}
+            cc.t= attemptString;
+            tableConf.cells.push(cc);
+
+            if (i in rankingAfterAttempts){
+                if (showBestResCol){
+                    tableConf.columns.push(conf.maxColWidthResults);
+                    var cc = {...cellConf}
+                    cc.t = conf.strBestRes;
+                    tableConf.cells.push(cc);
+                }
+                tableConf.columns.push(conf.maxColWidthResults/conf.colWidthRatioResulToRank);
+                var cc = {...cellConf}
+                cc.t = conf.strRank;
+                tableConf.cells.push(cc);
+            }
+        }*/
+        longTableCreator(tableConf, cellConf, conf, attempts, rankingAfterAttempts, showBestResCol); 
+
+        pG.positionY -= await this.printTabularRow(tableConf, {}, page, globalConf.marginLeft+leftOffset, pG.positionY);
+
+        pG.positionY -= conf.spaceBetweenAthletes;
+
+        return [page, pG]
+    }
+
+    // if we have a fixed height, avoid calculating the height by defining this function
+    /*containerHeaderHeight(){
+        return 30; 
+    }*/
+    
+    printContainerFooter(page, pG){
+        // just add some space
+        pG.positionY -= 15;
+        return [page, pG]
+    }
+
+    containerFooterHeight(){
+        return 15;
+    }
+
+    printPostPageBreak(page, pG){
+        // just repeat the regular header stuff
+        return this.printContainerHeader(page, pG);
+    }
+
+    postPageBreakHeight(){
+        // just repeat the regular header stuff
+        return this.containerHeaderHeight();
+    }
+
+    async printChildSeparator(page, pG){
+        // just add some extra space
+        pG.positionY -= this.conf.contestSheetLong.spaceBetweenAthletes;
+        return [page, pG];
+    }
+
+    async childSeparatorHeight(){
+        return this.conf.contestSheetHigh.spaceBetweenAthletes;
+    }
+
+    printChildSeparatorPrePageBreak(page, pG){
+        // if the series would be breakable, we would implement here a text like "series continues on next page"
+        return [page, pG];
+    }
+}
+
 export class pSeriesContestSheetTrack extends printingGeneral{
 
     constructor (conf, data){
@@ -2530,6 +2834,89 @@ export class pPersonContestSheetHigh extends pPerson {
 
 }
 
+export class pPersonContestSheetLong extends pPerson {
+    
+    constructor(conf, data){
+        super(conf, data);
+    }
+
+    async printContainerHeader(page, pG){
+
+        // we need to translate the result if it is an resultoverrule: 
+        const translator = (result)=>{
+            if (result in this.conf.staticTranslations){
+                return this.conf.staticTranslations[result];
+            }
+            return result;
+        }
+
+        // moved to config file
+        /*let globalConf = {
+            pageSize: [595.28, 841.89],
+            marginLeft: 40,
+            marginRight: 40,
+        };*/
+        let globalConf = this.conf;
+        let conf = globalConf.contestSheetLong;
+
+        // draw the athletes header
+        pG.positionY -= await this.printTabularRow(conf.athleteColumns, this.data, page, globalConf.marginLeft, pG.positionY) 
+        
+        // draw the stuff for the heights and results
+        // make the exact width dependent on the width of the "results" and "heights" texts:
+        let font = conf.font ?? 'Helvetica';
+        let size = conf.size ?? 10;
+        let f = await page.doc.getFont(font);
+        let l2 = f.widthOfTextAtSize(conf.strResults+':', size);
+        let l1 = f.widthOfTextAtSize(conf.strHeights+':', size);
+
+        let leftOffset = 0;
+
+        const attempts = this.data.attempts;
+        const rankingAfterAttempts = this.data.rankingAfterAttempts;
+        const showBestResCol = this.data.showBestResCol;
+        const opacity = conf.opacityBackground;
+
+        // prepare the table for the results.
+        // calculate the regular column width
+        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol)
+
+        // we have three different kinds of columns: reesults, ranks and bestresults. We should store begin and end of each in an array. Probably this should already be the printTableConfiguration. 
+        // Thus create for printtable configurations: one with all cells (used to print the lines) and one for each content OR create only the overall one and store which cell is what separately
+        // OR: provide the content and style of each kind of cell as input and create the final table here
+        const tableConf = {
+            cells:[],
+            margin:0,
+            columns:[], // width in points; to be done below.
+            totalWidth: globalConf.pageSize[0]-leftOffset-globalConf.marginLeft - globalConf.marginRight, // automatic scaling if needed
+            linesVertical: new Array(nCol+1).fill(conf.lineWidth),
+            linesHorizontal: new Array(2).fill(conf.lineWidth),
+            rowHeight: conf.rowHeight,
+            opacity,
+        };
+
+        const cellConf = {
+            //t is define below
+            ms: 0.5,
+            hs:0.5,
+            nf: 'scale',
+            font,
+            size,
+            alignmentH:'C',
+            //opacity will be used from the tableConf
+        }
+
+        longTableCreator(tableConf, cellConf, conf, attempts, rankingAfterAttempts, showBestResCol); 
+        
+        pG.positionY -= await this.printTabularRow(tableConf, {}, page, globalConf.marginLeft+leftOffset, pG.positionY);
+
+        pG.positionY -= conf.spaceBetweenAthletes;
+
+        return [page, pG];
+    }
+
+}
+
 export class pPersonContestSheetTrack extends pPerson {
     
     constructor(conf, data){
@@ -2743,6 +3130,23 @@ export class dPersonContestSheetHigh extends dPerson {
     }
 }
 
+/**
+ * Extends the dPerson class by the properties needed to print a contestSheet for TECH LONG. 
+ */
+export class dPersonContestSheetLong extends dPerson {
+
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, startConf=null, attempts=6, showWindSpace=false, rankingAfterAttempts=[], showBestResCol=false){
+        super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
+        this.position = position;
+        this.startConf = startConf;
+
+        this.attempts = attempts; // number of attempts
+        this.showWindSpace = showWindSpace; // for long and triple jump outdoor; if true, there is vertically more space for each result to place the wind
+        this.rankingAfterAttempts = rankingAfterAttempts; // after which attempts to show a ranking column
+        this.showBestResCol = showBestResCol; // show an additional column for the best result until then before every ranking column.
+    }
+}
+
 class dPersonContestResult extends dPerson{
     constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, startConf=null, resultOverrule=0, resultRemark, qualification=0, showDetail=false){
         super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, categoryName)
@@ -2778,6 +3182,58 @@ class dPersonContestResult extends dPerson{
             return 'qJ';
         }
         return ''
+    }
+}
+
+/**
+ * Extends the dPerson class by the properties needed to print a resultSheet for TECH LONG. 
+ */
+export class dPersonContestResultLong extends dPersonContestResult {
+
+    constructor (lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank=0, result=0, results=[], startConf=null, resultOverrule=0, resultRemark, qualification, showDetail=false){
+        super(lastname, firstname, bib, birthdate, country, regionShortname, clubName, eventGroupName, xDiscipline, position, categoryName, rank, result, startConf, resultOverrule, resultRemark, qualification, showDetail)
+        this.results = results; // array of object with {resultStr, result (in mm), attempt (integer 1-6), wind (signed int, in cm/s), status (0=regular, 1=invalid/X, 2=passed/-; if not regular, the result should actually be null)}
+    }
+
+    // those texts are later translated by the static translations
+    get resultFormatted(){
+        if (this.resultOverrule<=1){
+            // including retired
+            if (this.result>0){
+                return (this.result/100).toFixed(2);
+            } else {
+                return 'NM';
+            }
+        } else if (this.resultOverrule==1){
+            return 'retiredAbbreviation';
+        } else if (this.resultOverrule==3){
+            return 'DNF'
+        } else if (this.resultOverrule==4){
+            return 'withdrawal';
+        } else if (this.resultOverrule==5){
+            return 'DNS';
+        } else if (this.resultOverrule==6){
+            return 'disq.';
+        }
+        
+    }
+
+    get rankFormatted(){
+        return this.rank>0 ? `${this.rank}.` : '';
+    }
+
+    get rankSorting(){
+        // the rank is zero when there is no rank, which is wrong for sorting
+        return this.rank>0 ? this.rank : 999999;
+    }
+
+    get resultOverruleSorting(){
+        // we must treat retired the same as regular!
+        if (this.resultOverrule==1){
+            return 0;
+        } else {
+            return this.resultOverrule;
+        }
     }
 }
 
@@ -2930,6 +3386,23 @@ export class dSeries extends dContainer {
 
     get datetimeFormatted(){
         return this._time(this.datetime);
+    }
+}
+
+export class dSeriesSheetLong extends dSeries {
+    // the data needed for the series container 
+    
+    constructor(xSeries, status, number, name, siteName, SSR, datetime, showSeriesLine=true, attempts=6, showWindSpace=false, rankingAfterAttempts=[], showBestResCol=false){
+        
+        super(xSeries, status, number, name, siteName, SSR, datetime);
+        this.showSeriesLine = showSeriesLine; // show a separate header of the series; for tech this might be set to false when there is only one series
+        
+        // the children are the single persons
+
+        this.attempts = attempts; // number of attempts
+        this.showWindSpace = showWindSpace; // for long and triple jump outdoor; if true, there is vertically more space for each result to place the wind
+        this.rankingAfterAttempts = rankingAfterAttempts; // after which attempts to show a ranking column
+        this.showBestResCol = showBestResCol; // show an additional column for the best result until then before every ranking column.
     }
 }
 

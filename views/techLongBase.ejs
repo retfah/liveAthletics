@@ -2642,7 +2642,7 @@
 </script>
 <script type="module">
     // MODULE stuff for printing
-    import {dContestSheet, dSeriesSheetHigh, dPersonContestSheetHigh, dPersonContestResultHigh, dHeaderFooter, printer, pPersonContestSheetHigh, pSeriesContestSheetHigh, pContestSheetHigh, pHeaderFooter, pPersonContestResultHigh, pSeriesContestResultsHigh, pContestResultsHigh} from "/static/printDocumentStructure.js";
+    import {dContestSheet, dSeriesSheetLong, dPersonContestSheetLong, dPersonContestResultLong, dHeaderFooter, printer, pPersonContestSheetLong, pSeriesContestSheetLong, pContestSheetLong, pHeaderFooter, pPersonContestResultHigh, pSeriesContestResultsHigh, pContestResultsHigh} from "/static/printDocumentStructure.js";
 
 
     /**
@@ -2651,19 +2651,54 @@
      * @param {array} series Array storing all series 
      * @param {array} startgroups Array with all additional information (name, firstname, event, etc) for each startgroup=seriesStartResult
      * @param {array} categories
-     * @param {array} heights
      * @param {array} disciplines
      * @param {array} relatedGroups
      * @param {array} sites all sites
+     * @param {number} attepts number of attempts
+     * @param {array} attemptSettings the attemptsettigns as defined in the contest configuration. 
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
+     * @param {integer} showRankingCol show ranking columns: 0=no, 1=at the end, 2=where relevant based on attemptSettings, 3=after every attempt
+     * @param {boolean} showBestResCol Show an additional column for the best result so far before every ranking column.
      * @returns dContest instance with all series/persons as childs
      */
-    function createDataStructureSeries(contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, xSeries=null){
+    function createDataStructureSeries(contest, series, startgroups, categories, disciplines, relatedGroups, sites, attempts, attemptSettings, xSeries=null, showRankingCol=2, showBestResCol = false){
 
         // get the name of the discipline
-        let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
+        const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
+        const discName = discipline?.name;
+
+        // figure out whether there is wind needed
+        const bc = JSON.parse(discipline.baseConfiguration)
+        const showWindSpace = bc.wind ? true : false; // wind should always be defined; neverthleess make sure that undefiend also works.
 
         let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories);
+        
+        const rankingAfterAttempts = []; // sorted array after which attempts to show a ranking column
+        if (showRankingCol==1){
+            // only at the end
+            rankingAfterAttempts.push(attempts);
+        } else if (showRankingCol==2) {
+            // where relevant
+            for (let as of attemptSettings){
+                if (as.sort>1){
+                    // only then is the ranking relevant
+                    if (! rankingAfterAttempts.includes(as.sortRankAfterAttempt)){
+                        rankingAfterAttempts.push(as.sortRankAfterAttempt);
+                    }
+                }
+                if (as.filterRank>0){
+                    // only then is the ranking relevant
+                    if (! rankingAfterAttempts.includes(as.filterAttempt)){
+                        rankingAfterAttempts.push(as.filterAttempt);
+                    }
+                }
+            }
+        } else if (showRankingCol==3) {
+            // always
+            for (let i=1; i<=attempts; i++){
+                rankingAfterAttempts.push(i);
+            }
+        }
 
         // create each series-container and add it to the contest
         for (let s of series){
@@ -2678,7 +2713,7 @@
                     }
                 }
 
-                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, heights, s.datetime);
+                let cSeries = new dSeriesSheetLong(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, s.datetime, true, attempts, showWindSpace, rankingAfterAttempts, showBestResCol);
 
                 // add each person in this series. Get the necessary information from the startgroup
                 for (let ssr of s.seriesstartsresults){
@@ -2693,7 +2728,7 @@
                             catName = cat.shortname;
                         }
 
-                        let p = new dPersonContestSheetHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, heights, ssr.startConf)
+                        let p = new dPersonContestSheetLong(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, ssr.startConf, attempts, showWindSpace, rankingAfterAttempts, showBestResCol)
 
                         cSeries.children.push(p);
                     } else {
@@ -2726,10 +2761,15 @@
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
      * @returns dContest instance with all series/persons as childs
      */
-    function createDataStructureResults (contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, tempRankingData, conf, xSeries=null){
+    function createDataStructureResults (contest, series, startgroups, categories, heights, disciplines, relatedGroups, sites, tempRankingData, conf, xSeries=null, showUnit=false, showUnitWind=false, showSignWind=false){
 
         // get the name of the discipline
-        let discName = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline)?.name 
+        const discipline = disciplines.find(d=>d.xBaseDiscipline==contest.xBaseDiscipline);
+        const discName = discipline?.name;
+
+        // figure out whether there is wind
+        const bc = JSON.parse(discipline.baseConfiguration)
+        const hasWind = bc.wind ? true : false; // wind should always be defined; neverthleess make sure that undefiend also works.
 
         // dContest sheet is the same (pContestSheet will be different) 
         let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories, {}, false);
@@ -2747,7 +2787,7 @@
                     }
                 }
 
-                let cSeries = new dSeriesSheetHigh(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, heights, s.datetime, series.length>1); // only show the series line when there is more than one series
+                let cSeries = new dSeriesSheetLong(s.xSeries, s.status, s.number, s.name, siteName, s.seriesstartsresults, heights, s.datetime, series.length>1); // only show the series line when there is more than one series
 
                 // add each person in this series. Get the necessary information from the startgroup
                 for (let ssr of s.seriesstartsresults){
@@ -2767,33 +2807,36 @@
 
                         // create an array with all results, where each result looks like: [3.50, 'XO', 0] // 0 denotes the jumpoffOrder
                         let results = [];
-                        for (let res of ssr.resultshigh){
-                            // find the height
-                            let h = s.heights.find(h=>h.xHeight == res.xHeight);
+                        for (let res of ssr.resultstech){
+
                             // create the string
                             let resultStr ='';
-                            resultStr += 'X'.repeat(res.resultsHighFailedAttempts);
-                            if (res.resultsHighValid){
-                                resultStr += 'O';
-                            }
-                            if (res.resultsHighPassed){
-                                resultStr += '-';
+                            if (res.status==1){
+                                resultStr = 'X';
+                            } else if (res.status==2){
+                                resultStr = '-';
+                            } else {
+                                // regular result
+                                resultStr = window.disciplineFormatters[2](res.result, discipline)
+                                if (hasWind){
+                                    resultStr += ` (${window.disciplineFormatters['2wind'](res.wind, showUnitWind, showSignWind)})`;
+                                }
                             }
                             results.push({
-                                height: h.height/100,
-                                resultStr,
-                                jumpoffOrder: h.jumpoffOrder,
+                                resultStr, // probably the only needed thing
+                                // probably not needed:
+                                attempt: res.attempt,
+                                result: res.result,
+                                wind: res.wind,
+                                status: res.status
                             })
                         }
                         // sort the results (should typically be sorted already; however, we never know...)
                         results.sort((a,b)=>{
-                            if (a.jumpoffOrder != b.jumpoffOrder){
-                                return a.jumpoffOrder - b.jumpoffOrder;
-                            }
-                            return a.height - b.height;
+                            return a.attempt - b.atempt;
                         })
 
-                        let p = new dPersonContestResultHigh(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, trd.rankUntil[trd.rankUntil.length-1], trd.lastValidHeight, results, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, ssr.qualification, true);
+                        let p = new dPersonContestResultLong(startGroup.athleteName, startGroup.athleteForename, startGroup.bib, startGroup.birthdate, startGroup.country, startGroup.regionShortname, startGroup.clubName, startGroup.eventGroupName, startGroup.xDiscipline, ssr.position, catName, trd.rankUntil[trd.rankUntil.length-1], trd.lastValidHeight, results, ssr.startConf, ssr.resultOverrule, ssr.resultRemark, ssr.qualification, true);
 
                         cSeries.children.push(p);
                     } else {
@@ -2826,8 +2869,8 @@
         const dataToPrint = {
             dHeaderFooter: pHeaderFooter,
             dContestSheet: pContestResultsHigh, 
-            dSeriesSheetHigh: pSeriesContestResultsHigh, 
-            dPersonContestResultHigh: pPersonContestResultHigh
+            dSeriesSheetLong: pSeriesContestResultsHigh, 
+            dPersonContestResultLong: pPersonContestResultHigh
         }
 
         let p = await printer.create([hf], dataToPrint, conf, true)
@@ -2845,15 +2888,15 @@
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructureSeries(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.allHeights, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, null);
+        let cContest = createDataStructureSeries(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, vueSeriesAdminTech.conf.attempts, vueSeriesAdminTech.conf.attemptSettings, null);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
 
         // define the translations from dataContainers to prtContainers
         const dataToPrint = {
             dHeaderFooter: pHeaderFooter,
-            dContestSheet: pContestSheetHigh,
-            dSeriesSheetHigh: pSeriesContestSheetHigh,
-            dPersonContestSheetHigh: pPersonContestSheetHigh
+            dContestSheet: pContestSheetLong,
+            dSeriesSheetLong: pSeriesContestSheetLong,
+            dPersonContestSheetLong: pPersonContestSheetLong
         }
 
         let p = await printer.create([hf], dataToPrint, conf, true)
