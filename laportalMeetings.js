@@ -330,6 +330,7 @@ export class laportal extends dataProvider{
 	}
 
 	destructor(){
+		this.logger.log(20, 'Destructor of laportalMeetings called. This will stop the intervals of getting the updated competitions.')
 		clearInterval(this.intervalCurrent);
 		clearInterval(this.intervalUpcoming);
 		clearInterval(this.intervalPast);
