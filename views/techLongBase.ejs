@@ -2644,6 +2644,7 @@
     // MODULE stuff for printing
     import {dContestSheet, dSeriesSheetLong, dPersonContestSheetLong, dPersonContestResultLong, dHeaderFooter, printer, pPersonContestSheetLong, pSeriesContestSheetLong, pContestSheetLong, pHeaderFooter, pPersonContestResultHigh, pSeriesContestResultsHigh, pContestResultsHigh} from "/static/printDocumentStructure.js";
 
+    // TODO: do NOT print the merged heat; do never show the "best so far"-column after the first attempt!; space for wind
 
     /**
      * Create the data structure for printing
@@ -2657,7 +2658,7 @@
      * @param {number} attepts number of attempts
      * @param {array} attemptSettings the attemptsettigns as defined in the contest configuration. 
      * @param {integer} xSeries The series to show. Null means that all series are printed. default=null 
-     * @param {integer} showRankingCol show ranking columns: 0=no, 1=at the end, 2=where relevant based on attemptSettings, 3=after every attempt
+     * @param {integer} showRankingCol show ranking columns: 0=no, 1=at the end, 2=where relevant based on attemptSettings, 3=1+2, 4=after every attempt
      * @param {boolean} showBestResCol Show an additional column for the best result so far before every ranking column.
      * @returns dContest instance with all series/persons as childs
      */
@@ -2674,10 +2675,7 @@
         let cContest =  new dContestSheet(contest.datetimeAppeal, contest.datetimeCall, contest.datetimeStart, contest.name, contest.status, contest.conf, discName, relatedGroups, categories);
         
         const rankingAfterAttempts = []; // sorted array after which attempts to show a ranking column
-        if (showRankingCol==1){
-            // only at the end
-            rankingAfterAttempts.push(attempts);
-        } else if (showRankingCol==2) {
+        if (showRankingCol==2 || showRankingCol==3) {
             // where relevant
             for (let as of attemptSettings){
                 if (as.sort>1){
@@ -2693,7 +2691,11 @@
                     }
                 }
             }
-        } else if (showRankingCol==3) {
+        } 
+        if (showRankingCol==1 || showRankingCol==3){
+            // at the end
+            rankingAfterAttempts.push(attempts);
+        } else if (showRankingCol==4) {
             // always
             for (let i=1; i<=attempts; i++){
                 rankingAfterAttempts.push(i);
@@ -2888,7 +2890,7 @@
         const {confPrint} = await import(`/${lang}/confPrint`);
         const conf = confPrint;
 
-        let cContest = createDataStructureSeries(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, vueSeriesAdminTech.conf.attempts, vueSeriesAdminTech.conf.attemptSettings, null);
+        let cContest = createDataStructureSeries(vueSeriesAdminTech.contest, vueSeriesAdminTech.series, vueSeriesAdminTech.startgroups, vueSeriesAdminTech.categories, vueSeriesAdminTech.disciplines, vueSeriesAdminTech.relatedGroups, vueSeriesAdminTech.sites, vueSeriesAdminTech.conf.attempts, vueSeriesAdminTech.conf.attemptSettings, null, 3, true);
         let hf = new dHeaderFooter([cContest], vueSeriesAdminTech.meeting);
 
         // define the translations from dataContainers to prtContainers

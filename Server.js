@@ -1330,7 +1330,10 @@ const translateConfPrint = async ()=>{
 			confPrintByLang[lang1] = confPrint[lang1];
 		} else {
 			// transfer every property in the language specific configuration to a copy of the default=en configuration.
-			let confCopy = JSON.parse(JSON.stringify(confPrint['en']));
+			// before 2026-01, this only worked with stuff that can be serialized; since functions were not copied. Now, we do not do any serializeation anymore
+			//let confCopy = JSON.parse(JSON.stringify(confPrint['en']));
+			let confCopy = {};
+			propertyTransfer(confPrint['en'], confCopy, true);
 			propertyTransfer(confPrint[lang1], confCopy, true);
 			confPrintByLang[lang1] = confCopy;
 		}
@@ -1691,6 +1694,8 @@ app.get('/:lang/login', (req, res, next)=>{
 app.get('/:lang/confPrint', async (req, res, next)=>{
 	logger.log(99, 'GET /:lang/confPrint');
 
+	// TODO: since this uses JSON.stringfy within ejs, any functions are lost.
+	// Shouldnt it be possible to simply provide the confPrintByLang[req.params.lang] object as it is?
 
 	res.type('application/javascript').send(await ejs.renderFile(conf.folders.views + 'confPrintI18n.ejs', {conf:confPrintByLang[req.params.lang]}));
 	// if we use the render function, the mime-tape is always text and not the required application/javascript (for javascript modules)

@@ -569,7 +569,7 @@ export class printingGeneral {
     * 3. if both options did not lead to a fitting text, apply one of four strategies defined by noFitStrategy:
     *    - cut (default): cut the text that does not fit and add a period at the end
     *    - overrun: simply do not care and overrun the available space
-    *    - wordWrap: (attention: do not use when the height of the cell is predefined!) does word wrapping between words and at "-". If a single word does not fit the line, then it is automaticaly horizontally scaled to fit. (Margin and font size are not reduced since it would look overly ugly together with the other regular lines.)
+    *    - wordWrap: (attention: if rowHeight is given, wordWrap is not applicable and will be overridden to overrun) does word wrapping between words and at "-". If a single word does not fit the line, then it is automaticaly horizontally scaled to fit. (Margin and font size are not reduced since it would look overly ugly together with the other regular lines.)
     *    - scale: scale the font-size to make it fit.
     * @param {string / array} cellConf.t text(s)
     * @param {string / array} cellConf.text alias for cellConf.t
@@ -679,7 +679,7 @@ export class printingGeneral {
         // prepare the options object for drawText
         let opts = {
             size: size,
-            lineHeight: lineHeight,
+            lineHeight: lineHeight*size, // lineHeight for pdf-lib is in absolute points; not relative to size.
             opacity: opacity,
             // ...
         };
@@ -695,6 +695,12 @@ export class printingGeneral {
 
         // vertical position (will be adapted for each line on word wrap):
         if (rowHeight){
+
+            // TODO: delete this again when we have found an appropriate strategy / algorithm for vertical fit
+            if (nf=='wordWrap'){ // since this is not applicable, overwrite it with overrun
+                nf='overrun';
+            }
+
             // apply the alignment
             if (alignmentV.toUpperCase() == 'C'){
                 opts.y = posY2 - (rowHeight-size)/2 - size;
@@ -709,8 +715,15 @@ export class printingGeneral {
 
         // the text is printed now
         // check if the text fits the space without any change
-        let widthUnscaled = f.widthOfTextAtSize(text, size);
+        // Note: widthOfTextAtSize cannot handle newline \n\r (10/13) 
+        let widthUnscaled = 0;
+        let nLines = 0;
+        for (let part of text.split(/[\r\n]+/g)){
+            widthUnscaled = Math.max(f.widthOfTextAtSize(part, size), widthUnscaled);
+            nLines++;
+        }
         let marginScaleApplied = 1;
+        // ATTETsizeNTION: the thicng will get rather complex when we apply the no-fit stragetgies below to horizontal AND vertical, especially when we have a fixed rowHeight
 
         // actually available space for the text, i.e. the total size minus the margins (will be updated if the margins are reduced)
         let sizeX2 = sizeX - marginLeft - marginRight;
@@ -758,7 +771,7 @@ export class printingGeneral {
                 page.drawText(text, opts);
 
             } else if (nf == "wordWrap") {
-                // do some word wrapping!
+                // do some word wrapping (for horizontal overrun)
 
                 // since we count the lines as we write them, we have to start counting at zero
                 lines = 0;
@@ -2239,8 +2252,8 @@ function longTableCreator(tableConf, cellConf, conf, attempts, rankingAfterAttem
         cc.t= attemptString;
         tableConf.cells.push(cc);
 
-        if (i in rankingAfterAttempts){
-            if (showBestResCol){
+        if (rankingAfterAttempts.includes(i)){
+            if (showBestResCol && i>1){ // do not show the bestResCol after just one result (it would make no sense)
                 tableConf.columns.push(conf.maxColWidthResults);
                 var cc = {...cellConf}
                 cc.t = conf.strBestRes;
@@ -2312,7 +2325,7 @@ export class pSeriesContestSheetLong extends printingGeneral{
         // const maxWidthReq = (attempts + rankingAfterAttempts.length*showBestResCol)*conf.maxColWidthResults + rankingAfterAttempts.length*conf.maxColWidthResults/conf.colWidthRatioResulToRank;
 
         // calculate the regular column width
-        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol)
+        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol) - rankingAfterAttempts.includes(1)*showBestResCol; // last part considers to not show the bestResCol after the first attempt
 
         // we have three different kinds of columns: reesults, ranks and bestresults. We should store begin and end of each in an array. Probably this should already be the printTableConfiguration. 
         // Thus create for printtable configurations: one with all cells (used to print the lines) and one for each content OR create only the overall one and store which cell is what separately
@@ -2878,15 +2891,14 @@ export class pPersonContestSheetLong extends pPerson {
         const opacity = conf.opacityBackground;
 
         // prepare the table for the results.
-        // calculate the regular column width
-        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol)
+        const nCol = attempts + rankingAfterAttempts.length*(1+showBestResCol) - rankingAfterAttempts.includes(1)*showBestResCol; // last part considers to not show the bestResCol after the first attempt
 
         // we have three different kinds of columns: reesults, ranks and bestresults. We should store begin and end of each in an array. Probably this should already be the printTableConfiguration. 
         // Thus create for printtable configurations: one with all cells (used to print the lines) and one for each content OR create only the overall one and store which cell is what separately
         // OR: provide the content and style of each kind of cell as input and create the final table here
         const tableConf = {
             cells:[],
-            margin:0,
+            margin:2,
             columns:[], // width in points; to be done below.
             totalWidth: globalConf.pageSize[0]-leftOffset-globalConf.marginLeft - globalConf.marginRight, // automatic scaling if needed
             linesVertical: new Array(nCol+1).fill(conf.lineWidth),
@@ -2909,8 +2921,6 @@ export class pPersonContestSheetLong extends pPerson {
         longTableCreator(tableConf, cellConf, conf, attempts, rankingAfterAttempts, showBestResCol); 
         
         pG.positionY -= await this.printTabularRow(tableConf, {}, page, globalConf.marginLeft+leftOffset, pG.positionY);
-
-        pG.positionY -= conf.spaceBetweenAthletes;
 
         return [page, pG];
     }

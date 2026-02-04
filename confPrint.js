@@ -557,6 +557,8 @@ export const confPrint={
             strHelp: 'O: gültiger Versuch, X: ungültiger Versuch, -: Verzicht auf Versuch, verz.: zurückgezogen vom Wettkampf, n.a.: nicht angetreten, o.g.V: ohne gültigen Versuch, disq.: disqualifiziert',
             strAppeal: 'Appell',
             strCall: 'Stellzeit',
+            strBestRes:'Best',
+            strRank: 'Rang\nWind',
             strAttemptAbbr: "V${i}", // ${i} will be replaced by i
         },
 
