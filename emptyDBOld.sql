@@ -677,7 +677,7 @@ CREATE TABLE IF NOT EXISTS `resultshigh` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8
-COMMENT = 'valid and passed could/should actually be in one tinyint (1 byte) column, since only one of them can by true at the same time; it would even be possible to store failedAttemps, valid and passed in one tinyint column and split it in those three properties on program side';
+COMMENT = 'maybe make a separate column for passed (verzichtet) trial, as it is not directly related to the sortOrder (taking an athlet to the beginning/end of a trial), but as only one on or the other (sortOrder or passing) is possible at the same height, this still works';
 
 
 -- -----------------------------------------------------
@@ -854,19 +854,18 @@ ENGINE = InnoDB;
 -- Table `resultstech`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `resultstech` (
-  `xResult` INT UNSIGNED NOT NULL,
-  `result` MEDIUMINT UNSIGNED NULL DEFAULT NULL COMMENT 'in mm\nnull means ',
+  `xResultTech` INT UNSIGNED NOT NULL,
+  `result` SMALLINT NOT NULL DEFAULT 0 COMMENT 'in cm',
   `attempt` TINYINT UNSIGNED NOT NULL COMMENT 'which attempt (start from 1)',
   `wind` SMALLINT NULL COMMENT 'unfortunately Wind must appear twice in the column-name\n\nmust be signed (+-)!\nin m/s\n',
-  `status` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = regular result\n1 = X / invalid (also set result to null)\n2 = - / passed\nif not regular, result and wind shall be null!',
-  PRIMARY KEY (`xResult`, `attempt`),
+  PRIMARY KEY (`xResultTech`),
   CONSTRAINT `fk_resultsTechWind_seriesStartsResults1`
-    FOREIGN KEY (`xResult`)
+    FOREIGN KEY (`xResultTech`)
     REFERENCES `seriesstartsresults` (`xSeriesStart`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
-COMMENT = 'shall be able to show: \n- invalid (status=1)\n- valid, but no result yet (status=0, but result=null and wind=null)\n- valid, with result (status=0, result=123 in mm, wind=123 in cm/s)\n- passed (status=2)\nif the discipline has no wind, the wind field should be null; any non-null value may be ignored and eventually overwritten in the next change';
+COMMENT = 'compared to tech: has wind\nfor horizontal jumps outdoor';
 
 
 -- -----------------------------------------------------
