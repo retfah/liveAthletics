@@ -217,7 +217,10 @@ class rContest extends roomServer{
                         this.data.startgroups = this.data.startgroups.concat(SIGs);
 
                         broadcastData.startgroups = SIGs; 
-                    }).catch(err=>{throw err});
+                    }).catch(err=>{
+                        this.logger.log(10, err);
+                        //throw err;
+                    });
 
                 Promise.all([promGroup, promSGs]).then(()=>{
                     // broadcast all the new data
@@ -232,6 +235,9 @@ class rContest extends roomServer{
                         }
                     }
                     this.broadcast(bcD); 
+                }).catch(ex=>{
+                    this.logger.log(10, ex);
+                    //throw ex;
                 });
 
                 // add listener for this group
@@ -253,6 +259,9 @@ class rContest extends roomServer{
         // resolve Promise for all mysql data loaded
         Promise.all([promiseSeries, promiseStartsInGroup, promiseGroups]).then(()=>{
             this.mysqlDataLoaded()
+        }).catch(err=>{
+            this.logger.log(10, err);
+            //throw err;
         })
 
 
